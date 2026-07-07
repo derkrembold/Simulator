@@ -1,0 +1,512 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 640 280"
+   width="640"
+   height="280"
+   font-family="Arial, sans-serif"
+   version="1.1"
+   id="svg24"
+   sodipodi:docname="messgeraet_mockup.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview24"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="2.67"
+     inkscape:cx="319.85019"
+     inkscape:cy="139.88764"
+     inkscape:window-width="2560"
+     inkscape:window-height="1369"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg24" />
+  <defs
+     id="defs2">
+    <radialGradient
+       id="silber"
+       cx="43"
+       cy="142.5"
+       r="30.000001"
+       fx="43"
+       fy="142.5"
+       gradientUnits="userSpaceOnUse">
+      <stop
+         offset="0%"
+         stop-color="#e8e8e8"
+         id="stop1" />
+      <stop
+         offset="100%"
+         stop-color="#999999"
+         id="stop2" />
+    </radialGradient>
+  </defs>
+  <!-- Geraetegehaeuse -->
+  <rect
+     width="640"
+     height="280"
+     fill="#cc0000"
+     rx="12"
+     id="rect2" />
+  <rect
+     x="8"
+     y="8"
+     width="624"
+     height="264"
+     fill="#dd1111"
+     rx="10"
+     id="rect3" />
+  <!-- Geraetename -->
+  <text
+     x="319.62546"
+     y="34.988766"
+     text-anchor="middle"
+     font-size="11px"
+     fill="#ffffff"
+     letter-spacing="2"
+     id="text3">BENNING IT 130</text>
+  <!-- ═══ LCD Display – mittig ═══ -->
+  <rect
+     x="190"
+     y="55"
+     width="260"
+     height="190"
+     rx="4"
+     fill="#dddddd"
+     stroke="#444"
+     stroke-width="1"
+     id="rect4" />
+  <text
+     x="198"
+     y="84"
+     font-size="13px"
+     font-weight="bold"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     id="text5">RCD I</text>
+  <text
+     x="259.138"
+     y="83.519348"
+     font-size="13px"
+     font-weight="bold"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     id="text5-7">30mA</text>
+  <line
+     x1="194"
+     y1="92"
+     x2="442"
+     y2="92"
+     stroke="#999999"
+     stroke-width="0.5"
+     id="line5" />
+  <line
+     x1="194.55806"
+     y1="195.12267"
+     x2="442.55804"
+     y2="195.12267"
+     stroke="#999999"
+     stroke-width="0.5"
+     id="line5-7" />
+  <text
+     x="320"
+     y="158"
+     text-anchor="middle"
+     font-size="52px"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     font-weight="bold"
+     id="text6">I:20,4mA</text>
+  <text
+     x="394.17978"
+     y="158"
+     font-size="20px"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     font-weight="bold"
+     id="text7" />
+  <text
+     x="199.1236"
+     y="184.51311"
+     font-size="12px"
+     font-weight="bold"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     id="text8">Uci:0.1V</text>
+  <text
+     x="330.73627"
+     y="185.78288"
+     font-size="12px"
+     font-weight="bold"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     id="text8-5">t:20,3ms</text>
+  <text
+     x="333.97293"
+     y="211.33963"
+     font-size="12px"
+     font-weight="bold"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     id="text8-1">L</text>
+  <text
+     x="367.30945"
+     y="210.96135"
+     font-size="12px"
+     font-weight="bold"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     id="text8-1-8">PE</text>
+  <text
+     x="404.23273"
+     y="210.33214"
+     font-size="12px"
+     font-weight="bold"
+     fill="#111111"
+     font-family="'Courier New', monospace"
+     id="text8-1-8-9">N</text>
+  <!-- ═══ TEST Taste – links außen, rund, silber ═══ -->
+  <circle
+     cx="56.614231"
+     cy="149.25093"
+     r="24"
+     fill="url(#silber)"
+     stroke="#888888"
+     stroke-width="2"
+     id="circle9"
+     style="fill:url(#silber)" />
+  <circle
+     cx="56.614231"
+     cy="149.25093"
+     r="18"
+     fill="#eeeeee"
+     stroke="#aaaaaa"
+     stroke-width="1.5"
+     id="circle10" />
+  <text
+     x="56.614231"
+     y="154.25093"
+     text-anchor="middle"
+     font-size="13px"
+     fill="#333333"
+     font-weight="bold"
+     id="text10">TEST</text>
+  <!-- ═══ AUF / AB / ◄► – 48x24px, Schrift 14px fett ═══ -->
+  <rect
+     x="109.71535"
+     y="81.273407"
+     width="48"
+     height="24"
+     rx="3"
+     fill="#111111"
+     stroke="#333333"
+     stroke-width="1"
+     id="rect10"
+     ry="3" />
+  <text
+     x="133.71536"
+     y="97.273415"
+     text-anchor="middle"
+     font-size="14px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text11">▲</text>
+  <rect
+     x="109.34082"
+     y="123.38577"
+     width="48"
+     height="24"
+     rx="3"
+     fill="#111111"
+     stroke="#333333"
+     stroke-width="1"
+     id="rect11"
+     ry="3" />
+  <text
+     x="133.34084"
+     y="139.38577"
+     text-anchor="middle"
+     font-size="14px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text12">▼</text>
+  <rect
+     x="109.71535"
+     y="162.50186"
+     width="48"
+     height="24"
+     rx="3"
+     fill="#111111"
+     stroke="#333333"
+     stroke-width="1"
+     id="rect12"
+     ry="3" />
+  <text
+     x="133.71536"
+     y="178.50186"
+     text-anchor="middle"
+     font-size="14px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text13">◄►</text>
+  <!-- ═══ Drehknopf – cx=560, cy=150 ═══ -->
+  <text
+     x="495.89511"
+     y="107.00375"
+     text-anchor="middle"
+     font-size="11px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text14">R LOW</text>
+  <text
+     x="537.52814"
+     y="95.378281"
+     text-anchor="middle"
+     font-size="11px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text15">R ISO</text>
+  <text
+     x="566.05249"
+     y="97.64045"
+     text-anchor="middle"
+     font-size="11px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text16">ZI</text>
+  <text
+     x="586.22339"
+     y="118.241"
+     text-anchor="middle"
+     font-size="11px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text16-9">ZS</text>
+  <text
+     x="592.72009"
+     y="174.70811"
+     text-anchor="middle"
+     font-size="11px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text16-9-2">V~</text>
+  <text
+     x="606.87646"
+     y="146.05992"
+     text-anchor="middle"
+     font-size="11px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text18">FI/RCD</text>
+  <!-- Skalierungsstriche -->
+  <line
+     x1="518.3858"
+     y1="112.50937"
+     x2="522.3858"
+     y2="118.50937"
+     stroke="#ffffff"
+     stroke-width="2.5"
+     id="line18" />
+  <line
+     x1="538.98462"
+     y1="112.91538"
+     x2="537.5697"
+     y2="107.0846"
+     stroke="#ffffff"
+     stroke-width="2.5"
+     id="line19" />
+  <line
+     x1="558.40497"
+     y1="108.8541"
+     x2="555.43024"
+     y2="115.42304"
+     stroke="#ffffff"
+     stroke-width="2.5"
+     id="line20" />
+  <line
+     x1="574.01984"
+     y1="122.47856"
+     x2="569.43073"
+     y2="126.34386"
+     stroke="#ffffff"
+     stroke-width="2.5"
+     id="line21"
+     inkscape:transform-center-x="-4.3132505"
+     inkscape:transform-center-y="4.3737433" />
+  <line
+     x1="579.99139"
+     y1="145.06006"
+     x2="572.79523"
+     y2="145.52417"
+     stroke="#ffffff"
+     stroke-width="2.5"
+     id="line22" />
+  <line
+     x1="577.86816"
+     y1="165.95889"
+     x2="571.31073"
+     y2="162.95869"
+     stroke="#ffffff"
+     stroke-width="2.5"
+     id="line22-8"
+     inkscape:transform-center-x="-6.2667709"
+     inkscape:transform-center-y="-0.38021993" />
+  <!-- Drehknopf Kreise -->
+  <circle
+     cx="542.39703"
+     cy="147.00374"
+     r="26"
+     fill="#1a1a1a"
+     stroke="#555555"
+     stroke-width="2"
+     id="circle22" />
+  <!-- Schlitzgriff -->
+  <rect
+     x="517.15356"
+     y="139.00374"
+     width="50.112362"
+     height="16"
+     rx="2.0000002"
+     fill="#555555"
+     stroke="#777777"
+     stroke-width="0.5"
+     id="rect23"
+     ry="2"
+     style="stroke:none" />
+  <!-- Zeiger weiss -->
+  <line
+     x1="548.38953"
+     y1="147.00374"
+     x2="564.38953"
+     y2="147.00374"
+     stroke="#ffffff"
+     stroke-width="3"
+     stroke-linecap="round"
+     id="line23" />
+  <!-- ═══ CAL – 60x30px, Schrift 13px fett ═══ -->
+  <rect
+     x="559.6629"
+     y="218.77904"
+     width="60"
+     height="30"
+     rx="4"
+     fill="#111111"
+     stroke="#333333"
+     stroke-width="1"
+     id="rect24"
+     ry="4" />
+  <text
+     x="589.6629"
+     y="237.77904"
+     text-anchor="middle"
+     font-size="13px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text24">CAL</text>
+  <rect
+     x="478.36893"
+     y="219.00937"
+     width="60"
+     height="30"
+     rx="4"
+     fill="#111111"
+     stroke="#333333"
+     stroke-width="1"
+     id="rect24-5"
+     ry="4" />
+  <text
+     x="508.36893"
+     y="238.00937"
+     text-anchor="middle"
+     font-size="13px"
+     font-weight="bold"
+     fill="#ffffff"
+     id="text24-5">ON/OFF</text>
+  <text
+     xml:space="preserve"
+     style="writing-mode:lr-tb;direction:ltr;fill:#000000;stroke:#000000;stroke-width:1.00157;stroke-opacity:0.891986"
+     x="610.48688"
+     y="150.5618"
+     id="text25"><tspan
+       sodipodi:role="line"
+       id="tspan24"></tspan></text>
+  <g
+     id="svg24-1"
+     transform="translate(135.00319,-0.86641431)">
+    <text
+       x="198"
+       y="84"
+       font-size="13px"
+       font-weight="bold"
+       fill="#111111"
+       font-family="'Courier New', monospace"
+       id="text5-1">AC~</text>
+  </g>
+  <text
+     xml:space="preserve"
+     style="writing-mode:lr-tb;direction:ltr;fill:#000000;stroke:#000000;stroke-width:1.00157;stroke-opacity:0.891986"
+     x="332.58426"
+     y="176.02995"
+     id="text26"><tspan
+       sodipodi:role="line"
+       id="tspan25"
+       x="332.58426"
+       y="176.02995" /></text>
+  <path
+     style="fill:#000000;stroke:#000000;stroke-width:1.00157;stroke-opacity:0.891986"
+     id="path28"
+     sodipodi:type="arc"
+     sodipodi:cx="337.45081"
+     sodipodi:cy="225.8427"
+     sodipodi:rx="8.2455063"
+     sodipodi:ry="8.2478771"
+     sodipodi:start="0"
+     sodipodi:end="6.2388503"
+     sodipodi:arc-type="slice"
+     d="m 345.69631,225.8427 a 8.2455063,8.2478771 0 0 1 -8.15412,8.24737 8.2455063,8.2478771 0 0 1 -8.33486,-8.06455 8.2455063,8.2478771 0 0 1 7.96935,-8.42614 8.2455063,8.2478771 0 0 1 8.51153,7.87777 l -8.2374,0.36555 z" />
+  <path
+     style="fill:#000000;stroke:#000000;stroke-width:1.00157;stroke-opacity:0.891986"
+     id="path28-6"
+     sodipodi:type="arc"
+     sodipodi:cx="373.70142"
+     sodipodi:cy="225.85361"
+     sodipodi:rx="8.2455063"
+     sodipodi:ry="8.2478771"
+     sodipodi:start="0"
+     sodipodi:end="6.2388503"
+     sodipodi:arc-type="slice"
+     d="m 381.94692,225.85361 a 8.2455063,8.2478771 0 0 1 -8.15411,8.24737 8.2455063,8.2478771 0 0 1 -8.33487,-8.06455 8.2455063,8.2478771 0 0 1 7.96935,-8.42614 8.2455063,8.2478771 0 0 1 8.51153,7.87777 l -8.2374,0.36555 z" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:1.00157;stroke-opacity:0.891986"
+     id="path28-6-1"
+     sodipodi:type="arc"
+     sodipodi:cx="408.95233"
+     sodipodi:cy="224.98094"
+     sodipodi:rx="8.2455063"
+     sodipodi:ry="8.2478771"
+     sodipodi:start="0"
+     sodipodi:end="6.2388503"
+     sodipodi:arc-type="slice"
+     d="m 417.19784,224.98094 a 8.2455063,8.2478771 0 0 1 -8.15412,8.24737 8.2455063,8.2478771 0 0 1 -8.33487,-8.06455 8.2455063,8.2478771 0 0 1 7.96936,-8.42614 8.2455063,8.2478771 0 0 1 8.51153,7.87777 l -8.23741,0.36555 z" />
+  <path
+     style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:1.00157;stroke-opacity:0.891986"
+     id="path28-6-7"
+     sodipodi:type="arc"
+     sodipodi:cx="408.69394"
+     sodipodi:cy="224.97345"
+     sodipodi:rx="8.2455063"
+     sodipodi:ry="8.2478771"
+     sodipodi:start="5.4252923"
+     sodipodi:end="2.2753756"
+     sodipodi:arc-type="slice"
+     d="m 414.08677,218.73421 a 8.2455063,8.2478771 0 0 1 0.86701,11.60761 8.2455063,8.2478771 0 0 1 -11.60057,0.91556 l 5.34073,-6.28393 z" />
+</svg>

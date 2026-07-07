@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>TREI Prüfungs-Simulator</title>
+  <style>
+    body { font-family: sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    #schaltkasten { background: #fff; }
+    .popup {
+      position: fixed;
+      display: none;
+      background: #222;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      transform: translate(-50%, -120%);
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="schaltkasten"></div>
+  <script type="module" src="controller/app.js"></script>
+</body>
+</html>

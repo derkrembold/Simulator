@@ -1,0 +1,438 @@
+{
+  "name": "Unterverteiler Testcase 03",
+  "beschreibung": "3 RCDs auf einer Schiene: RCD -> LS -> LS (x3)",
+  "netzform": "TN-S",
+  "spannung_einspeisung": 400,
+  "spannung_stromkreise": 230,
+
+  "reihenklemmen": {
+    "vorhanden": true,
+    "breite_mm": 6,
+    "hoehe_mm": 49
+  },
+
+  "l_klemme": {
+    "vorhanden": true,
+    "breite_mm": 12,
+    "hoehe_mm": 49,
+    "querschnitt_mm2": 16
+  },
+
+  "n_klemme": {
+    "vorhanden": true,
+    "breite_mm": 12,
+    "hoehe_mm": 49,
+    "querschnitt_mm2": 16
+  },
+
+  "pe_klemme": {
+    "vorhanden": true,
+    "breite_mm": 12,
+    "hoehe_mm": 49,
+    "querschnitt_mm2": 16
+  },
+
+  "hauptsicherung": {
+    "typ": "Hauptschalter",
+    "polig": 2,
+    "in": 25,
+    "te": 2,
+    "farbe": "schwarz",
+    "eingang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 10 },
+          { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 10 },
+          { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 10 }
+        ]
+      }
+    },
+    "ausgang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 10 },
+          { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 10 },
+          { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 10 }
+        ]
+      }
+    }
+  },
+
+  "hutschienen": [
+    { "gruppen": [
+    {
+      "id": "G1",
+      "bezeichnung": "Gruppe 1",
+      "phase": "L1",
+      "rcd": {
+        "typ": "A",
+        "polig": 2,
+        "te": 2,
+        "in_ma": 30,
+        "nennstrom_a": 40,
+        "selektiv": false,
+        "abklemmen_bei_iso": false,
+        "max_ls_anzahl": 2,
+        "eingang": {
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 2.5 }
+            ]
+          }
+        },
+        "ausgang": {
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 2.5 }
+            ]
+          }
+        }
+      },
+      "stromkreise": [
+        {
+          "nr": 1,
+          "bezeichnung": "SK1",
+          "ziel": "Steckdosen Zimmer 1",
+          "phasen": ["L1"],
+          "ls": {
+            "char": "B",
+            "in": 16,
+            "polig": 1,
+            "te": 1,
+            "eingang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 2.5 },
+                  { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 2.5 },
+                  { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 2.5 }
+                ]
+              }
+            },
+            "ausgang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 2.5 },
+                  { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 2.5 },
+                  { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 2.5 }
+                ]
+              }
+            }
+          },
+          "afdd": null,
+          "endstelle": "Steckdose",
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 2.5 }
+            ]
+          },
+          "messungen": { "zi": false, "zs": true, "rcd": true }
+        },
+        {
+          "nr": 2,
+          "bezeichnung": "SK2",
+          "ziel": "Licht Zimmer 1",
+          "phasen": ["L1"],
+          "ls": {
+            "char": "B",
+            "in": 10,
+            "polig": 1,
+            "te": 1,
+            "eingang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 1.5 },
+                  { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 1.5 },
+                  { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 1.5 }
+                ]
+              }
+            },
+            "ausgang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 1.5 },
+                  { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 1.5 },
+                  { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 1.5 }
+                ]
+              }
+            }
+          },
+          "afdd": null,
+          "endstelle": "Lichtauslass",
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 1.5 },
+              { "funktion": "N",  "farbe": "blau",    "querschnitt_mm2": 1.5 },
+              { "funktion": "PE", "farbe": "gn-ge",   "querschnitt_mm2": 1.5 }
+            ]
+          },
+          "messungen": { "zi": false, "zs": true, "rcd": true }
+        }
+      ]
+    }
+  ] },
+    { "gruppen": [
+    {
+      "id": "G2",
+      "bezeichnung": "Gruppe 2",
+      "phase": "L2",
+      "rcd": {
+        "typ": "A",
+        "polig": 2,
+        "te": 2,
+        "in_ma": 30,
+        "nennstrom_a": 40,
+        "selektiv": false,
+        "abklemmen_bei_iso": false,
+        "max_ls_anzahl": 2,
+        "eingang": {
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L2", "farbe": "braun", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau",  "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+            ]
+          }
+        },
+        "ausgang": {
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L2", "farbe": "braun", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau",  "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+            ]
+          }
+        }
+      },
+      "stromkreise": [
+        {
+          "nr": 3,
+          "bezeichnung": "SK3",
+          "ziel": "Steckdosen Zimmer 2",
+          "phasen": ["L2"],
+          "ls": {
+            "char": "B",
+            "in": 16,
+            "polig": 1,
+            "te": 1,
+            "eingang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L2", "farbe": "braun", "querschnitt_mm2": 2.5 },
+                  { "funktion": "N",  "farbe": "blau",  "querschnitt_mm2": 2.5 },
+                  { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+                ]
+              }
+            },
+            "ausgang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L2", "farbe": "braun", "querschnitt_mm2": 2.5 },
+                  { "funktion": "N",  "farbe": "blau",  "querschnitt_mm2": 2.5 },
+                  { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+                ]
+              }
+            }
+          },
+          "afdd": null,
+          "endstelle": "Steckdose",
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L2", "farbe": "braun", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau",  "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+            ]
+          },
+          "messungen": { "zi": false, "zs": true, "rcd": true }
+        },
+        {
+          "nr": 4,
+          "bezeichnung": "SK4",
+          "ziel": "Steckdosen Zimmer 3",
+          "phasen": ["L2"],
+          "ls": {
+            "char": "B",
+            "in": 16,
+            "polig": 1,
+            "te": 1,
+            "eingang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L2", "farbe": "braun", "querschnitt_mm2": 2.5 },
+                  { "funktion": "N",  "farbe": "blau",  "querschnitt_mm2": 2.5 },
+                  { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+                ]
+              }
+            },
+            "ausgang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L2", "farbe": "braun", "querschnitt_mm2": 2.5 },
+                  { "funktion": "N",  "farbe": "blau",  "querschnitt_mm2": 2.5 },
+                  { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+                ]
+              }
+            }
+          },
+          "afdd": null,
+          "endstelle": "Steckdose",
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L2", "farbe": "braun", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau",  "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+            ]
+          },
+          "messungen": { "zi": false, "zs": true, "rcd": true }
+        }
+      ]
+    },
+    {
+      "id": "G3",
+      "bezeichnung": "Gruppe 3",
+      "phase": "L3",
+      "rcd": {
+        "typ": "A",
+        "polig": 2,
+        "te": 2,
+        "in_ma": 30,
+        "nennstrom_a": 40,
+        "selektiv": false,
+        "abklemmen_bei_iso": false,
+        "max_ls_anzahl": 2,
+        "eingang": {
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L3", "farbe": "grau", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau", "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+            ]
+          }
+        },
+        "ausgang": {
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L3", "farbe": "grau", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau", "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+            ]
+          }
+        }
+      },
+      "stromkreise": [
+        {
+          "nr": 5,
+          "bezeichnung": "SK5",
+          "ziel": "Steckdosen Zimmer 4",
+          "phasen": ["L3"],
+          "ls": {
+            "char": "B",
+            "in": 16,
+            "polig": 1,
+            "te": 1,
+            "eingang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L3", "farbe": "grau", "querschnitt_mm2": 2.5 },
+                  { "funktion": "N",  "farbe": "blau", "querschnitt_mm2": 2.5 },
+                  { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+                ]
+              }
+            },
+            "ausgang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L3", "farbe": "grau", "querschnitt_mm2": 2.5 },
+                  { "funktion": "N",  "farbe": "blau", "querschnitt_mm2": 2.5 },
+                  { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+                ]
+              }
+            }
+          },
+          "afdd": null,
+          "endstelle": "Steckdose",
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L3", "farbe": "grau", "querschnitt_mm2": 2.5 },
+              { "funktion": "N",  "farbe": "blau", "querschnitt_mm2": 2.5 },
+              { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 2.5 }
+            ]
+          },
+          "messungen": { "zi": false, "zs": true, "rcd": true }
+        },
+        {
+          "nr": 6,
+          "bezeichnung": "SK6",
+          "ziel": "Licht Zimmer 2",
+          "phasen": ["L3"],
+          "ls": {
+            "char": "B",
+            "in": 10,
+            "polig": 1,
+            "te": 1,
+            "eingang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L3", "farbe": "grau", "querschnitt_mm2": 1.5 },
+                  { "funktion": "N",  "farbe": "blau", "querschnitt_mm2": 1.5 },
+                  { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 1.5 }
+                ]
+              }
+            },
+            "ausgang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  { "funktion": "L3", "farbe": "grau", "querschnitt_mm2": 1.5 },
+                  { "funktion": "N",  "farbe": "blau", "querschnitt_mm2": 1.5 },
+                  { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 1.5 }
+                ]
+              }
+            }
+          },
+          "afdd": null,
+          "endstelle": "Lichtauslass",
+          "leitung": {
+            "typ": "NYM-J",
+            "adern": [
+              { "funktion": "L3", "farbe": "grau", "querschnitt_mm2": 1.5 },
+              { "funktion": "N",  "farbe": "blau", "querschnitt_mm2": 1.5 },
+              { "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 1.5 }
+            ]
+          },
+          "messungen": { "zi": false, "zs": true, "rcd": true }
+        }
+      ]
+    }
+  ] }
+  ]
+}

@@ -189,6 +189,23 @@
                   }
                 ]
               },
+              "reihenklemmen_eingang": {
+                "l": {
+                  "funktion": "L1",
+                  "farbe": "schwarz",
+                  "querschnitt_mm2": 2.5
+                },
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 2.5
+                },
+                "pe": {
+                  "funktion": "PE",
+                  "farbe": "gn-ge",
+                  "querschnitt_mm2": 2.5
+                }
+              },
               "messungen": {
                 "zi": false,
                 "zs": true,
@@ -253,6 +270,19 @@
                     "querschnitt_mm2": 1.5
                   }
                 ]
+              },
+              "reihenklemmen_eingang": {
+                "l": {
+                  "funktion": "L1",
+                  "farbe": "schwarz",
+                  "querschnitt_mm2": 1.5
+                },
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 2.5
+                },
+                "pe": null
               },
               "messungen": {
                 "zi": false,
@@ -370,6 +400,19 @@
                   }
                 ]
               },
+              "reihenklemmen_eingang": {
+                "l": {
+                  "funktion": "L1",
+                  "farbe": "schwarz",
+                  "querschnitt_mm2": 2.5
+                },
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 2.5
+                },
+                "pe": null
+              },
               "messungen": {
                 "zi": false,
                 "zs": true,
@@ -434,6 +477,19 @@
                     "querschnitt_mm2": 2.5
                   }
                 ]
+              },
+              "reihenklemmen_eingang": {
+                "l": {
+                  "funktion": "L1",
+                  "farbe": "schwarz",
+                  "querschnitt_mm2": 2.5
+                },
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 2.5
+                },
+                "pe": null
               },
               "messungen": {
                 "zi": false,

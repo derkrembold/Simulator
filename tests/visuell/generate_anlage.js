@@ -278,6 +278,25 @@ function generiereAnlage(ordner) {
         return treffer ? baueAder(treffer, funktion) : null;
       }).filter(Boolean);
 
+      // Eingangsseite der drei Reihenklemmen (L/N/PE) - kann von der Ausgangsseite
+      // (leitung, oben) abweichen, z.B. wenn `io1` der PE-Reihenklemme unverbunden
+      // ist (PE kommt dann nur über den Hutschienen-Bond, siehe Annahmen in
+      // netzplan.md). null, wenn nichts angeschlossen ist.
+      const reihenklemmenEingang = {
+        l: (() => {
+          const t = findeNetz(netze, `Reihenklemme_L_${skNr}.i1`);
+          return t ? baueAder(t, phase) : null;
+        })(),
+        n: (() => {
+          const t = findeNetz(netze, `Reihenklemme_N_${skNr}.i1`);
+          return t ? baueAder(t, 'N') : null;
+        })(),
+        pe: (() => {
+          const t = findeNetz(netze, `Reihenklemme_PE_${skNr}.io1`);
+          return t ? baueAder(t, 'PE') : null;
+        })()
+      };
+
       return {
         nr: parseInt(skNr.replace('SK', ''), 10),
         bezeichnung: skNr,
@@ -294,6 +313,7 @@ function generiereAnlage(ordner) {
         afdd: null,
         endstelle: sk.endstelle,
         leitung: { typ: leitungKabeltyp ?? 'NYM-J', adern: leitungAdern },
+        reihenklemmen_eingang: reihenklemmenEingang,
         messungen: { zi: sk.zi, zs: sk.zs, rcd: sk.rcd }
       };
     });

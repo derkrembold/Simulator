@@ -264,6 +264,13 @@ Gruppen darauf in 300mm passen:
 Das Messgerät wird als eigene Komponente **unterhalb des Schaltkastens** angezeigt.
 Grundlage ist das Mockup `docs/referenz/messgeraet_mockup.svg`.
 
+**Reale Breite:** 230 mm (BENNING IT 130), im selben Maßstab wie der Schaltkasten
+dargestellt (1mm = 2px, siehe "Maßstab") → 460px angezeigte Breite. Das interne
+SVG-Koordinatensystem (`view/messgeraet.js`, `BREITE = 640`/`HOEHE = 280`, vom
+Mockup übernommen) bleibt unverändert; die Anzeigegröße wird separat über die
+`width`/`height`-Attribute auf 460px skaliert (`viewBox` bleibt `0 0 640 280`).
+Die Höhe ist proportional mitskaliert (keine reale Gerätehöhe dokumentiert).
+
 ### Bedienelemente (als DOM-Elemente)
 
 Alle Bedienelemente werden – wie beim Schaltkasten – per JavaScript aus einzelnen
@@ -312,6 +319,14 @@ werden (wie das Anlegen der Messspitzen). Erst ein anschließender Klick auf die
 | ZS           | 3                          | $Z_s$ – Schleifenimpedanz |
 | FI/RCD       | 3                          | RCD-Messung: $U_B$, $t_A$, $I_A$ |
 | V~           | 3                          | Spannungsfall / AC-Spannung |
+
+**◄►-Taste (Pfeil links/rechts):**
+Wandert durch die Werte in der oberen Zeile des Displays (Titel, und falls vorhanden
+weitere Werte daneben – z.B. bei ZI: LS-Typ, Bemessungsstrom, Abschaltzeit) und markiert
+das jeweils ausgewählte Feld **invers** (weißer Text auf schwarzem Kästchen statt
+schwarzem Text ohne Hintergrund). Zyklisch, mit Wrap-around zurück zum Titel. Zeigt an,
+welcher Wert gerade ausgewählt ist – Grundlage für eine spätere Erweiterung, bei der ▲/▼
+den ausgewählten Wert ändern (z.B. Messspannung bei RISO, LS-Typ bei ZI/ZS).
 
 ### Display
 
@@ -384,6 +399,33 @@ von `Widerstand`-Bauteilen (kein Spannungsteiler-Modell). Spätere Erweiterung m
 - **`vorimpedanz`** – feste Basisimpedanz der Trafostation/Einspeisung, die bei jeder
   Zi/Zs-Berechnung automatisch mit einfließt (reale Schleifenimpedanz ist nie 0, auch
   ohne jeden Fehler). Default irgendwo im Bereich 0.1–0.5Ω.
+- **Messspannung (RISO)** – Prüfspannung für die Isolationswiderstandsmessung, am
+  Messgerät wählbar (Pfeiltasten). Gültige Werte nach VDE 0100-600/IEC 61557-2:
+  100V, 250V, 500V, 1000V. Default 500V. Aktuell fester Platzhalter in
+  `view/messgeraet.js` (`messspannung`-Feld pro Drehknopf-Stellung), noch nicht
+  über die Pfeiltasten einstellbar.
+- **Referenz-LS (ZI/ZS)** – bei der Leitungs-/Schleifenimpedanzmessung zeigt das
+  Display zusätzlich den LS an, gegen dessen Auslösebedingungen die gemessene
+  Impedanz geprüft werden soll: Charakteristik (B/C/D/K/Z), Bemessungsstrom
+  (Normreihe, siehe `docs/referenz/bauteilwerte.md`) und die geforderte max.
+  Abschaltzeit (0,2s oder 0,4s nach VDE 0100-410). Defaults: B, 16A, 0,4s.
+  Aktuell feste Platzhalter in `view/messgeraet.js` (`lsTyp`/`lsBemessungsstrom`/
+  `abschaltzeitGrenzwert`), noch nicht über die Pfeiltasten einstellbar.
+- **Isc/Lim (ZI/ZS)** – unten im Display, über dem Strich: `Isc` (links) ist der
+  gemessene/berechnete Kurzschlussstrom, noch kein Wert (Platzhalter `---`, wird
+  später aus dem Netzplan berechnet). `Lim` (rechts) ist der Mindestauslösestrom,
+  den die Charakteristik des Referenz-LS für ein Auslösen innerhalb der
+  Abschaltzeit braucht – hängt von **beiden** Referenzwerten ab, `lsTyp` **und**
+  `lsBemessungsstrom` (nicht nur vom Typ): `Lim = Referenzwert_bei_16A(lsTyp) ×
+  (lsBemessungsstrom / 16)`. Referenzwerte bei 16A (`LIM_REFERENZ_BEI_16A_NACH_LS_TYP`
+  in `view/messgeraet.js`): B=80A, C=160A, K=240A, D=320A, Z=48A, L=85A, U=192A,
+  NV/gG=107,4A.
+- **Fehlerstrom/Typ (FI/RCD)** – neben dem Titel "RCD I" zeigt das Display den
+  geprüften RCD an: Fehlerstrom (mittig, Normreihe siehe
+  `docs/referenz/bauteilwerte.md`: 10mA, 30mA, 100mA, 300mA, 500mA; Default 30mA)
+  und Typ (rechts daneben: AC, A, B, B+; Default AC). Aktuell feste Platzhalter in
+  `view/messgeraet.js` (`rcdFehlerstrom`/`rcdTyp`), noch nicht über die Pfeiltasten
+  einstellbar.
 
 ---
 
@@ -562,6 +604,12 @@ hat entweder das eine oder die drei anderen, nie beides.
   "ls": { ... },
   "afdd": null,
   "endstelle": "Steckdose",
+  "leitung": { "typ": "NYM-J", "adern": [ { "funktion": "L1", ... }, { "funktion": "N", ... }, { "funktion": "PE", ... } ] },
+  "reihenklemmen_eingang": {
+    "l": { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 2.5 },
+    "n": { "funktion": "N", "farbe": "blau", "querschnitt_mm2": 2.5 },
+    "pe": null
+  },
   "messungen": {
     "zi": false,
     "zs": true,
@@ -574,6 +622,16 @@ hat entweder das eine oder die drei anderen, nie beides.
 nur relevant, wenn der Stromkreis hinter einem RCD liegt). Die eigentlichen Messwerte
 werden **nicht** hier gespeichert, sondern zur Laufzeit aus dem Netzplan berechnet –
 siehe "Messgerät (BENNING IT 130)" → "Berechnung der Messwerte".
+
+`leitung` ist die Ausgangsseite der Reihenklemmen (das eine physische Kabel zur
+Endstelle) – dieselbe Ader gilt für die untere Schraube aller drei Reihenklemmen
+(L/N/PE). `reihenklemmen_eingang` ist die **Eingangsseite** und kann davon abweichen:
+z.B. hat die PE-Reihenklemme oft **kein** eigenes Zubringerkabel (PE kommt dann nur
+über den Hutschienen-Bond, siehe "Netzliste" → Hutschienen-Bond) – in dem Fall ist
+`pe: null`, und die entsprechende Schraube im Rendering ist unverbunden (keine
+`data-querschnitt`/`data-farbe`-Attribute, nicht anklickbar). Fehlt das Feld
+`reihenklemmen_eingang` komplett (z.B. bei handgeschriebenen Anlagen ohne
+Netzplan-Ursprung), fällt der Renderer auf die Ausgangsseite zurück.
 
 **Endstellen:** Steckdose, CEE-Steckdose 16A, CEE-Steckdose 32A, Festanschluss, Lichtauslass
 

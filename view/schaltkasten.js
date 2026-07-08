@@ -129,16 +129,26 @@ export const SchaltkastenView = {
     for (const hutschiene of anlage.hutschienen) {
       for (const gruppe of hutschiene.gruppen) {
         for (const sk of gruppe.stromkreise) {
+          // Ausgangsseite (zur Endstelle) kommt aus sk.leitung - immer vorhanden.
           const adern = sk.leitung?.adern ?? [];
-          const l = adern.find((a) => a.funktion.startsWith('L'));
-          const n = findeAder(adern, 'N');
-          const pe = findeAder(adern, 'PE');
+          const lAusgang = adern.find((a) => a.funktion.startsWith('L'));
+          const nAusgang = findeAder(adern, 'N');
+          const peAusgang = findeAder(adern, 'PE');
 
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, aderEingang: l, aderAusgang: l, onSchraubeKlick });
+          // Eingangsseite kann abweichen (z.B. PE-Reihenklemme ohne eigenes
+          // Zubringerkabel, siehe reihenklemmen_eingang in generate_anlage.js).
+          // Fehlt das Feld ganz (ältere/handgeschriebene anlage.json ohne
+          // Netzplan-Ursprung), auf die Ausgangsseite zurückfallen.
+          const eingang = sk.reihenklemmen_eingang;
+          const lEingang = eingang ? eingang.l : lAusgang;
+          const nEingang = eingang ? eingang.n : nAusgang;
+          const peEingang = eingang ? eingang.pe : peAusgang;
+
+          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, aderEingang: lEingang, aderAusgang: lAusgang, onSchraubeKlick });
           x += RK_BREITE;
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_n }, aderEingang: n, aderAusgang: n, onSchraubeKlick });
+          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_n }, aderEingang: nEingang, aderAusgang: nAusgang, onSchraubeKlick });
           x += RK_BREITE;
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_pe }, aderEingang: pe, aderAusgang: pe, onSchraubeKlick });
+          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_pe }, aderEingang: peEingang, aderAusgang: peAusgang, onSchraubeKlick });
           x += RK_BREITE;
         }
       }

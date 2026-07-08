@@ -45,3 +45,9 @@ sind. Konsolidiert aus KONZEPT.md plus ergänzten Normreihen.
 ## Sonstige Felder
 
 **Abklemmen:** ja, nein
+
+## Hutschiene (Gehäuse-Referenz, kein Feld in bauteile.md)
+
+Kein Bauteil-Feld, sondern eine feste Eigenschaft der Schiene/des Gehäuses selbst –
+Breite, Länge und die daraus abgeleitete max. TE-Anzahl stehen in `KONZEPT.md`
+("Maßstab (1mm = 2px)") und im Code (`model/anlage.js`, `MAX_TE_PRO_HUTSCHIENE`).

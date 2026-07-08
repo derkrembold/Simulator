@@ -1,8 +1,20 @@
 {
   "reihenklemmen": { "breite_mm": 6, "hoehe_mm": 49 },
-  "l_klemme": { "breite_mm": 12, "hoehe_mm": 49, "querschnitt_mm2": 16 },
-  "n_klemme": { "breite_mm": 12, "hoehe_mm": 49, "querschnitt_mm2": 16 },
-  "pe_klemme": { "breite_mm": 12, "hoehe_mm": 49, "querschnitt_mm2": 16 },
+  "l_klemme": {
+    "breite_mm": 12, "hoehe_mm": 49,
+    "eingang": { "leitung": { "typ": "NYM-J", "adern": [{ "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 16 }] } },
+    "ausgang": { "leitung": { "typ": "NYM-J", "adern": [{ "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 16 }] } }
+  },
+  "n_klemme": {
+    "breite_mm": 12, "hoehe_mm": 49,
+    "eingang": { "leitung": { "typ": "NYM-J", "adern": [{ "funktion": "N", "farbe": "blau", "querschnitt_mm2": 16 }] } },
+    "ausgang": { "leitung": { "typ": "NYM-J", "adern": [{ "funktion": "N", "farbe": "blau", "querschnitt_mm2": 16 }] } }
+  },
+  "pe_klemme": {
+    "breite_mm": 12, "hoehe_mm": 49,
+    "eingang": { "leitung": { "typ": "NYM-J", "adern": [{ "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 16 }] } },
+    "ausgang": { "leitung": { "typ": "NYM-J", "adern": [{ "funktion": "PE", "farbe": "gn-ge", "querschnitt_mm2": 16 }] } }
+  },
   "hauptsicherung": {
     "typ": "SLS",
     "polig": 2,

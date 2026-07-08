@@ -81,15 +81,14 @@ function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang
   return breite;
 }
 
-function klemme(svg, { x, y, breite, hoehe, farben, querschnitt, farbe, onSchraubeKlick }) {
+function klemme(svg, { x, y, breite, hoehe, farben, aderEingang, aderAusgang, onSchraubeKlick }) {
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: hoehe, fill: farben.gehaeuse, stroke: '#555555', 'stroke-width': 1 }));
   if (farben.header) {
     svg.appendChild(svgEl('rect', { x, y, width: breite, height: 10, fill: farben.header }));
   }
-  const ader = { querschnitt_mm2: querschnitt, farbe };
   const cx = x + breite / 2;
-  schraube(svg, cx, y + 8, ader, onSchraubeKlick);
-  schraube(svg, cx, y + hoehe - 8, ader, onSchraubeKlick);
+  schraube(svg, cx, y + 8, aderEingang, onSchraubeKlick);
+  schraube(svg, cx, y + hoehe - 8, aderAusgang, onSchraubeKlick);
 }
 
 function findeAder(adern, funktion) {
@@ -135,11 +134,11 @@ export const SchaltkastenView = {
           const n = findeAder(adern, 'N');
           const pe = findeAder(adern, 'PE');
 
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, querschnitt: l?.querschnitt_mm2, farbe: l?.farbe, onSchraubeKlick });
+          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, aderEingang: l, aderAusgang: l, onSchraubeKlick });
           x += RK_BREITE;
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_n }, querschnitt: n?.querschnitt_mm2, farbe: n?.farbe, onSchraubeKlick });
+          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_n }, aderEingang: n, aderAusgang: n, onSchraubeKlick });
           x += RK_BREITE;
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_pe }, querschnitt: pe?.querschnitt_mm2, farbe: pe?.farbe, onSchraubeKlick });
+          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_pe }, aderEingang: pe, aderAusgang: pe, onSchraubeKlick });
           x += RK_BREITE;
         }
       }
@@ -186,16 +185,42 @@ export const SchaltkastenView = {
       adernAusgang: hs.ausgang.leitung.adern,
       onSchraubeKlick
     });
+    for (const feld of ['l1_klemme', 'l2_klemme', 'l3_klemme']) {
+      if (anlage[feld]) {
+        klemme(g, {
+          x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.l_klemme,
+          aderEingang: anlage[feld].eingang.leitung.adern[0],
+          aderAusgang: anlage[feld].ausgang.leitung.adern[0],
+          onSchraubeKlick
+        });
+        hx += KLEMME_BREITE;
+      }
+    }
     if (anlage.l_klemme) {
-      klemme(g, { x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.l_klemme, querschnitt: anlage.l_klemme.querschnitt_mm2, farbe: 'grau', onSchraubeKlick });
+      klemme(g, {
+        x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.l_klemme,
+        aderEingang: anlage.l_klemme.eingang.leitung.adern[0],
+        aderAusgang: anlage.l_klemme.ausgang.leitung.adern[0],
+        onSchraubeKlick
+      });
       hx += KLEMME_BREITE;
     }
     if (anlage.n_klemme) {
-      klemme(g, { x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.n_klemme, querschnitt: anlage.n_klemme.querschnitt_mm2, farbe: 'blau', onSchraubeKlick });
+      klemme(g, {
+        x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.n_klemme,
+        aderEingang: anlage.n_klemme.eingang.leitung.adern[0],
+        aderAusgang: anlage.n_klemme.ausgang.leitung.adern[0],
+        onSchraubeKlick
+      });
       hx += KLEMME_BREITE;
     }
     if (anlage.pe_klemme) {
-      klemme(g, { x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.pe_klemme, querschnitt: anlage.pe_klemme.querschnitt_mm2, farbe: 'gn-ge', onSchraubeKlick });
+      klemme(g, {
+        x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.pe_klemme,
+        aderEingang: anlage.pe_klemme.eingang.leitung.adern[0],
+        aderAusgang: anlage.pe_klemme.ausgang.leitung.adern[0],
+        onSchraubeKlick
+      });
       hx += KLEMME_BREITE;
     }
 

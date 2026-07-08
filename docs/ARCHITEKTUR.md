@@ -131,6 +131,29 @@ for (const tc of testcases) {
 
 Bei jeder Code-Änderung: `run_tests.js` ausführen → sofortiges Feedback.
 
+**Verdrahtungsprüfung über Attribute:** Jede Schraube trägt im SVG zusätzlich
+`data-querschnitt` und `data-farbe` (siehe `schraube()` in `schaltkasten.js`). Da der
+Vergleich das komplette SVG-Markup als String prüft, deckt er dadurch auch ab, ob die
+richtige Ader (Eingang/Ausgang) an der richtigen Schraube hängt – nicht nur, ob das Bild
+optisch gleich aussieht. Ein separates Testscript dafür ist nicht nötig.
+
+**Netzplan-Konsistenzprüfung:** Für Testcases mit `netzplan.md`+`bauteile.md` (siehe
+KONZEPT.md, Abschnitt "Netzliste") prüft `run_tests.js` zusätzlich, *bevor* es den
+SVG-Vergleich macht, ob die eingecheckte `anlage.json` noch exakt dem entspricht, was
+`generate_anlage.js` aktuell aus dem Netzplan erzeugen würde (`generiereAnlage()` wird
+dafür als Modul importiert, nicht nur per CLI aufgerufen). Damit kann `anlage.json`
+nicht mehr unbemerkt vom Netzplan wegdriften – z.B. nach einer Netzplan-Änderung, die
+vergessen wurde zu promoten. Bei Abweichung: `FAIL (Netzplan)` statt eines stillen
+Weitertestens mit veralteten Daten. Testcases ohne Netzplan (z.B. `beispiel_eg.json`)
+werden dabei übersprungen, da keine Quelle zum Abgleichen existiert.
+
+**Generator-Unit-Tests:** `tests/visuell/test_generator.js` prüft Regeln, die sich
+nicht an einem einzelnen Testcase zeigen lassen, sondern absichtlich kaputte
+netzplan.md/bauteile.md-Fixtures in einem Temp-Ordner erzeugen (z.B. eine Gruppe,
+deren RCD und LS auf unterschiedlichen Hutschienen stehen – siehe KONZEPT.md,
+"Mehrere RCDs (Gruppen) können auf einer Hutschiene sein"). `npm test` führt dieses
+Skript vor `run_tests.js` aus.
+
 ---
 
 ## Model

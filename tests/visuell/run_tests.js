@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
+const { generiereAnlage } = require('./generate_anlage.js');
 
 const PROJEKT_ROOT = path.resolve(__dirname, '..', '..');
 const TESTCASE_ORDNER = __dirname;
@@ -34,6 +35,33 @@ function starteServer() {
 
 function normalisiere(svgText) {
   return svgText.trim().replace(/\s+/g, ' ');
+}
+
+// Prüft, ob die eingecheckte anlage.json noch exakt dem entspricht, was der
+// Generator aktuell aus netzplan.md + bauteile.md erzeugen würde. Verhindert,
+// dass anlage.json (und damit die gerenderten Schrauben-Werte/Popups) vom
+// Netzplan wegdriftet, z.B. nach manuellen Netzplan-Änderungen ohne erneutes
+// Promoten. Testcases ohne netzplan.md werden übersprungen (keine Quelle
+// vorhanden, mit der verglichen werden könnte).
+function pruefeNetzplanKonsistenz(testcaseOrdner) {
+  const netzplanPfad = path.join(testcaseOrdner, 'netzplan.md');
+  const bauteilePfad = path.join(testcaseOrdner, 'bauteile.md');
+  if (!fs.existsSync(netzplanPfad) || !fs.existsSync(bauteilePfad)) return null;
+
+  const anlagePfad = path.join(testcaseOrdner, 'anlage.json');
+  if (!fs.existsSync(anlagePfad)) return { bestanden: false, meldung: 'keine anlage.json vorhanden' };
+
+  const erwartet = generiereAnlage(testcaseOrdner);
+  const tatsaechlich = JSON.parse(fs.readFileSync(anlagePfad, 'utf8'));
+
+  const erwartetJson = JSON.stringify(erwartet, null, 2);
+  const tatsaechlichJson = JSON.stringify(tatsaechlich, null, 2);
+  if (erwartetJson === tatsaechlichJson) return { bestanden: true };
+
+  return {
+    bestanden: false,
+    meldung: 'anlage.json weicht vom generierten Netzplan ab (npm run generate + promoten?)'
+  };
 }
 
 async function renderTestcase(page, port, testcaseName) {
@@ -80,7 +108,16 @@ async function main() {
   let alleBestanden = true;
 
   for (const testcase of testcases) {
-    const referenzPfad = path.join(TESTCASE_ORDNER, testcase, 'anlage.svg');
+    const testcaseOrdner = path.join(TESTCASE_ORDNER, testcase);
+
+    const netzplanCheck = pruefeNetzplanKonsistenz(testcaseOrdner);
+    if (netzplanCheck && !netzplanCheck.bestanden) {
+      console.log(`${testcase}: FAIL (Netzplan) – ${netzplanCheck.meldung}`);
+      alleBestanden = false;
+      continue;
+    }
+
+    const referenzPfad = path.join(testcaseOrdner, 'anlage.svg');
     if (!fs.existsSync(referenzPfad)) {
       console.log(`${testcase}: UEBERSPRUNGEN (keine anlage.svg)`);
       continue;
@@ -90,7 +127,8 @@ async function main() {
       const gerendert = await renderTestcase(page, port, testcase);
       const referenz = fs.readFileSync(referenzPfad, 'utf8');
       const bestanden = normalisiere(gerendert) === normalisiere(referenz);
-      console.log(`${testcase}: ${bestanden ? 'PASS' : 'FAIL'}`);
+      const netzplanHinweis = netzplanCheck ? ' [Netzplan OK]' : '';
+      console.log(`${testcase}: ${bestanden ? 'PASS' : 'FAIL'}${netzplanHinweis}`);
       if (!bestanden) alleBestanden = false;
     } catch (err) {
       console.log(`${testcase}: FEHLER (${err.message})`);

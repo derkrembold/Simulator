@@ -49,13 +49,28 @@ function schraube(svg, x, y, ader, onKlick) {
   if (ader) {
     attrs['data-querschnitt'] = ader.querschnitt_mm2;
     attrs['data-farbe'] = ader.farbe;
+    // Nur gesetzt, wenn die Ader eine Netz-ID trägt (siehe generiereAnlage() /
+    // KONZEPT.md "Pfadverfolgung und Fehlersimulation") - nützlich zum
+    // gezielten Ansteuern einer bestimmten Schraube in Tests/Debugging,
+    // genau wie data-querschnitt/data-farbe schon für Popup-Zwecke.
+    if (ader.netz) attrs['data-netz'] = ader.netz;
+    // Eine physische Schraube kann mehr als eine Ader tragen (z.B. RCD1.o1,
+    // das gleichzeitig LS1 und LS2 speist, siehe generate_anlage.js
+    // baueLeitung()) - `data-netz` bleibt die "Haupt"-Ader, die zusätzlichen
+    // Netz-IDs stehen kommagetrennt hier, ebenfalls fürs gezielte Ansteuern
+    // in Tests/Debugging.
+    if (ader.weitere?.length) attrs['data-netz-weitere'] = ader.weitere.map((w) => w.netz).join(',');
   }
   const kreis = svgEl('circle', attrs);
   if (ader) {
     kreis.style.cursor = 'pointer';
     kreis.addEventListener('click', (ev) => {
       ev.stopPropagation();
-      onKlick(ader, ev.clientX, ev.clientY);
+      // kreis wird mitgegeben, damit der Aufrufer (controller/app.js) im
+      // Messmodus eine Messspitzen-Markierung exakt an der Schraubenposition
+      // platzieren kann (SVG-Koordinaten cx/cy, nicht die Client-Koordinaten
+      // aus ev.clientX/Y, die nur fürs Popup-Positionieren gedacht sind).
+      onKlick(ader, ev.clientX, ev.clientY, kreis);
     });
   }
   svg.appendChild(kreis);

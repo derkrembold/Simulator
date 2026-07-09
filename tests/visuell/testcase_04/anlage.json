@@ -20,7 +20,8 @@
           {
             "funktion": "PE",
             "farbe": "gn-ge",
-            "querschnitt_mm2": 16
+            "querschnitt_mm2": 16,
+            "netz": "N5"
           }
         ]
       }
@@ -32,7 +33,8 @@
           {
             "funktion": "PE",
             "farbe": "gn-ge",
-            "querschnitt_mm2": 2.5
+            "querschnitt_mm2": 2.5,
+            "netz": "N30"
           }
         ]
       }
@@ -50,17 +52,20 @@
           {
             "funktion": "L1",
             "farbe": "schwarz",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N6"
           },
           {
             "funktion": "L2",
             "farbe": "braun",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N7"
           },
           {
             "funktion": "L3",
             "farbe": "grau",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N8"
           }
         ]
       }
@@ -72,17 +77,20 @@
           {
             "funktion": "L1",
             "farbe": "schwarz",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N9"
           },
           {
             "funktion": "L2",
             "farbe": "braun",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N10"
           },
           {
             "funktion": "L3",
             "farbe": "grau",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N11"
           }
         ]
       }
@@ -111,22 +119,26 @@
                   {
                     "funktion": "L1",
                     "farbe": "schwarz",
-                    "querschnitt_mm2": 10
+                    "querschnitt_mm2": 10,
+                    "netz": "N9"
                   },
                   {
                     "funktion": "L2",
                     "farbe": "braun",
-                    "querschnitt_mm2": 10
+                    "querschnitt_mm2": 10,
+                    "netz": "N10"
                   },
                   {
                     "funktion": "L3",
                     "farbe": "grau",
-                    "querschnitt_mm2": 10
+                    "querschnitt_mm2": 10,
+                    "netz": "N11"
                   },
                   {
                     "funktion": "N",
                     "farbe": "blau",
-                    "querschnitt_mm2": 10
+                    "querschnitt_mm2": 10,
+                    "netz": "N12"
                   }
                 ]
               }
@@ -138,22 +150,26 @@
                   {
                     "funktion": "L1",
                     "farbe": "schwarz",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N20"
                   },
                   {
                     "funktion": "L2",
                     "farbe": "braun",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N21"
                   },
                   {
                     "funktion": "L3",
                     "farbe": "grau",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N22"
                   },
                   {
                     "funktion": "N",
                     "farbe": "blau",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N23"
                   }
                 ]
               }
@@ -179,7 +195,8 @@
                       {
                         "funktion": "L1",
                         "farbe": "schwarz",
-                        "querschnitt_mm2": 2.5
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N20"
                       }
                     ]
                   }
@@ -191,7 +208,8 @@
                       {
                         "funktion": "L1",
                         "farbe": "schwarz",
-                        "querschnitt_mm2": 2.5
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N24"
                       }
                     ]
                   }
@@ -205,17 +223,20 @@
                   {
                     "funktion": "L1",
                     "farbe": "schwarz",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N27"
                   },
                   {
                     "funktion": "N",
                     "farbe": "blau",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N28"
                   },
                   {
                     "funktion": "PE",
                     "farbe": "gn-ge",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N29"
                   }
                 ]
               },
@@ -223,17 +244,20 @@
                 "l": {
                   "funktion": "L1",
                   "farbe": "schwarz",
-                  "querschnitt_mm2": 2.5
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N24"
                 },
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",
-                  "querschnitt_mm2": 2.5
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N23"
                 },
                 "pe": {
                   "funktion": "PE",
                   "farbe": "gn-ge",
-                  "querschnitt_mm2": 2.5
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N30"
                 }
               },
               "messungen": {
@@ -261,7 +285,8 @@
                       {
                         "funktion": "L2",
                         "farbe": "braun",
-                        "querschnitt_mm2": 2.5
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N21"
                       }
                     ]
                   }
@@ -273,7 +298,8 @@
                       {
                         "funktion": "L2",
                         "farbe": "braun",
-                        "querschnitt_mm2": 2.5
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N25"
                       }
                     ]
                   }
@@ -287,17 +313,20 @@
                   {
                     "funktion": "L2",
                     "farbe": "braun",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N31"
                   },
                   {
                     "funktion": "N",
                     "farbe": "blau",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N32"
                   },
                   {
                     "funktion": "PE",
                     "farbe": "gn-ge",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N33"
                   }
                 ]
               },
@@ -305,12 +334,14 @@
                 "l": {
                   "funktion": "L2",
                   "farbe": "braun",
-                  "querschnitt_mm2": 2.5
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N25"
                 },
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",
-                  "querschnitt_mm2": 2.5
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N23"
                 },
                 "pe": null
               },
@@ -339,7 +370,8 @@
                       {
                         "funktion": "L3",
                         "farbe": "grau",
-                        "querschnitt_mm2": 2.5
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N22"
                       }
                     ]
                   }
@@ -351,7 +383,8 @@
                       {
                         "funktion": "L3",
                         "farbe": "grau",
-                        "querschnitt_mm2": 2.5
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N26"
                       }
                     ]
                   }
@@ -365,17 +398,20 @@
                   {
                     "funktion": "L3",
                     "farbe": "grau",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N34"
                   },
                   {
                     "funktion": "N",
                     "farbe": "blau",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N35"
                   },
                   {
                     "funktion": "PE",
                     "farbe": "gn-ge",
-                    "querschnitt_mm2": 2.5
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N36"
                   }
                 ]
               },
@@ -383,12 +419,14 @@
                 "l": {
                   "funktion": "L3",
                   "farbe": "grau",
-                  "querschnitt_mm2": 2.5
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N26"
                 },
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",
-                  "querschnitt_mm2": 2.5
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N23"
                 },
                 "pe": null
               },
@@ -414,7 +452,8 @@
           {
             "funktion": "N",
             "farbe": "blau",
-            "querschnitt_mm2": 16
+            "querschnitt_mm2": 16,
+            "netz": "N4"
           }
         ]
       }
@@ -426,7 +465,8 @@
           {
             "funktion": "N",
             "farbe": "blau",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N12"
           }
         ]
       }
@@ -443,7 +483,8 @@
           {
             "funktion": "L1",
             "farbe": "schwarz",
-            "querschnitt_mm2": 16
+            "querschnitt_mm2": 16,
+            "netz": "N1"
           }
         ]
       }
@@ -455,7 +496,8 @@
           {
             "funktion": "L1",
             "farbe": "schwarz",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N6"
           }
         ]
       }
@@ -472,7 +514,8 @@
           {
             "funktion": "L2",
             "farbe": "braun",
-            "querschnitt_mm2": 16
+            "querschnitt_mm2": 16,
+            "netz": "N2"
           }
         ]
       }
@@ -484,7 +527,8 @@
           {
             "funktion": "L2",
             "farbe": "braun",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N7"
           }
         ]
       }
@@ -501,7 +545,8 @@
           {
             "funktion": "L3",
             "farbe": "grau",
-            "querschnitt_mm2": 16
+            "querschnitt_mm2": 16,
+            "netz": "N3"
           }
         ]
       }
@@ -513,7 +558,8 @@
           {
             "funktion": "L3",
             "farbe": "grau",
-            "querschnitt_mm2": 10
+            "querschnitt_mm2": 10,
+            "netz": "N8"
           }
         ]
       }

@@ -92,6 +92,24 @@ async function main() {
     return page;
   }
 
+  // Wie neueSeite(), aber mit einem konkreten Testcase statt der
+  // Default-Anlage (beispiel_eg.json) - nötig für RLOW-Messungen, die einen
+  // Verbindungsgraphen (graph.json, siehe KONZEPT.md "Pfadverfolgung und
+  // Fehlersimulation") brauchen, den nur Testcases mit netzplan.md haben.
+  async function neueSeiteMitTestcase(testcaseName) {
+    const page = await browser.newPage();
+    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/${testcaseName}/anlage.json`);
+    await page.waitForSelector('#messgeraet svg');
+    await klick(page, 'ON/OFF');
+    return page;
+  }
+
+  function rlowHauptwert(page) {
+    return page.evaluate(() =>
+      [...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent.startsWith('R:'))?.textContent
+    );
+  }
+
   await pruefe('Drehknopf: voller Zyklus kommt zurück zu RLOW', async () => {
     const page = await neueSeite();
     const titelProFunktion = ['R ISO', 'Zl', 'Zs', 'RCD I', 'TRMS Spannung', 'Durchgang'];
@@ -312,6 +330,62 @@ async function main() {
     erwarte(await displayTexte(page), 'B+', 'FI/RCD Typ obere Grenze');
     await klick(page, '▲');
     erwarte(await displayTexte(page), 'B+', 'FI/RCD Typ bleibt geklemmt');
+    await page.close();
+  });
+
+  // --- RLOW-Messung über Messspitzen + Verbindungsgraph (testcase_01) ---
+  // Deckt die Netz-IDs aus testcase_01/netzplan.md ab (siehe auch die
+  // gleichen IDs in test_generator.js): N1 = Leistungsschalter.i1 (L1),
+  // N13 = Reihenklemme_L_SK1.o1 (L1, über RCD1+LS1 erreichbar), N2 =
+  // Leistungsschalter.i2 (N).
+
+  await pruefe('RLOW: Messspitzen auf demselben L1-Pfad zeigen 0,0Ω', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RLOW vor Messspitzen');
+
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click(); // schwarz
+    await page.locator('#schaltkasten svg circle[data-netz="N13"]').click(); // blau
+    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW mit beiden Messspitzen auf L1-Pfad');
+    await page.close();
+  });
+
+  await pruefe('RLOW: Messspitzen auf unterschiedlicher Funktion (L1/N) zeigen keinen Wert', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N2"]').click(); // blau, N
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RLOW bei L1+N (kein gemeinsamer Teilgraph)');
+    await page.close();
+  });
+
+  await pruefe('RLOW: nur eine Messspitze zeigt keinen Wert', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RLOW mit nur einer Messspitze');
+    await page.close();
+  });
+
+  // RCD1.o1 speist LS1 (N6) UND LS2 (N7) über dieselbe physische Schraube
+  // (siehe netzplan.md-Annahme 2, ader.weitere in generate_anlage.js). Eine
+  // Messspitze an dieser geteilten Schraube trägt data-netz="N6" +
+  // data-netz-weitere="N7" - der Messwert muss trotzdem über N7 zum
+  // LS2-Ausgang (N12) gefunden werden, nicht nur über die Haupt-Ader N6.
+  await pruefe('RLOW: Messspitze an geteilter RCD-Schraube erreicht auch den LS2-Zweig (ader.weitere)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await page.locator('#schaltkasten svg circle[data-netz="N6"][data-netz-weitere]').first().click(); // schwarz, geteilte RCD-Ausgangsschraube
+    await page.locator('#schaltkasten svg circle[data-netz="N12"][cy="420"]').click(); // blau, LS2-Ausgang
+    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW von geteilter RCD-Schraube (N6+N7) zu LS2-Ausgang (N12)');
+    await page.close();
+  });
+
+  await pruefe('RLOW: Ausschalten entfernt Messspitzen, Messwert geht auf Platzhalter zurück', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
+    await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
+    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW vor dem Ausschalten');
+
+    await klick(page, 'ON/OFF'); // aus
+    await klick(page, 'ON/OFF'); // wieder an
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RLOW nach Aus-/Wiedereinschalten (Messspitzen weg)');
     await page.close();
   });
 

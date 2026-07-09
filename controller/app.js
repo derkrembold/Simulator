@@ -2,18 +2,136 @@ import { Anlage } from '../model/anlage.js';
 import { SchaltkastenView } from '../view/schaltkasten.js';
 import { MessgeraetView } from '../view/messgeraet.js';
 import { Popup } from '../view/popup.js';
+import { findePfad } from '../model/pfad.js';
+
+// Messspitzen (Messmodus, siehe unten): pro Schrauben-Kreis genau eine Farbe,
+// jede Farbe insgesamt nur an einer Schraube gleichzeitig (3 Messspitzen wie
+// beim echten Gerät: L/N/PE). Kreis-Element als Map-Key, da jede Schraube im
+// Schaltkasten-SVG genau ein solches Element ist und sich nie ändert.
+const MESSSPITZEN_FARBEN = ['schwarz', 'blau', 'grün'];
+const MESSSPITZEN_FARBWERTE = { schwarz: '#111111', blau: '#2255cc', 'grün': '#22aa44' };
+
+function svgKreis(attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+// Nächster Zustand im Zyklus leer -> schwarz -> blau -> grün -> leer -> ...,
+// wobei eine Farbe übersprungen wird, wenn sie gerade an einer ANDEREN
+// Schraube hängt (max. 3 Messspitzen gleichzeitig, da nur 3 Farben).
+function naechsteMessspitzenFarbe(aktuelleFarbe, belegteFarben) {
+  const sequenz = [null, ...MESSSPITZEN_FARBEN];
+  let index = sequenz.indexOf(aktuelleFarbe);
+  for (let i = 0; i < sequenz.length; i++) {
+    index = (index + 1) % sequenz.length;
+    const kandidat = sequenz[index];
+    if (kandidat === null || !belegteFarben.has(kandidat)) return kandidat;
+  }
+  return aktuelleFarbe;
+}
 
 async function start() {
   const container = document.getElementById('schaltkasten');
   const pfad = new URLSearchParams(window.location.search).get('anlage') ?? 'anlagen/beispiel_eg.json';
   const anlage = await Anlage.laden(pfad);
+  // Verbindungsgraph für die Pfadverfolgung (RLOW, siehe KONZEPT.md
+  // "Pfadverfolgung und Fehlersimulation") - null, wenn der Testcase keinen
+  // Netzplan hat (z.B. die handgepflegte beispiel_eg.json). Ohne Graph bleibt
+  // RLOW einfach beim Platzhalter, kein Fehlerfall.
+  const graph = await Anlage.ladeGraph(pfad);
 
-  const schaltkastenSvg = SchaltkastenView.render(anlage, container, (ader, x, y) => {
-    Popup.zeige({
-      querschnitt: `${ader.querschnitt_mm2} mm²`,
-      farbe: ader.farbe
-    }, x, y);
+  // kreis-Element -> Farbe bzw. -> zugehörige Ader (für die Pfadsuche: welche
+  // Funktion/welches Netz hängt an dieser Schraube) bzw. -> Overlay-Kreis-Element.
+  const messspitzenFarbe = new Map();
+  const messspitzenAder = new Map();
+  const messspitzenOverlay = new Map();
+
+  const schaltkastenSvg = SchaltkastenView.render(anlage, container, (ader, x, y, kreis) => {
+    // Solange das Messgerät an ist (Messmodus), ersetzen Messspitzen die
+    // Popups: kein Querschnitt/Farbe-Tooltip mehr, stattdessen legt jeder
+    // Klick auf eine Schraube eine farbige Messspitze an (oder nimmt sie
+    // wieder ab) - genau wie beim echten Gerät blendet man Popups aus,
+    // sobald man tatsächlich misst.
+    if (messgeraetZustand.an) {
+      const belegteFarben = new Set(messspitzenFarbe.values());
+      belegteFarben.delete(messspitzenFarbe.get(kreis)); // eigene aktuelle Farbe zählt nicht als "belegt"
+      const naechsteFarbe = naechsteMessspitzenFarbe(messspitzenFarbe.get(kreis) ?? null, belegteFarben);
+
+      const altesOverlay = messspitzenOverlay.get(kreis);
+      if (altesOverlay) altesOverlay.remove();
+      messspitzenOverlay.delete(kreis);
+      messspitzenFarbe.delete(kreis);
+      messspitzenAder.delete(kreis);
+
+      if (naechsteFarbe !== null) {
+        messspitzenFarbe.set(kreis, naechsteFarbe);
+        messspitzenAder.set(kreis, ader);
+        const overlay = svgKreis({
+          cx: kreis.getAttribute('cx'), cy: kreis.getAttribute('cy'), r: 7,
+          fill: MESSSPITZEN_FARBWERTE[naechsteFarbe], stroke: '#ffffff', 'stroke-width': 2.5
+        });
+        overlay.style.pointerEvents = 'none'; // Klicks sollen weiter beim Schrauben-Kreis ankommen (Zyklus geht weiter)
+        kreis.parentNode.appendChild(overlay);
+        messspitzenOverlay.set(kreis, overlay);
+      }
+
+      // RLOW misst kontinuierlich (der Sanduhr/Pfeil-Kasten im Display ist
+      // dort NICHT durchgestrichen, siehe messgeraet.js) - jede Änderung an
+      // den Messspitzen soll sich also sofort im Messwert niederschlagen,
+      // ohne TEST-Taste. Für andere Funktionen bleibt das Neu-Rendern hier
+      // wirkungslos (baueAnzeigeZustand() überschreibt dort nichts).
+      renderMessgeraet();
+    } else {
+      Popup.zeige({
+        querschnitt: `${ader.querschnitt_mm2} mm²`,
+        farbe: ader.farbe,
+        weitere: ader.weitere?.map((w) => ({ querschnitt: `${w.querschnitt_mm2} mm²`, farbe: w.farbe }))
+      }, x, y);
+    }
   });
+
+  // Alle Netz-IDs, die an einer Ader hängen - normalerweise nur ihre eigene,
+  // bei einer physisch geteilten Schraube (siehe generate_anlage.js
+  // baueLeitung()) zusätzlich die aus `ader.weitere` (z.B. RCD1.o1, das
+  // gleichzeitig LS1 und LS2 speist).
+  function alleNetzeVonAder(ader) {
+    return [ader?.netz, ...(ader?.weitere ?? []).map((w) => w.netz)].filter(Boolean);
+  }
+
+  // RLOW-Messwert aus den aktuell angelegten Messspitzen: "schwarz" und
+  // "blau" müssen beide gesetzt sein (siehe KONZEPT.md "Messmodus"), auf
+  // Schrauben mit dem gleichen Netz-`funktion` (z.B. beide "L1") - nur dann
+  // existiert überhaupt ein Teilgraph, der beide verbindet (siehe
+  // "Pfadverfolgung und Fehlersimulation": L1/L2/L3/N sind je ein eigener
+  // Baum, PE noch nicht angebunden). Gibt den Widerstand in Ω zurück (aktuell
+  // immer 0, da die Fehlertabelle noch nicht existiert) oder null, wenn keine
+  // Messung möglich ist (Platzhalter bleibt dann stehen).
+  function berechneRlowMesswert() {
+    if (!graph) return null;
+    let schwarzAder = null;
+    let blauAder = null;
+    for (const [kreis, farbe] of messspitzenFarbe) {
+      if (farbe === 'schwarz') schwarzAder = messspitzenAder.get(kreis);
+      if (farbe === 'blau') blauAder = messspitzenAder.get(kreis);
+    }
+    if (!schwarzAder || !blauAder) return null;
+    if (schwarzAder.funktion !== blauAder.funktion) return null;
+
+    // Bei einer physisch geteilten Schraube (ader.weitere, siehe oben) reicht
+    // ein Pfad über IRGENDEINE der dort hängenden Netz-IDs - das Messgerät
+    // "sieht" an einer solchen Klemme alle dort geklemmten Adern gleichzeitig.
+    const schwarzNetze = alleNetzeVonAder(schwarzAder);
+    const blauNetze = alleNetzeVonAder(blauAder);
+    for (const schwarzNetz of schwarzNetze) {
+      for (const blauNetz of blauNetze) {
+        if (findePfad(graph, schwarzAder.funktion, schwarzNetz, blauNetz)) {
+          return 0; // Kantengewichte (Fehlertabelle) noch nicht angebunden - Pfad vorhanden -> 0Ω
+        }
+      }
+    }
+    return null;
+  }
 
   // Box wird auf die tatsächlich gerenderte Schaltkasten-Breite gesetzt, damit
   // das (schmalere) Messgerät mittig darunter erscheint, ohne die Breite hier
@@ -110,6 +228,14 @@ async function start() {
         zustand.nebenwertLinks = 'R+:___';
         zustand.nebenwertRechts = 'R-:___';
       }
+      // Hauptmesswert (großer zentraler Wert): aus den angelegten
+      // Messspitzen berechnet, siehe berechneRlowMesswert(). Kontinuierliche
+      // Messung (kein TEST nötig) - bleibt beim Platzhalter aus
+      // zustandFuerFunktion(), solange kein Pfad gefunden wird.
+      const rlowMesswert = berechneRlowMesswert();
+      if (rlowMesswert !== null) {
+        zustand.hauptwert = `R:${rlowMesswert.toFixed(1).replace('.', ',')}Ω`;
+      }
     } else if (funktion === 'RISO') {
       zustand.titelWerte = [RISO_MESSSPANNUNGEN[risoMessspannungIndex]];
     } else if (funktion === 'ZI') {
@@ -201,11 +327,23 @@ async function start() {
     fircdTypIndex = FIRCD_TYPEN.indexOf('AC');
   }
 
+  // Entfernt alle angelegten Messspitzen (Overlay-Kreise + Zustand) - beim
+  // Ausschalten des Messgeräts, da der Messmodus dann endet und man beim
+  // nächsten Einschalten wieder frisch anlegen soll.
+  function entferneAlleMessspitzen() {
+    for (const overlay of messspitzenOverlay.values()) overlay.remove();
+    messspitzenOverlay.clear();
+    messspitzenFarbe.clear();
+    messspitzenAder.clear();
+  }
+
   function renderMessgeraet() {
     MessgeraetView.render(messgeraetContainer, baueAnzeigeZustand(), {
       onOff: () => {
-        messgeraetZustand = MessgeraetView.zustandFuerFunktion(messgeraetZustand.funktion, !messgeraetZustand.an);
+        const eingeschaltet = !messgeraetZustand.an;
+        messgeraetZustand = MessgeraetView.zustandFuerFunktion(messgeraetZustand.funktion, eingeschaltet);
         setzeBearbeitungenZurueck();
+        if (!eingeschaltet) entferneAlleMessspitzen();
         renderMessgeraet();
       },
       drehknopf: () => {

@@ -15,9 +15,13 @@ function element_holen() {
 }
 
 export const Popup = {
-  zeige({ querschnitt, farbe }, x, y) {
+  // `weitere`: zusätzliche { querschnitt, farbe }-Paare für Schrauben mit
+  // mehr als einer Ader (z.B. ein RCD-Ausgang, der zwei Stromkreise
+  // gleichzeitig speist, siehe generate_anlage.js baueLeitung()).
+  zeige({ querschnitt, farbe, weitere }, x, y) {
     const el = element_holen();
-    el.textContent = `${querschnitt} · ${farbe}`;
+    const zeilen = [`${querschnitt} · ${farbe}`, ...(weitere ?? []).map((w) => `${w.querschnitt} · ${w.farbe}`)];
+    el.textContent = zeilen.join(' | ');
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
     el.style.display = 'block';

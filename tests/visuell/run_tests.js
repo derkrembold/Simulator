@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { generiereAnlage } = require('./generate_anlage.js');
+const { generiereAnlage, generiereGraph } = require('./generate_anlage.js');
 
 const PROJEKT_ROOT = path.resolve(__dirname, '..', '..');
 const TESTCASE_ORDNER = __dirname;
@@ -64,6 +64,31 @@ function pruefeNetzplanKonsistenz(testcaseOrdner) {
   };
 }
 
+// Wie pruefeNetzplanKonsistenz, aber für graph.json (Verbindungsgraph, siehe
+// KONZEPT.md "Pfadverfolgung und Fehlersimulation") - verhindert, dass der
+// Graph nach einer Netzplan-Änderung unbemerkt veraltet. Testcases ohne
+// netzplan.md oder ohne graph.json werden übersprungen (z.B. weil der Graph
+// für diesen Testcase noch nicht angelegt wurde).
+function pruefeGraphKonsistenz(testcaseOrdner) {
+  const netzplanPfad = path.join(testcaseOrdner, 'netzplan.md');
+  if (!fs.existsSync(netzplanPfad)) return null;
+
+  const graphPfad = path.join(testcaseOrdner, 'graph.json');
+  if (!fs.existsSync(graphPfad)) return null;
+
+  const erwartet = generiereGraph(testcaseOrdner);
+  const tatsaechlich = JSON.parse(fs.readFileSync(graphPfad, 'utf8'));
+
+  const erwartetJson = JSON.stringify(erwartet, null, 2);
+  const tatsaechlichJson = JSON.stringify(tatsaechlich, null, 2);
+  if (erwartetJson === tatsaechlichJson) return { bestanden: true };
+
+  return {
+    bestanden: false,
+    meldung: 'graph.json weicht vom generierten Netzplan ab (node tests/visuell/generate_anlage.js <testcase> + promoten?)'
+  };
+}
+
 async function renderTestcase(page, port, testcaseName) {
   const jsonPfad = `tests/visuell/${testcaseName}/anlage.json`;
   const html = `<!DOCTYPE html>
@@ -117,6 +142,13 @@ async function main() {
       continue;
     }
 
+    const graphCheck = pruefeGraphKonsistenz(testcaseOrdner);
+    if (graphCheck && !graphCheck.bestanden) {
+      console.log(`${testcase}: FAIL (Graph) – ${graphCheck.meldung}`);
+      alleBestanden = false;
+      continue;
+    }
+
     const referenzPfad = path.join(testcaseOrdner, 'anlage.svg');
     if (!fs.existsSync(referenzPfad)) {
       console.log(`${testcase}: UEBERSPRUNGEN (keine anlage.svg)`);
@@ -128,7 +160,8 @@ async function main() {
       const referenz = fs.readFileSync(referenzPfad, 'utf8');
       const bestanden = normalisiere(gerendert) === normalisiere(referenz);
       const netzplanHinweis = netzplanCheck ? ' [Netzplan OK]' : '';
-      console.log(`${testcase}: ${bestanden ? 'PASS' : 'FAIL'}${netzplanHinweis}`);
+      const graphHinweis = graphCheck ? ' [Graph OK]' : '';
+      console.log(`${testcase}: ${bestanden ? 'PASS' : 'FAIL'}${netzplanHinweis}${graphHinweis}`);
       if (!bestanden) alleBestanden = false;
     } catch (err) {
       console.log(`${testcase}: FEHLER (${err.message})`);

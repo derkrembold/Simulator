@@ -156,6 +156,96 @@ deren RCD und LS auf unterschiedlichen Hutschienen stehen – siehe KONZEPT.md,
 "Mehrere RCDs (Gruppen) können auf einer Hutschiene sein"). `npm test` führt dieses
 Skript vor `run_tests.js` aus.
 
+**Verbindungsgraph (`generiereGraph()`/`findePfad()`):** neue Exporte in
+`tests/visuell/generate_anlage.js`, siehe KONZEPT.md "Pfadverfolgung und
+Fehlersimulation" für die Motivation. Implementierung:
+- `findeAlleNetze(netze, pin, funktion)` - wie das bestehende `findeNetz()`,
+  liefert aber ALLE Treffer statt nur den ersten (per `Array.filter` statt
+  `Array.find`). Nötig, weil ein einzelner Ausgangspin auf mehrere Netze
+  verzweigen kann (z.B. `RCD1.o1`, das über zwei separate Adern gleichzeitig
+  `LS1.i1` und `LS2.i1` versorgt - beide Netze teilen sich denselben
+  physischen Pin, siehe testcase_01/netzplan.md Annahme 2). Mit dem
+  ursprünglichen `findeNetz()` (nur erster Treffer) wäre eine der beiden
+  Verzweigungen beim Kanten-Aufbau stillschweigend verloren gegangen.
+- `knotenFuerFunktion(netze, funktion)` - alle Netz-IDs, die mindestens einen
+  Pin mit der gegebenen Funktion (`L1`/`L2`/`L3`/`N`) tragen.
+- `kantenFuerFunktion(netze, bauteile, funktion)` - iteriert **generisch**
+  über alle Bauteile aus `bauteile.md` (nicht pro Bauteiltyp hartkodiert):
+  für jeden Pol `i` (1..`bauteil.pole`, Default 1) wird versucht, `i<i>` und
+  `o<i>` für die gegebene Funktion aufzulösen; jeder gefundene
+  Von-Netz×Nach-Netz-Kombination wird eine Kante `{von, nach, bauteil,
+  geschlossen: true}` hinzugefügt. Funktioniert für LS/RCD/Hauptschalter/
+  Klemmen/Reihenklemmen gleichermaßen, weil sie alle derselben
+  `i<n>`/`o<n>`-Pinkonvention folgen - kein Sonderfall pro Bauteilart nötig.
+  `geschlossen` ist aktuell immer `true` (Schalterzustand noch nicht
+  angebunden, siehe KONZEPT.md "Schalter").
+- `generiereGraph(ordner)` - baut für `GRAPH_FUNKTIONEN = ['L1','L2','L3','N']`
+  (bewusst ohne `PE`, siehe KONZEPT.md) je einen Teilgraphen
+  `{ knoten: string[], kanten: Kante[] }`, Rückgabeform
+  `{ L1: {...}, L2: {...}, L3: {...}, N: {...} }`.
+- `findePfad(graph, funktion, startNetz, zielNetz)` - Breitensuche (BFS) im
+  Teilgraphen der gegebenen Funktion; Kanten werden **ungerichtet**
+  durchquert (`kante.von === aktuell` oder `kante.nach === aktuell`, da ein
+  geschlossener Schalter in beide Richtungen leitet) und bei
+  `geschlossen: false` übersprungen. Rückgabe: Array der durchlaufenen
+  Netz-IDs (inkl. Start/Ziel), oder `null`, wenn kein Pfad existiert.
+
+**Verzweigende Adern in `anlage.json` (`ader.weitere`):** `findeAlleNetze()`
+wird nicht nur beim Graph-Aufbau genutzt, sondern seit einem Fix auch von
+`baueLeitung()` selbst - vorher nutzte `baueLeitung()` (baut
+`eingang`/`ausgang.leitung.adern` für RCD/LS/Hauptsicherung) noch `findeNetz()`
+(nur erster Treffer), wodurch eine Verzweigung wie `RCD1.o1` → `N6`+`N7` in
+`anlage.json` stillschweigend auf nur `N6` reduziert wurde: die zweite
+physische Ader (zu `LS2`) hatte dadurch **keine** Schraube irgendwo am RCD, nur
+noch `LS2`s eigene Eingangsschraube kannte `N7` - im Schaltkasten-SVG sah es
+so aus, als wäre `LS2` gar nicht am RCD angeschlossen (der Graph selbst war
+davon nicht betroffen, siehe oben - nur die Anzeige/`anlage.json`-Seite). Fix:
+`baueLeitung()` baut jetzt pro Schrauben-Position eine **Haupt-Ader** (erster
+Treffer von `findeAlleNetze()`) plus optional `ader.weitere` (Array
+zusätzlicher Adern für dieselbe physische Klemme, z.B. `RCD1.o1`s zweite Ader
+zu `N7`) - eine Schraube kann eben mehr als ein Kabel tragen ("wie bei einer
+Astgabelung"), es entsteht keine zusätzliche Schraube. Auswirkungen:
+- `schraube()` in `schaltkasten.js` setzt zusätzlich `data-netz-weitere`
+  (kommagetrennte Netz-IDs) neben dem unveränderten `data-netz` (Haupt-Ader,
+  rückwärtskompatibel zu allen bestehenden `data-netz="..."`-Selektoren in
+  Tests).
+- `Popup.zeige()` (`view/popup.js`) akzeptiert jetzt ein optionales `weitere`-
+  Array (`{querschnitt, farbe}`-Paare) und zeigt mehrere Zeilen mit ` | `
+  getrennt (z.B. `2.5 mm² · schwarz | 1.5 mm² · schwarz`), statt nur die
+  Haupt-Ader zu zeigen und die zweite stillschweigend zu verschlucken.
+- `controller/app.js`s `berechneRlowMesswert()` sammelt für jede Messspitze
+  über `alleNetzeVonAder(ader)` alle Netz-IDs (Haupt-Ader + `weitere`) und
+  probiert `findePfad()` für jede Kombination aus Schwarz-Netz × Blau-Netz -
+  eine Messspitze an einer geteilten Schraube "sieht" damit alle dort
+  geklemmten Adern gleichzeitig, genau wie ein echtes Messgerät.
+
+Getestet in `test_generator.js` gegen den echten, eingecheckten Netzplan von
+`testcase_01` (nicht gegen eine Temp-Fixture wie die übrigen Generator-Tests) -
+die erwarteten Netz-IDs in den Assertions sind direkt aus
+`testcase_01/netzplan.md` abgelesen. Deckt ab: einfache Kette (Einspeisung →
+Endstelle SK1), die RCD1.o1-Verzweigung (Einspeisung → Endstelle SK2, anderer
+Zweig als SK1), dass zwischen Netzen unterschiedlicher Funktion kein Pfad
+gefunden wird, und die vollständige Knotenliste für `L1`.
+
+**Ausgabedatei und Anbindung an RLOW: umgesetzt.** `generiereGraph(ordner)`
+wird auch über die CLI von `generate_anlage.js` aufgerufen und schreibt
+`graph_generated.json` (promotet zu `graph.json`, ein File pro Testcase,
+analog zu `anlage.json`) - aber nur, wenn ein `netzplan.md` im Testcase-Ordner
+existiert. `model/anlage.js` (`Anlage.ladeGraph(anlagePfad)`) lädt diese Datei
+zur Laufzeit per `fetch` (Pfad wird aus dem `anlage.json`-Pfad abgeleitet,
+`anlage.json` → `graph.json`; liefert `null`, wenn keine Datei existiert -
+kein Fehler, da noch nicht jeder Testcase einen Netzplan hat). `model/pfad.js`
+ist ein bewusst dupliziertes Browser-ES-Module-Gegenstück zu `findePfad()` aus
+`generate_anlage.js` (Node/CommonJS) - keine gemeinsame Quelle, da das Projekt
+keinen Build-Schritt hat (`index.html` lädt ES-Module direkt, `generate_
+anlage.js` läuft unter Node/CommonJS); die Funktion ist klein genug (~20
+Zeilen BFS), dass die Duplizierung einfacher ist als ein Bundler-Umweg.
+`controller/app.js` nutzt beide zusammen für die RLOW-Live-Messung, siehe
+"Messspitzen" unter `app.js` weiter unten. **Noch nicht umgesetzt:**
+PE-Teilgraph, Schalterzustand (`geschlossen` ist im generierten Graph immer
+`true`) und Fehlertabelle (Kantengewichte, aktuell wird jeder gefundene Pfad
+als 0Ω gewertet) - siehe KONZEPT.md für den geplanten Ablauf.
+
 **Messgerät-Interaktionstests:** `tests/visuell/test_messgeraet.js` prüft die
 ▲/▼/◄►/Drehknopf-Logik aus `controller/app.js` - bewusst **kein** Pixel-Snapshot
 wie bei `run_tests.js` (die Messgerät-Optik ändert sich noch zu oft dafür), sondern
@@ -170,7 +260,14 @@ Bemessungsstrom/Abschaltzeit geklemmt, Lim live neu berechnet, ΔU-Ansicht inkl.
 geteilter Variablen), ZS (unabhängig von ZI, ZSrcd-Ansicht mit Std/Low-Toggle),
 FI/RCD (Fehlerstrom/Typ geklemmt), sowie dass `setzeBearbeitungenZurueck()` bei
 jedem Drehknopf-/ON-OFF-Klick wirklich alle bearbeiteten Werte zurücksetzt - auch
-nach einem "Ausflug" zu einer anderen Funktion und zurück. `npm test` führt dieses
+nach einem "Ausflug" zu einer anderen Funktion und zurück. Zusätzlich vier Tests
+für die RLOW-Graph-Messung gegen `testcase_01` (eigene Helfer
+`neueSeiteMitTestcase(testcaseName)`, das direkt einschaltet, und
+`rlowHauptwert(page)`, das den `R:`-Text ausliest): Messspitzen auf
+zusammenhängenden L1-Netzen (`N1`/`N13`, per `circle[data-netz="..."]`
+angeklickt) zeigen `R:0,0Ω`, unterschiedliche Funktion (L1/N) und nur eine
+Messspitze zeigen weiterhin den Platzhalter, und Aus-/Wiedereinschalten setzt
+die Messspitzen (und damit den Messwert) zurück. `npm test` führt dieses
 Skript zwischen `test_generator.js` und `run_tests.js` aus.
 
 ---
@@ -226,22 +323,27 @@ Regeln.prufeRcd(ta, rcd.typ);        // → { ok: true/false, max_ms: 300 }
 - Reihenfolge: Reihenklemmen → RCD+LS Reihen → Hauptschalter+Klemmen
 
 #### Schraube-Klick Event
-Jede Schraube ist klickbar. Klick auf eine Schraube → kleines Info-Popup erscheint mit:
-- Querschnitt (z.B. 2.5 mm²)
-- Kabelfarbe (z.B. schwarz)
+Jede Schraube ist klickbar. Das Verhalten hängt vom **Messmodus** ab (siehe
+"Messmodus" unter `controller/app.js` weiter unten) - `schraube()` selbst kennt
+diesen Unterschied nicht, sie ruft bei jedem Klick immer denselben, von
+`controller/app.js` übergebenen `onKlick(ader, ev.clientX, ev.clientY, kreis)`
+auf (das vierte Argument `kreis` ist das DOM-Element des Schrauben-Kreises
+selbst - siehe unten, wofür das gebraucht wird). Der Aufrufer entscheidet dann:
 
-Der Bediener muss selbst herausfinden wohin das Kabel geht – das ist der Lerneffekt.
+- **Messgerät aus (Normalmodus):** kleines Info-Popup erscheint mit
+  Querschnitt (z.B. 2.5 mm²) und Kabelfarbe (z.B. schwarz). Der Bediener muss
+  selbst herausfinden wohin das Kabel geht – das ist der Lerneffekt.
+- **Messgerät an (Messmodus):** kein Popup, stattdessen wird eine
+  **Messspitze** angelegt/entfernt (siehe "Messmodus" weiter unten).
 
 ```javascript
-// Beispiel
-SchaltkastenView.render(anlage, document.getElementById('schaltkasten'));
-
-// Event: Schraube angeklickt
-SchaltkastenView.onSchraubeKlick((ader) => {
-  Popup.zeige({
-    querschnitt: ader.querschnitt_mm2 + ' mm²',
-    farbe: ader.farbe
-  });
+// Beispiel (vereinfacht, siehe controller/app.js für den echten Code)
+SchaltkastenView.render(anlage, container, (ader, x, y, kreis) => {
+  if (messgeraetZustand.an) {
+    // Messspitze an "kreis" anlegen/entfernen, siehe unten
+  } else {
+    Popup.zeige({ querschnitt: ader.querschnitt_mm2 + ' mm²', farbe: ader.farbe }, x, y);
+  }
 });
 ```
 
@@ -489,6 +591,98 @@ function rendern() {
 ---
 
 ## Controller
+
+### app.js
+Der tatsächliche, aktuell implementierte Einstiegspunkt (`start()`) - lädt die
+Anlage, rendert Schaltkasten und Messgerät und verdrahtet beide miteinander.
+Die Messgerät-Zustandslogik (▲/▼/◄►/Drehknopf, `titelZeigtLabel`,
+`zone1Auswahl`, alle Wertelisten wie `ZI_LS_TYPEN`) ist bereits ausführlich
+unter `messgeraet.js` (View-Abschnitt oben) dokumentiert, da sie eng mit dem
+dortigen Datenmodell verzahnt ist. Die `ablauf.js`/`validator.js`/`stufen.js`-
+Module weiter unten sind **geplant, noch nicht implementiert** - aktuell steckt
+alles in `app.js`.
+
+**Messmodus (Schaltkasten-Popups vs. Messspitzen):** Ob ein Klick auf eine
+Schraube ein Info-Popup zeigt oder eine Messspitze anlegt, hängt einzig von
+`messgeraetZustand.an` ab (kein eigener Moduswechsel-Zustand nötig - die
+Messgerät-ON/OFF-Taste ist gleichzeitig der Modusschalter). Die Callback-
+Funktion, die `SchaltkastenView.render()` übergeben wird, prüft das bei jedem
+Klick neu (kein erneutes Rendern des Schaltkastens beim Umschalten nötig, da
+`messgeraetZustand` als Closure-Variable immer den aktuellen Stand liefert):
+- **Aus:** `Popup.zeige(...)` wie bisher.
+- **An:** Messspitze anlegen/entfernen, siehe unten. `Popup` wird nicht mehr
+  aufgerufen; ein evtl. noch offenes Popup verschwindet automatisch über
+  dessen eigenen "Klick außerhalb schließt"-Mechanismus (`popup.js`), sobald
+  der Bediener die ON/OFF-Taste anklickt (das zählt als Klick außerhalb).
+
+**Messspitzen:** repräsentiert durch einen farbigen Kreis (`schwarz`/`blau`/
+`grün` - mit Umlaut, passend zur Schreibweise in KONZEPT.md/Doku-Prosa, siehe
+`MESSSPITZEN_FARBWERTE`), der als zusätzliches `<circle>`-Overlay direkt neben
+den bestehenden Schrauben-Kreis gesetzt wird (`svgKreis()`, lokaler Helfer in
+`app.js` - `schaltkasten.js` selbst weiß nichts von Messspitzen). Dafür gibt
+`schraube()` in `schaltkasten.js` seit dieser Funktion das eigene
+Kreis-DOM-Element als viertes Argument an `onKlick` mit (`ev.clientX`/`Y`
+allein reichen nicht - das sind Bildschirmkoordinaten fürs Popup, keine
+SVG-Koordinaten für die Overlay-Positionierung). Das Overlay bekommt
+`pointer-events: none`, damit weitere Klicks auf derselben Stelle weiter beim
+Schrauben-Kreis ankommen (sonst würde der Overlay-Kreis alle Folgeklicks
+abfangen und der Zyklus bliebe hängen). Der weiße Rand (`stroke-width: 2.5`,
+bewusst dicker als ein normaler dünner Rand) sorgt für Kontrast, auch wenn
+eine dunkle Messspitze (schwarz) auf einem dunklen Bauteil-Gehäuse
+(z.B. Hauptschalter) landet – sonst wäre nur eine kaum sichtbare Fläche zu
+sehen.
+
+Klick-Zyklus pro Schraube: `leer → schwarz → blau → grün → leer → ...`
+(`naechsteMessspitzenFarbe()`), wobei eine Farbe übersprungen wird, wenn sie
+gerade an einer ANDEREN Schraube hängt - jede Farbe ist maximal einmal
+gleichzeitig vergeben (3 Messspitzen wie beim echten Gerät: L/N/PE). Zustand
+lebt in drei `Map`s mit dem Kreis-Element als Key (`messspitzenFarbe`:
+Element → Farbe; `messspitzenOverlay`: Element → Overlay-Circle, zum späteren
+Entfernen; `messspitzenAder`: Element → `ader`-Objekt aus der Anlage, für die
+Graph-Suche unten) - alle drei leben in `start()`s Closure. Ein Wechsel der
+Messfunktion (Drehknopf) lässt sie unangetastet, aber `onOff` ruft beim
+**Ausschalten** (nicht beim Einschalten) `entferneAlleMessspitzen()` auf, die
+alle Overlay-Kreise aus dem DOM entfernt und alle drei Maps leert - der
+Messmodus endet mit dem Gerät, beim nächsten Einschalten ist der Schaltkasten
+wieder leer. Noch nicht angebunden: TEST-Taste liest die angelegten
+Messspitzen bisher nicht aus (kommt in einem späteren Schritt, siehe
+KONZEPT.md "Messgerät") - RLOW ist davon nicht betroffen, siehe unten.
+
+**RLOW-Live-Messung über den Verbindungsgraph:** `start()` lädt zusätzlich
+`const graph = await Anlage.ladeGraph(pfad)` neben der Anlage selbst. Jeder
+Messspitzen-Klick ruft am Ende `renderMessgeraet()` erneut auf (RLOW misst
+laut KONZEPT.md **kontinuierlich**, ohne TEST-Taste - siehe der
+nicht-durchgestrichene Pfeil-Kasten im RLOW-Display), was
+`baueAnzeigeZustand()` und darin `berechneRlowMesswert()` auslöst:
+- Sucht in `messspitzenFarbe` die Kreise mit Farbe `schwarz` bzw. `blau` und
+  liest über `messspitzenAder` deren `ader`-Objekt.
+- Bricht mit `null` ab, wenn eine der beiden Messspitzen fehlt, keine `netz`-
+  ID trägt, oder beide Adern eine unterschiedliche `funktion` haben (z.B.
+  schwarz auf L1, blau auf N - kein gemeinsamer Teilgraph, siehe
+  `GRAPH_FUNKTIONEN` oben).
+- Sonst `findePfad(graph, funktion, schwarzAder.netz, blauAder.netz)`
+  (`model/pfad.js`); existiert ein Pfad, wird `0` zurückgegeben (Kantengewichte
+  aus der noch nicht existierenden Fehlertabelle fehlen, jeder gefundene Pfad
+  zählt also aktuell als 0Ω), sonst `null`.
+- `null` lässt den Platzhalter (`R:___Ω` bzw. `Durchgang`-Ansicht) unverändert;
+  ein Zahlenwert überschreibt `zustand.hauptwert` mit `` `R:${wert.toFixed(1)
+  .replace('.', ',')}Ω` `` (z.B. `R:0,0Ω`).
+
+Voraussetzung dafür ist die `netz`-ID pro Ader: `baueAder()` in
+`generate_anlage.js` schreibt sie als neues Feld (`netz: netz.netId`) in jede
+Ader von `anlage.json` (nur eine Lookup-ID, nicht der Graph selbst - der bleibt
+bewusst in der separaten `graph.json`). `schraube()` in `schaltkasten.js`
+spiegelt sie zusätzlich als `data-netz`-Attribut auf dem Schrauben-Kreis
+(genutzt u.a. von den RLOW-Tests in `test_messgeraet.js`, um gezielt einzelne
+Schrauben per Netz-ID anzuklicken statt über Pixel-Koordinaten).
+
+**Bugfix - Textauswahl bei schnellem Mehrfachklicken:** mehrere schnelle
+Klicks auf dieselbe Schraube (z.B. beim Messspitzen-Zyklus) lösten die native
+Doppelklick-Textauswahl des Browsers aus, die dann zufällig SVG-Text an
+anderer Stelle markierte (z.B. "BENNING IT 130" blau hervorgehoben - wirkte
+wie ein Farb-Bug im Messgerät, war aber Text-Selektion). Behoben in
+`index.html`: `#schaltkasten`/`#messgeraet` bekommen `user-select: none`
+(inkl. `-webkit-`/`-moz-`-Präfix).
 
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen

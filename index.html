@@ -7,6 +7,14 @@
     body { font-family: sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
     #schaltkasten { background: #fff; }
     #messgeraet { margin-top: 20px; display: flex; justify-content: center; }
+    /* Schnelles Mehrfachklicken (Messspitzen-Zyklus, Drehknopf, ▲/▼/◄►) löst
+       sonst die native Doppelklick-Textauswahl des Browsers aus, die zufällig
+       Text irgendwo in der SVG markiert (z.B. "BENNING IT 130" blau markiert). */
+    #schaltkasten, #messgeraet {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+    }
     .popup {
       position: fixed;
       display: none;

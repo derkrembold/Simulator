@@ -271,6 +271,38 @@ Mockup übernommen) bleibt unverändert; die Anzeigegröße wird separat über d
 `width`/`height`-Attribute auf 460px skaliert (`viewBox` bleibt `0 0 640 280`).
 Die Höhe ist proportional mitskaliert (keine reale Gerätehöhe dokumentiert).
 
+### Messmodus
+
+Schaltet der Bediener das Messgerät über die ON/OFF-Taste **an**, wechselt die
+gesamte App in den **Messmodus**: im Schaltkasten zeigen Klicks auf Schrauben
+nicht mehr das Info-Popup (Querschnitt/Kabelfarbe) – stattdessen legt man
+**Messspitzen** an, wie beim echten Messen. Ist das Messgerät **aus**,
+funktionieren die Popups wieder normal.
+
+**Messspitzen anlegen/entfernen:** eine Messspitze wird als farbiger Kreis
+direkt an der Schraube dargestellt. Klick-Zyklus pro Schraube:
+
+```
+leer → schwarz → blau → grün → leer → ...
+```
+
+Eine Farbe wird dabei übersprungen, wenn sie gerade an einer **anderen**
+Schraube hängt – jede Farbe ist zu jedem Zeitpunkt höchstens einmal vergeben,
+es sind also maximal drei Messspitzen gleichzeitig angelegt (wie beim echten
+Gerät: eine je L/N/PE-Prüfspitze). Ein Wechsel der Messfunktion am Drehknopf
+lässt die angelegten Messspitzen unangetastet (sie bilden die physische
+Verdrahtung ab, nicht den Anzeigezustand des Messgeräts). Schaltet der
+Bediener das Messgerät aber **aus**, werden alle Messspitzen automatisch
+entfernt – der Messmodus endet, beim nächsten Einschalten legt man frisch an.
+
+**RLOW ist bereits angebunden:** RLOW misst laut Display (nicht durchgestrichener
+Pfeil-Kasten) kontinuierlich, ohne TEST-Taste – jeder Messspitzen-Klick löst
+direkt eine Pfadsuche im Verbindungsgraphen aus (siehe "Pfadverfolgung und
+Fehlersimulation"). Für die übrigen Funktionen (RISO/ZI/ZS/FI-RCD) soll die
+TEST-Taste die angelegten Messspitzen auslesen und daraus (statt der aktuellen
+`---`-Platzhalter) einen echten, aus dem Netzplan berechneten Messwert
+anzeigen – noch nicht umgesetzt.
+
 ### Bedienelemente (als DOM-Elemente)
 
 Alle Bedienelemente werden – wie beim Schaltkasten – per JavaScript aus einzelnen
@@ -425,8 +457,10 @@ auf den angezeigten Messwert aus, ohne dass man irgendwo einen Wert von Hand nac
 Pro Messfunktion gilt ein eigenes Prinzip:
 
 **RLOW** (Durchgangsprüfung):
-Pfad zwischen den beiden angeklickten Schrauben im Netzplan verfolgen, alle
-`Widerstand`-Bauteile auf dem Pfad aufsummieren. Kein Widerstand im Pfad → 0Ω.
+Pfad zwischen den beiden angelegten Messspitzen im Verbindungsgraphen verfolgen
+(siehe "Pfadverfolgung und Fehlersimulation" weiter unten), Kantengewichte
+(Fehler-Widerstände aus der Fehlertabelle) aufsummieren. Kein Fehler-Widerstand
+im Pfad → 0Ω. Kein Pfad (offener Schalter/gelöste Schraube) → kein Messwert.
 
 **RISO** (Isolationswiderstand):
 Keine Pfadverfolgung, sondern eine **Konnektivitätsprüfung**: Liegen die beiden
@@ -724,15 +758,19 @@ Netzplan-Ursprung), fällt der Renderer auf die Ausgangsseite zurück.
 
 ## Netzliste (Ziel-Eingabeformat)
 
-**Status: Konzeptidee, Format noch nicht final.**
+**Status: umgesetzt.** Die Netzliste heißt in der Implementierung `netzplan.md`
+(eine Datei pro Testcase, z.B. `tests/visuell/testcase_01/netzplan.md`), das
+Übersetzungs-Script ist `tests/visuell/generate_anlage.js` (siehe
+ARCHITEKTUR.md). Format und Regeln unten sind aktuell und werden durch
+`tests/visuell/test_generator.js` als Unit-Tests abgesichert.
 
 Die verschachtelte `anlage.json` von Hand zu pflegen ist fehleranfällig – siehe die
 wiederholten fehlenden `ausgang`-Felder und `undefined`-Werte während der Entwicklung.
 Ziel ist daher, dass **niemand mehr direkt in der `anlage.json` herumpfuscht**: Die
 Anlage wird stattdessen aus einer **Netzliste** erzeugt – einer Tabelle in Markdown,
-die die elektrischen Verbindungen zwischen den Bauteilen explizit festhält. Ein
-zukünftiges Script übersetzt diese Tabelle in die `anlage.json` (Umsetzung später,
-dokumentiert dann in ARCHITEKTUR.md). Die `anlage.json` wird damit zu einem generierten
+die die elektrischen Verbindungen zwischen den Bauteilen explizit festhält. Das
+Script übersetzt diese Tabelle in die `anlage.json` (Details dazu in
+ARCHITEKTUR.md). Die `anlage.json` wird damit zu einem generierten
 Artefakt, so wie eine kompilierte Datei – nicht mehr zur manuellen Bearbeitung gedacht.
 
 ### Format
@@ -828,22 +866,115 @@ RCD-Typen, genormte Nennstrom-Reihen), steht zentral in
 **`docs/referenz/bauteilwerte.md`** – gilt für alle Testcases, nicht pro Testcase
 wiederholt.
 
-### Widerstand (Fehler-Bauteil)
+## Pfadverfolgung und Fehlersimulation
 
-Ein **Widerstand** ist ein eigenes, zweipoliges Bauteil (`i1`/`o1`) in der Netzliste,
-das absichtlich in eine Leitung eingebaut werden kann, um einen Fehler zu simulieren
-(z.B. eine schlechte Verbindung, Korrosion, einen zu dünnen Übergang). Er unterbricht
-dazu ein durchgehendes Netz in zwei Netze mit dem Widerstand dazwischen:
+**Status: teilweise umgesetzt.** Ersetzt den früheren Ansatz "Widerstand als
+eigenes Bauteil in der Netzliste" (zu umständlich – jeder Fehler hätte den
+Netzplan selbst verändert). Stattdessen: ein separater **Verbindungsgraph**,
+der Pfade zwischen zwei Schrauben sucht (für RLOW, später auch RISO/ZI/ZS),
+unter Berücksichtigung von Schalterstellungen und optionalen
+Fehler-Widerständen. Umgesetzt bisher: Graph-Generierung (siehe unten) inkl.
+Ausgabedatei (`graph.json` pro Testcase) und Anbindung ans Messgerät für RLOW
+(Messspitzen setzen, Pfad wird live verfolgt, siehe "Messmodus" und
+ARCHITEKTUR.md). Noch offen: Schalterzustand (Kanten sind aktuell immer
+`geschlossen: true`) und Fehlertabelle (jeder gefundene Pfad zählt aktuell als
+0Ω).
+
+### Verbindungsgraph
+
+**Umgesetzt** in `tests/visuell/generate_anlage.js` (`generiereGraph()` +
+`findePfad()`, Tests in `test_generator.js`). Knoten sind **Netze** (nicht
+einzelne Pins/Schrauben – ein Netz fasst ohnehin alle Pins zusammen, die
+elektrisch identisch sind; jede Ader trägt dafür ihre Netz-ID als `netz`-Feld
+in `anlage.json`, gespiegelt als `data-netz`-Attribut am Schrauben-Kreis im
+SVG, sodass eine angeklickte Schraube ihr Netz ohne erneutes Parsen kennt),
+Kanten sind Bauteile, die zwei Netze
+über ein `i<n>`/`o<n>`-Pinpaar derselben Funktion verbinden – generisch über
+alle Bauteile aus `bauteile.md`, kein Sonderfall pro Bauteilart. Ein einzelner
+Ausgangspin kann dabei auf mehrere Netze gleichzeitig verzweigen (z.B. ein
+RCD-Ausgang, der zwei LS versorgt) – das Format erlaubt das ohne Sonderfall.
+Dieselbe Verzweigung wird auch auf der Anzeigeseite abgebildet: eine Ader in
+`anlage.json` kann ein optionales `weitere`-Array mit zusätzlichen Adern an
+derselben physischen Schraube tragen (eine Schraube, mehrere Kabel – wie eine
+Astgabelung, keine zweite Schraube), sichtbar sowohl im Popup (Normalmodus)
+als auch beim Messen (die Messspitze "sieht" dann alle dort geklemmten Netze
+gleichzeitig, siehe ARCHITEKTUR.md).
+Pro Testcase wird ein **eigener Teilgraph je Funktion** gebaut (`L1`, `L2`,
+`L3`, `N`), nicht ein gemeinsamer Graph für alle Funktionen. **PE bewusst
+ausgelassen:** L1/L2/L3/N sind radiale Verteilung ohne Schleifen (echte
+Bäume, immer genau ein Pfad zwischen zwei Punkten). PE dagegen kann über den
+Hutschienen-Bond (jedes PE-Bauteil hängt sowohl an der Ader-Kette als auch am
+`io3`-Bond der Hutschiene) mehrere Pfade zwischen zwei Punkten haben – ein
+echter Graph mit Zyklen, bei dem der Widerstand bei mehreren Pfaden korrekt
+eine Parallelschaltung wäre statt einer einfachen Summe. Das ist deutlich
+komplexer und wird erst angegangen, sobald eine PE-basierte Messung ($R_{PE}$)
+tatsächlich ansteht.
+
+Diese Struktur gehört **nicht** in `anlage.json` (das bleibt reine
+Anzeigedaten – Farbe/Querschnitt pro Ader, plus die schlanke `netz`-Lookup-ID,
+wie oben beschrieben) und wird auch nicht im Browser aus `netzplan.md` neu
+geparst (keine doppelte Parsing-Logik in Node und Browser pflegen). Der Graph
+wird stattdessen als eigene Datei `graph.json` pro Testcase geschrieben (von
+derselben CLI wie `anlage.json`, siehe ARCHITEKTUR.md) und zur Laufzeit per
+`Anlage.ladeGraph()` in den Browser geladen; `model/pfad.js` ist ein bewusst
+dupliziertes Browser-Gegenstück zu `findePfad()` (kein Bundler im Projekt, die
+Funktion ist klein genug für eine gepflegte Duplizierung). RLOW nutzt das
+bereits (siehe "Messmodus"); RISO/ZI/ZS folgen später demselben Modell.
+
+### Schalter (LS, RCD, Hauptschalter)
+
+Jeder schaltbare Bauteil hat eine **doppelte Rolle**:
+- **Grafisch:** im Schaltkasten-SVG klickbar – der Bauteil-Körper selbst (nicht
+  die Schrauben, die sind für Messspitzen reserviert, siehe "Messmodus").
+- **Im Graphen:** eine Kante (bzw. bei mehrpoligen Bauteilen mehrere Kanten
+  gleichzeitig, eine je Pol) zwischen den Eingangs- und Ausgangs-Pins, mit
+  Zustand `geschlossen: true/false`. Die Pfadsuche überspringt Kanten mit
+  `geschlossen: false`. Bei einem 4-poligen RCD steuert ein Klick also bis zu
+  vier Kanten gleichzeitig (eine je Pol), da alle denselben Schalterzustand
+  referenzieren.
+
+Verbindende ID zwischen SVG und Graph: der Bauteilname aus `bauteile.md`
+(`LS1`, `RCD1`, `Hauptschalter`, ...) – der existiert bereits, keine neue ID
+nötig. Der Laufzeit-Zustand ("welche Schalter sind gerade offen") lebt im
+Controller (`controller/app.js`), analog zu den Messspitzen – nicht in der
+Graph-Datei selbst (die beschreibt nur die Topologie, nicht den aktuellen
+Schaltzustand). Default: alle Schalter geschlossen (Normalzustand einer
+Anlage unter Spannung).
+
+### Schrauben lösen
+
+Der Bediener soll Schrauben auch **lösen** können (Mechanismus/Werkzeug noch
+nicht entschieden). Wirkung im Graphen: dieselbe Art von Kante wie beim
+Schalter, nur auf Ebene einer einzelnen Ader statt eines ganzen Bauteils –
+eine gelöste Schraube kappt genau eine Kante.
+
+### Fehlertabelle (Fehler-Widerstände)
+
+Eine neue Tabelle direkt in `netzplan.md` (pro Testcase), die einzelnen
+**bestehenden** Netzen einen Fehler-Widerstand zuweist – kein eigenes
+Bauteil, keine Änderung an der restlichen Verdrahtung nötig:
 
 ```
-PE-Klemme.o1 → Widerstand1.i1   (Netz A)
-Widerstand1.o1 → Reihenklemme2.i2   (Netz B)
+## Fehlertabelle
+
+| Netz | Widerstand (Ω) |
+| ---- | --------------- |
+| N1   | 0,1             |
 ```
 
-Der Widerstand trägt einen Wert in Ohm (z.B. `Widerstand1: 1.5Ω`). Dieser Wert fließt
-später in die berechneten fiktiven Messwerte ein, wenn über diesen Punkt gemessen wird
-(z.B. ein erhöhter $R_{PE}$-Wert am Messgerät). Damit lassen sich gezielt Fehlerszenarien
-für das Training bauen, ohne die restliche Anlage zu verändern.
+Netze ohne Eintrag gelten als **0Ω** (kein Fehler). Der Verbindungsgraph
+bekommt dadurch **gewichtete** Kanten (Gewicht = Fehler-Widerstand, Default 0).
+
+### RLOW-Berechnung (erster Anwendungsfall)
+
+Die zwei relevanten Messspitzen (siehe "Messmodus") markieren zwei Knoten im
+Graphen. Pfadsuche zwischen ihnen; existiert ein Pfad (alle Kanten
+`geschlossen`), ist der angezeigte Wert die **Summe der Kantengewichte**
+entlang dieses Pfads (0Ω, wenn keine Fehlertabellen-Einträge auf dem Weg
+liegen). Existiert kein Pfad (offener Schalter oder gelöste Schraube
+dazwischen), bleibt der Messwert beim `---`-Platzhalter. RISO/ZI/ZS folgen
+später demselben Graph-Modell (siehe "Berechnung der Messwerte" oben), sind
+aber noch nicht im Detail durchdacht.
 
 ---
 

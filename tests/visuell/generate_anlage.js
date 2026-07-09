@@ -101,25 +101,133 @@ function findeNetz(netze, pin, funktion) {
   return null;
 }
 
+// Wie findeNetz, aber liefert ALLE Treffer statt nur den ersten - nötig, weil
+// ein einzelner Ausgangspin auf mehrere Netze gleichzeitig verzweigen kann
+// (z.B. RCD1.o1 speist sowohl LS1 als auch LS2 über zwei separate Adern am
+// selben physischen Pin, siehe netzplan.md-Annahme 2 in testcase_01).
+function findeAlleNetze(netze, pin, funktion) {
+  return Object.entries(netze)
+    .filter(([, netz]) => netz.pins.some((p) => p.pin === pin && p.funktion === funktion))
+    .map(([netId]) => netId);
+}
+
+// --- Verbindungsgraph (Pfadverfolgung, siehe KONZEPT.md "Pfadverfolgung und
+// Fehlersimulation") ---
+//
+// Knoten = Netze, Kanten = Bauteile, die zwei Netze über ein i<n>/o<n>-Pinpaar
+// derselben Funktion verbinden (z.B. LS1.i1 -> LS1.o1, beide "L1"). Bewusst
+// GENERISCH über alle Bauteile aus bauteile.md (nicht pro Bauteiltyp
+// hartkodiert) - jedes Bauteil mit `pole` passenden i/o-Paaren liefert
+// automatisch seine Kanten, ohne Sonderfälle pro Bauteilart.
+//
+// Nur L1/L2/L3/N (keine PE) - PE kann über den Hutschienen-Bond mehrere Pfade
+// zwischen zwei Punkten haben (echter Graph mit Zyklen, ggf. Parallel-
+// widerstand nötig), L1/L2/L3/N sind dagegen reine Baumstrukturen (radiale
+// Verteilung, keine Schleifen) und brauchen daher noch keine Zyklen-Behandlung.
+const GRAPH_FUNKTIONEN = ['L1', 'L2', 'L3', 'N'];
+
+function knotenFuerFunktion(netze, funktion) {
+  return Object.entries(netze)
+    .filter(([, netz]) => netz.pins.some((p) => p.funktion === funktion))
+    .map(([netId]) => netId);
+}
+
+function kantenFuerFunktion(netze, bauteile, funktion) {
+  const kanten = [];
+  for (const bauteil of bauteile) {
+    const polzahl = bauteil.pole ?? 1;
+    for (let i = 1; i <= polzahl; i++) {
+      const vonNetze = findeAlleNetze(netze, `${bauteil.name}.i${i}`, funktion);
+      const nachNetze = findeAlleNetze(netze, `${bauteil.name}.o${i}`, funktion);
+      for (const von of vonNetze) {
+        for (const nach of nachNetze) {
+          kanten.push({ von, nach, bauteil: bauteil.name, geschlossen: true });
+        }
+      }
+    }
+  }
+  return kanten;
+}
+
+// Baut für jede Funktion (L1/L2/L3/N) einen eigenen Teilgraphen. PE bewusst
+// ausgelassen (siehe Kommentar oben).
+function generiereGraph(ordner) {
+  const { netze } = parseNetzplan(ordner);
+  const { bauteile } = parseBauteile(ordner);
+
+  const graph = {};
+  for (const funktion of GRAPH_FUNKTIONEN) {
+    graph[funktion] = {
+      knoten: knotenFuerFunktion(netze, funktion),
+      kanten: kantenFuerFunktion(netze, bauteile, funktion)
+    };
+  }
+  return graph;
+}
+
+// Breitensuche zwischen zwei Netzen innerhalb eines Funktions-Teilgraphen.
+// Kanten sind ungerichtet durchquerbar (ein geschlossener Schalter leitet in
+// beide Richtungen) und werden übersprungen, wenn `geschlossen: false` ist.
+// Gibt den Pfad als Array von Netz-IDs zurück, oder null, wenn keiner existiert.
+function findePfad(graph, funktion, startNetz, zielNetz) {
+  const teilgraph = graph[funktion];
+  if (!teilgraph) return null;
+  if (startNetz === zielNetz) return [startNetz];
+
+  const besucht = new Set([startNetz]);
+  const warteschlange = [[startNetz]];
+  while (warteschlange.length > 0) {
+    const pfad = warteschlange.shift();
+    const aktuell = pfad[pfad.length - 1];
+    for (const kante of teilgraph.kanten) {
+      if (!kante.geschlossen) continue;
+      let naechster = null;
+      if (kante.von === aktuell) naechster = kante.nach;
+      else if (kante.nach === aktuell) naechster = kante.von;
+      if (!naechster || besucht.has(naechster)) continue;
+      const neuerPfad = [...pfad, naechster];
+      if (naechster === zielNetz) return neuerPfad;
+      besucht.add(naechster);
+      warteschlange.push(neuerPfad);
+    }
+  }
+  return null;
+}
+
 function baueAder(netz, funktion) {
   return {
     funktion,
     farbe: netz.farbe ?? KABELFARBEN[funktion],
-    querschnitt_mm2: netz.querschnitt
+    querschnitt_mm2: netz.querschnitt,
+    // Netz-ID (z.B. "N4") aus dem Netzplan - nötig, um eine angeklickte
+    // Schraube im Verbindungsgraphen wiederzufinden (siehe KONZEPT.md
+    // "Pfadverfolgung und Fehlersimulation"). War beim Generieren schon
+    // bekannt (findeNetz() liefert sie mit), wurde bisher nur nicht mit in
+    // die Ader übernommen.
+    netz: netz.netId
   };
 }
 
 // Baut { leitung: { typ, adern } } für ein Bauteil mit i1..iN / o1..oN Pins.
+// Ein Pin kann auf mehrere Netze gleichzeitig verzweigen (z.B. RCD1.o1 speist
+// LS1 UND LS2 über zwei Adern an derselben physischen Klemme, siehe
+// netzplan.md-Annahme 2 in testcase_01) - das ist keine zweite Schraube,
+// sondern dieselbe Schraube mit mehr als einer Ader. Die erste (per
+// findeAlleNetze()-Reihenfolge) bleibt die "Haupt"-Ader dieser Position,
+// weitere Treffer hängen als `ader.weitere` dran (siehe view/schaltkasten.js).
 function baueLeitung(netze, bauteilName, prefix, funktionen) {
   const adern = [];
   let kabeltyp = null;
   funktionen.forEach((funktion, i) => {
     const pin = `${bauteilName}.${prefix}${i + 1}`;
-    const treffer = findeNetz(netze, pin);
-    if (treffer) {
-      adern.push(baueAder(treffer, funktion));
-      kabeltyp = kabeltyp ?? treffer.kabeltyp;
+    const [ersteId, ...weitereIds] = findeAlleNetze(netze, pin, funktion);
+    if (!ersteId) return;
+    const ader = baueAder({ netId: ersteId, ...netze[ersteId] }, funktion);
+    if (weitereIds.length > 0) {
+      ader.weitere = weitereIds.map((netId) => baueAder({ netId, ...netze[netId] }, funktion));
     }
+    adern.push(ader);
+    kabeltyp = kabeltyp ?? netze[ersteId].kabeltyp;
   });
   return { leitung: { typ: kabeltyp ?? 'NYM-J', adern } };
 }
@@ -370,7 +478,7 @@ function generiereAnlage(ordner) {
   return anlage;
 }
 
-module.exports = { generiereAnlage };
+module.exports = { generiereAnlage, generiereGraph, findePfad };
 
 // --- Main (nur bei direktem Aufruf, nicht beim require() aus anderen Skripten) ---
 
@@ -387,4 +495,14 @@ if (require.main === module) {
   const zielPfad = path.join(ordner, 'anlage_generated.json');
   fs.writeFileSync(zielPfad, JSON.stringify(anlage, null, 2));
   console.log(`Geschrieben: ${zielPfad}`);
+
+  // Verbindungsgraph nur, wenn netzplan.md existiert (setzt parseNetzplan()
+  // voraus, das generiereGraph() intern aufruft) - übersprungen bei
+  // handgepflegten Anlagen ohne Netzplan.
+  if (fs.existsSync(path.join(ordner, 'netzplan.md'))) {
+    const graph = generiereGraph(ordner);
+    const graphZielPfad = path.join(ordner, 'graph_generated.json');
+    fs.writeFileSync(graphZielPfad, JSON.stringify(graph, null, 2));
+    console.log(`Geschrieben: ${graphZielPfad}`);
+  }
 }

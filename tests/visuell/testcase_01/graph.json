@@ -1,0 +1,101 @@
+{
+  "L1": {
+    "knoten": [
+      "N1",
+      "N4",
+      "N6",
+      "N7",
+      "N11",
+      "N12",
+      "N13",
+      "N16"
+    ],
+    "kanten": [
+      {
+        "von": "N1",
+        "nach": "N4",
+        "bauteil": "Leistungsschalter",
+        "geschlossen": true
+      },
+      {
+        "von": "N4",
+        "nach": "N6",
+        "bauteil": "RCD1",
+        "geschlossen": true
+      },
+      {
+        "von": "N4",
+        "nach": "N7",
+        "bauteil": "RCD1",
+        "geschlossen": true
+      },
+      {
+        "von": "N6",
+        "nach": "N11",
+        "bauteil": "LS1",
+        "geschlossen": true
+      },
+      {
+        "von": "N7",
+        "nach": "N12",
+        "bauteil": "LS2",
+        "geschlossen": true
+      },
+      {
+        "von": "N11",
+        "nach": "N13",
+        "bauteil": "Reihenklemme_L_SK1",
+        "geschlossen": true
+      },
+      {
+        "von": "N12",
+        "nach": "N16",
+        "bauteil": "Reihenklemme_L_SK2",
+        "geschlossen": true
+      }
+    ]
+  },
+  "L2": {
+    "knoten": [],
+    "kanten": []
+  },
+  "L3": {
+    "knoten": [],
+    "kanten": []
+  },
+  "N": {
+    "knoten": [
+      "N2",
+      "N5",
+      "N8",
+      "N14",
+      "N17"
+    ],
+    "kanten": [
+      {
+        "von": "N2",
+        "nach": "N5",
+        "bauteil": "Leistungsschalter",
+        "geschlossen": true
+      },
+      {
+        "von": "N5",
+        "nach": "N8",
+        "bauteil": "RCD1",
+        "geschlossen": true
+      },
+      {
+        "von": "N8",
+        "nach": "N14",
+        "bauteil": "Reihenklemme_N_SK1",
+        "geschlossen": true
+      },
+      {
+        "von": "N8",
+        "nach": "N17",
+        "bauteil": "Reihenklemme_N_SK2",
+        "geschlossen": true
+      }
+    ]
+  }
+}

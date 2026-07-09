@@ -6,7 +6,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { generiereAnlage } = require('./generate_anlage.js');
+const { generiereAnlage, generiereGraph, findePfad } = require('./generate_anlage.js');
 
 let alleBestanden = true;
 
@@ -167,6 +167,70 @@ pruefe('Gruppe komplett auf einer Hutschiene -> darf NICHT werfen', () => {
   generiereAnlage(ordner); // wirft, wenn was kaputt ist - Test faengt das via pruefe() ab
 
   fs.rmSync(ordner, { recursive: true });
+});
+
+function gleich(tatsaechlich, erwartet, meldung) {
+  const t = JSON.stringify(tatsaechlich);
+  const e = JSON.stringify(erwartet);
+  if (t !== e) throw new Error(`${meldung}: erwartet ${e}, bekommen ${t}`);
+}
+
+// --- Verbindungsgraph (generiereGraph/findePfad) gegen testcase_01 ---
+// Nutzt den echten, eingecheckten Netzplan (nicht eine Temp-Fixture) - die
+// erwarteten Netz-IDs unten sind direkt aus tests/visuell/testcase_01/netzplan.md
+// abgelesen. Deckt L1 (Kette über Leistungsschalter -> RCD1 -> LS1/LS2 ->
+// Reihenklemme -> Endstelle) und N ab; deckt außerdem den Verzweigungsfall ab
+// (RCD1.o1 speist LS1 UND LS2 vom selben physischen Pin aus, siehe
+// netzplan.md-Annahme 2).
+
+const TESTCASE_01 = path.join(__dirname, 'testcase_01');
+
+pruefe('Graph: L1-Pfad Einspeisung -> Endstelle SK1 folgt der erwarteten Kette', () => {
+  const graph = generiereGraph(TESTCASE_01);
+  const pfad = findePfad(graph, 'L1', 'N1', 'N13');
+  gleich(pfad, ['N1', 'N4', 'N6', 'N11', 'N13'], 'L1-Pfad SK1');
+});
+
+pruefe('Graph: L1-Pfad Einspeisung -> Endstelle SK2 nutzt die RCD1.o1-Verzweigung nach N7', () => {
+  const graph = generiereGraph(TESTCASE_01);
+  const pfad = findePfad(graph, 'L1', 'N1', 'N16');
+  gleich(pfad, ['N1', 'N4', 'N7', 'N12', 'N16'], 'L1-Pfad SK2');
+});
+
+pruefe('Graph: N-Pfad Einspeisung -> Endstelle SK1 folgt der erwarteten Kette', () => {
+  const graph = generiereGraph(TESTCASE_01);
+  const pfad = findePfad(graph, 'N', 'N2', 'N14');
+  gleich(pfad, ['N2', 'N5', 'N8', 'N14'], 'N-Pfad SK1');
+});
+
+pruefe('Graph: kein Pfad zwischen Netzen unterschiedlicher Funktion (L1 vs. N)', () => {
+  const graph = generiereGraph(TESTCASE_01);
+  const pfad = findePfad(graph, 'L1', 'N1', 'N2');
+  if (pfad !== null) throw new Error(`erwarte keinen Pfad (N2 ist ein N-Netz, kein L1-Netz), bekommen: ${JSON.stringify(pfad)}`);
+});
+
+pruefe('Graph: L1-Knotenliste enthält alle L1-Netze von testcase_01', () => {
+  const graph = generiereGraph(TESTCASE_01);
+  const erwartet = ['N1', 'N4', 'N6', 'N7', 'N11', 'N12', 'N13', 'N16'];
+  const tatsaechlich = [...graph.L1.knoten].sort();
+  gleich(tatsaechlich, [...erwartet].sort(), 'L1-Knotenliste');
+});
+
+// anlage.json (Anzeigeseite) muss dieselbe Verzweigung wie der Graph
+// abbilden: RCD1.o1 speist LS1 (N6) UND LS2 (N7) vom selben physischen Pin -
+// baueLeitung() nutzte dafür ursprünglich findeNetz() (nur erster Treffer),
+// wodurch N7 in anlage.json komplett verschwand (LS2 wirkte im Schaltkasten
+// unverbunden, siehe ARCHITEKTUR.md "Verzweigende Adern in anlage.json").
+pruefe('anlage.json: RCD1-Ausgang trägt die zweite L1-Ader (N7) als ader.weitere', () => {
+  const anlage = generiereAnlage(TESTCASE_01);
+  const rcdAusgang = anlage.hutschienen[0].gruppen[0].rcd.ausgang.leitung.adern;
+  const l1Ader = rcdAusgang.find((a) => a.funktion === 'L1');
+  if (!l1Ader) throw new Error('keine L1-Ader am RCD-Ausgang gefunden');
+  gleich(l1Ader.netz, 'N6', 'RCD-Ausgang L1 Haupt-Ader');
+  if (!l1Ader.weitere || l1Ader.weitere.length !== 1) {
+    throw new Error(`erwarte genau eine weitere Ader (N7), bekommen: ${JSON.stringify(l1Ader.weitere)}`);
+  }
+  gleich(l1Ader.weitere[0].netz, 'N7', 'RCD-Ausgang L1 weitere Ader');
 });
 
 process.exit(alleBestanden ? 0 : 1);

@@ -24,5 +24,18 @@ export const Anlage = {
     });
 
     return anlage;
+  },
+
+  // Lädt den Verbindungsgraphen (siehe KONZEPT.md "Pfadverfolgung und
+  // Fehlersimulation"), der neben der anlage.json liegt (gleicher Ordner,
+  // Dateiname "graph.json") - aus generate_anlage.js erzeugt, ein Testcase
+  // ohne netzplan.md (z.B. die handgepflegte beispiel_eg.json) hat keinen.
+  // Liefert `null` statt zu werfen, wenn keiner existiert (404) - die
+  // Pfadverfolgung ist dann einfach nicht verfügbar, kein Fehlerfall.
+  async ladeGraph(anlagePfad) {
+    const graphPfad = anlagePfad.replace(/anlage\.json$/, 'graph.json');
+    const antwort = await fetch(graphPfad);
+    if (!antwort.ok) return null;
+    return antwort.json();
   }
 };

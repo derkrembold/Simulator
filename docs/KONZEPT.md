@@ -325,8 +325,67 @@ Wandert durch die Werte in der oberen Zeile des Displays (Titel, und falls vorha
 weitere Werte daneben – z.B. bei ZI: LS-Typ, Bemessungsstrom, Abschaltzeit) und markiert
 das jeweils ausgewählte Feld **invers** (weißer Text auf schwarzem Kästchen statt
 schwarzem Text ohne Hintergrund). Zyklisch, mit Wrap-around zurück zum Titel. Zeigt an,
-welcher Wert gerade ausgewählt ist – Grundlage für eine spätere Erweiterung, bei der ▲/▼
-den ausgewählten Wert ändern (z.B. Messspannung bei RISO, LS-Typ bei ZI/ZS).
+welcher Wert gerade ausgewählt ist.
+
+**Pfeil oben/unten (▲/▼):**
+Ändert das per ◄► ausgewählte Feld. Bisher umgesetzt:
+- **Titel ausgewählt:** togglet zwischen dem vollen Namen (z.B. "Durchgang") und der
+  Kurzform vom Drehknopf (z.B. "R LOW") – beide Varianten bleiben invers markiert. Bei
+  RLOW zeigt die Kurzform-Ansicht zusätzlich zwei bisher verborgene Werte über dem
+  unteren Strich: `R+:___` (links) und `R-:___` (rechts) – Vorwärts-/Rückwärts-Widerstand
+  bei der Durchgangsprüfung (Umkehrung der Prüfstromrichtung, deckt thermoelektrische
+  Effekte auf). Bei "Durchgang" bleiben diese ausgeblendet.
+- **RLOW, kalibrierter Widerstand ausgewählt:** ändert den Wert in 0,1Ω-Schritten, nach
+  unten geklemmt bei 0 (zeigt dann `___Ω` statt `0,0Ω`).
+- **RISO, Prüfspannung ausgewählt:** wandert durch die Werteliste 50V/100V/250V/500V/1000V
+  (siehe "Konfigurierbare Parameter" weiter unten), an beiden Enden geklemmt.
+- **ZI, Titel ausgewählt:** togglet zu einer eigenen **ΔU-Ansicht** (Spannungsfall) –
+  Titel wird zu "ΔU", davor erscheint ein neuer Wert `4,0%` (Default, siehe unten). LS-Typ
+  und Bemessungsstrom bleiben mittig daneben stehen, die Abschaltzeit rutscht dabei ganz
+  nach rechts (rechtsbündig statt wie sonst mittig in der Reihe – sonst wären es 4 mittige
+  Werte, was nicht mehr ins Display passt). Über dem unteren Strich verschwinden `Isc`/`Lim`
+  (die gehören zur normalen "Zl"-Ansicht). Zwischen den Strichen stehen stattdessen vier
+  links ausgerichtete Zeilen: `ΔU: ___%`, `Isc:___A`, `Z:___Ω`, `Zref: 0,1Ω` (noch keine
+  echten Werte außer Zref, das schon einen Startwert hat – alle vier sind Variablen). Die
+  Messpunkte (unter dem Strich) bleiben unverändert. Toggle zurück zu "Zl" wie gehabt.
+- **ZI, Spannungsfall (`4,0%`) ausgewählt** (nur in der ΔU-Ansicht sichtbar): ändert den
+  Wert in 0,5%-Schritten, nach unten geklemmt bei 0%.
+- **ZI, LS-Typ ausgewählt:** wandert durch B/C/D/K/Z (siehe
+  `docs/referenz/bauteilwerte.md`) sowie zusätzlich L/U/NV/gG (ältere
+  DIN-Charakteristiken bzw. Sicherungs- statt LS-Charakteristiken, als
+  Referenzgerät für die Zi-Messung aber ebenso zulässig – siehe auch
+  `LIM_FAKTOR_NACH_LS_TYP`, die alle vier bereits unterstützt), an beiden
+  Enden geklemmt.
+- **ZI, Bemessungsstrom ausgewählt:** wandert durch die Normreihe 6A/10A/13A/16A/20A/
+  25A/32A/35A/40A/50A/63A/80A/100A/125A (siehe `docs/referenz/bauteilwerte.md`), an
+  beiden Enden geklemmt.
+- **ZI, Abschaltzeit ausgewählt:** wandert durch 35ms/70ms/0,1s/0,2s/0,4s/1s/5s, an
+  beiden Enden geklemmt.
+
+**Wichtig:** LS-Typ, Bemessungsstrom und Abschaltzeit sind in der normalen "Zl"-Ansicht
+und in der "ΔU"-Ansicht dieselben Werte (nicht zwei getrennte Kopien) – eine Änderung in
+der einen Ansicht gilt sofort auch in der anderen, in beide Richtungen.
+
+- **ZS, Titel ausgewählt:** togglet zu einer eigenen **ZSrcd-Ansicht** (Schleifenimpedanz
+  durch einen RCD hindurch, ohne ihn auszulösen) – Titel wird zu "ZSrcd", danach steht das
+  Menü-Item **`Std`**, dann LS-Typ und Bemessungsstrom mittig, die Abschaltzeit
+  rechtsbündig ganz rechts (gleicher Mechanismus wie bei ZI/ΔU). Der Inhalt zwischen den
+  Strichen (Hauptmesswert) und unter dem Strich (Isc/Lim, Messpunkte) ist bei "Zs" und
+  "ZSrcd" **identisch** (anders als bei ZI/ΔU) – kein Unterschied dort. Toggle zurück zu
+  "Zs" wie gehabt.
+- **ZS, "Std" ausgewählt** (nur in der ZSrcd-Ansicht sichtbar): togglet zwischen `Std` und
+  `Low`, sonst keine weiteren Werte.
+- **ZS, LS-Typ/Bemessungsstrom/Abschaltzeit ausgewählt:** gleiche Werten und gleicher
+  Mechanismus wie bei ZI (siehe oben), aber **eigene, unabhängige Werte** – eine Änderung
+  bei ZS wirkt sich nicht auf ZI aus und umgekehrt (unterschiedliche Messungen, kein
+  gemeinsam vorausgesetzter LS).
+- **FI/RCD, Fehlerstrom ausgewählt:** wandert durch 10mA/30mA/100mA/300mA/500mA (siehe
+  `docs/referenz/bauteilwerte.md`), an beiden Enden geklemmt.
+- **FI/RCD, Typ ausgewählt:** wandert durch AC/A/F/B/B+ (siehe
+  `docs/referenz/bauteilwerte.md`), an beiden Enden geklemmt.
+
+Der Inhalt zwischen den Strichen bei der ZI-ΔU-Ansicht (ΔU/Isc/Z/Zref) ist noch nicht an
+▲/▼ angeschlossen – geplante Erweiterung.
 
 ### Display
 
@@ -400,32 +459,39 @@ von `Widerstand`-Bauteilen (kein Spannungsteiler-Modell). Spätere Erweiterung m
   Zi/Zs-Berechnung automatisch mit einfließt (reale Schleifenimpedanz ist nie 0, auch
   ohne jeden Fehler). Default irgendwo im Bereich 0.1–0.5Ω.
 - **Messspannung (RISO)** – Prüfspannung für die Isolationswiderstandsmessung, am
-  Messgerät wählbar (Pfeiltasten). Gültige Werte nach VDE 0100-600/IEC 61557-2:
-  100V, 250V, 500V, 1000V. Default 500V. Aktuell fester Platzhalter in
-  `view/messgeraet.js` (`messspannung`-Feld pro Drehknopf-Stellung), noch nicht
-  über die Pfeiltasten einstellbar.
+  Messgerät per ▲/▼ wählbar (Feld muss vorher über ◄► ausgewählt sein). Gültige
+  Werte nach VDE 0100-600/IEC 61557-2: 50V, 100V, 250V, 500V, 1000V. Default
+  500V, an beiden Enden der Liste geklemmt (kein Wrap-around). Umgesetzt in
+  `controller/app.js` (`RISO_MESSSPANNUNGEN`); der Default-Wert stammt weiterhin
+  aus `view/messgeraet.js` (`messspannung`-Feld bei RISO in
+  `DREHKNOPF_POSITIONEN`, nur für den Anfangszustand vor dem ersten ▲/▼-Klick).
 - **Referenz-LS (ZI/ZS)** – bei der Leitungs-/Schleifenimpedanzmessung zeigt das
   Display zusätzlich den LS an, gegen dessen Auslösebedingungen die gemessene
-  Impedanz geprüft werden soll: Charakteristik (B/C/D/K/Z), Bemessungsstrom
-  (Normreihe, siehe `docs/referenz/bauteilwerte.md`) und die geforderte max.
-  Abschaltzeit (0,2s oder 0,4s nach VDE 0100-410). Defaults: B, 16A, 0,4s.
-  Aktuell feste Platzhalter in `view/messgeraet.js` (`lsTyp`/`lsBemessungsstrom`/
-  `abschaltzeitGrenzwert`), noch nicht über die Pfeiltasten einstellbar.
+  Impedanz geprüft werden soll: Charakteristik (B/C/D/K/Z/L/U/NV/gG, siehe
+  `docs/referenz/bauteilwerte.md` für B/C/D/K/Z), Bemessungsstrom (Normreihe,
+  siehe `docs/referenz/bauteilwerte.md`) und die geforderte max. Abschaltzeit
+  (35ms/70ms/0,1s/0,2s/0,4s/1s/5s). Defaults: B, 16A, 0,4s. Über ◄► auswählbar
+  und per ▲/▼ einstellbar (siehe "Bedienung" weiter oben), umgesetzt in
+  `controller/app.js`; für ZI und ZS jeweils eigene, unabhängige Werte.
 - **Isc/Lim (ZI/ZS)** – unten im Display, über dem Strich: `Isc` (links) ist der
   gemessene/berechnete Kurzschlussstrom, noch kein Wert (Platzhalter `---`, wird
   später aus dem Netzplan berechnet). `Lim` (rechts) ist der Mindestauslösestrom,
   den die Charakteristik des Referenz-LS für ein Auslösen innerhalb der
   Abschaltzeit braucht – hängt von **beiden** Referenzwerten ab, `lsTyp` **und**
-  `lsBemessungsstrom` (nicht nur vom Typ): `Lim = Referenzwert_bei_16A(lsTyp) ×
-  (lsBemessungsstrom / 16)`. Referenzwerte bei 16A (`LIM_REFERENZ_BEI_16A_NACH_LS_TYP`
-  in `view/messgeraet.js`): B=80A, C=160A, K=240A, D=320A, Z=48A, L=85A, U=192A,
-  NV/gG=107,4A.
+  `lsBemessungsstrom` (nicht nur vom Typ): `Lim = Faktor(lsTyp) × lsBemessungsstrom`.
+  Faktoren (`LIM_FAKTOR_NACH_LS_TYP` in `view/messgeraet.js`, exportiert als
+  `berechneLimText()`): B=5, C=10, K=15, D=20, Z=3, L=5,25, U=12, NV=12, gG=12
+  (NV/gG-Faktoren können sich noch ändern). `Lim` wird live neu berechnet, wenn
+  LS-Typ oder Bemessungsstrom über ▲/▼ geändert werden (in `controller/app.js`).
 - **Fehlerstrom/Typ (FI/RCD)** – neben dem Titel "RCD I" zeigt das Display den
   geprüften RCD an: Fehlerstrom (mittig, Normreihe siehe
   `docs/referenz/bauteilwerte.md`: 10mA, 30mA, 100mA, 300mA, 500mA; Default 30mA)
-  und Typ (rechts daneben: AC, A, B, B+; Default AC). Aktuell feste Platzhalter in
-  `view/messgeraet.js` (`rcdFehlerstrom`/`rcdTyp`), noch nicht über die Pfeiltasten
-  einstellbar.
+  und Typ (rechts daneben: AC, A, F, B, B+; Default AC). Über ◄► auswählbar und
+  per ▲/▼ einstellbar (siehe "Bedienung" weiter oben), umgesetzt in
+  `controller/app.js` (`FIRCD_FEHLERSTROEME`/`FIRCD_TYPEN`); der Default-Wert
+  stammt weiterhin aus `view/messgeraet.js` (`rcdFehlerstrom`/`rcdTyp` bei
+  FI/RCD in `DREHKNOPF_POSITIONEN`, nur für den Anfangszustand vor dem ersten
+  ▲/▼-Klick).
 
 ---
 

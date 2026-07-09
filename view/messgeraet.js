@@ -20,13 +20,24 @@ const DISPLAY = { x: 190, y: 55, breite: 260, hoehe: 190 };
 const DREHKNOPF = { cx: 542, cy: 147, r: 26 };
 const TEST_TASTE = { cx: 57, cy: 149 };
 
-// Lim-Grenzwert für ZI: Referenzwert (A) je LS-Charakteristik bei 16A Bemessungsstrom
-// (wie vorgegeben) - daraus ergibt sich der Auslösefaktor (Referenzwert / 16), der
-// mit dem tatsächlichen Bemessungsstrom multipliziert wird. Lim hängt also von
-// BEIDEN Werten ab (Typ und Bemessungsstrom), nicht nur vom Typ.
-const LIM_REFERENZ_BEI_16A_NACH_LS_TYP = {
-  B: 80, C: 160, K: 240, D: 320, Z: 48, L: 85, U: 192, NV: 107.4, gG: 107.4
+// Lim-Grenzwert für ZI/ZS: Auslösefaktor je LS-Charakteristik, direkt mit dem
+// Bemessungsstrom multipliziert (Lim = Faktor × Bemessungsstrom). Lim hängt
+// also von BEIDEN Werten ab (Typ und Bemessungsstrom), nicht nur vom Typ.
+// NV/gG-Faktoren können sich noch ändern (vom Anwender als vorläufig markiert).
+const LIM_FAKTOR_NACH_LS_TYP = {
+  B: 5, C: 10, D: 20, K: 15, Z: 3, L: 5.25, U: 12, NV: 12, gG: 12
 };
+
+// Berechnet den formatierten Lim-Text ("Lim: X,XA") aus LS-Typ und
+// Bemessungsstrom (String mit "A"-Suffix, z.B. "16A") - gemeinsam genutzt vom
+// initialen/statischen Zustand (zustandFuerFunktion) und vom live editierten
+// Zustand in controller/app.js, damit die Formel nur an einer Stelle steht.
+function berechneLimText(lsTyp, lsBemessungsstrom) {
+  const faktor = LIM_FAKTOR_NACH_LS_TYP[lsTyp];
+  const bemessungsstrom = parseFloat(lsBemessungsstrom);
+  const lim = faktor * bemessungsstrom;
+  return `Lim: ${lim.toFixed(1).replace('.', ',')}A`;
+}
 
 // Reihenfolge entspricht dem zyklischen Weiterschalten beim Drehknopf-Klick
 // (siehe KONZEPT.md "Bedienung" - RLOW -> RISO -> ZI -> ZS -> FI/RCD -> V~ -> ...).
@@ -152,10 +163,7 @@ function zustandFuerFunktion(funktion, an) {
   let nebenwertRechts = null;
   if (pos.lsTyp && pos.lsBemessungsstrom) {
     nebenwertLinks = 'Isc:---A';
-    const referenzBei16A = LIM_REFERENZ_BEI_16A_NACH_LS_TYP[pos.lsTyp];
-    const bemessungsstrom = parseFloat(pos.lsBemessungsstrom);
-    const lim = referenzBei16A * (bemessungsstrom / 16);
-    nebenwertRechts = `Lim: ${lim.toFixed(1).replace('.', ',')}A`;
+    nebenwertRechts = berechneLimText(pos.lsTyp, pos.lsBemessungsstrom);
   } else if (pos.funktion === 'FI/RCD') {
     // Uci (links, Berührungsspannung) / t (rechts, Auslösezeit) - noch keine
     // Werte, Platzhalter bis zum TEST-Klick.
@@ -167,6 +175,9 @@ function zustandFuerFunktion(funktion, an) {
     an,
     funktion: pos.funktion,
     titel: pos.titel,
+    // Kurzform des Titels (Drehknopf-Label, z.B. "R LOW" statt "Durchgang") -
+    // per ▲/▼ umschaltbar, wenn der Titel gerade ausgewählt ist (zone1Auswahl 0).
+    label: pos.label,
     titelWerte,
     hauptwert: pos.wertPrefix ? `${pos.wertPrefix}:${pos.funktion === 'FI/RCD' ? '___' : '---'}${pos.einheit}` : null,
     hauptwertLinksAligniert: pos.hauptwertLinksAligniert ?? false,
@@ -201,19 +212,30 @@ function text(inhalt, attrs) {
 
 // Ein Feld in Zone 1 (Titel oder ein Wert aus titelWerte) - normal (schwarzer
 // Text) oder invers (weißer Text auf schwarzem Kästchen, zeigt Auswahl per
-// ◄►-Taste an). Kästchenbreite grob aus der Zeichenanzahl geschätzt (Courier
-// New, monospace), `textAnchor` bestimmt, ob `x` der linke Rand (Titel) oder
-// die Mitte (titelWerte) des Textes ist.
+// ◄►-Taste an). `textAnchor` bestimmt, ob `x` der linke Rand (Titel) oder die
+// Mitte (titelWerte) des Textes ist. Die Kästchengröße wird per `getBBox()`
+// am tatsächlich gerenderten Text gemessen statt aus der Zeichenanzahl
+// geschätzt - eine Schätzung (z.B. Zeichen × Breite) passt nicht zuverlässig
+// zur tatsächlichen Textbreite, insbesondere bei Unterstrichen ("___", siehe
+// RLOW-Platzhalter): deren Breite variiert stark je nach Font-Fallback des
+// Browsers und kann bei einer festen Schätzung weit über den Kastenrand hinausragen.
 function zeichneTitelFeld(svg, wert, x, y, { invers = false, textAnchor = 'start' } = {}) {
-  if (invers) {
-    const kastenBreite = wert.length * 8 + 8;
-    const kastenX = textAnchor === 'middle' ? x - kastenBreite / 2 : x - 4;
-    svg.appendChild(svgEl('rect', { x: kastenX, y: y - 14, width: kastenBreite, height: 18, fill: '#111111' }));
-  }
-  svg.appendChild(text(wert, {
+  const textEl = text(wert, {
     x, y, 'text-anchor': textAnchor,
     'font-size': 13, 'font-weight': 'bold', fill: invers ? '#ffffff' : '#111111', 'font-family': "'Courier New', monospace"
-  }));
+  });
+  if (invers) {
+    svg.appendChild(textEl);
+    const box = textEl.getBBox();
+    const polsterung = 4;
+    svg.insertBefore(svgEl('rect', {
+      x: box.x - polsterung, y: box.y - polsterung,
+      width: box.width + polsterung * 2, height: box.height + polsterung * 2,
+      fill: '#111111'
+    }), textEl);
+  } else {
+    svg.appendChild(textEl);
+  }
 }
 
 function taste(svg, { x, y, breite, hoehe, label, fontSize = 14, onKlick }) {
@@ -322,11 +344,24 @@ function zeichneDisplay(svg, zustand) {
   // Werte rechts neben dem Titel, beginnend mittig im Display (nicht am rechten
   // Rand) - Platz für sich ändernde Werte (z.B. Durchgang: "0,4Ω", oder bei ZI
   // mehrere nebeneinander: LS-Typ, Bemessungsstrom, Abschaltzeit-Grenzwert).
-  (zustand.titelWerte ?? []).forEach((wert, i) => {
-    zeichneTitelFeld(svg, wert, x + breite / 2 + i * 55, y + 29, {
+  // Ist zusätzlich ein titelWertRechts gesetzt (siehe unten), bleibt weniger
+  // Platz bis zum rechten Rand - dann enger, damit sich nichts überlappt.
+  const titelWerte = zustand.titelWerte ?? [];
+  const titelWerteAbstand = zustand.titelWertRechts ? 32 : 55;
+  titelWerte.forEach((wert, i) => {
+    zeichneTitelFeld(svg, wert, x + breite / 2 + i * titelWerteAbstand, y + 29, {
       invers: zone1Auswahl === i + 1, textAnchor: 'middle'
     });
   });
+  // Optionaler zusätzlicher Wert ganz rechts, rechtsbündig am Display-Rand
+  // (z.B. bei ZI-ΔU-Ansicht: Abschaltzeit, damit die mittlere Reihe nicht auf
+  // 4 Werte anwächst und über den Rand hinausragt) - eigener Auswahl-Index
+  // direkt nach den titelWerte-Einträgen.
+  if (zustand.titelWertRechts) {
+    zeichneTitelFeld(svg, zustand.titelWertRechts, x + breite - 8, y + 29, {
+      invers: zone1Auswahl === titelWerte.length + 1, textAnchor: 'end'
+    });
+  }
 
   svg.appendChild(svgEl('line', { x1: x + 4, y1: linieObenY, x2: x + breite - 4, y2: linieObenY, stroke: '#999999', 'stroke-width': 0.5 }));
   svg.appendChild(svgEl('line', { x1: x + 4, y1: linieUntenY, x2: x + breite - 4, y2: linieUntenY, stroke: '#999999', 'stroke-width': 0.5 }));
@@ -335,17 +370,31 @@ function zeichneDisplay(svg, zustand) {
   // links ausgerichtet bei FI/RCD - Platz für Uci/t unten). Bei V~ stattdessen
   // DREI Werte gestapelt (Uln/Ulpe/Unpe): Label links ausgerichtet, Wert mittig
   // in einer Spalte (sonst würden die Werte je nach Label-Länge unterschiedlich
-  // weit rechts stehen).
+  // weit rechts stehen). Bei ZI-ΔU-Ansicht VIER komplett links ausgerichtete
+  // Zeilen (einfache Strings statt {label,wert}-Objekte, da hier keine Spalten
+  // gebraucht werden) - kleinere Schrift/engerer Zeilenabstand, damit alle vier
+  // in die Zone passen.
   if (zustand.hauptwertZeilen) {
+    const zeilenSindStrings = zustand.hauptwertZeilen.every((z) => typeof z === 'string');
+    const fontSize = zeilenSindStrings ? 18 : 24;
+    const zeilenAbstand = zeilenSindStrings ? 24 : 32;
+    const startY = zeilenSindStrings ? 20 : 28;
     zustand.hauptwertZeilen.forEach((zeile, i) => {
-      const zeilenY = linieObenY + 28 + i * 32;
+      const zeilenY = linieObenY + startY + i * zeilenAbstand;
+      if (typeof zeile === 'string') {
+        svg.appendChild(text(zeile, {
+          x: x + 8, y: zeilenY,
+          'font-size': fontSize, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
+        }));
+        return;
+      }
       svg.appendChild(text(`${zeile.label}:`, {
         x: x + 8, y: zeilenY,
-        'font-size': 24, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
+        'font-size': fontSize, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
       }));
       svg.appendChild(text(zeile.wert, {
         x: x + breite / 2, y: zeilenY, 'text-anchor': 'middle',
-        'font-size': 24, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
+        'font-size': fontSize, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
       }));
     });
   } else {
@@ -437,6 +486,7 @@ export const MessgeraetView = {
   BEISPIEL_ZUSTAND,
   zustandFuerFunktion,
   naechsteFunktion,
+  berechneLimText,
 
   render(container, zustand = BEISPIEL_ZUSTAND, onKlick = {}) {
     const svg = svgEl('svg', {

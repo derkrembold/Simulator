@@ -2,7 +2,7 @@
   "name": "trei-pruefungs-simulator",
   "private": true,
   "scripts": {
-    "test": "node tests/visuell/test_generator.js && node tests/visuell/run_tests.js"
+    "test": "node tests/visuell/test_generator.js && node tests/visuell/test_messgeraet.js && node tests/visuell/run_tests.js"
   },
   "devDependencies": {
     "playwright": "^1.61.1"

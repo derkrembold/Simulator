@@ -868,18 +868,19 @@ wiederholt.
 
 ## Pfadverfolgung und Fehlersimulation
 
-**Status: teilweise umgesetzt.** Ersetzt den früheren Ansatz "Widerstand als
+**Status: umgesetzt (für RLOW).** Ersetzt den früheren Ansatz "Widerstand als
 eigenes Bauteil in der Netzliste" (zu umständlich – jeder Fehler hätte den
 Netzplan selbst verändert). Stattdessen: ein separater **Verbindungsgraph**,
 der Pfade zwischen zwei Schrauben sucht (für RLOW, später auch RISO/ZI/ZS),
 unter Berücksichtigung von Schalterstellungen und optionalen
-Fehler-Widerständen. Umgesetzt bisher: Graph-Generierung (siehe unten) inkl.
+Fehler-Widerständen. Umgesetzt: Graph-Generierung (siehe unten) inkl.
 Ausgabedatei (`graph.json` pro Testcase), Anbindung ans Messgerät für RLOW
 (Messspitzen setzen, Pfad wird live verfolgt, siehe "Messmodus" und
-ARCHITEKTUR.md), und Schalterzustand (LS/RCD/Hauptschalter klickbar, siehe
+ARCHITEKTUR.md), Schalterzustand (LS/RCD/Hauptschalter klickbar, siehe
 "Schalter" unten - schaltet `kante.geschlossen` live um, RLOW reagiert sofort
-darauf). Noch offen: Fehlertabelle (jeder gefundene Pfad zählt aktuell als
-0Ω).
+darauf), und die Fehlertabelle (siehe unten - Fehler-Widerstände pro Netz,
+`berechneWiderstand()` summiert sie über den gefundenen Pfad). RISO/ZI/ZS
+nutzen den Graphen noch nicht.
 
 ### Verbindungsgraph
 
@@ -992,9 +993,10 @@ eine gelöste Schraube kappt genau eine Kante.
 
 ### Fehlertabelle (Fehler-Widerstände)
 
-Eine neue Tabelle direkt in `netzplan.md` (pro Testcase), die einzelnen
-**bestehenden** Netzen einen Fehler-Widerstand zuweist – kein eigenes
-Bauteil, keine Änderung an der restlichen Verdrahtung nötig:
+**Status: umgesetzt.** Eine optionale Tabelle direkt in `netzplan.md` (pro
+Testcase), die einzelnen **bestehenden** Netzen einen Fehler-Widerstand
+zuweist – kein eigenes Bauteil, keine Änderung an der restlichen Verdrahtung
+nötig:
 
 ```
 ## Fehlertabelle
@@ -1004,19 +1006,30 @@ Bauteil, keine Änderung an der restlichen Verdrahtung nötig:
 | N1   | 0,1             |
 ```
 
-Netze ohne Eintrag gelten als **0Ω** (kein Fehler). Der Verbindungsgraph
-bekommt dadurch **gewichtete** Kanten (Gewicht = Fehler-Widerstand, Default 0).
+Netze ohne Eintrag gelten als **0Ω** (kein Fehler), Widerstand mit Komma als
+Dezimaltrennzeichen. `generate_anlage.js` (`parseFehlertabelle()`) parst die
+Sektion und legt sie als `graph.fehlertabelle` (`{ N1: 0.1, ... }`) mit in
+`graph.json` ab – kein eigenes Bauteil im Graphen, sondern ein flaches
+Nachschlage-Objekt. Der Widerstand gehört zum **Netz** (Knoten, entspricht
+einer Kabelstrecke), nicht zur Kante (die repräsentiert ein Bauteil, per
+Design widerstandslos/ideal) – `berechneWiderstand(graph, pfad)` summiert
+schlicht die Fehlertabellen-Einträge aller Netz-IDs, die `findePfad()` im
+Pfad-Array zurückgibt.
+
+Alle 4 Testcases tragen inzwischen je 3 Beispiel-Netze mit Widerstand (auf
+einem bekannten L1-Pfad, siehe die jeweilige `netzplan.md`) – bewusst nicht
+alle Leitungen, der User füllt die Tabelle nach Bedarf selbst weiter auf.
 
 ### RLOW-Berechnung (erster Anwendungsfall)
 
-Die zwei relevanten Messspitzen (siehe "Messmodus") markieren zwei Knoten im
-Graphen. Pfadsuche zwischen ihnen; existiert ein Pfad (alle Kanten
-`geschlossen`), ist der angezeigte Wert die **Summe der Kantengewichte**
-entlang dieses Pfads (0Ω, wenn keine Fehlertabellen-Einträge auf dem Weg
-liegen). Existiert kein Pfad (offener Schalter oder gelöste Schraube
-dazwischen), bleibt der Messwert beim `---`-Platzhalter. RISO/ZI/ZS folgen
-später demselben Graph-Modell (siehe "Berechnung der Messwerte" oben), sind
-aber noch nicht im Detail durchdacht.
+**Status: umgesetzt.** Die zwei relevanten Messspitzen (siehe "Messmodus")
+markieren zwei Knoten im Graphen. Pfadsuche zwischen ihnen; existiert ein Pfad
+(alle Kanten `geschlossen`), ist der angezeigte Wert die **Summe der
+Fehlertabellen-Einträge der Netze entlang dieses Pfads** (0Ω, wenn keine
+Fehlertabellen-Einträge auf dem Weg liegen). Existiert kein Pfad (offener
+Schalter dazwischen), bleibt der Messwert beim `---`-Platzhalter. RISO/ZI/ZS
+folgen später demselben Graph-Modell (siehe "Berechnung der Messwerte" oben),
+sind aber noch nicht im Detail durchdacht.
 
 ---
 

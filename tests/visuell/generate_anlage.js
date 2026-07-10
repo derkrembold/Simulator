@@ -111,6 +111,31 @@ function findeAlleNetze(netze, pin, funktion) {
     .map(([netId]) => netId);
 }
 
+// Fehlertabelle (siehe KONZEPT.md "Pfadverfolgung und Fehlersimulation"): eine
+// optionale `## Fehlertabelle`-Sektion in netzplan.md, die einzelnen
+// (bestehenden) Netzen einen Fehler-Widerstand zuweist - Netze ohne Eintrag
+// gelten als 0Ω. Format: `| Netz | Widerstand (Ω) |`, Widerstand mit Komma
+// als Dezimaltrennzeichen (deutsche Schreibweise, wie sonst im Projekt).
+function parseFehlertabelle(ordner) {
+  const text = fs.readFileSync(path.join(ordner, 'netzplan.md'), 'utf8');
+  const abschnitt = text.split(/^## /m).find((a) => a.startsWith('Fehlertabelle'));
+  if (!abschnitt) return {};
+
+  const tabelle = {};
+  for (const zeile of leseMarkdownTabelle(abschnitt)) {
+    const netId = bereinige(zeile.Netz);
+    const widerstandRoh = bereinige(zeile['Widerstand (Ω)']);
+    if (netId && widerstandRoh) tabelle[netId] = parseFloat(widerstandRoh.replace(',', '.'));
+  }
+  return tabelle;
+}
+
+// Summiert die Fehler-Widerstände entlang eines gefundenen Pfads (Array von
+// Netz-IDs, siehe findePfad()) - Netze ohne Fehlertabellen-Eintrag zählen 0Ω.
+function berechneWiderstand(graph, pfad) {
+  return pfad.reduce((summe, netzId) => summe + (graph.fehlertabelle?.[netzId] ?? 0), 0);
+}
+
 // --- Verbindungsgraph (Pfadverfolgung, siehe KONZEPT.md "Pfadverfolgung und
 // Fehlersimulation") ---
 //
@@ -154,8 +179,9 @@ function kantenFuerFunktion(netze, bauteile, funktion) {
 function generiereGraph(ordner) {
   const { netze } = parseNetzplan(ordner);
   const { bauteile } = parseBauteile(ordner);
+  const fehlertabelle = parseFehlertabelle(ordner);
 
-  const graph = {};
+  const graph = { fehlertabelle };
   for (const funktion of GRAPH_FUNKTIONEN) {
     graph[funktion] = {
       knoten: knotenFuerFunktion(netze, funktion),
@@ -488,7 +514,7 @@ function generiereAnlage(ordner) {
   return anlage;
 }
 
-module.exports = { generiereAnlage, generiereGraph, findePfad };
+module.exports = { generiereAnlage, generiereGraph, findePfad, berechneWiderstand };
 
 // --- Main (nur bei direktem Aufruf, nicht beim require() aus anderen Skripten) ---
 

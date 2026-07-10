@@ -230,6 +230,19 @@ Endstelle SK1), die RCD1.o1-Verzweigung (Einspeisung → Endstelle SK2, anderer
 Zweig als SK1), dass zwischen Netzen unterschiedlicher Funktion kein Pfad
 gefunden wird, und die vollständige Knotenliste für `L1`.
 
+**Pfad über eine Hutschienengrenze hinweg (testcase_03):** RCD1 (Hutschiene
+H3) und RCD2 (Hutschiene H2) teilen sich laut `netzplan.md`-Annahme dasselbe
+Einspeise-Netz N6 (analog zu testcase_02s "beide RCDs am selben Netz", siehe
+oben) - ein Pfad zwischen einer Reihenklemme auf der RCD1-Seite und einer auf
+der RCD2-Seite läuft folglich über diesen gemeinsamen Knoten und über die
+physische Hutschienengrenze hinweg (`N25→N23→N20→N6→N10→N16→N33`). Getestet
+in `test_generator.js` (`findePfad()` liefert exakt diese Kette) und in
+`test_messgeraet.js` über die echte App (Messspitzen auf beiden
+Reihenklemmen) - zusammen mit einem zusätzlichen Fehlertabellen-Eintrag auf
+der RCD2-Seite (`N16 = 0,5Ω`, bewusst rund gewählt fürs manuelle Nachrechnen)
+belegt das, dass `berechneWiderstand()` Fehler-Widerstände aus **beiden**
+Zweigen korrekt aufsummiert (`R:0,75Ω`), nicht nur aus dem zuerst gefundenen.
+
 **Ausgabedatei und Anbindung an RLOW: umgesetzt.** `generiereGraph(ordner)`
 wird auch über die CLI von `generate_anlage.js` aufgerufen und schreibt
 `graph_generated.json` (promotet zu `graph.json`, ein File pro Testcase,
@@ -244,10 +257,10 @@ keinen Build-Schritt hat (`index.html` lädt ES-Module direkt, `generate_
 anlage.js` läuft unter Node/CommonJS); die Funktion ist klein genug (~20
 Zeilen BFS), dass die Duplizierung einfacher ist als ein Bundler-Umweg.
 `controller/app.js` nutzt beide zusammen für die RLOW-Live-Messung, siehe
-"Messspitzen" unter `app.js` weiter unten. **Noch nicht umgesetzt:**
-PE-Teilgraph, Schalterzustand (`geschlossen` ist im generierten Graph immer
-`true`) und Fehlertabelle (Kantengewichte, aktuell wird jeder gefundene Pfad
-als 0Ω gewertet) - siehe KONZEPT.md für den geplanten Ablauf.
+"Messspitzen" unter `app.js` weiter unten. Schalterzustand und Fehlertabelle
+sind inzwischen ebenfalls angebunden (siehe "Schalter" und "Fehlertabelle"
+weiter unten). **Noch nicht umgesetzt:** PE-Teilgraph - siehe KONZEPT.md für
+den geplanten Ablauf.
 
 **Messgerät-Interaktionstests:** `tests/visuell/test_messgeraet.js` prüft die
 ▲/▼/◄►/Drehknopf-Logik aus `controller/app.js` - bewusst **kein** Pixel-Snapshot
@@ -263,15 +276,17 @@ Bemessungsstrom/Abschaltzeit geklemmt, Lim live neu berechnet, ΔU-Ansicht inkl.
 geteilter Variablen), ZS (unabhängig von ZI, ZSrcd-Ansicht mit Std/Low-Toggle),
 FI/RCD (Fehlerstrom/Typ geklemmt), sowie dass `setzeBearbeitungenZurueck()` bei
 jedem Drehknopf-/ON-OFF-Klick wirklich alle bearbeiteten Werte zurücksetzt - auch
-nach einem "Ausflug" zu einer anderen Funktion und zurück. Zusätzlich vier Tests
-für die RLOW-Graph-Messung gegen `testcase_01` (eigene Helfer
+nach einem "Ausflug" zu einer anderen Funktion und zurück. Zusätzlich diverse
+Tests für die RLOW-Graph-Messung (eigene Helfer
 `neueSeiteMitTestcase(testcaseName)`, das direkt einschaltet, und
-`rlowHauptwert(page)`, das den `R:`-Text ausliest): Messspitzen auf
-zusammenhängenden L1-Netzen (`N1`/`N13`, per `circle[data-netz="..."]`
-angeklickt) zeigen `R:0,0Ω`, unterschiedliche Funktion (L1/N) und nur eine
-Messspitze zeigen weiterhin den Platzhalter, und Aus-/Wiedereinschalten setzt
-die Messspitzen (und damit den Messwert) zurück. `npm test` führt dieses
-Skript zwischen `test_generator.js` und `run_tests.js` aus.
+`rlowHauptwert(page)`, das den `R:`-Text ausliest) gegen `testcase_01`
+(Messspitzen auf zusammenhängenden L1-Netzen, unterschiedliche Funktion,
+nur eine Messspitze, Aus-/Wiedereinschalten setzt zurück, `ader.weitere`-
+Verzweigung, Schalter-Unterbrechung, Fehlertabellen-Summe) und `testcase_04`
+(mehrpolige Schalter über mehrere Funktionen hinweg) - siehe die
+"Fehlertabelle"- und "Schalter"-Abschnitte weiter unten für die Details.
+`npm test` führt dieses Skript zwischen `test_generator.js` und
+`run_tests.js` aus.
 
 ---
 
@@ -436,8 +451,14 @@ Test: LS1 öffnen → Messgerät aus/an → Messspitzen neu setzen → RLOW zeig
 weiterhin `___Ω`).
 
 Tests in `test_messgeraet.js`: "Schalter: Öffnen von LS1 unterbricht eine
-laufende RLOW-Messung" (öffnen → Platzhalter, wieder schließen → `0,0Ω`) und
-"Schalter: Zustand bleibt beim Aus-/Einschalten des Messgeräts erhalten".
+laufende RLOW-Messung" (öffnen → Platzhalter, wieder schließen → `0,60Ω`),
+"Schalter: Zustand bleibt beim Aus-/Einschalten des Messgeräts erhalten", und
+gegen testcase_04 (einziger Testcase mit mehrpoligen Bauteilen über mehrere
+Funktionen hinweg - 3-poliger Hauptschalter, 4-poliges RCD): "Schalter:
+4-poliges RCD1 unterbricht L1 UND L2 gleichzeitig" sowie "Schalter: 3-poliger
+Hauptschalter unterbricht L1 und L3 gleichzeitig" - belegen, dass ein Klick
+wirklich mehrere Kanten in verschiedenen Funktions-Teilgraphen (`L1`/`L2`/
+`L3`) gleichzeitig umschaltet, nicht nur eine.
 
 Größenformel (`schalterBreite(schalterTyp, teAnzahl)`), ausgehend von
 `SCHALTER_BASISBREITE = 24` (Breite `W` beim 1-poligen LS, `SCHALTER_HOEHE =
@@ -779,12 +800,38 @@ nicht-durchgestrichene Pfeil-Kasten im RLOW-Display), was
   schwarz auf L1, blau auf N - kein gemeinsamer Teilgraph, siehe
   `GRAPH_FUNKTIONEN` oben).
 - Sonst `findePfad(graph, funktion, schwarzAder.netz, blauAder.netz)`
-  (`model/pfad.js`); existiert ein Pfad, wird `0` zurückgegeben (Kantengewichte
-  aus der noch nicht existierenden Fehlertabelle fehlen, jeder gefundene Pfad
-  zählt also aktuell als 0Ω), sonst `null`.
+  (`model/pfad.js`); existiert ein Pfad, wird `berechneWiderstand(graph,
+  pfad)` zurückgegeben, sonst `null`.
 - `null` lässt den Platzhalter (`R:___Ω` bzw. `Durchgang`-Ansicht) unverändert;
   ein Zahlenwert überschreibt `zustand.hauptwert` mit `` `R:${wert.toFixed(1)
-  .replace('.', ',')}Ω` `` (z.B. `R:0,0Ω`).
+  .replace('.', ',')}Ω` `` (z.B. `R:0,6Ω`).
+
+**Fehlertabelle - Anbindung an RLOW: umgesetzt.** `berechneWiderstand(graph,
+pfad)` (in `model/pfad.js` und gespiegelt in `generate_anlage.js`) summiert
+`graph.fehlertabelle[netzId]` für jede Netz-ID im von `findePfad()`
+zurückgegebenen Pfad-Array - Netze ohne Eintrag zählen 0Ω
+(`graph.fehlertabelle?.[netzId] ?? 0`). `graph.fehlertabelle` wird von
+`parseFehlertabelle(ordner)` in `generate_anlage.js` aus einer optionalen
+`## Fehlertabelle`-Sektion in `netzplan.md` geparst (Format `| Netz |
+Widerstand (Ω) |`, Komma als Dezimaltrennzeichen) und von `generiereGraph()`
+in `graph.json` mit abgelegt (`{ L1: {...}, L2: {...}, L3: {...}, N: {...},
+fehlertabelle: { N6: 0.1, ... } }`). Da `fehlertabelle` kein Funktions-
+Teilgraph ist (kein `{knoten, kanten}`-Objekt), filtert
+`schalterUmschalten()` in `app.js` explizit danach (`Object.keys(graph)
+.filter((k) => graph[k]?.kanten)`), um es beim Schalter-Kanten-Update nicht
+fälschlich als Teilgraph zu behandeln.
+
+Alle 4 Testcases tragen Beispiel-Netze mit Widerstand - bewusst nicht
+flächendeckend, der User befüllt die Tabelle nach Bedarf selbst weiter.
+`graph.json` wurde bei jeder Ergänzung neu generiert und promotet (isolierter
+Diff: nur das `fehlertabelle`-Feld, `anlage.json`/`anlage.svg` unverändert).
+Neben dem ursprünglichen L1-Pfad pro Testcase decken die Werte inzwischen auch
+ab: einen N-Pfad (testcase_02, `N10`), einen Pfad über eine Hutschienengrenze
+mit zwei unabhängigen RCD-Zweigen (testcase_03, siehe unten), und alle drei
+Phasen L1/L2/L3 gleichzeitig (testcase_04, je zwei Netze pro Phase, mit
+durchgängig unterschiedlicher zweiter Nachkommastelle für eindeutiges
+manuelles Nachrechnen - `test_generator.js`/`test_messgeraet.js` prüfen alle
+drei Phasen einzeln).
 
 Voraussetzung dafür ist die `netz`-ID pro Ader: `baueAder()` in
 `generate_anlage.js` schreibt sie als neues Feld (`netz: netz.netId`) in jede
@@ -831,8 +878,12 @@ Adern. `geraet()` in `schaltkasten.js` reicht `bauteilName` an
 `onSchalterKlick(bauteilName, geschlossen)` wird.
 
 Getestet in `test_messgeraet.js`: "Schalter: Öffnen von LS1 unterbricht eine
-laufende RLOW-Messung" und "Schalter: Zustand bleibt beim Aus-/Einschalten des
-Messgeräts erhalten".
+laufende RLOW-Messung", "Schalter: Zustand bleibt beim Aus-/Einschalten des
+Messgeräts erhalten", und die beiden testcase_04-Mehrpol-Tests (siehe
+`schaltkasten.js`-Abschnitt oben) - decken zusammen ab, dass ein einzelner
+Klick auf ein mehrpoliges Bauteil (RCD 4-polig, Hauptschalter 3-polig)
+wirklich alle zugehörigen Kanten über mehrere Funktions-Teilgraphen hinweg
+gleichzeitig umschaltet.
 
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen

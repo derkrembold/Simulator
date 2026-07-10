@@ -107,6 +107,20 @@ Metallschiene selbst.
 
 ---
 
+## Fehlertabelle
+
+Beispielhafte Fehler-Widerstände auf drei Netzen des L1-Pfads zur
+Endstelle SK1 (N1 → N4 → N6 → N11 → N13, siehe Annahmen unten) - Netze ohne
+Eintrag gelten als 0Ω.
+
+| Netz | Widerstand (Ω) |
+| ---- | --------------- |
+| N6   | 0,1             |
+| N11  | 0,2             |
+| N13  | 0,3             |
+
+---
+
 ## Annahmen / Anmerkungen (bitte prüfen)
 
 1. **PE umgeht Leistungsschalter und RCD** – auch wenn die aktuelle `anlage.json` bei

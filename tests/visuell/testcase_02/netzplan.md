@@ -137,6 +137,24 @@ Ein 3-poliger Hauptschalter mit echtem L2 wäre ein eigener, späterer Testcase.
 
 ---
 
+## Fehlertabelle
+
+Beispielhafte Fehler-Widerstände auf drei Netzen des L1-Pfads RCD1→LS1→SK1
+(N6 → N8 → N14 → N18) - Netze ohne Eintrag gelten als 0Ω.
+
+Zusätzlich ein Netz auf dem N-Pfad (N10 = RCD1.o2, Neutralleiter-Ausgang, der
+über die Reihenklemmen sowohl SK1 als auch SK2 speist) - der erste
+Fehlertabellen-Eintrag auf N statt L1.
+
+| Netz | Widerstand (Ω) |
+| ---- | --------------- |
+| N8   | 0,1             |
+| N14  | 0,15            |
+| N18  | 0,25            |
+| N10  | 0,3             |
+
+---
+
 ## Annahmen / Anmerkungen (bitte prüfen)
 
 1. **Hauptschalter speist beide Gruppen über ein gemeinsames Netz (N6/N7).** Da er

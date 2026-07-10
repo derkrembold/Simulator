@@ -120,6 +120,25 @@ jedes Netzes (Einheit im Zeilennamen, Werte reine Zahlen).
 
 ---
 
+## Fehlertabelle
+
+Beispielhafte Fehler-Widerstände auf allen drei Phasen der RCD1-Gruppe -
+L1 (N20 = RCD1.o1/LS1.i1, N24 = LS1.o1), L2 (N21 = RCD1.o2/LS2.i1, N25 =
+LS2.o1) und L3 (N22 = RCD1.o3/LS3.i1, N26 = LS3.o1) - Netze ohne Eintrag
+gelten als 0Ω. Werte bewusst mit unterschiedlicher zweiter Nachkommastelle,
+damit sich Summen beim manuellen Nachrechnen eindeutig zuordnen lassen.
+
+| Netz | Widerstand (Ω) |
+| ---- | --------------- |
+| N20  | 0,13            |
+| N24  | 0,27            |
+| N21  | 0,19            |
+| N25  | 0,34            |
+| N22  | 0,41            |
+| N26  | 0,08            |
+
+---
+
 ## Annahmen / Anmerkungen (bitte prüfen)
 
 1. **Hauptschalter ist 3-polig (L1+L2+L3), kein N-Pol.** N läuft über die

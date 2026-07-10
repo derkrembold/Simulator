@@ -339,13 +339,15 @@ async function main() {
   // N13 = Reihenklemme_L_SK1.o1 (L1, über RCD1+LS1 erreichbar), N2 =
   // Leistungsschalter.i2 (N).
 
-  await pruefe('RLOW: Messspitzen auf demselben L1-Pfad zeigen 0,0Ω', async () => {
+  // Pfad N1->N4->N6->N11->N13 - N6/N11/N13 tragen laut netzplan.md
+  // "Fehlertabelle" je einen Beispiel-Fehlerwiderstand (0,1+0,2+0,3=0,6Ω).
+  await pruefe('RLOW: Messspitzen auf demselben L1-Pfad summieren die Fehlertabelle', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RLOW vor Messspitzen');
 
     await page.locator('#schaltkasten svg circle[data-netz="N1"]').click(); // schwarz
     await page.locator('#schaltkasten svg circle[data-netz="N13"]').click(); // blau
-    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW mit beiden Messspitzen auf L1-Pfad');
+    erwarte([await rlowHauptwert(page)], 'R:0,60Ω', 'RLOW mit beiden Messspitzen auf L1-Pfad (0,1+0,2+0,3Ω)');
     await page.close();
   });
 
@@ -373,7 +375,9 @@ async function main() {
     const page = await neueSeiteMitTestcase('testcase_01');
     await page.locator('#schaltkasten svg circle[data-netz="N6"][data-netz-weitere]').first().click(); // schwarz, geteilte RCD-Ausgangsschraube
     await page.locator('#schaltkasten svg circle[data-netz="N12"][cy="420"]').click(); // blau, LS2-Ausgang
-    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW von geteilter RCD-Schraube (N6+N7) zu LS2-Ausgang (N12)');
+    // Pfad geht über die "weitere"-Ader N7 (N6->N4->N7->N12), N6 trägt laut
+    // Fehlertabelle 0,1Ω, N4/N7/N12 keinen Eintrag -> Summe 0,1Ω.
+    erwarte([await rlowHauptwert(page)], 'R:0,10Ω', 'RLOW von geteilter RCD-Schraube (N6+N7) zu LS2-Ausgang (N12)');
     await page.close();
   });
 
@@ -381,7 +385,7 @@ async function main() {
     const page = await neueSeiteMitTestcase('testcase_01');
     await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
     await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
-    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW vor dem Ausschalten');
+    erwarte([await rlowHauptwert(page)], 'R:0,60Ω', 'RLOW vor dem Ausschalten');
 
     await klick(page, 'ON/OFF'); // aus
     await klick(page, 'ON/OFF'); // wieder an
@@ -398,7 +402,7 @@ async function main() {
     const page = await neueSeiteMitTestcase('testcase_01');
     await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
     await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
-    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW mit LS1 geschlossen (Default)');
+    erwarte([await rlowHauptwert(page)], 'R:0,60Ω', 'RLOW mit LS1 geschlossen (Default)');
 
     const ls1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
       .filter({ has: page.locator('rect[x="78"][y="322"]') });
@@ -406,7 +410,7 @@ async function main() {
     erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RLOW nach Öffnen von LS1 (Pfad unterbrochen)');
 
     await ls1.click(); // LS1 wieder schließen
-    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW nach erneutem Schließen von LS1');
+    erwarte([await rlowHauptwert(page)], 'R:0,60Ω', 'RLOW nach erneutem Schließen von LS1');
     await page.close();
   });
 
@@ -422,6 +426,112 @@ async function main() {
     await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
     await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
     erwarte([await rlowHauptwert(page)], 'R:---Ω', 'LS1 ist nach Aus-/Wiedereinschalten weiterhin offen');
+    await page.close();
+  });
+
+  // --- testcase_04: 3-poliger Hauptschalter (L1+L2+L3) + 4-poliges RCD ---
+  // Einziger Testcase mit mehrpoligen Bauteilen, die mehrere Funktionen
+  // (L1/L2/L3) gleichzeitig betreffen - deckt genau das ab, was testcase_01
+  // (nur 1-/2-polig) nicht kann: ein Klick auf EINEN Schalter muss mehrere
+  // Kanten in verschiedenen Funktions-Teilgraphen gleichzeitig umschalten.
+  // Pfade (siehe generate_anlage.js/berechneWiderstand()) - Fehlertabelle mit
+  // durchgängig unterschiedlicher zweiter Nachkommastelle, damit sich Summen
+  // beim manuellen Nachrechnen eindeutig zuordnen lassen:
+  // L1: N6(Hauptschalter.i1) -> N9(.o1/RCD1.i1) -> N20(RCD1.o1/LS1.i1, 0,13Ω) -> N24(LS1.o1, 0,27Ω) = 0,40Ω
+  // L2: N7(Hauptschalter.i2) -> N10(.o2/RCD1.i2) -> N21(RCD1.o2/LS2.i1, 0,19Ω) -> N25(LS2.o1, 0,34Ω) = 0,53Ω
+  // L3: N8(Hauptschalter.i3) -> N11(.o3/RCD1.i3) -> N22(RCD1.o3/LS3.i1, 0,41Ω) -> N26(LS3.o1, 0,08Ω) = 0,49Ω
+
+  await pruefe('RLOW: testcase_04 (3-poliger Hauptschalter, 4-poliges RCD) summiert die Fehlertabelle auf L1', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await page.locator('#schaltkasten svg circle[data-netz="N9"][cy="260"]').click(); // schwarz, RCD1.i1
+    await page.locator('#schaltkasten svg circle[data-netz="N24"][cy="420"]').click(); // blau, LS1.o1
+    erwarte([await rlowHauptwert(page)], 'R:0,40Ω', 'RLOW testcase_04 L1-Pfad (0,13+0,27Ω)');
+    await page.close();
+  });
+
+  await pruefe('RLOW: testcase_04 summiert die Fehlertabelle auf L2', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await page.locator('#schaltkasten svg circle[data-netz="N10"][cy="260"]').click(); // schwarz, RCD1.i2
+    await page.locator('#schaltkasten svg circle[data-netz="N25"][cy="420"]').click(); // blau, LS2.o1
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'RLOW testcase_04 L2-Pfad (0,19+0,34Ω)');
+    await page.close();
+  });
+
+  await pruefe('RLOW: testcase_04 summiert die Fehlertabelle auf L3', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await page.locator('#schaltkasten svg circle[data-netz="N11"][cy="260"]').click(); // schwarz, RCD1.i3
+    await page.locator('#schaltkasten svg circle[data-netz="N26"][cy="420"]').click(); // blau, LS3.o1
+    erwarte([await rlowHauptwert(page)], 'R:0,49Ω', 'RLOW testcase_04 L3-Pfad (0,41+0,08Ω)');
+    await page.close();
+  });
+
+  await pruefe('Schalter: 4-poliges RCD1 (testcase_04) unterbricht L1 UND L2 gleichzeitig', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+
+    await page.locator('#schaltkasten svg circle[data-netz="N9"][cy="260"]').click(); // schwarz, RCD1.i1 (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N24"][cy="420"]').click(); // blau, LS1.o1 (L1)
+    erwarte([await rlowHauptwert(page)], 'R:0,40Ω', 'L1 vor dem Öffnen von RCD1');
+
+    await rcd1.click(); // RCD1 öffnen (alle 4 Pole/Funktionen gleichzeitig)
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'L1 nach Öffnen von RCD1 unterbrochen');
+
+    await klick(page, 'ON/OFF'); // Messspitzen zurücksetzen, RCD1 bleibt offen (siehe Test oben)
+    await klick(page, 'ON/OFF');
+
+    await page.locator('#schaltkasten svg circle[data-netz="N10"][cy="260"]').click(); // schwarz, RCD1.i2 (L2)
+    await page.locator('#schaltkasten svg circle[data-netz="N25"][cy="420"]').click(); // blau, LS2.o1 (L2)
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'L2 ist trotz eigenem Teilgraphen ebenfalls unterbrochen (derselbe RCD1-Klick)');
+    await page.close();
+  });
+
+  await pruefe('Schalter: 3-poliger Hauptschalter (testcase_04) unterbricht L1 und L3 gleichzeitig', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    const hauptschalter = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="15"][y="572"]') });
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"][cy="510"]').click(); // schwarz, Hauptschalter.i1 (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N9"][cy="670"]').click(); // blau, Hauptschalter.o1 (L1)
+    erwarte([await rlowHauptwert(page)], 'R:0,00Ω', 'L1 über Hauptschalter vor dem Öffnen (kein Fehlertabellen-Eintrag dort)');
+
+    await hauptschalter.click(); // Hauptschalter öffnen (alle 3 Pole/Funktionen gleichzeitig)
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'L1 nach Öffnen des Hauptschalters unterbrochen');
+
+    await klick(page, 'ON/OFF');
+    await klick(page, 'ON/OFF');
+
+    await page.locator('#schaltkasten svg circle[data-netz="N8"][cy="510"]').click(); // schwarz, Hauptschalter.i3 (L3)
+    await page.locator('#schaltkasten svg circle[data-netz="N11"][cy="670"]').click(); // blau, Hauptschalter.o3 (L3)
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'L3 ist trotz eigenem Pol ebenfalls unterbrochen (derselbe Hauptschalter-Klick)');
+    await page.close();
+  });
+
+  // --- testcase_03: RCD1 (Hutschiene H3) und RCD2 (Hutschiene H2) teilen
+  // sich dasselbe Einspeise-Netz N6 (siehe netzplan.md-Annahme 1). Ein Pfad
+  // zwischen einer Reihenklemme auf der RCD1-Seite und einer auf der
+  // RCD2-Seite läuft über N6 und muss Fehler-Widerstände aus BEIDEN Zweigen
+  // aufsummieren, über die Hutschienengrenze hinweg.
+  // Pfad: N25(Reihenklemme_L_SK1.o1) -> N23(LS1.o1) -> N20(RCD1.o1) -> N6
+  //       -> N10(RCD2.o1) -> N16(LS3.o1) -> N33(Reihenklemme_L_SK3.o1)
+  // Fehlertabelle: N23=0,15 + N20=0,1 (RCD1-Seite) + N16=0,5 (RCD2-Seite) = 0,75Ω
+  await pruefe('RLOW: testcase_03 summiert Fehlerwiderstände aus RCD1- und RCD2-Zweig über die Hutschienengrenze', async () => {
+    const page = await neueSeiteMitTestcase('testcase_03');
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').click(); // schwarz, Reihenklemme SK1 (RCD1-Seite, H3)
+    await page.locator('#schaltkasten svg circle[data-netz="N33"]').click(); // blau, Reihenklemme SK3 (RCD2-Seite, H2)
+    erwarte([await rlowHauptwert(page)], 'R:0,75Ω', 'RLOW über beide RCD-Zweige (0,15+0,1+0,5Ω)');
+    await page.close();
+  });
+
+  // testcase_02: erster Fehlertabellen-Eintrag auf einem N- statt L1-Netz
+  // (N10 = RCD1.o2, Neutralleiter-Ausgang) - Pfad Hauptschalter.i2 (N2) bis
+  // Reihenklemme_N_SK1 (N19) läuft über N10 und muss dessen Fehlerwiderstand
+  // (0,3Ω) korrekt im N-Teilgraphen aufsummieren.
+  await pruefe('RLOW: testcase_02 summiert einen Fehlerwiderstand auf dem N-Pfad', async () => {
+    const page = await neueSeiteMitTestcase('testcase_02');
+    await page.locator('#schaltkasten svg circle[data-netz="N2"]').click(); // schwarz, Hauptschalter.i2 (N)
+    await page.locator('#schaltkasten svg circle[data-netz="N19"]').click(); // blau, Reihenklemme_N_SK1
+    erwarte([await rlowHauptwert(page)], 'R:0,30Ω', 'RLOW auf dem N-Pfad über N10 (0,3Ω)');
     await page.close();
   });
 

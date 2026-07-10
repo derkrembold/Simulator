@@ -6,7 +6,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { generiereAnlage, generiereGraph, findePfad } = require('./generate_anlage.js');
+const { generiereAnlage, generiereGraph, findePfad, berechneWiderstand } = require('./generate_anlage.js');
 
 let alleBestanden = true;
 
@@ -184,6 +184,9 @@ function gleich(tatsaechlich, erwartet, meldung) {
 // netzplan.md-Annahme 2).
 
 const TESTCASE_01 = path.join(__dirname, 'testcase_01');
+const TESTCASE_02 = path.join(__dirname, 'testcase_02');
+const TESTCASE_03 = path.join(__dirname, 'testcase_03');
+const TESTCASE_04 = path.join(__dirname, 'testcase_04');
 
 pruefe('Graph: L1-Pfad Einspeisung -> Endstelle SK1 folgt der erwarteten Kette', () => {
   const graph = generiereGraph(TESTCASE_01);
@@ -214,6 +217,79 @@ pruefe('Graph: L1-Knotenliste enthält alle L1-Netze von testcase_01', () => {
   const erwartet = ['N1', 'N4', 'N6', 'N7', 'N11', 'N12', 'N13', 'N16'];
   const tatsaechlich = [...graph.L1.knoten].sort();
   gleich(tatsaechlich, [...erwartet].sort(), 'L1-Knotenliste');
+});
+
+// Fehlertabelle (siehe KONZEPT.md "Pfadverfolgung und Fehlersimulation"): eine
+// optionale ## Fehlertabelle-Sektion in netzplan.md weist einzelnen Netzen
+// einen Fehler-Widerstand zu - testcase_01 trägt auf dem L1-Pfad zur SK1
+// (N1->N4->N6->N11->N13) Beispielwerte auf N6/N11/N13 (0,1+0,2+0,3Ω).
+pruefe('Graph: Fehlertabelle wird geparst und berechneWiderstand() summiert sie über den Pfad', () => {
+  const graph = generiereGraph(TESTCASE_01);
+  gleich(graph.fehlertabelle, { N6: 0.1, N11: 0.2, N13: 0.3 }, 'geparste Fehlertabelle');
+
+  const pfad = findePfad(graph, 'L1', 'N1', 'N13');
+  const widerstand = berechneWiderstand(graph, pfad);
+  if (Math.abs(widerstand - 0.6) > 1e-9) {
+    throw new Error(`erwarte 0.6Ω (0,1+0,2+0,3), bekommen: ${widerstand}`);
+  }
+});
+
+pruefe('Graph: berechneWiderstand() zählt Netze ohne Fehlertabellen-Eintrag als 0Ω', () => {
+  const graph = generiereGraph(TESTCASE_01);
+  // N1/N4 haben keinen Fehlertabellen-Eintrag - ein Pfad nur über diese beiden
+  // muss exakt 0Ω ergeben.
+  const widerstand = berechneWiderstand(graph, ['N1', 'N4']);
+  gleich(widerstand, 0, 'Widerstand ohne Fehlertabellen-Einträge');
+});
+
+// testcase_03: RCD1 (Hutschiene H3) und RCD2 (H2) teilen sich dasselbe
+// Einspeise-Netz N6 (siehe netzplan.md-Annahme 1) - ein Pfad zwischen einer
+// Reihenklemme auf der RCD1-Seite und einer auf der RCD2-Seite muss
+// Fehler-Widerstände aus BEIDEN Zweigen aufsummieren, über die
+// Hutschienengrenze hinweg.
+pruefe('Graph: testcase_03 summiert Fehlerwiderstände über die Hutschienengrenze (RCD1+RCD2)', () => {
+  const graph = generiereGraph(TESTCASE_03);
+  const pfad = findePfad(graph, 'L1', 'N25', 'N33');
+  gleich(pfad, ['N25', 'N23', 'N20', 'N6', 'N10', 'N16', 'N33'], 'Pfad über N6 (gemeinsames Einspeise-Netz)');
+
+  const widerstand = berechneWiderstand(graph, pfad);
+  if (Math.abs(widerstand - 0.75) > 1e-9) {
+    throw new Error(`erwarte 0.75Ω (0,15+0,1 [RCD1] + 0,5 [RCD2]), bekommen: ${widerstand}`);
+  }
+});
+
+// testcase_02: erster Fehlertabellen-Eintrag auf einem N- statt L1-Netz
+// (N10 = RCD1.o2) - Pfad Hauptschalter.i2 (N2) bis Reihenklemme_N_SK1 (N19)
+// muss dessen Fehlerwiderstand im N-Teilgraphen aufsummieren.
+pruefe('Graph: testcase_02 summiert einen Fehlerwiderstand auf dem N-Pfad', () => {
+  const graph = generiereGraph(TESTCASE_02);
+  const pfad = findePfad(graph, 'N', 'N2', 'N19');
+  gleich(pfad, ['N2', 'N5', 'N7', 'N10', 'N19'], 'N-Pfad Hauptschalter.i2 -> Reihenklemme_N_SK1');
+
+  const widerstand = berechneWiderstand(graph, pfad);
+  if (Math.abs(widerstand - 0.3) > 1e-9) {
+    throw new Error(`erwarte 0.3Ω (N10), bekommen: ${widerstand}`);
+  }
+});
+
+// testcase_04: Fehlertabelle auf allen drei Phasen (L1/L2/L3) der
+// RCD1-Gruppe, mit durchgängig unterschiedlicher zweiter Nachkommastelle
+// (siehe netzplan.md) - deckt ab, dass berechneWiderstand() nicht nur auf L1
+// funktioniert, sondern gleichermaßen auf L2/L3.
+pruefe('Graph: testcase_04 summiert die Fehlertabelle auf L1/L2/L3', () => {
+  const graph = generiereGraph(TESTCASE_04);
+  const faelle = [
+    ['L1', 'N9', 'N24', 0.40],
+    ['L2', 'N10', 'N25', 0.53],
+    ['L3', 'N11', 'N26', 0.49]
+  ];
+  for (const [funktion, von, nach, erwartet] of faelle) {
+    const pfad = findePfad(graph, funktion, von, nach);
+    const widerstand = berechneWiderstand(graph, pfad);
+    if (Math.abs(widerstand - erwartet) > 1e-9) {
+      throw new Error(`${funktion} ${von}->${nach}: erwarte ${erwartet}Ω, bekommen: ${widerstand}`);
+    }
+  }
 });
 
 // anlage.json (Anzeigeseite) muss dieselbe Verzweigung wie der Graph

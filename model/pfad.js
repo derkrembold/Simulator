@@ -32,3 +32,11 @@ export function findePfad(graph, funktion, startNetz, zielNetz) {
   }
   return null;
 }
+
+// Summiert die Fehler-Widerstände entlang eines gefundenen Pfads (Array von
+// Netz-IDs) über die Fehlertabelle (`graph.fehlertabelle`, siehe KONZEPT.md
+// "Pfadverfolgung und Fehlersimulation") - Netze ohne Eintrag zählen 0Ω.
+// Spiegelt berechneWiderstand() aus generate_anlage.js.
+export function berechneWiderstand(graph, pfad) {
+  return pfad.reduce((summe, netzId) => summe + (graph.fehlertabelle?.[netzId] ?? 0), 0);
+}

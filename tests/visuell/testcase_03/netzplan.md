@@ -166,6 +166,27 @@ jedes Netzes (Einheit im Zeilennamen, Werte reine Zahlen).
 
 ---
 
+## Fehlertabelle
+
+Beispielhafte Fehler-Widerstände auf drei Netzen im L1-Pfad RCD1→LS1/LS2
+(Hutschiene H3: N20 = RCD1.o1/LS1.i1, N23 = LS1.o1, N24 = LS2.o1) - Netze
+ohne Eintrag gelten als 0Ω.
+
+Zusätzlich ein Netz auf der RCD2-Seite (Hutschiene H2: N16 = RCD2.o1/LS3.i1)
+– RCD1 (H3) und RCD2 (H2) teilen sich dasselbe Einspeise-Netz N6 (siehe
+Annahmen unten), ein Pfad zwischen einer Reihenklemme auf der RCD1-Seite und
+einer auf der RCD2-Seite läuft also über N6 und summiert Fehler-Widerstände
+aus **beiden** Zweigen, über die Hutschienengrenze hinweg.
+
+| Netz | Widerstand (Ω) |
+| ---- | -------------- |
+| N20  | 0,1            |
+| N23  | 0,15           |
+| N24  | 0,2            |
+| N16  | 0,5            |
+
+---
+
 ## Annahmen / Anmerkungen (bitte prüfen)
 
 1. **Hauptschalter speist alle drei Gruppen über ein gemeinsames Netz**

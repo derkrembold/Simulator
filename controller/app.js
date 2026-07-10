@@ -2,7 +2,7 @@ import { Anlage } from '../model/anlage.js';
 import { SchaltkastenView } from '../view/schaltkasten.js';
 import { MessgeraetView } from '../view/messgeraet.js';
 import { Popup } from '../view/popup.js';
-import { findePfad } from '../model/pfad.js';
+import { findePfad, berechneWiderstand } from '../model/pfad.js';
 
 // Messspitzen (Messmodus, siehe unten): pro Schrauben-Kreis genau eine Farbe,
 // jede Farbe insgesamt nur an einer Schraube gleichzeitig (3 Messspitzen wie
@@ -58,7 +58,9 @@ async function start() {
   // bleibt bestehen, auch wenn man gerade nicht misst.
   function schalterUmschalten(bauteilName, geschlossen) {
     if (!graph) return;
-    for (const funktion of Object.keys(graph)) {
+    // Nur die Funktions-Teilgraphen (L1/L2/L3/N), nicht `graph.fehlertabelle`
+    // (kein Teilgraph, siehe Anbindung der Fehlertabelle unten).
+    for (const funktion of Object.keys(graph).filter((k) => graph[k]?.kanten)) {
       for (const kante of graph[funktion].kanten) {
         if (kante.bauteil === bauteilName) kante.geschlossen = geschlossen;
       }
@@ -123,9 +125,10 @@ async function start() {
   // Schrauben mit dem gleichen Netz-`funktion` (z.B. beide "L1") - nur dann
   // existiert überhaupt ein Teilgraph, der beide verbindet (siehe
   // "Pfadverfolgung und Fehlersimulation": L1/L2/L3/N sind je ein eigener
-  // Baum, PE noch nicht angebunden). Gibt den Widerstand in Ω zurück (aktuell
-  // immer 0, da die Fehlertabelle noch nicht existiert) oder null, wenn keine
-  // Messung möglich ist (Platzhalter bleibt dann stehen).
+  // Baum, PE noch nicht angebunden). Gibt den Widerstand in Ω zurück (Summe
+  // der Fehlertabellen-Einträge entlang des gefundenen Pfads, 0Ω wenn keine
+  // Netze im Pfad einen Eintrag haben) oder null, wenn keine Messung möglich
+  // ist (Platzhalter bleibt dann stehen).
   function berechneRlowMesswert() {
     if (!graph) return null;
     let schwarzAder = null;
@@ -144,9 +147,8 @@ async function start() {
     const blauNetze = alleNetzeVonAder(blauAder);
     for (const schwarzNetz of schwarzNetze) {
       for (const blauNetz of blauNetze) {
-        if (findePfad(graph, schwarzAder.funktion, schwarzNetz, blauNetz)) {
-          return 0; // Kantengewichte (Fehlertabelle) noch nicht angebunden - Pfad vorhanden -> 0Ω
-        }
+        const pfad = findePfad(graph, schwarzAder.funktion, schwarzNetz, blauNetz);
+        if (pfad) return berechneWiderstand(graph, pfad);
       }
     }
     return null;
@@ -253,7 +255,10 @@ async function start() {
       // zustandFuerFunktion(), solange kein Pfad gefunden wird.
       const rlowMesswert = berechneRlowMesswert();
       if (rlowMesswert !== null) {
-        zustand.hauptwert = `R:${rlowMesswert.toFixed(1).replace('.', ',')}Ω`;
+        // Zwei Nachkommastellen statt einer - die Fehlertabelle erlaubt
+        // Werte wie 0,15Ω, eine Summe (z.B. 0,45Ω) würde mit nur einer
+        // Nachkommastelle sichtbar Information verlieren (auf 0,5Ω gerundet).
+        zustand.hauptwert = `R:${rlowMesswert.toFixed(2).replace('.', ',')}Ω`;
       }
     } else if (funktion === 'RISO') {
       zustand.titelWerte = [RISO_MESSSPANNUNGEN[risoMessspannungIndex]];

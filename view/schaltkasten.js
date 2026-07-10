@@ -11,6 +11,29 @@ const HUTSCHIENE_HOEHE = 70;
 const HUTSCHIENE_LAENGE = 600;
 const KASTEN_PADDING = 20;
 
+// Schalter-Symbol (LS/RCD/Leistungsschalter, siehe KONZEPT.md "Schalter") -
+// aktuell nur eine leere, feste Box (Inhalt/Klick-Verhalten wird gerade neu
+// entworfen, siehe zeichneSchalter()). W = Basisbreite beim 1-poligen LS;
+// Leistungsschalter/LS skalieren linear mit der Polzahl (TE = Polzahl bei
+// diesen Typen, siehe TE_TABELLE in generate_anlage.js) plus einen kleinen
+// Zusatz ab 3 Polen (rein optisch, der 1- und 2-polige Fall bleiben exakt wie
+// bisher). RCD: linker Rand bleibt fest (SCHALTER_RCD_RAND_LINKS), der rechte
+// Rand ist ebenfalls fest statt proportional zur Polzahl zu wachsen - dadurch
+// bleibt der 2-polige Fall exakt wie bisher (Breite = W), während der
+// 4-polige Fall breiter wird als die ursprüngliche (Polzahl-1)*W-Formel.
+const SCHALTER_BASISBREITE = 24;
+const SCHALTER_HOEHE = 36;
+const SCHALTER_RCD_RAND_LINKS = 8;
+const SCHALTER_RCD_RAND_RECHTS = 40;
+const SCHALTER_ZUSATZ_PRO_POL_AB_3 = 6;
+// Hebel (Balken + Riffelung, siehe docs/referenz/hebel_beispiel_*.svg): eigener
+// Rahmen, passt in die obere Hälfte der (festen) Box - SCHALTER_HEBEL_RAND ist
+// der Abstand von der Box-Kante zum Hebel-Rahmen (oben/links/rechts), die
+// untere Hebel-Rahmenkante liegt exakt auf dem Box-Mittelpunkt (Drehpunkt).
+const SCHALTER_HEBEL_RAND = 4;
+const SCHALTER_HEBEL_BALKEN_HOEHE = 4;
+const SCHALTER_HEBEL_LINIEN_PADDING = 2;
+
 const FARBEN = {
   ls: { gehaeuse: '#e0e0e0', header: '#aaaaaa' },
   rcd: { gehaeuse: '#e0e0e0', header: '#aaaaaa' },
@@ -76,17 +99,105 @@ function schraube(svg, x, y, ader, onKlick) {
   svg.appendChild(kreis);
 }
 
-function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang, onSchraubeKlick }) {
+// Schalter-Symbol (siehe KONZEPT.md "Schalter", Vorlage
+// docs/referenz/hebel_beispiel_geschlossen.svg/hebel_beispiel_offen.svg):
+// eine **feste** weiße Box (Position/Größe ändert sich nie, Rand `#555555`
+// wie der Bauteil-Rand) mit einem klickbaren Hebel darin (eigener Rahmen um
+// Balken + drei Riffel-Linien). Der Hebel füllt geschlossen (Default) die
+// obere Boxhälfte, ein Klick auf die Box dreht ihn um 180° um den
+// Box-Mittelpunkt (`mitteX`/`mitteY`) - danach füllt er die untere
+// Boxhälfte, Balken und Riffelung haben die Seite getauscht, Größe/Form des
+// Hebels bleiben dabei unverändert (reine Rotation, keine Neupositionierung
+// einzelner Elemente). `mitteX`/`mitteY` sind die feste Mitte der Box - die
+// Aufrufer entscheiden, ob mittig oder (beim RCD) linksversetzt.
+function zeichneSchalter(svg, mitteX, mitteY, breite) {
+  const x = mitteX - breite / 2;
+  const boxY = mitteY - SCHALTER_HOEHE / 2;
+
+  const g = svgEl('g', {});
+  // Rand-Farbe #555555 - dieselbe Grau-Farbe wie der Bauteil-Rand selbst
+  // (siehe `stroke: '#555555'` am äußeren Gehäuse-Rect in geraet()).
+  g.appendChild(svgEl('rect', {
+    x, y: boxY, width: breite, height: SCHALTER_HOEHE,
+    fill: '#f5f5f5', stroke: '#555555', 'stroke-width': 1.2
+  }));
+
+  const hebelBreite = breite - 2 * SCHALTER_HEBEL_RAND;
+  const hebelHoehe = SCHALTER_HOEHE / 2 - SCHALTER_HEBEL_RAND;
+  const hebelX = mitteX - hebelBreite / 2;
+  const hebelY = mitteY - hebelHoehe;
+
+  const hebel = svgEl('g', {});
+  hebel.appendChild(svgEl('rect', {
+    x: hebelX, y: hebelY, width: hebelBreite, height: hebelHoehe,
+    fill: '#dddddd', stroke: '#222222', 'stroke-width': 1
+  }));
+  hebel.appendChild(svgEl('rect', {
+    x: hebelX, y: hebelY, width: hebelBreite, height: SCHALTER_HEBEL_BALKEN_HOEHE, fill: '#222222'
+  }));
+  const linienBereichHoehe = hebelHoehe - SCHALTER_HEBEL_BALKEN_HOEHE;
+  for (let i = 0; i < 3; i++) {
+    const ly = hebelY + SCHALTER_HEBEL_BALKEN_HOEHE + SCHALTER_HEBEL_LINIEN_PADDING
+      + i * ((linienBereichHoehe - 2 * SCHALTER_HEBEL_LINIEN_PADDING) / 2);
+    hebel.appendChild(svgEl('line', {
+      x1: hebelX + SCHALTER_HEBEL_LINIEN_PADDING, x2: hebelX + hebelBreite - SCHALTER_HEBEL_LINIEN_PADDING,
+      y1: ly, y2: ly, stroke: '#222222', 'stroke-width': 1
+    }));
+  }
+  g.appendChild(hebel);
+
+  let geschlossen = true;
+  g.style.cursor = 'pointer';
+  g.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    geschlossen = !geschlossen;
+    if (geschlossen) {
+      hebel.removeAttribute('transform');
+    } else {
+      hebel.setAttribute('transform', `rotate(180, ${mitteX}, ${mitteY})`);
+    }
+  });
+
+  svg.appendChild(g);
+}
+
+// LS/Leistungsschalter: Breite skaliert linear mit der Polzahl (1-/2-polig
+// bleiben dadurch exakt wie ursprünglich), ab 3 Polen kommt ein kleiner fixer
+// Zusatz pro Pol dazu (rein optisch etwas breiter, kein Überlappen mit dem
+// Bauteilrand). RCD: linker Rand fest, rechter Rand ebenfalls fest statt
+// proportional - der 2-polige Fall bleibt dadurch exakt bei Basisbreite,
+// größere Polzahlen (z.B. 4-polig) werden breiter als die reine
+// (Polzahl-1)*Basisbreite-Formel.
+function schalterBreite(schalterTyp, teAnzahl) {
+  if (schalterTyp === 'rcd') {
+    return teAnzahl * TE_PX - SCHALTER_RCD_RAND_LINKS - SCHALTER_RCD_RAND_RECHTS;
+  }
+  const zusatz = teAnzahl > 2 ? (teAnzahl - 2) * SCHALTER_ZUSATZ_PRO_POL_AB_3 : 0;
+  return teAnzahl * SCHALTER_BASISBREITE + zusatz;
+}
+
+function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang, onSchraubeKlick, schalterTyp }) {
   const breite = teAnzahl * TE_PX;
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: GERAET_H, fill: farben.gehaeuse, stroke: '#555555', 'stroke-width': 1 }));
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: HEADER_H, fill: farben.header }));
 
+  // Direkt unter dem Header-Balken statt vertikal mittig in der ganzen Box -
+  // näher an der Typenschild-Position auf echten Geräten.
   const text = svgEl('text', {
-    x: x + breite / 2, y: y + GERAET_H / 2 + 3,
+    x: x + breite / 2, y: y + HEADER_H + 12,
     'text-anchor': 'middle', 'font-size': 9, fill: farben.text ?? '#000000'
   });
   text.textContent = label;
   svg.appendChild(text);
+
+  if (schalterTyp) {
+    const sBreite = schalterBreite(schalterTyp, teAnzahl);
+    const sMitteY = y + GERAET_H / 2;
+    const sMitteX = schalterTyp === 'rcd'
+      ? x + SCHALTER_RCD_RAND_LINKS + sBreite / 2
+      : x + breite / 2;
+    zeichneSchalter(svg, sMitteX, sMitteY, sBreite);
+  }
 
   for (let i = 0; i < teAnzahl; i++) {
     const cx = x + i * TE_PX + TE_PX / 2;
@@ -182,7 +293,7 @@ export const SchaltkastenView = {
             label: `${gruppe.rcd.typ} ${gruppe.rcd.in_ma}mA`,
             adernEingang: gruppe.rcd.eingang.leitung.adern,
             adernAusgang: gruppe.rcd.ausgang.leitung.adern,
-            onSchraubeKlick
+            onSchraubeKlick, schalterTyp: 'rcd'
           });
         }
         for (const sk of gruppe.stromkreise) {
@@ -192,7 +303,7 @@ export const SchaltkastenView = {
             label: `${ls.char}${ls.in}`,
             adernEingang: ls.eingang.leitung.adern,
             adernAusgang: ls.ausgang.leitung.adern,
-            onSchraubeKlick
+            onSchraubeKlick, schalterTyp: 'einfach'
           });
         }
       }
@@ -208,7 +319,7 @@ export const SchaltkastenView = {
       label: `${hs.in}A`,
       adernEingang: hs.eingang.leitung.adern,
       adernAusgang: hs.ausgang.leitung.adern,
-      onSchraubeKlick
+      onSchraubeKlick, schalterTyp: 'einfach'
     });
     for (const feld of ['l1_klemme', 'l2_klemme', 'l3_klemme']) {
       if (anlage[feld]) {

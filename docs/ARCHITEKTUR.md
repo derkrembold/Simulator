@@ -347,6 +347,92 @@ SchaltkastenView.render(anlage, container, (ader, x, y, kreis) => {
 });
 ```
 
+#### Label-Position im Bauteil
+`geraet()`s Typenschild-Text (z.B. "A 30mA", "B16", "25A") sitzt direkt unter
+dem Header-Balken (`y: y + HEADER_H + 12`), nicht mehr vertikal mittig in der
+ganzen Box wie ursprünglich - näher an der Typenschild-Position auf echten
+Geräten, und macht in der Boxmitte Platz für das Schalter-Symbol (siehe
+unten). Der Header-Balken selbst (`farben.header`, oben in der Box) bleibt
+davon unberührt - bewusst getrennt vom Schalter-Symbol, keine Wiederverwendung.
+
+#### Schalter-Symbol (`zeichneSchalter()`)
+Zwei Teile: eine feste weiße Box (unverändert wie zuvor) und ein darin
+klickbar rotierender **Hebel**.
+
+**Box:** heller Kasten (`#f5f5f5`), Rand in `#555555` (dieselbe Grau-Farbe wie
+der äußere Bauteil-Rand, `stroke: '#555555'` am Gehäuse-Rect in `geraet()`).
+
+**Wichtige Design-Vorgabe (mehrfach im Verlauf bestätigt):** Die Box-Position
+(`x`/`y`/`width`/`height`) ist **fix und bewegt sich nie**. Zwei frühere
+Entwürfe wurden deshalb verworfen, bevor der jetzige Ansatz stand:
+1. Die ganze Box wanderte beim Öffnen 40px nach unten
+   (`SCHALTER_OFFEN_VERSATZ`) - falsch, weil die Box selbst wandern durfte.
+2. Die Box blieb fest, aber ein Balken + drei Riffel-Striche innerhalb
+   tauschten beim Klick die Seite durch direktes Verschieben der einzelnen
+   `rect`/`line`-Elemente (kein Neu-Rendern des Schaltkastens nötig, da das
+   die separat hinzugefügten Messspitzen-Overlays zerstört hätte) - technisch
+   funktionierend, aber der User wollte stattdessen einen kompletten Neustart
+   mit einer anderen Innen-Mechanik (Rotation statt Neupositionierung).
+
+**Hebel (aktueller, bestätigter Stand):** orientiert an einer vom User
+bereitgestellten Vorlage (`C:\Users\rembo\Documents\Classes\Pics\
+hebelgeschlossen.svg`, Kopie/Ableitung als
+`docs/referenz/hebel_beispiel_geschlossen.svg`/`hebel_beispiel_offen.svg`).
+Eigener Rahmen (`stroke: '#222222'`) um Balken + drei Riffel-Linien, Innenfläche
+`#dddddd`. Größe wird aus der Box-Größe abgeleitet, nicht fest verdrahtet:
+- `hebelBreite = breite - 2 * SCHALTER_HEBEL_RAND` (`SCHALTER_HEBEL_RAND = 4`,
+  Abstand zur Box-Kante links/rechts/oben)
+- `hebelHoehe = SCHALTER_HOEHE / 2 - SCHALTER_HEBEL_RAND` - **maximal die
+  halbe Boxhöhe**, das ist zwingend: der Hebel darf beim Umschalten (siehe
+  unten) nie über die Box-Kante hinausragen.
+- `hebelX = mitteX - hebelBreite / 2`, `hebelY = mitteY - hebelHoehe` - der
+  Hebel füllt im geschlossenen Zustand (Default) exakt die **obere
+  Boxhälfte**, seine untere Rahmenkante liegt exakt auf dem Box-Mittelpunkt
+  (`mitteX`, `mitteY`).
+
+**Klick-Rotation:** ein Klick auf die Box (`cursor: pointer` auf der äußeren
+`<g>`) togglet eine lokale `geschlossen`-Variable und setzt/entfernt
+`transform="rotate(180, mitteX, mitteY)"` auf die Hebel-`<g>`-Gruppe - eine
+reine SVG-Rotation um den **Box-Mittelpunkt als Drehpunkt** (nicht um die
+Hebel-eigene Mitte). Das ist der Grund, warum der Hebel selbst im
+geschlossenen Zustand mit seiner unteren Kante exakt auf dem Box-Mittelpunkt
+sitzt: nach der 180°-Drehung um genau diesen Punkt liegt seine (jetzt) obere
+Kante wieder exakt dort, und der komplette Hebel liegt spiegelbildlich in der
+unteren Boxhälfte - Größe/Form bleiben dabei exakt erhalten (reine Rotation,
+keine Neupositionierung einzelner Elemente, kein Neu-Rendern des
+Schaltkastens, Messspitzen-Overlays bleiben unberührt).
+
+**Noch offen:** Anbindung an den Verbindungsgraphen (`geschlossen:
+true/false` auf den entsprechenden Graph-Kanten, siehe KONZEPT.md "Schalter" -
+Bauteilname aus `bauteile.md` als verbindende ID) - der Hebel-Klick ist
+aktuell rein visuell, ohne Auswirkung auf RLOW oder sonstige Logik.
+
+Größenformel (`schalterBreite(schalterTyp, teAnzahl)`), ausgehend von
+`SCHALTER_BASISBREITE = 24` (Breite `W` beim 1-poligen LS, `SCHALTER_HOEHE =
+36`):
+- `schalterTyp: 'einfach'` (LS, Hauptschalter/Leistungsschalter) - Breite =
+  `teAnzahl × W`, plus ab 3 Polen ein fester Zusatz pro Pol
+  (`SCHALTER_ZUSATZ_PRO_POL_AB_3 = 6`, rein optisch nach User-Feedback -
+  "3-poliger Leistungsschalter könnte ein Tick breiter sein"). 1- und
+  2-polig bleiben dadurch exakt bei reiner linearer Skalierung (24px/48px),
+  3-polig wird 72px + 6px = 78px statt reiner `3×W`. Horizontal **und**
+  vertikal mittig im Bauteil (`GERAET_H / 2`). Beim 1-poligen LS (36px
+  TE-Breite) bleibt dadurch beidseitig 6px Rand - kein Überlappen mit dem
+  Bauteilrand, wie vom User gefordert.
+- `schalterTyp: 'rcd'` - Breite = `teAnzahl × TE_PX - SCHALTER_RCD_RAND_LINKS
+  (8px) - SCHALTER_RCD_RAND_RECHTS (40px)` - fester linker UND rechter Rand
+  statt einer reinen `(teAnzahl - 1) × W`-Formel, damit der 2-polige Fall
+  exakt bei `W` (24px) bleibt (User-Feedback: "perfekt, so lassen"), während
+  der 4-polige Fall breiter wird als die ursprüngliche Formel (96px statt
+  72px, User-Feedback: "kann breiter sein", linker Rand-Abstand aber
+  unverändert gut). Vertikal mittig, horizontal nicht zentriert (links
+  versetzt).
+
+Alle 4 Testcase-`anlage.svg` wurden nach der Änderung neu generiert und
+promotet (nur Label-`y` und die neuen Schalter-Symbol-Elemente als Diff), dann
+nach User-Feedback zur Breite ein zweites Mal (nur die Breiten-Formel für 3+
+Pole).
+
 ### messgeraet.js
 - Rendert das Messgerät (BENNING IT 130) als eigene SVG-Komponente, genau wie
   `schaltkasten.js` per `document.createElementNS` aus einzelnen DOM-Elementen

@@ -923,15 +923,46 @@ bereits (siehe "Messmodus"); RISO/ZI/ZS folgen später demselben Modell.
 
 ### Schalter (LS, RCD, Hauptschalter)
 
+**Status: teilweise umgesetzt.** Das Schalter-Symbol (`zeichneSchalter()` in
+`schaltkasten.js`) besteht aus zwei Teilen:
+- Eine **feste weiße Box** (`#f5f5f5`, Rand `#555555` - dieselbe Grau-Farbe
+  wie der Bauteil-Rand selbst) - **Position/Größe ändern sich nie**, das war
+  eine explizite, mehrfach bestätigte User-Vorgabe. Breite skaliert mit der
+  Polzahl, ausgehend von einer Basisbreite `W` (Breite des 1-poligen LS):
+  LS/Hauptschalter linear (`Polzahl × W`, plus ab 3 Polen ein kleiner fester
+  Zusatz pro Pol, rein optisch nach User-Feedback; horizontal UND vertikal
+  mittig), RCD dagegen mit festem linken UND rechten Rand statt reiner
+  `(Polzahl − 1) × W`-Formel (2-polig bleibt bei `W`, 4-polig wird breiter als
+  `3×W`; horizontal nicht zwingend mittig, darf nach links versetzt sein).
+- Ein **Hebel** darin (eigener Rahmen, Innenfläche `#dddddd`, oben ein
+  schwarzer Balken, darunter drei Riffel-Linien) - orientiert an
+  `docs/referenz/hebelgeschlossen.svg` (vom User bereitgestellt) bzw. den
+  daraus abgeleiteten Beispielen `docs/referenz/hebel_beispiel_geschlossen.svg`/
+  `hebel_beispiel_offen.svg`. Der Hebel füllt geschlossen (Default) die obere
+  Boxhälfte. **Klickbar:** ein Klick auf die Box dreht den Hebel per
+  SVG-`transform="rotate(180, mitteX, mitteY)"` um den **Box-Mittelpunkt** -
+  Größe/Form des Hebels bleiben dabei exakt gleich (reine Rotation, keine
+  Neupositionierung einzelner Elemente), er füllt danach die untere
+  Boxhälfte mit vertauschter Balken/Riffelung-Seite. Der Drehpunkt liegt
+  bewusst nicht in der Hebel-Mitte, sondern an seiner unteren Rahmenkante
+  (horizontal mittig) - dadurch berührt diese Kante im geschlossenen Zustand
+  exakt den Box-Mittelpunkt, und nach der Drehung die *obere* Rahmenkante
+  denselben Punkt.
+
+Frühere Entwürfe (ganze Box wandert; Box fest, aber Balken+Riffelung tauschen
+ohne Rotation die Position) wurden verworfen, siehe ARCHITEKTUR.md für Details.
+
 Jeder schaltbare Bauteil hat eine **doppelte Rolle**:
-- **Grafisch:** im Schaltkasten-SVG klickbar – der Bauteil-Körper selbst (nicht
+- **Grafisch:** im Schaltkasten-SVG klickbar – die Schalter-Box selbst (nicht
   die Schrauben, die sind für Messspitzen reserviert, siehe "Messmodus").
 - **Im Graphen:** eine Kante (bzw. bei mehrpoligen Bauteilen mehrere Kanten
   gleichzeitig, eine je Pol) zwischen den Eingangs- und Ausgangs-Pins, mit
   Zustand `geschlossen: true/false`. Die Pfadsuche überspringt Kanten mit
   `geschlossen: false`. Bei einem 4-poligen RCD steuert ein Klick also bis zu
   vier Kanten gleichzeitig (eine je Pol), da alle denselben Schalterzustand
-  referenzieren.
+  referenzieren. **Noch offen:** diese Anbindung an den Verbindungsgraphen -
+  der Hebel-Klick ist aktuell rein visuell, ohne Auswirkung auf RLOW oder
+  sonstige Logik.
 
 Verbindende ID zwischen SVG und Graph: der Bauteilname aus `bauteile.md`
 (`LS1`, `RCD1`, `Hauptschalter`, ...) – der existiert bereits, keine neue ID

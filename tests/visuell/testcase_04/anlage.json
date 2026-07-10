@@ -42,6 +42,7 @@
   },
   "hauptsicherung": {
     "typ": "Hauptschalter",
+    "name": "Hauptschalter",
     "polig": 3,
     "te": 3,
     "in": 35,
@@ -104,6 +105,7 @@
           "bezeichnung": "Gruppe 1",
           "phase": "L1/L2/L3",
           "rcd": {
+            "name": "RCD1",
             "typ": "A",
             "polig": 4,
             "te": 4,
@@ -184,6 +186,7 @@
                 "L1"
               ],
               "ls": {
+                "name": "LS1",
                 "char": "B",
                 "in": 16,
                 "polig": 1,
@@ -274,6 +277,7 @@
                 "L2"
               ],
               "ls": {
+                "name": "LS2",
                 "char": "B",
                 "in": 16,
                 "polig": 1,
@@ -359,6 +363,7 @@
                 "L3"
               ],
               "ls": {
+                "name": "LS3",
                 "char": "B",
                 "in": 16,
                 "polig": 1,

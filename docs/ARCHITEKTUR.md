@@ -177,8 +177,11 @@ Fehlersimulation" für die Motivation. Implementierung:
   geschlossen: true}` hinzugefügt. Funktioniert für LS/RCD/Hauptschalter/
   Klemmen/Reihenklemmen gleichermaßen, weil sie alle derselben
   `i<n>`/`o<n>`-Pinkonvention folgen - kein Sonderfall pro Bauteilart nötig.
-  `geschlossen` ist aktuell immer `true` (Schalterzustand noch nicht
-  angebunden, siehe KONZEPT.md "Schalter").
+  `geschlossen` ist beim Generieren immer `true` (Ausgangs-/Normalzustand
+  einer Anlage unter Spannung) - zur Laufzeit im Browser wird das Feld beim
+  Schalter-Klick umgeschaltet, siehe "Schalter" unter `app.js` weiter unten
+  und KONZEPT.md "Schalter". `graph.json` selbst beschreibt also nur die
+  Ausgangs-Topologie, nicht den aktuellen Schaltzustand.
 - `generiereGraph(ordner)` - baut für `GRAPH_FUNKTIONEN = ['L1','L2','L3','N']`
   (bewusst ohne `PE`, siehe KONZEPT.md) je einen Teilgraphen
   `{ knoten: string[], kanten: Kante[] }`, Rückgabeform
@@ -402,10 +405,39 @@ unteren Boxhälfte - Größe/Form bleiben dabei exakt erhalten (reine Rotation,
 keine Neupositionierung einzelner Elemente, kein Neu-Rendern des
 Schaltkastens, Messspitzen-Overlays bleiben unberührt).
 
-**Noch offen:** Anbindung an den Verbindungsgraphen (`geschlossen:
-true/false` auf den entsprechenden Graph-Kanten, siehe KONZEPT.md "Schalter" -
-Bauteilname aus `bauteile.md` als verbindende ID) - der Hebel-Klick ist
-aktuell rein visuell, ohne Auswirkung auf RLOW oder sonstige Logik.
+**Anbindung an den Verbindungsgraphen: umgesetzt** (für RLOW). `zeichneSchalter()`
+bekommt jetzt einen `onKlick(geschlossen)`-Callback; `geraet()` reicht ihn
+zusammen mit dem neuen `bauteilName`-Parameter durch
+(`onKlick?.(geschlossen)` wird zu `(geschlossen) => onSchalterKlick?.
+(bauteilName, geschlossen)`). `SchaltkastenView.render(anlage, container,
+onSchraubeKlick, onSchalterKlick)` hat dafür ein viertes Argument bekommen;
+die 3 `geraet()`-Aufrufstellen (RCD/LS/Hauptschalter) übergeben jeweils
+`bauteilName: gruppe.rcd.name`/`ls.name`/`hs.name`.
+
+Voraussetzung war ein neues `name`-Feld in `anlage.json`: `rcd`/`ls`/
+`hauptsicherung` trugen bisher keinen Bauteilnamen (nur `hauptsicherung.typ`
+enthielt ihn zufällig/ungenutzt) - `generate_anlage.js` schreibt ihn jetzt
+explizit (`name: rcd.name`/`ls.name`/`hauptschalter.name`), analog zur
+früheren `netz`-Feld-Ergänzung bei den Adern.
+
+`controller/app.js`s `schalterUmschalten(bauteilName, geschlossen)`: iteriert
+beim Klick über alle Funktions-Teilgraphen (`Object.keys(graph)`, also
+`L1`/`L2`/`L3`/`N`) und setzt `kante.geschlossen = geschlossen` für jede Kante
+mit `kante.bauteil === bauteilName` - bei einem mehrpoligen Bauteil (z.B.
+4-poliges RCD) betrifft das mehrere Kanten in verschiedenen Teilgraphen
+gleichzeitig, da alle denselben Bauteilnamen tragen. Mutiert das geladene
+`graph`-Objekt direkt (keine separate Zustands-Map wie bei den Messspitzen -
+`kante.geschlossen` genügt, `findePfad()` prüft es ohnehin schon). Ruft danach
+`renderMessgeraet()` auf (RLOW ist kontinuierlich, zieht sofort nach).
+**Bewusst nicht** in `setzeBearbeitungenZurueck()`/`entferneAlleMessspitzen()`
+eingebunden - der Schalterzustand bleibt beim Aus-/Einschalten des Messgeräts
+erhalten, anders als Messspitzen (explizite User-Vorgabe, verifiziert per
+Test: LS1 öffnen → Messgerät aus/an → Messspitzen neu setzen → RLOW zeigt
+weiterhin `___Ω`).
+
+Tests in `test_messgeraet.js`: "Schalter: Öffnen von LS1 unterbricht eine
+laufende RLOW-Messung" (öffnen → Platzhalter, wieder schließen → `0,0Ω`) und
+"Schalter: Zustand bleibt beim Aus-/Einschalten des Messgeräts erhalten".
 
 Größenformel (`schalterBreite(schalterTyp, teAnzahl)`), ausgehend von
 `SCHALTER_BASISBREITE = 24` (Breite `W` beim 1-poligen LS, `SCHALTER_HOEHE =
@@ -769,6 +801,38 @@ anderer Stelle markierte (z.B. "BENNING IT 130" blau hervorgehoben - wirkte
 wie ein Farb-Bug im Messgerät, war aber Text-Selektion). Behoben in
 `index.html`: `#schaltkasten`/`#messgeraet` bekommen `user-select: none`
 (inkl. `-webkit-`/`-moz-`-Präfix).
+
+**Schalter (LS/RCD/Hauptschalter) - Anbindung an den Verbindungsgraphen:**
+`SchaltkastenView.render(anlage, container, onSchraubeKlick, onSchalterKlick)`
+bekommt als viertes Argument `schalterUmschalten(bauteilName, geschlossen)`
+(definiert in `start()`, vor dem `render()`-Aufruf). Beim Klick auf einen
+Hebel im Schaltkasten (siehe `zeichneSchalter()` in `schaltkasten.js`):
+- Iteriert über alle Funktions-Teilgraphen (`Object.keys(graph)`, also
+  `L1`/`L2`/`L3`/`N`) und setzt `kante.geschlossen = geschlossen` für jede
+  Kante mit `kante.bauteil === bauteilName` - mutiert das geladene
+  `graph`-Objekt direkt, keine separate Zustands-Map wie bei den Messspitzen.
+  Bei einem mehrpoligen Bauteil (z.B. 4-poliges RCD) betrifft das mehrere
+  Kanten in verschiedenen Teilgraphen gleichzeitig, da alle denselben
+  Bauteilnamen tragen.
+- Ruft danach `renderMessgeraet()` auf - RLOW ist kontinuierlich, `findePfad()`
+  findet ab sofort keinen Pfad mehr über die geöffnete Kante, der Platzhalter
+  erscheint wieder.
+- **Bewusst nicht** in `setzeBearbeitungenZurueck()`/`entferneAlleMessspitzen()`
+  eingebunden - der Schalterzustand bleibt beim Aus-/Einschalten des
+  Messgeräts erhalten (anders als Messspitzen), da er den echten Zustand der
+  Anlage abbildet, nicht den Mess-Vorgang selbst (explizite User-Vorgabe).
+
+Voraussetzung war ein neues `name`-Feld in `anlage.json` bei `rcd`/`ls`/
+`hauptsicherung` (vorher fehlte der Bauteilname dort komplett, nur
+`hauptsicherung.typ` enthielt ihn zufällig/ungenutzt) - `generate_anlage.js`
+schreibt ihn jetzt explizit, analog zur früheren `netz`-Feld-Ergänzung bei den
+Adern. `geraet()` in `schaltkasten.js` reicht `bauteilName` an
+`zeichneSchalter()` durch, dessen `onKlick(geschlossen)`-Callback dann zu
+`onSchalterKlick(bauteilName, geschlossen)` wird.
+
+Getestet in `test_messgeraet.js`: "Schalter: Öffnen von LS1 unterbricht eine
+laufende RLOW-Messung" und "Schalter: Zustand bleibt beim Aus-/Einschalten des
+Messgeräts erhalten".
 
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen

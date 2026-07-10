@@ -324,6 +324,10 @@ function generiereAnlage(ordner) {
 
     hauptsicherung: {
       typ: hauptschalter.name,
+      // Bauteilname aus bauteile.md (z.B. "Leistungsschalter") - verbindende ID
+      // zum Verbindungsgraphen (siehe KONZEPT.md "Schalter"), getrennt vom
+      // (unbenutzten, aber aus Kompatibilität belassenen) `typ`-Feld oben.
+      name: hauptschalter.name,
       polig: hauptschalter.pole,
       te: TE_TABELLE[`Hauptschalter-${hauptschalter.pole}`],
       in: hauptschalter.nennstrom,
@@ -411,6 +415,9 @@ function generiereAnlage(ordner) {
         ziel: sk.ziel,
         phasen: [phase],
         ls: {
+          // Bauteilname aus bauteile.md (z.B. "LS1") - verbindende ID zum
+          // Verbindungsgraphen (siehe KONZEPT.md "Schalter").
+          name: ls.name,
           char: ls.typ,
           in: ls.nennstrom,
           polig: ls.pole,
@@ -443,6 +450,9 @@ function generiereAnlage(ordner) {
       bezeichnung: `Gruppe ${gruppeId.replace('G', '')}`,
       phase: vorkommendePhasen.length > 1 ? vorkommendePhasen.join('/') : gruppenPhase,
       rcd: {
+        // Bauteilname aus bauteile.md (z.B. "RCD1") - verbindende ID zum
+        // Verbindungsgraphen (siehe KONZEPT.md "Schalter").
+        name: rcd.name,
         typ: rcd.typ,
         polig: rcd.pole,
         te: TE_TABELLE[`RCD-${rcd.pole}`],

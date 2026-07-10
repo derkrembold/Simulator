@@ -874,10 +874,11 @@ Netzplan selbst verändert). Stattdessen: ein separater **Verbindungsgraph**,
 der Pfade zwischen zwei Schrauben sucht (für RLOW, später auch RISO/ZI/ZS),
 unter Berücksichtigung von Schalterstellungen und optionalen
 Fehler-Widerständen. Umgesetzt bisher: Graph-Generierung (siehe unten) inkl.
-Ausgabedatei (`graph.json` pro Testcase) und Anbindung ans Messgerät für RLOW
+Ausgabedatei (`graph.json` pro Testcase), Anbindung ans Messgerät für RLOW
 (Messspitzen setzen, Pfad wird live verfolgt, siehe "Messmodus" und
-ARCHITEKTUR.md). Noch offen: Schalterzustand (Kanten sind aktuell immer
-`geschlossen: true`) und Fehlertabelle (jeder gefundene Pfad zählt aktuell als
+ARCHITEKTUR.md), und Schalterzustand (LS/RCD/Hauptschalter klickbar, siehe
+"Schalter" unten - schaltet `kante.geschlossen` live um, RLOW reagiert sofort
+darauf). Noch offen: Fehlertabelle (jeder gefundene Pfad zählt aktuell als
 0Ω).
 
 ### Verbindungsgraph
@@ -923,8 +924,10 @@ bereits (siehe "Messmodus"); RISO/ZI/ZS folgen später demselben Modell.
 
 ### Schalter (LS, RCD, Hauptschalter)
 
-**Status: teilweise umgesetzt.** Das Schalter-Symbol (`zeichneSchalter()` in
-`schaltkasten.js`) besteht aus zwei Teilen:
+**Status: umgesetzt** (für RLOW - siehe "Berechnung der Messwerte" oben,
+RISO/ZI/ZS folgen später demselben Verbindungsgraph-Modell). Das
+Schalter-Symbol (`zeichneSchalter()` in `schaltkasten.js`) besteht aus zwei
+Teilen:
 - Eine **feste weiße Box** (`#f5f5f5`, Rand `#555555` - dieselbe Grau-Farbe
   wie der Bauteil-Rand selbst) - **Position/Größe ändern sich nie**, das war
   eine explizite, mehrfach bestätigte User-Vorgabe. Breite skaliert mit der
@@ -960,17 +963,25 @@ Jeder schaltbare Bauteil hat eine **doppelte Rolle**:
   Zustand `geschlossen: true/false`. Die Pfadsuche überspringt Kanten mit
   `geschlossen: false`. Bei einem 4-poligen RCD steuert ein Klick also bis zu
   vier Kanten gleichzeitig (eine je Pol), da alle denselben Schalterzustand
-  referenzieren. **Noch offen:** diese Anbindung an den Verbindungsgraphen -
-  der Hebel-Klick ist aktuell rein visuell, ohne Auswirkung auf RLOW oder
-  sonstige Logik.
+  referenzieren.
 
 Verbindende ID zwischen SVG und Graph: der Bauteilname aus `bauteile.md`
-(`LS1`, `RCD1`, `Hauptschalter`, ...) – der existiert bereits, keine neue ID
-nötig. Der Laufzeit-Zustand ("welche Schalter sind gerade offen") lebt im
-Controller (`controller/app.js`), analog zu den Messspitzen – nicht in der
-Graph-Datei selbst (die beschreibt nur die Topologie, nicht den aktuellen
-Schaltzustand). Default: alle Schalter geschlossen (Normalzustand einer
-Anlage unter Spannung).
+(`LS1`, `RCD1`, `Hauptschalter`, ...) – dafür trägt jetzt auch `anlage.json`
+ein `name`-Feld pro RCD/LS/Hauptsicherung (vorher fehlte das, nur die
+Hauptsicherung hatte es zufällig im `typ`-Feld). Der Laufzeit-Zustand ("welche
+Schalter sind gerade offen") lebt im Controller (`controller/app.js`) direkt
+als Mutation der `kante.geschlossen`-Felder im geladenen `graph`-Objekt, nicht
+in einer eigenen Map und nicht in der Graph-Datei selbst (die beschreibt nur
+die Ausgangs-Topologie). Default: alle Schalter geschlossen (Normalzustand
+einer Anlage unter Spannung). **Wichtig, bewusst anders als bei den
+Messspitzen:** der Schalterzustand wird beim Aus-/Einschalten des Messgeräts
+**nicht** zurückgesetzt – ein Schalter bildet den echten Zustand der Anlage
+ab, der bleibt bestehen, unabhängig davon, ob gerade gemessen wird.
+
+RLOW nutzt das bereits: `berechneRlowMesswert()` in `controller/app.js` findet
+über `findePfad()` keinen Pfad mehr, sobald irgendeine Kante zwischen den
+beiden Messspitzen `geschlossen: false` ist, und zeigt dann wieder den
+`___Ω`-Platzhalter statt eines Messwerts.
 
 ### Schrauben lösen
 

@@ -42,6 +42,7 @@
   },
   "hauptsicherung": {
     "typ": "Leistungsschalter",
+    "name": "Leistungsschalter",
     "polig": 2,
     "te": 2,
     "in": 25,
@@ -92,6 +93,7 @@
           "bezeichnung": "Gruppe 1",
           "phase": "L1",
           "rcd": {
+            "name": "RCD1",
             "typ": "A",
             "polig": 2,
             "te": 2,
@@ -156,6 +158,7 @@
                 "L1"
               ],
               "ls": {
+                "name": "LS1",
                 "char": "B",
                 "in": 16,
                 "polig": 1,
@@ -246,6 +249,7 @@
                 "L1"
               ],
               "ls": {
+                "name": "LS2",
                 "char": "B",
                 "in": 10,
                 "polig": 1,

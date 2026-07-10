@@ -47,6 +47,25 @@ async function start() {
   const messspitzenAder = new Map();
   const messspitzenOverlay = new Map();
 
+  // Schalter (LS/RCD/Hauptschalter, siehe KONZEPT.md "Schalter"): ein Klick
+  // auf den Hebel im Schaltkasten schaltet ALLE Kanten im Verbindungsgraphen
+  // um, die zu diesem Bauteil gehören (bei mehrpoligen Bauteilen mehrere
+  // Kanten gleichzeitig, eine je Pol/Funktion - z.B. ein 4-poliges RCD
+  // betrifft Kanten in L1/L2/L3/N zugleich). Zustand lebt direkt im
+  // `graph`-Objekt (`kante.geschlossen`), nicht in einer eigenen Map -
+  // bewusst NICHT beim Ausschalten des Messgeräts zurückgesetzt (anders als
+  // Messspitzen): ein Schalter bildet den echten Zustand der Anlage ab, der
+  // bleibt bestehen, auch wenn man gerade nicht misst.
+  function schalterUmschalten(bauteilName, geschlossen) {
+    if (!graph) return;
+    for (const funktion of Object.keys(graph)) {
+      for (const kante of graph[funktion].kanten) {
+        if (kante.bauteil === bauteilName) kante.geschlossen = geschlossen;
+      }
+    }
+    renderMessgeraet(); // RLOW misst kontinuierlich, siehe unten
+  }
+
   const schaltkastenSvg = SchaltkastenView.render(anlage, container, (ader, x, y, kreis) => {
     // Solange das Messgerät an ist (Messmodus), ersetzen Messspitzen die
     // Popups: kein Querschnitt/Farbe-Tooltip mehr, stattdessen legt jeder
@@ -89,7 +108,7 @@ async function start() {
         weitere: ader.weitere?.map((w) => ({ querschnitt: `${w.querschnitt_mm2} mm²`, farbe: w.farbe }))
       }, x, y);
     }
-  });
+  }, schalterUmschalten);
 
   // Alle Netz-IDs, die an einer Ader hängen - normalerweise nur ihre eigene,
   // bei einer physisch geteilten Schraube (siehe generate_anlage.js

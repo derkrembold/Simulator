@@ -389,6 +389,42 @@ async function main() {
     await page.close();
   });
 
+  // --- Schalter (LS/RCD/Leistungsschalter) unterbrechen den Verbindungsgraphen ---
+  // LS1 liegt im Pfad zwischen N1 (Leistungsschalter.i1) und N13
+  // (Reihenklemme_L_SK1.o1) - Schalter-Box bei x=78,y=322 in testcase_01
+  // (siehe schalterBreite()/geraet() in schaltkasten.js für die Positionsformel).
+
+  await pruefe('Schalter: Öffnen von LS1 unterbricht eine laufende RLOW-Messung', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
+    await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
+    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW mit LS1 geschlossen (Default)');
+
+    const ls1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="78"][y="322"]') });
+    await ls1.click(); // LS1 öffnen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RLOW nach Öffnen von LS1 (Pfad unterbrochen)');
+
+    await ls1.click(); // LS1 wieder schließen
+    erwarte([await rlowHauptwert(page)], 'R:0,0Ω', 'RLOW nach erneutem Schließen von LS1');
+    await page.close();
+  });
+
+  await pruefe('Schalter: Zustand bleibt beim Aus-/Einschalten des Messgeräts erhalten (anders als Messspitzen)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    const ls1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="78"][y="322"]') });
+    await ls1.click(); // LS1 öffnen
+
+    await klick(page, 'ON/OFF'); // aus (Messspitzen werden entfernt, Schalterzustand nicht)
+    await klick(page, 'ON/OFF'); // wieder an
+
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
+    await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'LS1 ist nach Aus-/Wiedereinschalten weiterhin offen');
+    await page.close();
+  });
+
   await browser.close();
   server.close();
   process.exit(alleBestanden ? 0 : 1);

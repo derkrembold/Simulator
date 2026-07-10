@@ -109,8 +109,11 @@ function schraube(svg, x, y, ader, onKlick) {
 // Boxhälfte, Balken und Riffelung haben die Seite getauscht, Größe/Form des
 // Hebels bleiben dabei unverändert (reine Rotation, keine Neupositionierung
 // einzelner Elemente). `mitteX`/`mitteY` sind die feste Mitte der Box - die
-// Aufrufer entscheiden, ob mittig oder (beim RCD) linksversetzt.
-function zeichneSchalter(svg, mitteX, mitteY, breite) {
+// Aufrufer entscheiden, ob mittig oder (beim RCD) linksversetzt. `onKlick`
+// (optional) wird mit dem neuen Zustand (`geschlossen: true/false`) beim
+// Klick aufgerufen - der Aufrufer verbindet das mit dem Verbindungsgraphen
+// (siehe controller/app.js).
+function zeichneSchalter(svg, mitteX, mitteY, breite, onKlick) {
   const x = mitteX - breite / 2;
   const boxY = mitteY - SCHALTER_HOEHE / 2;
 
@@ -156,6 +159,7 @@ function zeichneSchalter(svg, mitteX, mitteY, breite) {
     } else {
       hebel.setAttribute('transform', `rotate(180, ${mitteX}, ${mitteY})`);
     }
+    onKlick?.(geschlossen);
   });
 
   svg.appendChild(g);
@@ -176,7 +180,7 @@ function schalterBreite(schalterTyp, teAnzahl) {
   return teAnzahl * SCHALTER_BASISBREITE + zusatz;
 }
 
-function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang, onSchraubeKlick, schalterTyp }) {
+function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang, onSchraubeKlick, schalterTyp, bauteilName, onSchalterKlick }) {
   const breite = teAnzahl * TE_PX;
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: GERAET_H, fill: farben.gehaeuse, stroke: '#555555', 'stroke-width': 1 }));
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: HEADER_H, fill: farben.header }));
@@ -196,7 +200,7 @@ function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang
     const sMitteX = schalterTyp === 'rcd'
       ? x + SCHALTER_RCD_RAND_LINKS + sBreite / 2
       : x + breite / 2;
-    zeichneSchalter(svg, sMitteX, sMitteY, sBreite);
+    zeichneSchalter(svg, sMitteX, sMitteY, sBreite, (geschlossen) => onSchalterKlick?.(bauteilName, geschlossen));
   }
 
   for (let i = 0; i < teAnzahl; i++) {
@@ -222,7 +226,7 @@ function findeAder(adern, funktion) {
 }
 
 export const SchaltkastenView = {
-  render(anlage, container, onSchraubeKlick) {
+  render(anlage, container, onSchraubeKlick, onSchalterKlick) {
     const svg = svgEl('svg', {});
     container.innerHTML = '';
     container.appendChild(svg);
@@ -293,7 +297,7 @@ export const SchaltkastenView = {
             label: `${gruppe.rcd.typ} ${gruppe.rcd.in_ma}mA`,
             adernEingang: gruppe.rcd.eingang.leitung.adern,
             adernAusgang: gruppe.rcd.ausgang.leitung.adern,
-            onSchraubeKlick, schalterTyp: 'rcd'
+            onSchraubeKlick, schalterTyp: 'rcd', bauteilName: gruppe.rcd.name, onSchalterKlick
           });
         }
         for (const sk of gruppe.stromkreise) {
@@ -303,7 +307,7 @@ export const SchaltkastenView = {
             label: `${ls.char}${ls.in}`,
             adernEingang: ls.eingang.leitung.adern,
             adernAusgang: ls.ausgang.leitung.adern,
-            onSchraubeKlick, schalterTyp: 'einfach'
+            onSchraubeKlick, schalterTyp: 'einfach', bauteilName: ls.name, onSchalterKlick
           });
         }
       }
@@ -319,7 +323,7 @@ export const SchaltkastenView = {
       label: `${hs.in}A`,
       adernEingang: hs.eingang.leitung.adern,
       adernAusgang: hs.ausgang.leitung.adern,
-      onSchraubeKlick, schalterTyp: 'einfach'
+      onSchraubeKlick, schalterTyp: 'einfach', bauteilName: hs.name, onSchalterKlick
     });
     for (const feld of ['l1_klemme', 'l2_klemme', 'l3_klemme']) {
       if (anlage[feld]) {

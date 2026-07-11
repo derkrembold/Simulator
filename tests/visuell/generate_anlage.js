@@ -174,6 +174,16 @@ function kantenFuerFunktion(netze, bauteile, funktion) {
   return kanten;
 }
 
+// Netz-ID der Einspeisung für eine Funktion (Pin "Einspeisung.<funktion>",
+// z.B. "Einspeisung.L1") - Ausgangspunkt für istSpannungFuehrend() weiter
+// unten (RISO-Spannungsprüfung, siehe KONZEPT.md "Berechnung der Messwerte").
+function findeEinspeisungsNetz(netze, funktion) {
+  for (const [netId, netz] of Object.entries(netze)) {
+    if (netz.pins.some((p) => p.pin === `Einspeisung.${funktion}` && p.funktion === funktion)) return netId;
+  }
+  return null;
+}
+
 // Baut für jede Funktion (L1/L2/L3/N) einen eigenen Teilgraphen. PE bewusst
 // ausgelassen (siehe Kommentar oben).
 function generiereGraph(ordner) {
@@ -181,12 +191,13 @@ function generiereGraph(ordner) {
   const { bauteile } = parseBauteile(ordner);
   const fehlertabelle = parseFehlertabelle(ordner);
 
-  const graph = { fehlertabelle };
+  const graph = { fehlertabelle, einspeisung: {} };
   for (const funktion of GRAPH_FUNKTIONEN) {
     graph[funktion] = {
       knoten: knotenFuerFunktion(netze, funktion),
       kanten: kantenFuerFunktion(netze, bauteile, funktion)
     };
+    graph.einspeisung[funktion] = findeEinspeisungsNetz(netze, funktion);
   }
   return graph;
 }
@@ -218,6 +229,18 @@ function findePfad(graph, funktion, startNetz, zielNetz) {
     }
   }
   return null;
+}
+
+// Für die RISO-Spannungsprüfung (siehe KONZEPT.md "Berechnung der
+// Messwerte"): ist `netz` bei den aktuellen Schalterstellungen überhaupt noch
+// mit der Einspeisung verbunden? Prüft bewusst NICHT nur den Hauptschalter,
+// sondern den kompletten Pfad (jeder offene Schalter dazwischen - RCD, LS,
+// Hauptschalter - macht das Netz "tot", auch wenn die Anlage davor noch unter
+// Spannung steht).
+function istSpannungFuehrend(graph, funktion, netz) {
+  const einspeisungsNetz = graph.einspeisung?.[funktion];
+  if (!einspeisungsNetz || !netz) return false;
+  return findePfad(graph, funktion, einspeisungsNetz, netz) !== null;
 }
 
 function baueAder(netz, funktion) {
@@ -514,7 +537,7 @@ function generiereAnlage(ordner) {
   return anlage;
 }
 
-module.exports = { generiereAnlage, generiereGraph, findePfad, berechneWiderstand };
+module.exports = { generiereAnlage, generiereGraph, findePfad, berechneWiderstand, istSpannungFuehrend };
 
 // --- Main (nur bei direktem Aufruf, nicht beim require() aus anderen Skripten) ---
 

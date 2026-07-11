@@ -456,19 +456,54 @@ auf den angezeigten Messwert aus, ohne dass man irgendwo einen Wert von Hand nac
 
 Pro Messfunktion gilt ein eigenes Prinzip:
 
-**RLOW** (Durchgangsprüfung):
+**RLOW** (Durchgangsprüfung, **umgesetzt**):
 Pfad zwischen den beiden angelegten Messspitzen im Verbindungsgraphen verfolgen
-(siehe "Pfadverfolgung und Fehlersimulation" weiter unten), Kantengewichte
-(Fehler-Widerstände aus der Fehlertabelle) aufsummieren. Kein Fehler-Widerstand
-im Pfad → 0Ω. Kein Pfad (offener Schalter/gelöste Schraube) → kein Messwert.
+(siehe "Pfadverfolgung und Fehlersimulation" weiter unten), die
+Fehlertabellen-Einträge der Netze entlang dieses Pfads aufsummieren
+(`berechneWiderstand()`). Kein Fehler-Widerstand im Pfad → 0Ω. Kein Pfad
+(offener Schalter dazwischen) → kein Messwert, Platzhalter bleibt stehen.
+Misst kontinuierlich, keine TEST-Taste nötig.
 
-**RISO** (Isolationswiderstand):
-Keine Pfadverfolgung, sondern eine **Konnektivitätsprüfung**: Liegen die beiden
-Messpunkte auf unterschiedlichen, nicht verbundenen Netzen → gesund (hoher Normalwert,
-z.B. „>200MΩ"). Sind sie (fälschlich) doch verbunden → 0Ω (Isolationsfehler erkannt).
-**Voraussetzung:** Der Hauptschalter muss vorher abgeklemmt sein (siehe Checkliste vor
-der ISO-Messung, Phase 4) – ohne das keine Messung, sondern eine Fehlermeldung
-("Messgerät kaputt").
+**RISO** (Isolationswiderstand, **prototypisch umgesetzt**):
+Drei Messspitzen nötig - eine auf L1/L2/L3, eine auf N oder einer ANDEREN
+Phase, eine (grün) auf PE (fließt noch nicht in die Berechnung ein, nur
+Platzierungs-Voraussetzung). Welche der ersten beiden Spitzen (Schwarz/Blau)
+auf L bzw. N/L sitzt, ist egal - wie bei einer echten Widerstandsmessung sind
+die Rollen vertauschbar, nur Grün muss immer auf PE bleiben.
+
+**Verwechslung N/PE:** landet die "N"-Spitze (bewusst oder aus Versehen) auf
+PE statt auf N, funktioniert die Messung trotzdem - PE und N sind im
+TN-S/TN-C-S-Netz am Sternpunkt ohnehin verbunden, und anders als ein offener
+Schalter ist ein aufgetrennter PE-Leiter im Prüfungsalltag kein realistisches
+Szenario. Bewusste Vereinfachung statt eines vollständigen PE-Graphen (der
+wäre wegen möglicher Zyklen über den Hutschienen-Bond ein größeres eigenes
+Vorhaben): eine an PE angelegte Spitze wird für RISO einfach wie N am
+Einspeisungspunkt behandelt - **Stand heute bewusst so akzeptiert, aber ein
+Kandidat für später** (siehe "Nächste Schritte" -> "PE-Teilgraph").
+
+Zwei Schritte:
+1. **Live-Spannungsprüfung** (unabhängig von TEST, wie eine Sicherheitsfunktion
+   am echten Gerät): liegt zwischen L und N/L noch echte Netzspannung an
+   (beide Punkte über einen geschlossenen Pfad mit der Einspeisung verbunden,
+   siehe `istSpannungFuehrend()`), wird diese Spannung angezeigt (230V bei
+   L-N, 400V zwischen zwei Phasen) statt eines Widerstands. Ein TEST-Klick
+   liefert dann keinen Messwert - stattdessen springt ein eventuell noch
+   angezeigter alter Messwert aktiv auf den Platzhalter `R:---MΩ` zurück
+   (Sicherheits-Verhalten: solange Spannung anliegt, wird nie ein
+   Widerstandswert stehen gelassen, auch nicht versehentlich ein
+   veralteter). **Wichtig:** geprüft wird der komplette Pfad zur
+   Einspeisung, nicht pauschal nur der Hauptschalter - ein offenes RCD macht
+   z.B. seine eigenen Ausgänge "tot", auch wenn der Hauptschalter noch
+   geschlossen ist, und ist dort dann trotzdem messbar.
+2. **TEST-Klick** (nur wenn keine Spannung mehr anliegt): dieselbe Pfadsuche
+   wie bei RLOW zwischen L und N/L. Kein Pfad (heute praktisch immer der
+   Fall, da L1/L2/L3/N getrennte Teilgraphen ohne Kanten zueinander sind) →
+   `>999MΩ` ("gesund"). Ein Pfad würde wie bei RLOW den summierten
+   Fehlerwiderstand zeigen - dieser Fall ist heute technisch nicht
+   erreichbar, da es noch keinen Mechanismus gibt, der zwei unterschiedliche
+   Funktionen (Isolationsfehler) künstlich verbindet; der Code ist aber
+   bereits dafür vorbereitet, sobald ein solcher Fehlerfall-Mechanismus
+   existiert.
 
 **ZI / ZS** (Impedanz):
 `Vorimpedanz` (siehe unten) + alle `Widerstand`-Bauteile auf dem Pfad von der ersten
@@ -868,19 +903,20 @@ wiederholt.
 
 ## Pfadverfolgung und Fehlersimulation
 
-**Status: umgesetzt (für RLOW).** Ersetzt den früheren Ansatz "Widerstand als
-eigenes Bauteil in der Netzliste" (zu umständlich – jeder Fehler hätte den
-Netzplan selbst verändert). Stattdessen: ein separater **Verbindungsgraph**,
-der Pfade zwischen zwei Schrauben sucht (für RLOW, später auch RISO/ZI/ZS),
-unter Berücksichtigung von Schalterstellungen und optionalen
-Fehler-Widerständen. Umgesetzt: Graph-Generierung (siehe unten) inkl.
-Ausgabedatei (`graph.json` pro Testcase), Anbindung ans Messgerät für RLOW
-(Messspitzen setzen, Pfad wird live verfolgt, siehe "Messmodus" und
-ARCHITEKTUR.md), Schalterzustand (LS/RCD/Hauptschalter klickbar, siehe
-"Schalter" unten - schaltet `kante.geschlossen` live um, RLOW reagiert sofort
-darauf), und die Fehlertabelle (siehe unten - Fehler-Widerstände pro Netz,
-`berechneWiderstand()` summiert sie über den gefundenen Pfad). RISO/ZI/ZS
-nutzen den Graphen noch nicht.
+**Status: umgesetzt (für RLOW, prototypisch auch RISO).** Ersetzt den früheren
+Ansatz "Widerstand als eigenes Bauteil in der Netzliste" (zu umständlich –
+jeder Fehler hätte den Netzplan selbst verändert). Stattdessen: ein separater
+**Verbindungsgraph**, der Pfade zwischen zwei Schrauben sucht, unter
+Berücksichtigung von Schalterstellungen und optionalen Fehler-Widerständen.
+Umgesetzt: Graph-Generierung (siehe unten) inkl. Ausgabedatei (`graph.json`
+pro Testcase), Anbindung ans Messgerät für RLOW (Messspitzen setzen, Pfad
+wird live verfolgt, siehe "Messmodus" und ARCHITEKTUR.md), Schalterzustand
+(LS/RCD/Hauptschalter klickbar, siehe "Schalter" unten - schaltet
+`kante.geschlossen` live um, RLOW reagiert sofort darauf), die Fehlertabelle
+(siehe unten - Fehler-Widerstände pro Netz, `berechneWiderstand()` summiert
+sie über den gefundenen Pfad), sowie für RISO die Einspeisungs-Erreichbarkeit
+pro Netz (`graph.einspeisung` + `istSpannungFuehrend()`, siehe "Berechnung
+der Messwerte"). ZI/ZS nutzen den Graphen noch nicht.
 
 ### Verbindungsgraph
 
@@ -920,8 +956,8 @@ wird stattdessen als eigene Datei `graph.json` pro Testcase geschrieben (von
 derselben CLI wie `anlage.json`, siehe ARCHITEKTUR.md) und zur Laufzeit per
 `Anlage.ladeGraph()` in den Browser geladen; `model/pfad.js` ist ein bewusst
 dupliziertes Browser-Gegenstück zu `findePfad()` (kein Bundler im Projekt, die
-Funktion ist klein genug für eine gepflegte Duplizierung). RLOW nutzt das
-bereits (siehe "Messmodus"); RISO/ZI/ZS folgen später demselben Modell.
+Funktion ist klein genug für eine gepflegte Duplizierung). RLOW und RISO
+nutzen das bereits (siehe "Messmodus"); ZI/ZS folgen später demselben Modell.
 
 ### Schalter (LS, RCD, Hauptschalter)
 
@@ -1027,8 +1063,13 @@ markieren zwei Knoten im Graphen. Pfadsuche zwischen ihnen; existiert ein Pfad
 (alle Kanten `geschlossen`), ist der angezeigte Wert die **Summe der
 Fehlertabellen-Einträge der Netze entlang dieses Pfads** (0Ω, wenn keine
 Fehlertabellen-Einträge auf dem Weg liegen). Existiert kein Pfad (offener
-Schalter dazwischen), bleibt der Messwert beim `---`-Platzhalter. RISO/ZI/ZS
-folgen später demselben Graph-Modell (siehe "Berechnung der Messwerte" oben),
+Schalter dazwischen), bleibt der Messwert beim `---`-Platzhalter.
+
+### RISO-Berechnung (zweiter Anwendungsfall, prototypisch)
+
+**Status: prototypisch umgesetzt** (siehe "Berechnung der Messwerte" oben für
+die Details - Live-Spannungsprüfung über `istSpannungFuehrend()`, TEST-Klick
+sucht denselben Pfad wie RLOW). ZI/ZS folgen später demselben Graph-Modell,
 sind aber noch nicht im Detail durchdacht.
 
 ---
@@ -1067,8 +1108,34 @@ tests/visuell/
 
 ## Nächste Schritte
 
-1. ARCHITEKTUR.md erstellen (MVC Struktur, Dateiorganisation)
-2. Referenz-SVG für Testcase 01 erstellen (ohne Verbindungslinien, siehe `anlage.svg`)
-3. PWA Grundstruktur in Claude Code aufbauen
-4. Stufe 0 (Vollsimulation) zuerst implementieren
-5. Stufe 1–3 schrittweise ergänzen
+Verbindungsgraph, Schalter und Fehlertabelle sind für RLOW umgesetzt (siehe
+"Pfadverfolgung und Fehlersimulation"). RISO ist prototypisch umgesetzt (Live-
+Spannungsprüfung + TEST-gestützte Widerstandsmessung, siehe "Berechnung der
+Messwerte"). Offen:
+
+1. **ZI/ZS an den Verbindungsgraphen anbinden** - nutzt dieselbe
+   Infrastruktur (Graph, Messspitzen, Schalter, Fehlertabelle), aber mit
+   eigenem Messprinzip (Vorimpedanz + Widerstände auf dem Pfad zur
+   Einspeisung und zurück, siehe "Berechnung der Messwerte").
+2. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
+   vollständig getrennte Teilgraphen, ein TEST-Klick ohne anliegende
+   Spannung liefert deshalb praktisch immer `>999MΩ`. Für echte
+   Fehlerszenarien bräuchte es einen Weg, zwei Funktionen künstlich über
+   einen simulierten Isolationsfehler zu verbinden - der Code
+   (`risoTestKlick()`) ist strukturell schon darauf vorbereitet.
+3. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
+   Hutschienen-Bond Zyklen bilden kann (Parallelwiderstand statt einfacher
+   Pfad-Summe) - ein eigenständiges, größeres Vorhaben. Bis dahin gilt für
+   RISO die bewusste Vereinfachung `risoEffektiveAder()`: eine an PE
+   angelegte Messspitze wird pauschal wie N am Einspeisungspunkt behandelt
+   (siehe "Berechnung der Messwerte" - Abschnitt "Verwechslung N/PE"), statt
+   den tatsächlichen PE-Pfad zu verfolgen. Das ist **Stand heute bewusst so
+   akzeptiert** (ein aufgetrennter PE-Leiter ist im Prüfungsalltag kein
+   realistisches Szenario), aber eine Vereinfachung, keine korrekte
+   Modellierung - sobald der PE-Teilgraph existiert, sollte
+   `risoEffektiveAder()` durch eine echte Pfadsuche über den PE-Graphen
+   ersetzt werden.
+4. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
+   "Schrauben lösen" oben).
+5. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
+   Typ B, Gruppe ohne RCD).

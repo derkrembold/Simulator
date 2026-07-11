@@ -40,3 +40,14 @@ export function findePfad(graph, funktion, startNetz, zielNetz) {
 export function berechneWiderstand(graph, pfad) {
   return pfad.reduce((summe, netzId) => summe + (graph.fehlertabelle?.[netzId] ?? 0), 0);
 }
+
+// Für die RISO-Spannungsprüfung: ist `netz` bei den aktuellen
+// Schalterstellungen überhaupt noch mit der Einspeisung verbunden? Prüft
+// bewusst NICHT nur den Hauptschalter, sondern den kompletten Pfad (jeder
+// offene Schalter dazwischen macht das Netz "tot"). Spiegelt
+// istSpannungFuehrend() aus generate_anlage.js.
+export function istSpannungFuehrend(graph, funktion, netz) {
+  const einspeisungsNetz = graph.einspeisung?.[funktion];
+  if (!einspeisungsNetz || !netz) return false;
+  return findePfad(graph, funktion, einspeisungsNetz, netz) !== null;
+}

@@ -535,6 +535,243 @@ async function main() {
     await page.close();
   });
 
+  // --- RISO: Spannungsprüfung (live) + Isolationswiderstand (TEST-Taste) ---
+  // Anders als RLOW misst RISO nicht kontinuierlich, sondern erst nach TEST -
+  // UND zeigt vorher/statt eines Widerstands die anliegende Spannung zwischen
+  // L (schwarz, muss auf L1/L2/L3 sitzen) und N/L (blau) an: 230V bei L-N,
+  // 400V bei zwei Phasen, 0V wenn kein Punkt mehr mit der Einspeisung
+  // verbunden ist (siehe istSpannungFuehrend() - prüft JEDEN Schalter im
+  // Pfad, nicht nur den Hauptschalter). PE (grün) muss zusätzlich angelegt
+  // sein, fließt aber nicht in die Berechnung ein.
+  // testcase_01-Netze: N4/N5 = Leistungsschalter.o1/o2 (HINTER dem Schalter -
+  // wichtig, N1/N2 liegen davor und wären immer "live"), N3 = PE-Klemme.io1,
+  // N6/N8 = RCD1.o1/o2.
+
+  await pruefe('RISO: Spannung 230V bei anliegender Netzspannung, TEST wirkungslos', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page); // RLOW -> RISO
+    let texte = await displayTexte(page);
+    erwarte(texte, 'R:---MΩ', 'RISO-Platzhalter vor Messspitzen');
+    erwarte(texte, '0V', 'Spannungsanzeige-Default vor Messspitzen');
+
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+    texte = await displayTexte(page);
+    erwarte(texte, '230V', 'RISO zeigt 230V bei L-N mit anliegender Spannung');
+    erwarte(texte, 'R:---MΩ', 'R bleibt Platzhalter, solange Spannung anliegt');
+
+    await klick(page, 'TEST'); // sollte wirkungslos sein
+    erwarte(await displayTexte(page), 'R:---MΩ', 'TEST bei anliegender Spannung bleibt wirkungslos');
+    await page.close();
+  });
+
+  await pruefe('RISO: Schwarz/Blau vertauscht (Schwarz auf N, Blau auf L1) misst genauso', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click(); // schwarz, N (vertauscht)
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // blau, L1 (vertauscht)
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    erwarte(await displayTexte(page), '230V', 'Vertauschte Rollen ändern nichts an der 230V-Erkennung');
+
+    const leistungsschalter = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="12"][y="572"]') });
+    await leistungsschalter.click();
+    erwarte(await displayTexte(page), '0V', 'Vertauschte Rollen erkennen die offene Einspeisung genauso');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'TEST funktioniert auch mit vertauschten Messspitzen');
+    await page.close();
+  });
+
+  await pruefe('RISO: Hauptschalter öffnen -> 0V, TEST zeigt R:>999MΩ', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click();
+    await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click();
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click();
+
+    const leistungsschalter = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="12"][y="572"]') });
+    await leistungsschalter.click();
+
+    erwarte(await displayTexte(page), '0V', 'Spannung fällt auf 0V, sobald der Leistungsschalter offen ist');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'RISO zeigt >999MΩ (kein Pfad zwischen L1 und N)');
+    await page.close();
+  });
+
+  // Genau der vom User beschriebene Fall: RCD offen, Hauptschalter bleibt
+  // geschlossen - an den RCD-AUSGÄNGEN muss trotzdem gemessen werden können
+  // (0V dort, obwohl vor dem RCD noch Spannung anliegt).
+  await pruefe('RISO: RCD öffnen (Hauptschalter bleibt zu) -> hinter dem RCD trotzdem messbar', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click();
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, RCD1.o1 (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, RCD1.o2 (N)
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    erwarte(await displayTexte(page), '0V', 'Hinter dem offenen RCD ist es tot, obwohl der Leistungsschalter noch zu ist');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'Messung ist trotzdem möglich (nicht "Messgerät kaputt")');
+    await page.close();
+  });
+
+  await pruefe('RISO: TEST bei erneut anliegender Spannung springt zurück auf den Platzhalter', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 offen -> keine Spannung hinter dem RCD
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'Erster TEST ohne Spannung liefert einen Messwert');
+
+    await rcd1.click(); // RCD1 wieder schließen -> Spannung liegt wieder an
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'Alter Messwert bleibt zunächst stehen, bis erneut getestet wird');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:---MΩ', 'TEST bei wieder anliegender Spannung setzt R auf den Platzhalter zurück');
+    await page.close();
+  });
+
+  // testcase_04 ist der einzige Testcase mit drei separat eingespeisten
+  // Phasen (siehe einspeisung-Feld in graph.json) - nötig, um den 400V-Zweig
+  // von berechneRisoSpannung() (zwei verschiedene L-Phasen statt L-N) zu
+  // testen, was mit testcase_01 (nur L1) nicht geht.
+  await pruefe('RISO: 400V zwischen zwei verschiedenen Phasen (testcase_04)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N9"][cy="260"]').click(); // schwarz, RCD1.i1 (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N10"][cy="260"]').click(); // blau, RCD1.i2 (L2)
+    await page.locator('#schaltkasten svg circle[data-netz="N5"]').click(); // grün, PE
+
+    erwarte(await displayTexte(page), '400V', 'RISO zeigt 400V zwischen zwei verschiedenen Phasen (L1/L2)');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:---MΩ', 'TEST bei anliegender Spannung bleibt wirkungslos (400V-Fall)');
+    await page.close();
+  });
+
+  await pruefe('RISO: Grün nicht auf PE -> TEST bleibt wirkungslos', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 offen -> keine Spannung hinter dem RCD, TEST würde sonst einen Wert liefern
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, RCD1.o1 (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, RCD1.o2 (N)
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // grün, FÄLSCHLICH auf L1 statt PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:---MΩ', 'Grün nicht auf PE -> TEST liefert trotz fehlender Spannung keinen Messwert');
+    await page.close();
+  });
+
+  // risoPaarTyp() prüft eine echte Pfad-Suche kann zwischen fast beliebigen
+  // zwei Punkten einen Widerstand finden (siehe RLOW) - für RISO ist ein
+  // Paar auf derselben Phase (oder beide auf N) aber KEINE gültige
+  // Isolationsmessung und muss deshalb abgelehnt werden, obwohl der Graph
+  // dafür technisch einen Wert berechnen könnte.
+  await pruefe('RISO: Schwarz und Blau auf derselben Phase (L1) -> ungültiges Paar, TEST wirkungslos', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // blau, ebenfalls L1 (RCD1.o1)
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    erwarte(await displayTexte(page), '0V', 'Keine gültige RISO-Kombination -> keine Spannungsanzeige');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:---MΩ', 'Ungültiges Paar (beide L1) liefert keinen Messwert');
+    await page.close();
+  });
+
+  await pruefe('RISO: nur zwei von drei Messspitzen gesetzt -> TEST bleibt wirkungslos', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 offen -> keine Spannung, TEST würde sonst einen Wert liefern
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, RCD1.o1 (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, RCD1.o2 (N)
+    // Grün (PE) bewusst nicht gesetzt.
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:---MΩ', 'Fehlende dritte Messspitze -> TEST liefert keinen Messwert');
+    await page.close();
+  });
+
+  await pruefe('RISO: Messspitzen-Änderung nach TEST setzt den Messwert zurück auf den Platzhalter', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click();
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'TEST liefert zunächst einen Messwert');
+
+    // Blaue Messspitze umsetzen (abklicken + neu setzen) - der alte Messwert
+    // gehört zur alten Messspitzen-Konfiguration und muss ungültig werden.
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau entfernen
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau neu setzen
+    erwarte(await displayTexte(page), 'R:---MΩ', 'Messspitzen-Änderung setzt den alten Messwert zurück');
+    await page.close();
+  });
+
+  // Realistische Verwechslung: N-Sonde (blau) landet auf PE statt N, PE-Sonde
+  // (grün) sitzt korrekt auf PE (ggf. sogar dieselbe Schraube). PE und N sind
+  // am Sternpunkt ohnehin verbunden und PE wird hier nie aufgetrennt - die
+  // Anzeige soll deshalb trotzdem 230V zeigen (siehe risoEffektiveAder()).
+  await pruefe('RISO: N-Sonde auf PE statt N (Verwechslung) -> Spannung wird trotzdem angezeigt', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // blau, PE-Klemme.io1 (fälschlich statt N)
+    await page.locator('#schaltkasten svg circle[data-netz="N9"]').first().click(); // grün, PE-Klemme.io2 (korrekt PE)
+
+    erwarte(await displayTexte(page), '230V', 'N-Sonde auf PE zeigt trotzdem die anliegende Spannung');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:---MΩ', 'TEST bleibt wirkungslos, solange Spannung anliegt');
+
+    const hauptschalter = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="12"][y="572"]') });
+    await hauptschalter.click();
+    erwarte(await displayTexte(page), '0V', 'Auch mit vertauschter N/PE-Sonde erkennt die Prüfung den offenen Hauptschalter');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'TEST liefert nach Spannungswegfall einen Messwert');
+    await page.close();
+  });
+
   await browser.close();
   server.close();
   process.exit(alleBestanden ? 0 : 1);

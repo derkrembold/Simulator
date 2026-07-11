@@ -2,7 +2,7 @@ import { Anlage } from '../model/anlage.js';
 import { SchaltkastenView } from '../view/schaltkasten.js';
 import { MessgeraetView } from '../view/messgeraet.js';
 import { Popup } from '../view/popup.js';
-import { findePfad, berechneWiderstand } from '../model/pfad.js';
+import { findePfad, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
 // Messspitzen (Messmodus, siehe unten): pro Schrauben-Kreis genau eine Farbe,
 // jede Farbe insgesamt nur an einer Schraube gleichzeitig (3 Messspitzen wie
@@ -102,6 +102,11 @@ async function start() {
       // den Messspitzen soll sich also sofort im Messwert niederschlagen,
       // ohne TEST-Taste. Für andere Funktionen bleibt das Neu-Rendern hier
       // wirkungslos (baueAnzeigeZustand() überschreibt dort nichts).
+      // RISOs R-Wert braucht dagegen einen TEST-Klick (siehe unten) - eine
+      // Änderung an den Messspitzen macht einen alten Messwert aber ungültig,
+      // darum hier zurücksetzen (die Spannungsanzeige selbst ist live, kein
+      // Reset nötig).
+      risoMesswert = null;
       renderMessgeraet();
     } else {
       Popup.zeige({
@@ -120,6 +125,30 @@ async function start() {
     return [ader?.netz, ...(ader?.weitere ?? []).map((w) => w.netz)].filter(Boolean);
   }
 
+  // Ader der aktuell angelegten Messspitze einer bestimmten Farbe (oder
+  // null, wenn diese Farbe gerade an keiner Schraube hängt).
+  function messspitzenAderNachFarbe(farbe) {
+    for (const [kreis, f] of messspitzenFarbe) {
+      if (f === farbe) return messspitzenAder.get(kreis);
+    }
+    return null;
+  }
+
+  // Sucht einen Pfad zwischen zwei Adern - probiert alle Kombinationen ihrer
+  // Netz-IDs (inkl. `ader.weitere` bei geteilten Schrauben, siehe oben), da
+  // an einer solchen Klemme irgendeine der dort hängenden Adern eine
+  // Verbindung herstellen kann. Gibt den ersten gefundenen Pfad zurück, oder
+  // null.
+  function findePfadZwischenAdern(funktion, aderA, aderB) {
+    for (const netzA of alleNetzeVonAder(aderA)) {
+      for (const netzB of alleNetzeVonAder(aderB)) {
+        const pfad = findePfad(graph, funktion, netzA, netzB);
+        if (pfad) return pfad;
+      }
+    }
+    return null;
+  }
+
   // RLOW-Messwert aus den aktuell angelegten Messspitzen: "schwarz" und
   // "blau" müssen beide gesetzt sein (siehe KONZEPT.md "Messmodus"), auf
   // Schrauben mit dem gleichen Netz-`funktion` (z.B. beide "L1") - nur dann
@@ -131,27 +160,109 @@ async function start() {
   // ist (Platzhalter bleibt dann stehen).
   function berechneRlowMesswert() {
     if (!graph) return null;
-    let schwarzAder = null;
-    let blauAder = null;
-    for (const [kreis, farbe] of messspitzenFarbe) {
-      if (farbe === 'schwarz') schwarzAder = messspitzenAder.get(kreis);
-      if (farbe === 'blau') blauAder = messspitzenAder.get(kreis);
-    }
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const blauAder = messspitzenAderNachFarbe('blau');
     if (!schwarzAder || !blauAder) return null;
     if (schwarzAder.funktion !== blauAder.funktion) return null;
+    const pfad = findePfadZwischenAdern(schwarzAder.funktion, schwarzAder, blauAder);
+    return pfad ? berechneWiderstand(graph, pfad) : null;
+  }
 
-    // Bei einer physisch geteilten Schraube (ader.weitere, siehe oben) reicht
-    // ein Pfad über IRGENDEINE der dort hängenden Netz-IDs - das Messgerät
-    // "sieht" an einer solchen Klemme alle dort geklemmten Adern gleichzeitig.
-    const schwarzNetze = alleNetzeVonAder(schwarzAder);
-    const blauNetze = alleNetzeVonAder(blauAder);
-    for (const schwarzNetz of schwarzNetze) {
-      for (const blauNetz of blauNetze) {
-        const pfad = findePfad(graph, schwarzAder.funktion, schwarzNetz, blauNetz);
-        if (pfad) return berechneWiderstand(graph, pfad);
-      }
-    }
+  // RISO misst zwischen L (L1/L2/L3) und N/L (N oder eine ANDERE Phase) -
+  // anders als RLOW dürfen die Funktionen hier unterschiedlich sein, das ist
+  // ja gerade der Zweck der Isolationsmessung. Welche der beiden Messspitzen
+  // (Schwarz/Blau) auf L bzw. N/L sitzt, ist elektrisch egal - wie am echten
+  // Gerät ist eine Widerstandsmessung symmetrisch, die Rollen dürfen also
+  // vertauscht sein. RISO_L_FUNKTIONEN wird auch vom Test-Klick unten
+  // gebraucht.
+  const RISO_L_FUNKTIONEN = ['L1', 'L2', 'L3'];
+
+  // Bestimmt den Messtyp für ein beliebiges Adernpaar, unabhängig davon,
+  // welche Farbe welche Rolle hat: 'LN' (eine Ader auf L1/L2/L3, die andere
+  // auf N ODER PE - siehe risoEffektiveAder() unten), 'LL' (beide auf
+  // L1/L2/L3, aber unterschiedliche Phasen), sonst `null` (z.B. beide auf
+  // derselben Phase, oder keine der beiden auf L).
+  function risoPaarTyp(aderA, aderB) {
+    const istL = (ader) => RISO_L_FUNKTIONEN.includes(ader.funktion);
+    const istNOderPe = (ader) => ader.funktion === 'N' || ader.funktion === 'PE';
+    if (istL(aderA) && istNOderPe(aderB)) return 'LN';
+    if (istL(aderB) && istNOderPe(aderA)) return 'LN';
+    if (istL(aderA) && istL(aderB) && aderA.funktion !== aderB.funktion) return 'LL';
     return null;
+  }
+
+  // Verwechslung N/PE ist im Prüfungsalltag realistisch (anders als ein
+  // aufgetrennter PE-Leiter, der praktisch nie vorkommt) - eine an PE
+  // angelegte Messspitze wird deshalb bewusst vereinfacht wie N am
+  // Einspeisungspunkt behandelt: PE und N sind im TN-S/TN-C-S-Netz ohnehin
+  // am Sternpunkt miteinander verbunden, und da PE hier nie aufgetrennt
+  // wird, ist "irgendwo auf PE" elektrisch gleichbedeutend mit "direkt am
+  // N-Einspeisungspunkt". Kein vollständiger PE-Graph nötig (der wäre wegen
+  // der Hutschienen-Bond-Zyklen ein größeres eigenes Vorhaben, siehe
+  // KONZEPT.md) - nur für RISO relevant, da nur dort PE überhaupt als
+  // Messpunkt vorkommt.
+  function risoEffektiveAder(ader) {
+    if (ader.funktion !== 'PE' || !graph?.einspeisung?.N) return ader;
+    return { funktion: 'N', netz: graph.einspeisung.N };
+  }
+
+  // Live-Spannungsprüfung zwischen den beiden RISO-Messpunkten (schwarz/blau)
+  // - läuft bei JEDER Messspitzen-Änderung, nicht erst nach TEST (echtes
+  // Gerät zeigt anliegende Spannung als Sicherheitsfunktion sofort an). Prüft
+  // über istSpannungFuehrend(), ob beide Punkte noch mit der Einspeisung
+  // verbunden sind (nicht nur der Hauptschalter - JEDER offene Schalter im
+  // jeweiligen Pfad macht den Punkt "tot", z.B. ein offenes RCD auch bei
+  // geschlossenem Hauptschalter). 230V bei L-N, 400V bei zwei verschiedenen
+  // Phasen, sonst 0V (auch wenn die Messspitzen fehlen oder nicht zueinander
+  // passen - RISO zeigt hier IMMER einen Wert, nie einen Platzhalter).
+  function berechneRisoSpannung() {
+    const schwarzAderRoh = messspitzenAderNachFarbe('schwarz');
+    const blauAderRoh = messspitzenAderNachFarbe('blau');
+    if (!graph || !schwarzAderRoh || !blauAderRoh) return 0;
+    const typ = risoPaarTyp(schwarzAderRoh, blauAderRoh);
+    if (!typ) return 0;
+
+    const schwarzAder = risoEffektiveAder(schwarzAderRoh);
+    const blauAder = risoEffektiveAder(blauAderRoh);
+    const schwarzLebt = istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz);
+    const blauLebt = istSpannungFuehrend(graph, blauAder.funktion, blauAder.netz);
+    return schwarzLebt && blauLebt ? (typ === 'LN' ? 230 : 400) : 0;
+  }
+
+  // RISO-Messwert, ausgelöst über die TEST-Taste (siehe renderMessgeraet()
+  // unten) - anders als RLOW nicht kontinuierlich. `null` = noch kein
+  // gültiger TEST-Klick (Platzhalter bleibt stehen), `Infinity` = kein Pfad
+  // gefunden ("gesund", zeigt `>999MΩ`), sonst der über die Fehlertabelle
+  // summierte Widerstand wie bei RLOW.
+  let risoMesswert = null;
+
+  function risoTestKlick() {
+    if (messgeraetZustand.funktion !== 'RISO' || !graph) return;
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    const gruenAder = messspitzenAderNachFarbe('grün');
+    // Alle drei Messspitzen müssen an der richtigen Funktion sitzen (siehe
+    // KONZEPT.md "Messmodus") - PE fließt zwar (noch) nicht in die
+    // Berechnung ein, muss aber trotzdem angelegt sein. Schwarz/Blau dürfen
+    // vertauscht sein (risoPaarTyp() prüft symmetrisch), Grün muss immer PE
+    // sein.
+    if (!schwarzAder || !blauAder || !gruenAder) return;
+    if (!risoPaarTyp(schwarzAder, blauAder)) return;
+    if (gruenAder.funktion !== 'PE') return;
+    // Sicherheits-Verhalten wie beim echten Gerät: solange Spannung anliegt,
+    // springt R auf den Platzhalter zurück, statt einen alten Messwert stehen
+    // zu lassen.
+    if (berechneRisoSpannung() > 0) {
+      risoMesswert = null;
+      renderMessgeraet();
+      return;
+    }
+
+    const schwarzEffektiv = risoEffektiveAder(schwarzAder);
+    const blauEffektiv = risoEffektiveAder(blauAder);
+    const pfad = findePfadZwischenAdern(schwarzEffektiv.funktion, schwarzEffektiv, blauEffektiv);
+    risoMesswert = pfad ? berechneWiderstand(graph, pfad) : Infinity;
+    renderMessgeraet();
   }
 
   // Box wird auf die tatsächlich gerenderte Schaltkasten-Breite gesetzt, damit
@@ -262,6 +373,16 @@ async function start() {
       }
     } else if (funktion === 'RISO') {
       zustand.titelWerte = [RISO_MESSSPANNUNGEN[risoMessspannungIndex]];
+      // Live, unabhängig von TEST - siehe berechneRisoSpannung(). Immer ein
+      // Wert (Default 0V), nie ein Platzhalter.
+      zustand.spannungUnterPe = `${berechneRisoSpannung()}V`;
+      // R-Wert nur nach TEST-Klick (siehe risoTestKlick()) - Platzhalter aus
+      // zustandFuerFunktion() bleibt stehen, solange risoMesswert null ist.
+      if (risoMesswert !== null) {
+        zustand.hauptwert = risoMesswert === Infinity
+          ? 'R:>999MΩ'
+          : `R:${risoMesswert.toFixed(2).replace('.', ',')}MΩ`;
+      }
     } else if (funktion === 'ZI') {
       const ziTitelWerte = [
         ZI_LS_TYPEN[ziLsTypIndex],
@@ -338,6 +459,7 @@ async function start() {
     titelZeigtLabel = false;
     rlowKalibrierterWiderstand = 0.4;
     risoMessspannungIndex = RISO_MESSSPANNUNGEN.indexOf('500V');
+    risoMesswert = null;
     ziLsTypIndex = ZI_LS_TYPEN.indexOf('B');
     ziBemessungsstromIndex = ZI_BEMESSUNGSSTROEME.indexOf('16A');
     ziAbschaltzeitIndex = ZI_ABSCHALTZEITEN.indexOf('0,4s');
@@ -387,7 +509,8 @@ async function start() {
         renderMessgeraet();
       },
       auf: () => { aendereAusgewaehltesFeld(1); },
-      ab: () => { aendereAusgewaehltesFeld(-1); }
+      ab: () => { aendereAusgewaehltesFeld(-1); },
+      test: risoTestKlick
     });
   }
 

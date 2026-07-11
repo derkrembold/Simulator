@@ -6,7 +6,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { generiereAnlage, generiereGraph, findePfad, berechneWiderstand } = require('./generate_anlage.js');
+const { generiereAnlage, generiereGraph, findePfad, berechneWiderstand, istSpannungFuehrend } = require('./generate_anlage.js');
 
 let alleBestanden = true;
 
@@ -307,6 +307,27 @@ pruefe('anlage.json: RCD1-Ausgang trägt die zweite L1-Ader (N7) als ader.weiter
     throw new Error(`erwarte genau eine weitere Ader (N7), bekommen: ${JSON.stringify(l1Ader.weitere)}`);
   }
   gleich(l1Ader.weitere[0].netz, 'N7', 'RCD-Ausgang L1 weitere Ader');
+});
+
+// istSpannungFuehrend() (RISO-Spannungsprüfung, siehe KONZEPT.md "Berechnung
+// der Messwerte"): prüft nicht nur den Hauptschalter, sondern JEDEN Schalter
+// im Pfad zur Einspeisung - ein offenes RCD macht seine eigenen Ausgänge
+// "tot", auch wenn der Leistungsschalter davor noch geschlossen ist.
+pruefe('Graph: istSpannungFuehrend() prüft den kompletten Pfad zur Einspeisung, nicht nur den Hauptschalter', () => {
+  const graph = generiereGraph(TESTCASE_01);
+  gleich(graph.einspeisung, { L1: 'N1', L2: null, L3: null, N: 'N2' }, 'Einspeisungs-Netze');
+
+  if (!istSpannungFuehrend(graph, 'L1', 'N6')) {
+    throw new Error('N6 (RCD1.o1) sollte bei geschlossenen Schaltern spannungsführend sein');
+  }
+  // Nur RCD1 öffnen, Leistungsschalter bleibt zu.
+  for (const kante of graph.L1.kanten) if (kante.bauteil === 'RCD1') kante.geschlossen = false;
+  if (istSpannungFuehrend(graph, 'L1', 'N6')) {
+    throw new Error('N6 sollte "tot" sein, sobald RCD1 offen ist - unabhängig vom Leistungsschalter');
+  }
+  if (!istSpannungFuehrend(graph, 'L1', 'N4')) {
+    throw new Error('N4 (vor RCD1, hinter dem Leistungsschalter) sollte weiterhin spannungsführend sein');
+  }
 });
 
 process.exit(alleBestanden ? 0 : 1);

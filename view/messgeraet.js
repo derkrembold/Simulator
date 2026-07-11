@@ -429,6 +429,18 @@ function zeichneDisplay(svg, zustand) {
     messpunktKreis(svg, cx, kreisY, mp[label.toLowerCase()] ?? 'leer');
   }
 
+  // Spannungsanzeige unter dem PE-Kreis (aktuell nur bei RISO genutzt, siehe
+  // controller/app.js "berechneRisoSpannung()") - live, unabhängig von der
+  // TEST-Taste (Sicherheitsfunktion: anliegende Spannung soll sofort
+  // sichtbar sein). Kleine Schrift, damit es unter dem Kreis noch in den
+  // Display-Rand passt.
+  if (zustand.spannungUnterPe) {
+    svg.appendChild(text(zustand.spannungUnterPe, {
+      x: x + 177, y: kreisY + 19, 'text-anchor': 'middle',
+      'font-size': 9, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
+    }));
+  }
+
   // Kasten-Indikator links unten, auf Höhe der Messpunkt-Kreise.
   zeichneKastenIndikator(svg, x + 25, kreisY, {
     durchgestrichen: zustand.indikatorDurchgestrichen,

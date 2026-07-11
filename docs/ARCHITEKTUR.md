@@ -803,8 +803,9 @@ nicht-durchgestrichene Pfeil-Kasten im RLOW-Display), was
   (`model/pfad.js`); existiert ein Pfad, wird `berechneWiderstand(graph,
   pfad)` zurückgegeben, sonst `null`.
 - `null` lässt den Platzhalter (`R:___Ω` bzw. `Durchgang`-Ansicht) unverändert;
-  ein Zahlenwert überschreibt `zustand.hauptwert` mit `` `R:${wert.toFixed(1)
-  .replace('.', ',')}Ω` `` (z.B. `R:0,6Ω`).
+  ein Zahlenwert überschreibt `zustand.hauptwert` mit `` `R:${wert.toFixed(2)
+  .replace('.', ',')}Ω` `` (z.B. `R:0,60Ω`, zwei Nachkommastellen für
+  eindeutiges manuelles Nachrechnen).
 
 **Fehlertabelle - Anbindung an RLOW: umgesetzt.** `berechneWiderstand(graph,
 pfad)` (in `model/pfad.js` und gespiegelt in `generate_anlage.js`) summiert
@@ -854,8 +855,10 @@ wie ein Farb-Bug im Messgerät, war aber Text-Selektion). Behoben in
 bekommt als viertes Argument `schalterUmschalten(bauteilName, geschlossen)`
 (definiert in `start()`, vor dem `render()`-Aufruf). Beim Klick auf einen
 Hebel im Schaltkasten (siehe `zeichneSchalter()` in `schaltkasten.js`):
-- Iteriert über alle Funktions-Teilgraphen (`Object.keys(graph)`, also
-  `L1`/`L2`/`L3`/`N`) und setzt `kante.geschlossen = geschlossen` für jede
+- Iteriert über alle Funktions-Teilgraphen (`Object.keys(graph).filter((k) =>
+  graph[k]?.kanten)`, also `L1`/`L2`/`L3`/`N` - der Filter schließt die
+  Nicht-Teilgraph-Felder `fehlertabelle` und `einspeisung` aus) und setzt
+  `kante.geschlossen = geschlossen` für jede
   Kante mit `kante.bauteil === bauteilName` - mutiert das geladene
   `graph`-Objekt direkt, keine separate Zustands-Map wie bei den Messspitzen.
   Bei einem mehrpoligen Bauteil (z.B. 4-poliges RCD) betrifft das mehrere
@@ -884,6 +887,115 @@ Messgeräts erhalten", und die beiden testcase_04-Mehrpol-Tests (siehe
 Klick auf ein mehrpoliges Bauteil (RCD 4-polig, Hauptschalter 3-polig)
 wirklich alle zugehörigen Kanten über mehrere Funktions-Teilgraphen hinweg
 gleichzeitig umschaltet.
+
+**RISO (Isolationswiderstand) - prototypisch umgesetzt.** Erste echte Nutzung
+der bis dahin komplett unverdrahteten TEST-Taste (`messgeraet.js` unterstützte
+`onKlick.test` schon vorher optisch/als Klick-Handler, `app.js` reichte aber
+nie einen `test:`-Callback durch).
+
+Vorbereitend wurde `berechneRlowMesswert()` in zwei Hilfsfunktionen zerlegt,
+die RLOW und RISO jetzt gemeinsam nutzen (kein dritter Kopie-Block):
+- `messspitzenAderNachFarbe(farbe)` - kapselt die Suche in `messspitzenFarbe`
+  → `messspitzenAder` nach Kreis-Farbe.
+- `findePfadZwischenAdern(funktion, aderA, aderB)` - probiert `findePfad()`
+  für jede Kombination aus `alleNetzeVonAder(aderA)` × `alleNetzeVonAder(aderB)`
+  (berücksichtigt also auch `ader.weitere`-Verzweigungen).
+
+Neu in `generate_anlage.js`/`model/pfad.js` (Node- und Browser-Version
+identisch, wie bei `findePfad()`/`berechneWiderstand()` bewusst dupliziert):
+- `graph.einspeisung` - neues Top-Level-Feld (kein Funktions-Teilgraph, wird
+  von `schalterUmschalten()`s Filter mit ausgeschlossen, siehe oben), pro
+  `GRAPH_FUNKTIONEN`-Eintrag die Netz-ID der Einspeisung
+  (`findeEinspeisungsNetz()` sucht den Pin `Einspeisung.<funktion>`). Für die
+  bisherigen Testcases: `{L1: 'N1', L2: null, L3: null, N: 'N2'}`
+  (testcase_01/02/03, einphasig) bzw. `{L1: 'N1', L2: 'N2', L3: 'N3', N: 'N4'}`
+  (testcase_04, dreiphasig).
+- `istSpannungFuehrend(graph, funktion, netz)` - `findePfad(graph, funktion,
+  graph.einspeisung[funktion], netz) !== null`. Prüft damit den **kompletten
+  Pfad** zur Einspeisung inklusive jedes Schalters darin, nicht pauschal nur
+  den Hauptschalter - ein offenes RCD macht seine eigenen Ausgänge "tot",
+  auch wenn der Hauptschalter noch geschlossen ist (explizite User-Vorgabe,
+  mit einem eigenen Test in `test_generator.js` abgesichert).
+
+Neu in `app.js`:
+- `RISO_L_FUNKTIONEN = ['L1', 'L2', 'L3']`.
+- `risoPaarTyp(aderA, aderB)` - bestimmt den Messtyp für ein beliebiges
+  Adernpaar **symmetrisch**, unabhängig davon, welche Farbe (Schwarz/Blau)
+  welche Rolle hat: `'LN'` (eine Ader auf L1/L2/L3, die andere auf `N` ODER
+  `PE` - siehe `risoEffektiveAder()` unten), `'LL'` (beide auf L1/L2/L3, aber
+  unterschiedliche Phasen), sonst `null` (z.B. beide auf derselben Phase,
+  oder keine der beiden auf L). Wie am echten Gerät ist eine
+  Widerstandsmessung richtungsunabhängig - Schwarz auf N und Blau auf L1
+  misst dasselbe wie umgekehrt (User-Vorgabe, mit einem eigenen Test in
+  `test_messgeraet.js` abgesichert).
+- `risoEffektiveAder(ader)` - bewusste Vereinfachung für die Verwechslung
+  N/PE (realistischer Fall im Prüfungsalltag, anders als ein tatsächlich
+  aufgetrennter PE-Leiter, der praktisch nie vorkommt): eine Ader mit
+  `funktion === 'PE'` wird durch eine synthetische `{funktion: 'N', netz:
+  graph.einspeisung.N}` ersetzt, alle anderen Adern unverändert
+  durchgereicht. Kein eigenständiger PE-Graph nötig (der wäre wegen
+  möglicher Zyklen über den Hutschienen-Bond ein größeres eigenes Vorhaben,
+  siehe "Pfadverfolgung und Fehlersimulation" oben) - die Begründung ist rein
+  elektrisch: PE und N sind am Sternpunkt ohnehin verbunden, und da PE hier
+  nie aufgetrennt wird, ist "irgendwo auf PE" gleichbedeutend mit "direkt am
+  N-Einspeisungspunkt". Wird sowohl von `berechneRisoSpannung()` als auch von
+  `risoTestKlick()` vor der eigentlichen Pfadsuche angewendet.
+- `berechneRisoSpannung()` - **live**, ruft bei jedem Render neu auf (nicht
+  TEST-gebunden). Liest Schwarz-/Blau-Ader, ruft `risoPaarTyp()` auf den
+  **rohen** Adern auf (Klassifizierung berücksichtigt PE-als-N) - `null` →
+  `0`. Liefert den Spannungswert (230V bei `'LN'`, 400V bei `'LL'`) nur, wenn
+  `istSpannungFuehrend()` für die **effektiven** Adern (nach
+  `risoEffektiveAder()`) true ist, sonst `0`.
+- `risoTestKlick()` - an die TEST-Taste gebunden (`test: risoTestKlick` im
+  Options-Objekt von `renderMessgeraet()`). Bricht ab, wenn Funktion nicht
+  RISO ist, eine der drei Messspitzen (Schwarz/Blau/Grün) fehlt,
+  `risoPaarTyp(schwarzAder, blauAder)` `null` liefert, oder Grün nicht auf PE
+  sitzt. Ist `berechneRisoSpannung() > 0` (Sicherheits-Verhalten: solange noch
+  Spannung anliegt, gibt es keinen Messwert), setzt `risoTestKlick()`
+  `risoMesswert` explizit auf `null` zurück - ein TEST-Klick bei anliegender
+  Spannung springt also aktiv auf den Platzhalter `R:---MΩ`, statt einen
+  älteren Messwert stehen zu lassen (z.B. wenn zwischen zwei TEST-Klicks ein
+  Schalter wieder geschlossen wurde). Sonst wie RLOW, aber mit den
+  **effektiven** Adern: `findePfadZwischenAdern()` + `berechneWiderstand()`;
+  kein Pfad → `risoMesswert = Infinity` (Sentinel, Anzeige `R:>999MΩ`).
+- `risoMesswert` - neue State-Variable, startet `null` (Platzhalter). Wird bei
+  **jeder** Messspitzen-Änderung und in `setzeBearbeitungenZurueck()`
+  (Drehknopf-Wechsel, ON/OFF) auf `null` zurückgesetzt - anders als der
+  Schalterzustand oben lebt dieser Messwert nur für den aktuellen
+  Messvorgang, nicht persistent über Ein-/Ausschalten hinweg.
+- `baueAnzeigeZustand()`s RISO-Zweig setzt zusätzlich
+  `zustand.spannungUnterPe = \`${berechneRisoSpannung()}V\`` (immer ein Wert,
+  nie ein Platzhalter, Default `0V`) und überschreibt `zustand.hauptwert` nur,
+  wenn `risoMesswert !== null`.
+
+Neu in `messgeraet.js`: `zeichneDisplay()` rendert `zustand.spannungUnterPe`
+unter dem halb gefüllten PE-Kreis (`x+177, kreisY+19`, Schriftgröße 9,
+zentriert) - passt noch knapp vor die untere Display-Kante.
+
+Grenzen des Prototyps (bewusst akzeptiert, siehe KONZEPT.md): mit dem
+heutigen Graph-Modell sind L1/L2/L3/N vollständig getrennte Teilgraphen ohne
+Querverbindung, es gibt noch keinen Mechanismus, der künstlich einen
+Isolationsfehler zwischen zwei Funktionen einspeist. Der "Pfad gefunden"-Zweig
+in `risoTestKlick()` ist deshalb heute praktisch nie erreichbar - der Code ist
+aber bereits dafür strukturiert, sobald ein Fehlerfall-Mechanismus dafür
+existiert.
+
+Getestet in `test_messgeraet.js` (12 Tests): Spannung liegt an → 230V
+angezeigt, TEST wirkungslos; Schwarz/Blau vertauscht (Rollen-Symmetrie, siehe
+`risoPaarTyp()` oben) → dasselbe Ergebnis; Hauptschalter öffnen → 0V, TEST
+zeigt `R:>999MΩ`; RCD öffnen bei weiterhin geschlossenem Hauptschalter →
+hinter dem RCD trotzdem 0V/messbar (der eingangs erwähnte
+Einspeisungs-Pfad-Test); TEST bei erneut anliegender Spannung setzt einen
+alten Messwert zurück auf den Platzhalter; 400V zwischen zwei verschiedenen
+Phasen (nur mit testcase_04 testbar, da dort L1/L2/L3 getrennt eingespeist
+werden); Grün nicht auf PE, ungültiges Paar (beide auf derselben Phase), und
+fehlende dritte Messspitze → TEST bleibt jeweils wirkungslos; eine
+Messspitzen-Änderung nach einem TEST-Klick macht den alten Messwert
+ungültig; N-Sonde auf PE statt N (siehe `risoEffektiveAder()` oben) → 230V
+werden trotzdem angezeigt, und die Erkennung eines offenen Hauptschalters
+funktioniert genauso wie bei korrekt platzierter N-Sonde. Dazu ein neuer
+Node-Test in `test_generator.js` für `istSpannungFuehrend()` direkt gegen
+den Graphen.
 
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen

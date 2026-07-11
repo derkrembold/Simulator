@@ -267,12 +267,16 @@ export const SchaltkastenView = {
 
           // Eingangsseite kann abweichen (z.B. PE-Reihenklemme ohne eigenes
           // Zubringerkabel, siehe reihenklemmen_eingang in generate_anlage.js).
-          // Fehlt das Feld ganz (ältere/handgeschriebene anlage.json ohne
-          // Netzplan-Ursprung), auf die Ausgangsseite zurückfallen.
+          // Fällt PRO FELD auf die Ausgangsseite zurück - nicht nur, wenn das
+          // ganze `reihenklemmen_eingang`-Objekt fehlt (ältere/handgeschriebene
+          // anlage.json ohne Netzplan-Ursprung), sondern auch, wenn ein
+          // einzelnes Feld darin `null` ist (z.B. PE ohne eigenes
+          // Zubringerkabel - elektrisch trotzdem erreichbar über den
+          // Hutschienen-Bond, die Schraube muss also trotzdem klickbar sein).
           const eingang = sk.reihenklemmen_eingang;
-          const lEingang = eingang ? eingang.l : lAusgang;
-          const nEingang = eingang ? eingang.n : nAusgang;
-          const peEingang = eingang ? eingang.pe : peAusgang;
+          const lEingang = eingang?.l ?? lAusgang;
+          const nEingang = eingang?.n ?? nAusgang;
+          const peEingang = eingang?.pe ?? peAusgang;
 
           klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, aderEingang: lEingang, aderAusgang: lAusgang, onSchraubeKlick });
           x += RK_BREITE;

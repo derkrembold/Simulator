@@ -850,6 +850,34 @@ wie ein Farb-Bug im Messgerät, war aber Text-Selektion). Behoben in
 `index.html`: `#schaltkasten`/`#messgeraet` bekommen `user-select: none`
 (inkl. `-webkit-`/`-moz-`-Präfix).
 
+**Bugfix - obere PE-Reihenklemmen-Schraube ohne Messpunkt (User-Report):**
+`schraube()` hängt den Klick-Handler nur an, wenn eine Ader übergeben wird
+(`if (ader) { ... }`) - eine Schraube ohne Ader ist bewusst komplett
+unklickbar (kein Draht, kein Messpunkt). Für die PE-Reihenklemme kann
+`reihenklemmen_eingang.pe` `null` sein, wenn kein eigenes Zubringerkabel
+modelliert ist (PE kommt dann nur über den Hutschienen-Bond, siehe
+`generate_anlage.js`) - elektrisch ist die Schraube trotzdem vorhanden und
+erreichbar, nur eben ohne separates Kabel. Der Fallback in
+`SchaltkastenView.render()` (`const lEingang = eingang ? eingang.l :
+lAusgang` usw.) griff aber nur, wenn das ganze `reihenklemmen_eingang`-Objekt
+fehlte (alte, handgeschriebene `anlage.json` ohne Netzplan-Ursprung) - nicht,
+wenn nur ein einzelnes Feld darin `null` war. Die obere PE-Reihenklemmen-
+Schraube bekam dadurch gar kein `data-netz`/keinen Klick-Handler, sobald ein
+Stromkreis kein PE-Zubringerkabel hatte (z.B. testcase_01/SK2) - für den User
+sichtbar als "PE-Messpunkt an der oberen Reihenklemme lässt sich nicht
+setzen", während die untere (Ausgangs-)Schraube und die separate PE-Klemme
+am Kastenende normal funktionierten. Fix: Fallback jetzt pro Feld
+(`eingang?.l ?? lAusgang` usw.), fällt also auch dann auf die Ausgangs-Ader
+zurück, wenn nur das PE-Feld fehlt. Die exakte Netz-ID der Ausgangsseite
+weicht dabei elektrisch leicht vom echten Bond-Punkt ab (zwei verschiedene
+Netz-IDs, die über den PE-Bond kurzgeschlossen sind) - unkritisch, da PE
+ohnehin nicht im Verbindungsgraphen verfolgt wird (siehe "Pfadverfolgung und
+Fehlersimulation") und für RISO nur die `funktion === 'PE'`-Kennzeichnung
+zählt, nicht die konkrete Netz-ID (siehe `risoEffektiveAder()` unten).
+`anlage.svg` aller 4 Testcases neu promotet (isolierter Diff: nur die
+zuvor toten oberen PE-Reihenklemmen-Schrauben bekommen `data-netz`/
+`cursor:pointer`, sonst nichts geändert). Test in `test_messgeraet.js`.
+
 **Schalter (LS/RCD/Hauptschalter) - Anbindung an den Verbindungsgraphen:**
 `SchaltkastenView.render(anlage, container, onSchraubeKlick, onSchalterKlick)`
 bekommt als viertes Argument `schalterUmschalten(bauteilName, geschlossen)`

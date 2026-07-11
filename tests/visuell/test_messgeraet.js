@@ -381,6 +381,33 @@ async function main() {
     await page.close();
   });
 
+  // Bug (siehe schaltkasten.js): reihenklemmen_eingang.pe kann null sein,
+  // wenn die PE-Reihenklemme kein eigenes Zubringerkabel hat (PE kommt dann
+  // nur über den Hutschienen-Bond, siehe generate_anlage.js). Der Fallback
+  // auf die Ausgangsseite griff vorher nur, wenn das GANZE
+  // reihenklemmen_eingang-Objekt fehlte, nicht pro Feld - die obere
+  // PE-Reihenklemmen-Schraube bekam dadurch gar keinen Klick-Handler
+  // (schraube() lässt eine Schraube ohne Ader komplett unklickbar).
+  // testcase_01/SK2 hat genau diesen Fall (reihenklemmen_eingang.pe: null).
+  await pruefe('Schaltkasten: obere PE-Reihenklemme ohne eigenes Zubringerkabel ist trotzdem als Messpunkt klickbar (SK2)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    const obereSchraube = page.locator('#schaltkasten svg circle[cx="66"][cy="49"]'); // SK2 PE-Reihenklemme, Eingang (oben)
+
+    const hatNetz = await obereSchraube.getAttribute('data-netz');
+    if (!hatNetz) {
+      throw new Error('Obere PE-Reihenklemme (SK2) hat kein data-netz - Klick-Handler fehlt');
+    }
+
+    await obereSchraube.click(); // schwarz setzen
+    const overlayAnzahl = await page.evaluate(() =>
+      document.querySelectorAll('#schaltkasten svg circle[stroke="#ffffff"]').length
+    );
+    if (overlayAnzahl !== 1) {
+      throw new Error(`Klick auf obere PE-Reihenklemme (SK2) hat keine Messspitze gesetzt (Overlays: ${overlayAnzahl})`);
+    }
+    await page.close();
+  });
+
   await pruefe('RLOW: Ausschalten entfernt Messspitzen, Messwert geht auf Platzhalter zurück', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();

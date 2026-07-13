@@ -510,6 +510,14 @@ function generiereAnlage(ordner) {
         selektiv: rcd.selektiv,
         abklemmen_bei_iso: rcd.abklemmen,
         max_ls_anzahl: rcd.anzahlLs,
+        // Auslösewerte des RCD-Geräts selbst (siehe KONZEPT.md "Berechnung
+        // der Messwerte" - FI/RCD): Abschaltzeit, Auslösestrom,
+        // Berührungsspannung. Werden von TEST übernommen, sobald ein RCD auf
+        // dem Pfad zur Einspeisung gefunden wird - reine Bauteil-Eigenschaft,
+        // kein Pfad-Widerstand wie bei RLOW/ZI/ZS.
+        tA: rcd.tA,
+        iA: rcd.iA,
+        uB: rcd.uB,
         eingang: baueLeitung(netze, rcd.name, 'i', rcdFunktionen),
         ausgang: baueLeitung(netze, rcd.name, 'o', rcdFunktionen)
       },

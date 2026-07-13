@@ -112,6 +112,8 @@ async function start() {
       risoAmpel = null;
       ziMesswert = null;
       zsMesswert = null;
+      fircdMesswert = null;
+      fircdAmpel = null;
       renderMessgeraet();
     } else {
       Popup.zeige({
@@ -236,18 +238,25 @@ async function start() {
   // geschlossenem Hauptschalter). 230V bei L-N, 400V bei zwei verschiedenen
   // Phasen, sonst 0V (auch wenn die Messspitzen fehlen oder nicht zueinander
   // passen - RISO zeigt hier IMMER einen Wert, nie einen Platzhalter).
-  function berechneRisoSpannung() {
-    const schwarzAderRoh = messspitzenAderNachFarbe('schwarz');
-    const blauAderRoh = messspitzenAderNachFarbe('blau');
-    if (!graph || !schwarzAderRoh || !blauAderRoh) return 0;
-    const typ = risoPaarTyp(schwarzAderRoh, blauAderRoh);
+  // Spannung zwischen zwei beliebigen Adern, unabhängig von Farbe/Rolle -
+  // 230V bei L-N(-oder-PE, siehe risoEffektiveAder()), 400V bei zwei
+  // verschiedenen L-Phasen, sonst 0V (ungültige Kombination, fehlende Ader,
+  // oder nicht mehr mit der Einspeisung verbunden). Gemeinsam genutzt von
+  // RISO (immer Schwarz/Blau) und V~ (alle drei Sondenpaare, siehe unten).
+  function berechneSpannungZwischenAdern(aderARoh, aderBRoh) {
+    if (!graph || !aderARoh || !aderBRoh) return 0;
+    const typ = risoPaarTyp(aderARoh, aderBRoh);
     if (!typ) return 0;
 
-    const schwarzAder = risoEffektiveAder(schwarzAderRoh);
-    const blauAder = risoEffektiveAder(blauAderRoh);
-    const schwarzLebt = istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz);
-    const blauLebt = istSpannungFuehrend(graph, blauAder.funktion, blauAder.netz);
-    return schwarzLebt && blauLebt ? (typ === 'LN' ? 230 : 400) : 0;
+    const aderA = risoEffektiveAder(aderARoh);
+    const aderB = risoEffektiveAder(aderBRoh);
+    const aLebt = istSpannungFuehrend(graph, aderA.funktion, aderA.netz);
+    const bLebt = istSpannungFuehrend(graph, aderB.funktion, aderB.netz);
+    return aLebt && bLebt ? (typ === 'LN' ? 230 : 400) : 0;
+  }
+
+  function berechneRisoSpannung() {
+    return berechneSpannungZwischenAdern(messspitzenAderNachFarbe('schwarz'), messspitzenAderNachFarbe('blau'));
   }
 
   // RISO-Messwert, ausgelöst über die TEST-Taste (siehe renderMessgeraet()
@@ -382,6 +391,102 @@ async function start() {
     if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return 0;
     if (gruenAder.funktion !== 'PE' || blauAder.funktion !== 'N') return 0;
     return istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz) ? 230 : 0;
+  }
+
+  // Live-Spannungsanzeige für FI/RCD - identisch zu berechneZsSpannung()
+  // (dieselbe Platzierungsvorgabe: Schwarz auf L1/L2/L3, Grün auf PE, Blau
+  // auf N, geprüft wird nur der EINE L-Pfad zur Einspeisung). Eigene
+  // Funktion statt Wiederverwendung, da sie konzeptionell zu FI/RCD gehört
+  // und dort eigenständig weiterentwickelt werden dürfte (z.B. sobald die
+  // eigentliche Auslösewert-Berechnung dazukommt).
+  function berechneFircdSpannung() {
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const gruenAder = messspitzenAderNachFarbe('grün');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    if (!graph || !schwarzAder || !gruenAder || !blauAder) return 0;
+    if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return 0;
+    if (gruenAder.funktion !== 'PE' || blauAder.funktion !== 'N') return 0;
+    return istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz) ? 230 : 0;
+  }
+
+  // Alle RCD-Bauteile der Anlage (über alle Hutschienen/Gruppen hinweg) -
+  // gebraucht, um einen `kante.bauteil`-Namen aus dem Graphen einem echten
+  // RCD-Objekt (mit tA/iA/uB) zuzuordnen. Wird bei jedem TEST-Klick frisch
+  // eingesammelt statt gecacht - die Anlage ist klein, kein Performance-Thema.
+  function alleRcds() {
+    const ergebnis = [];
+    for (const hutschiene of anlage.hutschienen ?? []) {
+      for (const gruppe of hutschiene.gruppen ?? []) {
+        if (gruppe.rcd) ergebnis.push(gruppe.rcd);
+      }
+    }
+    return ergebnis;
+  }
+
+  // Kante zwischen zwei (im Pfad benachbarten) Netz-IDs - findePfad() liefert
+  // nur die Knotenfolge, nicht die dazwischenliegenden Kanten, die brauchen
+  // wir hier aber, um pro Kantenschritt das jeweilige Bauteil zu kennen.
+  function kanteZwischenNetzen(funktion, netzA, netzB) {
+    return graph[funktion]?.kanten.find((k) =>
+      (k.von === netzA && k.nach === netzB) || (k.von === netzB && k.nach === netzA)
+    );
+  }
+
+  // Sucht das ERSTE RCD auf dem Weg von einer Ader zur Einspeisung - "erste"
+  // aus Sicht der Messspitze, also das nächstgelegene (User-Vorgabe). Der
+  // Pfad von findePfadZurEinspeisung() ist [Einspeisungsnetz, ...,
+  // Adernnetz] - für "von der Sonde aus gesehen" wird er deshalb umgedreht,
+  // bevor die Kanten Schritt für Schritt auf ein RCD-Bauteil geprüft werden.
+  function findeErstesRcdAufPfad(funktion, ader) {
+    const pfad = findePfadZurEinspeisung(funktion, ader);
+    if (!pfad) return null;
+    const vonDerSondeAus = [...pfad].reverse();
+    const rcds = alleRcds();
+    for (let i = 0; i < vonDerSondeAus.length - 1; i++) {
+      const kante = kanteZwischenNetzen(funktion, vonDerSondeAus[i], vonDerSondeAus[i + 1]);
+      const rcd = kante && rcds.find((r) => r.name === kante.bauteil);
+      if (rcd) return rcd;
+    }
+    return null;
+  }
+
+  // FI/RCD-Messwert, ausgelöst über die TEST-Taste - wie ZS nicht
+  // kontinuierlich. `null` = noch kein gültiger TEST-Klick ODER kein RCD
+  // gefunden (Platzhalter bleiben stehen), sonst `{iA, tA, uB}` des
+  // gefundenen RCD-Bauteils.
+  let fircdMesswert = null;
+  // Ampel: `null` = noch kein TEST-Klick seit dem letzten Reset, `'gruen'` =
+  // RCD gefunden, `'rot'` = kein RCD auf dem Pfad zur Einspeisung gefunden
+  // (User-Vorgabe: das ist ein eigener Fehlerfall, anders als "keine
+  // Spannung" unten, der die Ampel unangetastet lässt).
+  let fircdAmpel = null;
+
+  function fircdTestKlick() {
+    if (messgeraetZustand.funktion !== 'FI/RCD' || !graph) return;
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const gruenAder = messspitzenAderNachFarbe('grün');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    // Dieselbe Platzierungsvorgabe wie bei ZS: Schwarz auf L1/L2/L3, Grün
+    // auf PE, Blau auf N.
+    if (!schwarzAder || !gruenAder || !blauAder) return;
+    if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return;
+    if (gruenAder.funktion !== 'PE' || blauAder.funktion !== 'N') return;
+    // Pfeil-Kasten durchgestrichen (keine Spannung/kein Pfad zur
+    // Einspeisung) -> TEST bleibt komplett wirkungslos, keine Ampel-Änderung
+    // (explizite User-Vorgabe, anders als der "kein RCD gefunden"-Fall unten).
+    if (berechneFircdSpannung() === 0) return;
+
+    const rcd = findeErstesRcdAufPfad(schwarzAder.funktion, schwarzAder);
+    if (rcd) {
+      fircdMesswert = { iA: rcd.iA, tA: rcd.tA, uB: rcd.uB };
+      fircdAmpel = 'gruen';
+    } else {
+      // Kein RCD gefunden - alle Felder bleiben/werden leer (Platzhalter),
+      // aber die Ampel geht explizit auf Rot (User-Vorgabe).
+      fircdMesswert = null;
+      fircdAmpel = 'rot';
+    }
+    renderMessgeraet();
   }
 
   // ZS-Messwert, ausgelöst über die TEST-Taste - wie ZI nicht kontinuierlich.
@@ -678,6 +783,38 @@ async function start() {
       }
     } else if (funktion === 'FI/RCD') {
       zustand.titelWerte = [FIRCD_FEHLERSTROEME[fircdFehlerstromIndex], FIRCD_TYPEN[fircdTypIndex]];
+      // Live, unabhängig von TEST - siehe berechneFircdSpannung(). Wie bei
+      // ZS/ZI: Pfeil-Kasten unten links undurchgestrichen, solange der
+      // L-Pfad bereit ist, sonst durchgestrichen.
+      const fircdSpannung = berechneFircdSpannung();
+      zustand.spannungUnterPe = `${fircdSpannung}V`;
+      zustand.indikatorDurchgestrichen = fircdSpannung === 0;
+      // Ampel (siehe fircdTestKlick()) - grün bei gefundenem RCD, rot bei
+      // "kein RCD auf dem Pfad", sonst (noch kein TEST-Klick) beide aus/grau.
+      zustand.leuchteLinksAn = fircdAmpel === 'rot';
+      zustand.leuchteRechtsAn = fircdAmpel === 'gruen';
+      // I/Uci/t nur nach TEST-Klick MIT gefundenem RCD (siehe
+      // fircdTestKlick()) - Platzhalter aus zustandFuerFunktion() bleiben
+      // stehen, solange fircdMesswert null ist (kein TEST, ODER TEST ohne
+      // gefundenes RCD - in beiden Fällen sollen die Felder leer bleiben).
+      if (fircdMesswert !== null) {
+        zustand.hauptwert = `I:${fircdMesswert.iA.toFixed(1).replace('.', ',')}mA`;
+        zustand.nebenwertLinks = `Uci:${fircdMesswert.uB.toFixed(1).replace('.', ',')}V`;
+        zustand.nebenwertRechts = `t:${fircdMesswert.tA.toFixed(1).replace('.', ',')}ms`;
+      }
+    } else if (funktion === 'V~') {
+      // Live, keine TEST-Taste nötig, keine Platzierungsvorgabe - Messspitzen
+      // dürfen auf beliebige Funktionen gesetzt werden (explizite
+      // User-Vorgabe), berechneSpannungZwischenAdern() liefert dann einfach
+      // 0V für jede nicht sinnvolle/nicht verbundene Kombination.
+      const schwarzAder = messspitzenAderNachFarbe('schwarz');
+      const blauAder = messspitzenAderNachFarbe('blau');
+      const gruenAder = messspitzenAderNachFarbe('grün');
+      zustand.hauptwertZeilen = [
+        { label: 'Uln', wert: `${berechneSpannungZwischenAdern(schwarzAder, blauAder)}V` },
+        { label: 'Ulpe', wert: `${berechneSpannungZwischenAdern(schwarzAder, gruenAder)}V` },
+        { label: 'Unpe', wert: `${berechneSpannungZwischenAdern(blauAder, gruenAder)}V` }
+      ];
     }
 
     return zustand;
@@ -708,6 +845,8 @@ async function start() {
     zsMesswert = null;
     fircdFehlerstromIndex = FIRCD_FEHLERSTROEME.indexOf('30mA');
     fircdTypIndex = FIRCD_TYPEN.indexOf('AC');
+    fircdMesswert = null;
+    fircdAmpel = null;
   }
 
   // Entfernt alle angelegten Messspitzen (Overlay-Kreise + Zustand) - beim
@@ -759,6 +898,7 @@ async function start() {
     if (messgeraetZustand.funktion === 'RISO') risoTestKlick();
     else if (messgeraetZustand.funktion === 'ZI') ziTestKlick();
     else if (messgeraetZustand.funktion === 'ZS') zsTestKlick();
+    else if (messgeraetZustand.funktion === 'FI/RCD') fircdTestKlick();
   }
 
   function aendereAusgewaehltesFeld(richtung) {

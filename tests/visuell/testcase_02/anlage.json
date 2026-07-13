@@ -102,6 +102,9 @@
             "selektiv": false,
             "abklemmen_bei_iso": false,
             "max_ls_anzahl": 2,
+            "tA": 22,
+            "iA": 18,
+            "uB": 1,
             "eingang": {
               "leitung": {
                 "typ": "NYM-J",
@@ -343,6 +346,9 @@
             "selektiv": false,
             "abklemmen_bei_iso": false,
             "max_ls_anzahl": 2,
+            "tA": 24,
+            "iA": 20,
+            "uB": 0.8,
             "eingang": {
               "leitung": {
                 "typ": "NYM-J",

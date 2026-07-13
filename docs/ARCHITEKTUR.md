@@ -1317,6 +1317,122 @@ RCD unterbricht den L-Pfad → TEST wirkungslos; Messspitzen-Änderung und
 Drehknopf-Wechsel setzen den Messwert zurück; die ZSrcd-Ansicht zeigt
 denselben Messwert wie die normale Zs-Ansicht.
 
+**FI/RCD - prototypisch umgesetzt, iterativ aufgebaut analog zu ZS.**
+Startete mit denselben beiden Bausteinen wie ZS (Live-Spannungsanzeige +
+Pfeil-Kasten-Umschaltung, identische Platzierungsvorgabe: Schwarz auf
+L1/L2/L3, Grün auf PE, Blau auf N, identischer Ein-Pfad-Check nur für
+Schwarz), dann kam die eigentliche Auslösewert-Übernahme dazu - **anders als
+ZI/ZS aber keine Widerstandssumme**, sondern eine Bauteil-Zuordnung: das
+erste RCD auf dem Pfad zur Einspeisung wird gesucht, dessen `tA`/`iA`/`uB`
+werden direkt übernommen.
+
+Voraussetzung dafür: `tA`/`iA`/`uB` mussten zuerst ins `rcd`-Objekt in
+`anlage.json` nachgezogen werden (waren vorher nur in `bauteile.md`
+vorhanden, `parseBauteile()` parste sie zwar schon in die
+Zwischenrepräsentation, aber `generiereAnlage()`s `rcd`-Objekt-Literal ließ
+sie beim finalen Zusammenbau weg) - risikoarme, isolierte Ergänzung
+(`generate_anlage.js`, drei zusätzliche Felder), alle 4 Testcases neu
+generiert/promotet, Diff bestätigt isoliert auf genau diese drei neuen
+Felder pro RCD (`anlage.svg` unverändert, da nirgends gerendert).
+
+Neu in `app.js`:
+- `berechneFircdSpannung()` - Code identisch zu `berechneZsSpannung()`
+  (bewusst als eigene Funktion dupliziert statt wiederverwendet, da FI/RCD
+  konzeptionell eigenständig weiterentwickelt werden dürfte).
+- `alleRcds()` - sammelt alle `rcd`-Objekte der Anlage über alle
+  Hutschienen/Gruppen hinweg ein (frisch bei jedem Aufruf, keine
+  Zwischenspeicherung nötig bei dieser Anlagengröße) - für die Zuordnung
+  `kante.bauteil` (Name-String im Graphen) → echtes RCD-Objekt (mit
+  `tA`/`iA`/`uB`) gebraucht.
+- `kanteZwischenNetzen(funktion, netzA, netzB)` - `findePfad()`/
+  `findePfadZurEinspeisung()` liefern nur die Knotenfolge (Netz-IDs), nicht
+  die dazwischenliegenden Kanten - dieser Helfer sucht die Kante zwischen
+  zwei im Pfad benachbarten Netzen (`von`/`nach` in beide Richtungen
+  geprüft, da `findePfad()`s BFS die Kantenrichtung ignoriert).
+- `findeErstesRcdAufPfad(funktion, ader)` - ruft
+  `findePfadZurEinspeisung()` auf (liefert `[Einspeisungsnetz, ...,
+  Adernnetz]`), dreht das Ergebnis um (`[Adernnetz, ..., Einspeisungsnetz]`
+  - "von der Sonde aus gesehen", User-Vorgabe: das nächstgelegene RCD zur
+  Sonde zählt, nicht das erste ab der Einspeisung), geht dann Kante für
+  Kante durch `kanteZwischenNetzen()` und gibt beim ersten Treffer in
+  `alleRcds()` (Abgleich über `kante.bauteil === rcd.name`) dieses RCD
+  zurück, sonst `null`.
+- `fircdMesswert` - State-Variable (`null | {iA, tA, uB}`), startet `null`.
+  Reset an denselben Stellen wie `zsMesswert` (Messspitzen-Änderung im
+  Schraube-Klick-Handler, `setzeBearbeitungenZurueck()`).
+- `fircdAmpel` - State-Variable (`null | 'rot' | 'gruen'`), analog zu
+  `risoAmpel` (eine echte State-Variable, nicht live wie ZIs/ZSs Isc/Lim-
+  Ampel, da das Suchergebnis selbst ein TEST-Snapshot ist). Reset an
+  denselben Stellen wie `fircdMesswert`.
+- `fircdTestKlick()` - an die TEST-Taste gebunden
+  (`testKlick()`-Dispatcher um `else if (funktion === 'FI/RCD')` erweitert).
+  Bricht ab, wenn Funktion nicht FI/RCD ist, eine der drei Messspitzen
+  fehlt/falsch platziert ist (dieselbe Prüfung wie `zsTestKlick()`), oder
+  `berechneFircdSpannung() === 0` ist (Pfeil-Kasten durchgestrichen - TEST
+  bleibt dann **komplett wirkungslos**, keine Ampel-Änderung, explizite
+  User-Vorgabe, um diesen Fall vom "kein RCD gefunden"-Fall unten zu
+  unterscheiden). Sonst: `findeErstesRcdAufPfad()` - RCD gefunden →
+  `fircdMesswert = {iA, tA, uB}`, `fircdAmpel = 'gruen'`; kein RCD gefunden
+  → `fircdMesswert = null` (alle Felder bleiben/werden Platzhalter),
+  `fircdAmpel = 'rot'` (eigener Fehlerfall: "keine RCD-Absicherung auf
+  diesem Pfad gefunden").
+- `baueAnzeigeZustand()`s FI/RCD-Zweig setzt `zustand.spannungUnterPe`/
+  `zustand.indikatorDurchgestrichen` wie bei ZS, dazu
+  `zustand.leuchteLinksAn = fircdAmpel === 'rot'` /
+  `zustand.leuchteRechtsAn = fircdAmpel === 'gruen'`, und überschreibt bei
+  `fircdMesswert !== null` `zustand.hauptwert` (`` `I:${iA}mA` ``, Mitte),
+  `zustand.nebenwertLinks` (`` `Uci:${uB}V` ``, unten links) und
+  `zustand.nebenwertRechts` (`` `t:${tA}ms` ``, unten rechts) - je eine
+  Nachkommastelle, Komma-Format wie überall sonst.
+
+Getestet in `test_messgeraet.js` (4 Tests, alle mit testcase_01):
+Live-Spannungsanzeige zeigt 230V bei geschlossenem L-Pfad (Pfeil-Kasten
+undurchgestrichen), 0V sobald das zugehörige RCD öffnet (Pfeil-Kasten wieder
+durchgestrichen); TEST direkt hinter RCD1 (N6/N8) übernimmt dessen
+`iA`/`uB`/`tA` (`I:18,0mA`, `Uci:1,0V`, `t:22,0ms`), Ampel grün; TEST vor
+RCD1 (N4/N5, nur noch der Leistungsschalter auf dem Pfad) lässt alle drei
+Felder auf dem Platzhalter, Ampel rot, und eine anschließende
+Messspitzen-Änderung setzt die Ampel zurück auf grau; bei durchgestrichenem
+Pfeil-Kasten (RCD1 offen) bleibt TEST komplett wirkungslos, Ampel bleibt
+grau statt auf Rot zu springen.
+
+**V~ - umgesetzt, reine Spannungsmessung ohne TEST-Taste und ohne
+Platzierungsvorgabe.**
+
+- `berechneRisoSpannung()` wurde zur generischen Hilfsfunktion
+  `berechneSpannungZwischenAdern(aderARoh, aderBRoh)` erweitert (nimmt jetzt
+  zwei beliebige Adern statt fest Schwarz/Blau zu lesen). Interne Logik
+  unverändert: `risoPaarTyp(aderA, aderB)` klassifiziert das Paar (`'LN'`,
+  `'LL'` oder `null`, wenn keine der beiden Adern auf L1/L2/L3 liegt),
+  `risoEffektiveAder()` ersetzt eine PE-Ader durch N (siehe RISO oben), dann
+  `istSpannungFuehrend()` für beide Adern - nur wenn beide `true` sind, ist
+  das Ergebnis `230` (LN) bzw. `400` (LL), sonst `0`. `berechneRisoSpannung()`
+  ist jetzt ein Einzeiler: `return
+  berechneSpannungZwischenAdern(messspitzenAderNachFarbe('schwarz'),
+  messspitzenAderNachFarbe('blau'));` - RISOs Verhalten bleibt dadurch
+  unverändert (bestehende RISO-Tests laufen unverändert weiter).
+- `baueAnzeigeZustand()`s V~-Zweig liest alle drei Sondenfarben und ruft
+  `berechneSpannungZwischenAdern()` dreimal auf, ohne jede Rollenprüfung
+  (anders als RISO/ZI/ZS/FI-RCD wird nicht verlangt, dass eine bestimmte
+  Farbe auf einer bestimmten Funktion sitzt):
+  `zustand.hauptwertZeilen = [{label:'Uln', wert:...}, {label:'Ulpe',
+  wert:...}, {label:'Unpe', wert:...}]` - dieselbe `{label, wert}`-Form, die
+  `view/messgeraet.js` bereits für den Drei-Zeilen-Hauptwertbereich
+  unterstützt (siehe oben, "bisher nur für V~ gedacht"). Es gibt **keinen
+  V~-Zweig im `testKlick()`-Dispatcher** - ein TEST-Klick bei V~ läuft
+  dadurch komplett ins Leere, exakte User-Vorgabe ("Die TEST Taste wird
+  nicht gebraucht!").
+- Kein Reset-Zustand nötig (anders als bei RISO/ZI/ZS/FI-RCD): V~ hat keine
+  eigene Messwert-Variable, `hauptwertZeilen` wird bei jedem Render frisch
+  aus den aktuellen Messspitzen berechnet.
+
+Getestet in `test_messgeraet.js` (4 Tests): alle drei Werte 0V ohne
+Messspitzen (testcase_01); Schwarz auf L1, Blau auf N, Grün auf PE liefert
+Uln=230V, Ulpe=230V, Unpe=0V - Unpe bleibt 0V, weil `risoPaarTyp()` für ein
+reines N/PE-Paar `null` liefert (siehe KONZEPT.md, Abschnitt "V~"); zwei
+verschiedene Außenleiter (testcase_04, L1/L2) liefern 400V; ein TEST-Klick
+nach dem Platzieren der Sonden verändert das Display nicht.
+
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen
 - Phase 1 → 2 → 3 → 4 → 5

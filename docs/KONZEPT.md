@@ -351,7 +351,7 @@ werden (wie das Anlegen der Messspitzen). Erst ein anschließender Klick auf die
 | ZI           | 2                          | $Z_i$ – Leitungsimpedanz (hinter RCD) |
 | ZS           | 3                          | $Z_s$ – Schleifenimpedanz |
 | FI/RCD       | 3                          | RCD-Messung: $U_B$, $t_A$, $I_A$ |
-| V~           | 3                          | Spannungsfall / AC-Spannung |
+| V~           | 3                          | AC-Spannung ($U_{LN}$, $U_{LPE}$, $U_{NPE}$) |
 
 **◄►-Taste (Pfeil links/rechts):**
 Wandert durch die Werte in der oberen Zeile des Displays (Titel, und falls vorhanden
@@ -645,13 +645,64 @@ Bemessungsstrom danach per ▲/▼, zieht die Ampel sofort mit. Damit sind ZI
 und ZS jetzt funktional deckungsgleich bis auf den einen bewusst
 akzeptierten Unterschied: ZS prüft/berechnet keinen PE-Pfad.
 
-**FI/RCD** (RCD-Auslösewerte):
-Keine Berechnung – feste Werte direkt am RCD-Bauteil selbst (Spalten `tA`, `IA`, `UB`
-in `bauteile.md`), da das Eigenschaften des RCD-Geräts sind, nicht des Pfades.
+**FI/RCD** (RCD-Auslösewerte, **prototypisch umgesetzt**):
+Die eigentlichen Auslösewerte (I/Uci/t) sind feste Werte direkt am
+RCD-Bauteil selbst (Spalten `tA`, `IA`, `UB` in `bauteile.md`, seit der
+letzten Erweiterung auch in `anlage.json`s `rcd`-Objekt vorhanden), da das
+Eigenschaften des RCD-Geräts sind, nicht des Pfades - keine Berechnung
+nötig, nur eine Zuordnung.
 
-**V~** (Spannung):
-Vorerst der Nominalwert aus `spannung_stromkreise` der Anlage, ohne Berücksichtigung
-von `Widerstand`-Bauteilen (kein Spannungsteiler-Modell). Spätere Erweiterung möglich.
+Dieselbe Platzierungsvorgabe wie bei ZS (Schwarz auf L1/L2/L3, Grün auf PE,
+Blau auf N) und dieselbe Live-Spannungsanzeige unter dem PE-Kreis - prüft nur
+den EINEN L-Pfad zur Einspeisung (PE/N-Pfad bewusst nicht geprüft, wie bei
+ZS), 230V wenn geschlossen, sonst 0V. Der Pfeil-Kasten unten links folgt
+derselben Logik: undurchgestrichen, solange der L-Pfad bereit ist, sonst
+durchgestrichen - **liegt er durchgestrichen, bleibt TEST komplett
+wirkungslos**, wie bei ZS.
+
+**Anders als bei ZI/ZS wird kein Widerstand summiert**, sondern das erste
+RCD auf dem Weg von der Sonde zur Einspeisung gesucht (nächstgelegenes zur
+Sonde, nicht das erste ab der Einspeisung aus gesehen - explizite
+User-Vorgabe) und dessen `tA`/`iA`/`uB` direkt übernommen: `I` in der Mitte
+(Hauptwert, mA), `Uci` unten links (V), `t` unten rechts (ms), je eine
+Nachkommastelle. **Wird kein RCD auf dem Pfad gefunden** (Pfad existiert,
+aber ohne RCD-Kante dazwischen), bleiben alle drei Felder auf dem
+`___`-Platzhalter, aber die Ampel (dieselben Leuchtstreifen wie bei
+RISO/ZI/ZS) geht trotzdem auf **Rot** - ein eigener Fehlerfall ("keine
+RCD-Absicherung auf diesem Pfad gefunden"), zu unterscheiden vom
+"Pfeil-Kasten durchgestrichen"-Fall oben, der die Ampel unangetastet lässt.
+Wird ein RCD gefunden, geht die Ampel auf **Grün**.
+
+**V~** (reine Spannungsmessung, **umgesetzt**):
+Anders als bei RISO/ZI/ZS/FI-RCD gibt es bei V~ **keine Platzierungsvorgabe** -
+die drei Messspitzen dürfen auf beliebige Netze gesetzt werden, es wird keine
+L/N/PE-Rolle geprüft. Es gibt außerdem **keine TEST-Taste-Interaktion**: alle
+drei Werte sind live berechnet und aktualisieren sich sofort bei jeder
+Messspitzen-Änderung. Angezeigt werden drei Zeilen im Hauptwertbereich
+(Label + Wert, kein Umschalten über ◄►):
+
+- **Uln** – Spannung zwischen Schwarz und Blau
+- **Ulpe** – Spannung zwischen Schwarz und Grün
+- **Unpe** – Spannung zwischen Blau und Grün
+
+Jedes Adernpaar wird über dieselbe Klassifikation wie bei RISO
+(`risoPaarTyp()`, siehe oben) ausgewertet: liegen beide Sonden auf
+verschiedenen Außenleitern (L-L), zeigt das Paar 400V; liegt eine Sonde auf
+einem Außenleiter und die andere auf N oder PE (L-N), zeigt es 230V - jeweils
+nur, wenn beide beteiligten Netze auch tatsächlich mit der Einspeisung
+verbunden sind (`istSpannungFuehrend()`), sonst 0V. Fehlt eine der beiden
+Sonden für ein Paar, ist der Wert ebenfalls 0V. **Unpe (Blau-Grün, also N
+gegen PE) zeigt in einer gesunden Anlage immer 0V**: `risoPaarTyp()`
+verlangt, dass mindestens eine der beiden Adern auf einem Außenleiter (L1/L2/
+L3) liegt, um ein Paar überhaupt zu klassifizieren - ein reines N/PE-Paar
+erfüllt das nie und fällt dadurch auf 0V zurück. Das ist elektrisch
+korrekt (N und PE sind am Sternpunkt verbunden), ergibt sich hier aber als
+Nebeneffekt der bestehenden RISO-Logik statt aus einem eigenen N-PE-Fall.
+
+Implementiert über eine gemeinsame Hilfsfunktion `berechneSpannungZwischenAdern()`,
+die RISOs bisherige Schwarz/Blau-Spannungsberechnung auf ein beliebiges
+Adernpaar verallgemeinert - RISO ruft sie weiterhin nur für Schwarz/Blau auf,
+V~ dreimal für alle drei Paare.
 
 ### Konfigurierbare Parameter
 
@@ -1259,15 +1310,26 @@ Verbindungsgraph, Schalter und Fehlertabelle sind für RLOW umgesetzt (siehe
 umgesetzt (RISO: Live-Spannungsprüfung + TEST-gestützte Widerstandsmessung;
 ZI: TEST-gestützte Vorimpedanz + Fehlertabelle beider Teilpfade; ZS: dieselbe
 Mechanik wie ZI, aber mit bewusst ignoriertem PE-Pfad; siehe "Berechnung der
-Messwerte"). Offen:
+Messwerte"). FI/RCD ist prototypisch umgesetzt (Live-Spannungsanzeige +
+Pfeil-Kasten-Umschaltung wie bei ZS, sowie TEST-gestützte Übernahme der
+Auslösewerte I/Uci/t vom ersten RCD auf dem Pfad zur Einspeisung). V~ ist
+umgesetzt (freie Sondenplatzierung ohne Rollenprüfung, live berechnete
+Uln/Ulpe/Unpe, keine TEST-Taste nötig). Offen:
 
-1. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
+1. **FI/RCD: Schalter öffnet nach erfolgreichem TEST** - nach einem
+   erfolgreichen RCD-Test (RCD gefunden, Ampel grün) soll sich der Hebel des
+   gefundenen RCDs automatisch öffnen, sowohl visuell als auch im Graphen.
+   Erfordert einen Umbau: der Hebel-Zustand lebt aktuell rein im
+   DOM/Closure von `zeichneSchalter()` (`view/schaltkasten.js`), ohne Weg
+   für `app.js`, ihn von außen zu setzen - `SchaltkastenView` müsste dafür
+   ein Handle exportieren (z.B. `Map<bauteilName, {setGeschlossen(bool)}>`).
+2. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
    vollständig getrennte Teilgraphen, ein TEST-Klick ohne anliegende
    Spannung liefert deshalb praktisch immer `>999MΩ`. Für echte
    Fehlerszenarien bräuchte es einen Weg, zwei Funktionen künstlich über
    einen simulierten Isolationsfehler zu verbinden - der Code
    (`risoTestKlick()`) ist strukturell schon darauf vorbereitet.
-2. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
+3. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
    Hutschienen-Bond Zyklen bilden kann (Parallelwiderstand statt einfacher
    Pfad-Summe) - ein eigenständiges, größeres Vorhaben. Bis dahin gelten zwei
    bewusste Vereinfachungen: bei RISO wird eine an PE angelegte Messspitze
@@ -1279,7 +1341,7 @@ Messwerte"). Offen:
    Prüfungsalltag kein realistisches Szenario), aber Vereinfachungen, keine
    korrekte Modellierung - sobald der PE-Teilgraph existiert, sollten beide
    durch eine echte Pfadsuche über den PE-Graphen ersetzt werden.
-3. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
+4. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
    "Schrauben lösen" oben).
-4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
+5. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
    Typ B, Gruppe ohne RCD).

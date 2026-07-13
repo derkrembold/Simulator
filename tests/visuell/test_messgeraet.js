@@ -1500,6 +1500,171 @@ async function main() {
     await page.close();
   });
 
+  // --- FI/RCD: erste Iteration, analog zu ZS - live Spannungsanzeige +
+  // Pfeil-Kasten-Umschaltung, dieselbe Platzierungsvorgabe (Schwarz auf
+  // L1/L2/L3, Grün auf PE, Blau auf N) und derselbe Ein-Pfad-Check (nur
+  // Schwarz -> Einspeisung, PE/N-Pfad bewusst nicht geprüft). Die eigentliche
+  // Auslösewert-Berechnung (I/Uci/t) kommt in einer späteren Iteration.
+  await pruefe('FI/RCD: Live-Spannungsanzeige zeigt 230V bei bereitem Stromkreis, 0V sonst - Pfeil-Kasten entsprechend', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    erwarte(await displayTexte(page), '0V', 'Spannungsanzeige-Default vor Messspitzen');
+    if (!(await indikatorDurchgestrichen(page))) {
+      throw new Error('Pfeil-Kasten sollte vor Messspitzen durchgestrichen sein');
+    }
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+    erwarte(await displayTexte(page), '230V', 'L-Pfad zur Einspeisung geschlossen -> 230V');
+    if (await indikatorDurchgestrichen(page)) {
+      throw new Error('Pfeil-Kasten sollte bei anliegender Spannung NICHT durchgestrichen sein');
+    }
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 offen -> L-Pfad unterbrochen
+    erwarte(await displayTexte(page), '0V', 'L-Pfad unterbrochen -> 0V');
+    if (!(await indikatorDurchgestrichen(page))) {
+      throw new Error('Pfeil-Kasten sollte wieder durchgestrichen sein, sobald die Spannung wegfällt');
+    }
+    await page.close();
+  });
+
+  // testcase_01: N6/N8 = RCD1.o1/o2, direkt hinter RCD1 - erstes (und
+  // einziges) RCD auf dem Weg von der Sonde zur Einspeisung.
+  await pruefe('FI/RCD: TEST übernimmt tA/iA/uB des gefundenen RCD, Ampel grün', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'I:18,0mA', 'RCD1.iA übernommen');
+    erwarte(await displayTexte(page), 'Uci:1,0V', 'RCD1.uB übernommen');
+    erwarte(await displayTexte(page), 't:22,0ms', 'RCD1.tA übernommen');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    await page.close();
+  });
+
+  // testcase_01: N4/N5 = Leistungsschalter.o1/o2, VOR RCD1 - auf dem Weg zur
+  // Einspeisung liegt hier kein RCD mehr (nur noch der Leistungsschalter).
+  await pruefe('FI/RCD: kein RCD auf dem Pfad -> Felder bleiben leer, Ampel rot', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'I:___mA', 'Kein RCD gefunden -> I bleibt Platzhalter');
+    erwarte(await displayTexte(page), 'Uci:___V', 'Kein RCD gefunden -> Uci bleibt Platzhalter');
+    erwarte(await displayTexte(page), 't:___ms', 'Kein RCD gefunden -> t bleibt Platzhalter');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Kein RCD gefunden -> Ampel rot');
+
+    // Messspitzen-Änderung setzt Werte UND Ampel zurück auf grau.
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz entfernen
+    erwarteGleich(await ampelFarben(page), ['#999999', '#999999'], 'Messspitzen-Änderung setzt Ampel zurück auf grau');
+    await page.close();
+  });
+
+  // Pfeil-Kasten durchgestrichen (kein Pfad/keine Spannung) - TEST bleibt
+  // komplett wirkungslos, anders als der "kein RCD gefunden"-Fall oben:
+  // keine Ampel-Änderung, weiterhin grau.
+  await pruefe('FI/RCD: Pfeil-Kasten durchgestrichen -> TEST bleibt komplett wirkungslos (keine Ampel-Änderung)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 offen -> keine Spannung hinter RCD1
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+    if (!(await indikatorDurchgestrichen(page))) {
+      throw new Error('Pfeil-Kasten sollte durchgestrichen sein (keine Spannung)');
+    }
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'I:___mA', 'TEST bleibt wirkungslos, Platzhalter unverändert');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#999999'], 'TEST bleibt wirkungslos, Ampel bleibt grau');
+    await page.close();
+  });
+
+  // --- V~: reine Spannungsmessung, freie Sondenplatzierung (keine
+  // L/N/PE-Rollenprüfung), keine TEST-Taste nötig - Uln/Ulpe/Unpe live.
+  await pruefe('V~: Uln/Ulpe/Unpe zeigen 0V ohne Messspitzen', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const texte = await displayTexte(page);
+    erwarte(texte, 'Uln:', 'Uln-Label vorhanden');
+    erwarte(texte, 'Ulpe:', 'Ulpe-Label vorhanden');
+    erwarte(texte, 'Unpe:', 'Unpe-Label vorhanden');
+    erwarteGleich(texte.filter((t) => t === '0V').length, 3, 'alle drei Werte 0V ohne Messspitzen');
+    await page.close();
+  });
+
+  await pruefe('V~: L-N-Sonden zeigen 230V, N-PE zeigt 0V (Uln/Ulpe leben, Unpe nicht)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    const texte = await displayTexte(page);
+    erwarte(texte, '230V', 'Uln/Ulpe: 230V bei L-N bzw. L-PE');
+    erwarteGleich(texte.filter((t) => t === '230V').length, 2, 'genau zwei 230V-Werte (Uln und Ulpe)');
+    erwarteGleich(texte.filter((t) => t === '0V').length, 1, 'Unpe bleibt 0V (N und PE gleiches Potential)');
+    await page.close();
+  });
+
+  await pruefe('V~: zwei verschiedene Außenleiter zeigen 400V (Leiter-Leiter)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N7"]').first().click(); // blau, L2
+
+    const texte = await displayTexte(page);
+    erwarte(texte, 'Uln:', 'Uln-Label vorhanden');
+    erwarte(texte, '400V', 'schwarz-blau zwischen zwei Außenleitern -> 400V');
+    erwarteGleich(texte.filter((t) => t === '0V').length, 2, 'Ulpe/Unpe bleiben 0V ohne grüne Sonde');
+    await page.close();
+  });
+
+  await pruefe('V~: kein TEST nötig - Messwerte sind sofort live, TEST-Taste ohne Wirkung', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    const vorTest = await displayTexte(page);
+    erwarte(vorTest, '230V', 'Uln bereits live ohne TEST');
+
+    await klick(page, 'TEST');
+    const nachTest = await displayTexte(page);
+    erwarteGleich(nachTest, vorTest, 'TEST-Taste verändert bei V~ nichts');
+    await page.close();
+  });
+
   await browser.close();
   server.close();
   process.exit(alleBestanden ? 0 : 1);

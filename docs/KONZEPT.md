@@ -438,7 +438,7 @@ Die Anzeige im LCD-Display ändert sich je nach Drehknopf-Stellung (nur wenn das
 
 | Drehknopf-Stellung | Anzeige (Titel) | Angezeigte Werte | Einheit   | Messpunkte                                                         |
 | ------------------ | --------------- | ---------------- | --------- | ------------------------------------------------------------------ |
-| RISO               | R ISO           | R                | $\Omega$  | L: Kreis ausgefüllt; PE Kreis halb ausgefüllt; N Kreis ausgefüllt  |
+| RISO               | R ISO           | R                | $M\Omega$ (Sonderfall gleiche Phase: $\Omega$) | L: Kreis ausgefüllt; PE Kreis halb ausgefüllt; N Kreis ausgefüllt  |
 | ZI                 | Zl              | Z                | $\Omega$  | L: Kreis ausgefüllt; PE Kreis nicht ausgefüllt; N Kreis ausgefüllt |
 | ZS                 | Zs              | Z                | $\Omega$  | L: Kreis ausgefüllt; PE Kreis ausgefüllt; N Kreis halb ausgefüllt  |
 | FI/RCD             | RCD I           | I, t, Uci        | mA, ms, V | L: Kreis ausgefüllt; PE Kreis ausgefüllt; N Kreis halb ausgefüllt  |
@@ -504,6 +504,45 @@ Zwei Schritte:
    Funktionen (Isolationsfehler) künstlich verbindet; der Code ist aber
    bereits dafür vorbereitet, sobald ein solcher Fehlerfall-Mechanismus
    existiert.
+
+**Sonderfall - Schwarz und Blau auf derselben Phase:** das ist keine
+Isolationsmessung mehr (dafür bräuchte es zwei unterschiedliche Funktionen),
+sondern schlicht eine Durchgangsprüfung auf einer Phase. TEST verhält sich in
+diesem Fall genau wie bei RLOW: geschlossener Pfad → Summe der
+Fehlertabellen-Einträge, offener Schalter dazwischen → `>999MΩ`. Zwischen den
+beiden Punkten liegt dabei nie eine Spannung an (dieselbe Phase hat kein
+Potentialgefälle zu sich selbst), die Live-Spannungsprüfung zeigt hier also
+immer 0V.
+
+**Ampel (Bestanden/Durchgefallen):** die beiden Leuchtstreifen links/rechts
+im Display-Rahmen (siehe "Messgerät" → "Display") zeigen bei jedem TEST-Klick
+das Ergebnis an - links rot = durchgefallen, rechts grün = bestanden, nie
+beide gleichzeitig. **Rot:** Spannung liegt an (TEST liefert dann ohnehin
+keinen Messwert), ODER der gemessene Widerstand liegt unter dem eingestellten
+Grenzwert (rechts oben im Display, Default 50MΩ, in 10MΩ-Schritten per ▲/▼
+einstellbar). **Grün:** der Messwert liegt bei oder über dem Grenzwert, oder
+das Ergebnis ist `>999MΩ` (das liegt per Definition über jedem endlichen
+Grenzwert). Vor dem ersten TEST-Klick sowie nach einem Drehknopf-Wechsel
+(Reset wie beim Messwert selbst) sind beide Streifen grau.
+
+**Einheiten beim Vergleich:** die Fehlertabelle ist durchgehend in **Ω**
+angegeben (wie bei RLOW) - auch der Sonderfall "Schwarz/Blau auf derselben
+Phase" (siehe oben) liefert deshalb einen Ω-Wert, den das Display auch als
+`R:0,10Ω` zeigt (nicht `MΩ` - eine frühere Version hängte pauschal `MΩ` an,
+das war falsch beschriftet). Der Grenzwert ist dagegen in **MΩ** eingestellt.
+Für den Ampel-Vergleich wird deshalb der Grenzwert mit 1.000.000
+multipliziert (nicht der Messwert dividiert, wegen Rundungsfehlern bei sehr
+kleinen Werten). Das hat eine bewusst in Kauf genommene Konsequenz: ein
+Fehlertabellen-Wert liegt fast immer weit unter jedem sinnvollen MΩ-Grenzwert
+(z.B. 0,1Ω ≪ 50.000.000Ω) - der Sonderfall "gleiche Phase" zeigt also
+praktisch immer Rot, sobald überhaupt ein Pfad existiert, und nur ein
+unterbrochener Pfad (`>999MΩ`) zeigt Grün. Das mag auf den ersten Blick
+gegenüber einer klassischen Durchgangsprüfung (niedriger Widerstand = gut)
+verkehrt wirken, ist aber explizite User-Vorgabe: die Ampel bewertet
+einheitlich nach der RISO-Logik (hoher Widerstand = bestanden), unabhängig
+davon, über welchen Pfad der Wert zustande kam - u.a. weil ein hoher
+Übergangswiderstand (z.B. durch Kontaktkorrosion an einer Klemme) durchaus
+real vorkommen kann und dann korrekt als Auffälligkeit markiert werden soll.
 
 **ZI / ZS** (Impedanz):
 `Vorimpedanz` (siehe unten) + alle `Widerstand`-Bauteile auf dem Pfad von der ersten

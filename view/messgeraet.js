@@ -322,11 +322,39 @@ function zeichneKastenIndikator(svg, cx, cy, { durchgestrichen = false, icon = '
   svg.appendChild(g);
 }
 
+const DISPLAY_RAHMEN_BREITE = 6;
+const DISPLAY_AUS_FARBE = '#333333';
+const DISPLAY_LEUCHTE_AUS_FARBE = '#999999';
+const DISPLAY_LEUCHTE_LINKS_AN_FARBE = '#ff6666'; // hellrot, heller als das Gehäuse-Rot
+const DISPLAY_LEUCHTE_RECHTS_AN_FARBE = '#66ee66'; // hellgrün
+
 function zeichneDisplay(svg, zustand) {
   const { x, y, breite, hoehe } = DISPLAY;
+  // Rahmen/Bezel um das Display, in derselben Farbe wie das ausgeschaltete
+  // Display selbst - wirkt dadurch wie ein durchgehender Rand, egal ob das
+  // Gerät gerade an oder aus ist.
+  svg.appendChild(svgEl('rect', {
+    x: x - DISPLAY_RAHMEN_BREITE, y: y - DISPLAY_RAHMEN_BREITE,
+    width: breite + 2 * DISPLAY_RAHMEN_BREITE, height: hoehe + 2 * DISPLAY_RAHMEN_BREITE,
+    rx: 6, fill: DISPLAY_AUS_FARBE
+  }));
+  // Leuchtstreifen links/rechts im Rahmen (Breite = Rahmenbreite, Höhe = exakt
+  // die Display-Höhe, damit die runden Rahmen-Ecken oben/unten dunkel
+  // bleiben) - Ampel-Funktion (aktuell nur von RISO genutzt, siehe
+  // controller/app.js risoTestKlick()/risoAmpel): links rot = "durchgefallen"
+  // (Spannung lag an, oder Messwert unter dem Grenzwert), rechts grün =
+  // "bestanden". Default (kein zustand.leuchteLinksAn/RechtsAn) ist grau.
+  svg.appendChild(svgEl('rect', {
+    x: x - DISPLAY_RAHMEN_BREITE, y, width: DISPLAY_RAHMEN_BREITE, height: hoehe,
+    fill: zustand.leuchteLinksAn ? DISPLAY_LEUCHTE_LINKS_AN_FARBE : DISPLAY_LEUCHTE_AUS_FARBE
+  }));
+  svg.appendChild(svgEl('rect', {
+    x: x + breite, y, width: DISPLAY_RAHMEN_BREITE, height: hoehe,
+    fill: zustand.leuchteRechtsAn ? DISPLAY_LEUCHTE_RECHTS_AN_FARBE : DISPLAY_LEUCHTE_AUS_FARBE
+  }));
   svg.appendChild(svgEl('rect', {
     x, y, width: breite, height: hoehe, rx: 4,
-    fill: zustand.an ? '#dddddd' : '#333333', stroke: '#444444', 'stroke-width': 1
+    fill: zustand.an ? '#dddddd' : DISPLAY_AUS_FARBE, stroke: '#444444', 'stroke-width': 1
   }));
 
   if (!zustand.an) return;

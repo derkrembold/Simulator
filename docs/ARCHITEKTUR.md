@@ -684,10 +684,26 @@ Pole).
   `Uci`/`t` unten links/rechts über dem Strich), V~ zeigt stattdessen drei Werte
   gestapelt zwischen den beiden Strichen (`hauptwertZeilen` statt `hauptwert` –
   Label links, Wert mittig in einer Spalte; kein `---`, da hier von Anfang an
-  ein fester Wert `0V` gezeigt wird statt eines TEST-Platzhalters). TEST-Taste
-  und Schrauben-Klicks zum Anlegen von Messpunkten sind noch nicht verdrahtet
-  (Buttons ohne `onKlick`-Callback sind nicht klickbar, siehe
-  `schraube()`/`taste()`-Muster in `schaltkasten.js`).
+  ein fester Wert `0V` gezeigt wird statt eines TEST-Platzhalters). Schrauben-
+  Klicks zum Anlegen von Messpunkten sind seit dem Messmodus verdrahtet
+  (siehe `app.js` unten), die TEST-Taste seit RISO (`test: risoTestKlick`) -
+  für ZI/ZS/FI/RCD/V~ ist sie weiterhin ohne `onKlick`-Callback und damit
+  nicht klickbar (siehe `schraube()`/`taste()`-Muster in `schaltkasten.js`).
+- **Display-Rahmen + Ampel-Leuchtstreifen:** `zeichneDisplay()` zeichnet vor
+  dem eigentlichen Display-Rechteck einen 6px breiten Rahmen
+  (`DISPLAY_RAHMEN_BREITE`), gefüllt in derselben Farbe wie das
+  ausgeschaltete Display (`DISPLAY_AUS_FARBE = '#333333'`) - wirkt dadurch
+  wie ein durchgehender Bezel, egal ob das Gerät an oder aus ist. Darüber
+  liegen zwei schmale Streifen-Rechtecke, exakt auf Display-Höhe begrenzt
+  (nicht die volle Rahmenhöhe, damit die runden Rahmen-Ecken oben/unten
+  dunkel bleiben): links `zustand.leuchteLinksAn` steuert
+  `DISPLAY_LEUCHTE_LINKS_AN_FARBE` (`#ff6666`, hellrot) vs.
+  `DISPLAY_LEUCHTE_AUS_FARBE` (`#999999`, grau), rechts analog
+  `zustand.leuchteRechtsAn` → `DISPLAY_LEUCHTE_RECHTS_AN_FARBE` (`#66ee66`,
+  hellgrün). Beide Felder sind optional und nur von RISO belegt (siehe
+  `risoAmpel` in `app.js` unten) - bei jeder anderen Funktion bleiben beide
+  Streifen grau, da `zustand.leuchteLinksAn`/`RechtsAn` dort `undefined`
+  sind.
 
 ```javascript
 // Beispiel (siehe controller/app.js)
@@ -976,25 +992,75 @@ Neu in `app.js`:
   `risoEffektiveAder()`) true ist, sonst `0`.
 - `risoTestKlick()` - an die TEST-Taste gebunden (`test: risoTestKlick` im
   Options-Objekt von `renderMessgeraet()`). Bricht ab, wenn Funktion nicht
-  RISO ist, eine der drei Messspitzen (Schwarz/Blau/Grün) fehlt,
-  `risoPaarTyp(schwarzAder, blauAder)` `null` liefert, oder Grün nicht auf PE
-  sitzt. Ist `berechneRisoSpannung() > 0` (Sicherheits-Verhalten: solange noch
-  Spannung anliegt, gibt es keinen Messwert), setzt `risoTestKlick()`
-  `risoMesswert` explizit auf `null` zurück - ein TEST-Klick bei anliegender
-  Spannung springt also aktiv auf den Platzhalter `R:---MΩ`, statt einen
-  älteren Messwert stehen zu lassen (z.B. wenn zwischen zwei TEST-Klicks ein
-  Schalter wieder geschlossen wurde). Sonst wie RLOW, aber mit den
-  **effektiven** Adern: `findePfadZwischenAdern()` + `berechneWiderstand()`;
-  kein Pfad → `risoMesswert = Infinity` (Sentinel, Anzeige `R:>999MΩ`).
+  RISO ist, eine der drei Messspitzen (Schwarz/Blau/Grün) fehlt, oder Grün
+  nicht auf PE sitzt. Für die Zulässigkeit des Schwarz/Blau-Paars gibt es
+  zwei Fälle: **gleiche Funktion** (`schwarzAder.funktion ===
+  blauAder.funktion`, außer PE) ist keine Isolationsmessung, sondern eine
+  reine Durchgangsprüfung auf einer Phase - hier greift `risoPaarTyp()`
+  bewusst NICHT (`gleicheFunktion`-Flag umgeht die Prüfung), stattdessen
+  direkt dieselbe Pfadsuche wie bei RLOW (User-Vorgabe: "das ging früher mal
+  so", ursprünglich als "ungültiges Paar" abgelehnt, dann bewusst revidiert -
+  siehe Test in `test_messgeraet.js`). **Unterschiedliche Funktion** braucht
+  weiterhin ein gültiges `risoPaarTyp(schwarzAder, blauAder)` (LN/LL), sonst
+  bricht der Klick ab. Ist `berechneRisoSpannung() > 0` (Sicherheits-
+  Verhalten: solange noch Spannung anliegt, gibt es keinen Messwert - bei
+  gleicher Funktion liegt ohnehin nie eine Spannung an, siehe
+  `risoPaarTyp()`, dieser Zweig greift dort also nie), setzt
+  `risoTestKlick()` `risoMesswert` explizit auf `null` zurück - ein
+  TEST-Klick bei anliegender Spannung springt also aktiv auf den Platzhalter
+  `R:---MΩ`, statt einen älteren Messwert stehen zu lassen (z.B. wenn
+  zwischen zwei TEST-Klicks ein Schalter wieder geschlossen wurde). Sonst wie
+  RLOW, aber mit den **effektiven** Adern (PE-als-N-Substitution greift nur
+  bei tatsächlicher PE-Beteiligung): `findePfadZwischenAdern()` +
+  `berechneWiderstand()`; kein Pfad → `risoMesswert = Infinity` (Sentinel,
+  Anzeige `R:>999MΩ`). **Einheit:** `berechneWiderstand()` summiert die
+  Fehlertabelle, die durchgehend in **Ω** angegeben ist (wie bei RLOW) - ein
+  endliches `risoMesswert` ist deshalb immer ein Ω-Wert, nie MΩ (frühere
+  Version hängte pauschal `MΩ` an, unabhängig von der tatsächlichen Quelle -
+  das war eine falsche Beschriftung, siehe `baueAnzeigeZustand()` unten für
+  die korrigierte Anzeige). Setzt am Ende außerdem `risoAmpel` (siehe unten):
+  im Spannungs-Abbruchzweig immer `'rot'`; sonst `'gruen'`, wenn
+  `risoMesswert === Infinity` oder `risoMesswert >= risoGrenzwertMOhm *
+  1_000_000` ist (Gleichstand zählt als bestanden), andernfalls `'rot'` - der
+  Grenzwert wird für den Vergleich extra mit `1_000_000` multipliziert (MΩ →
+  Ω), da `risoGrenzwertMOhm` in MΩ eingestellt ist, `risoMesswert` aber immer
+  in Ω vorliegt. Bewusste Konsequenz (User-Vorgabe, nicht versehentlich):
+  jeder reale Fehlertabellen-Wert liegt weit unter jedem sinnvollen
+  MΩ-Grenzwert, der "gleiche Funktion"-Fall zeigt also praktisch immer Rot,
+  sobald überhaupt ein Pfad existiert - nur `>999MΩ` (kein Pfad) ist Grün. Die
+  Ampel bewertet damit einheitlich nach der RISO-Logik (hoher Widerstand =
+  bestanden) für JEDEN Pfad-Fund, unabhängig von der Quelle, statt für den
+  "gleiche Funktion"-Fall eine umgekehrte (RLOW-typische) Schwelle zu
+  verwenden.
 - `risoMesswert` - neue State-Variable, startet `null` (Platzhalter). Wird bei
   **jeder** Messspitzen-Änderung und in `setzeBearbeitungenZurueck()`
   (Drehknopf-Wechsel, ON/OFF) auf `null` zurückgesetzt - anders als der
   Schalterzustand oben lebt dieser Messwert nur für den aktuellen
   Messvorgang, nicht persistent über Ein-/Ausschalten hinweg.
+- `risoGrenzwertMOhm` - Mindest-Isolationswiderstand, Default `50`, rechts
+  oben im Display angezeigt (`zustand.titelWertRechts`, ausgewählt über
+  `zone1Auswahl === 2`, da `titelWerte` für RISO nur einen Eintrag hat - die
+  Prüfspannung - und `titelWertRechts` deshalb Index `titelWerte.length + 1
+  = 2` bekommt). Per ▲/▼ in `aendereAusgewaehltesFeld()` in 10MΩ-Schritten
+  verstellbar (`Math.max(0, risoGrenzwertMOhm + richtung * 10)`, nach unten
+  bei 0 geklemmt, keine Obergrenze), Reset auf `50` in
+  `setzeBearbeitungenZurueck()`.
+- `risoAmpel` - neue State-Variable (`null | 'rot' | 'gruen'`), gesetzt in
+  `risoTestKlick()` (siehe oben). In `baueAnzeigeZustand()`s RISO-Zweig auf
+  `zustand.leuchteLinksAn`/`zustand.leuchteRechtsAn` (siehe messgeraet.js
+  oben) abgebildet - `'rot'` → nur links an, `'gruen'` → nur rechts an,
+  `null` → beide aus/grau. Reset auf `null` bei **jeder**
+  Messspitzen-Änderung (derselbe Codepfad wie der `risoMesswert`-Reset - ein
+  altes Ampel-Ergebnis gehört zur alten Messspitzen-Konfiguration) und in
+  `setzeBearbeitungenZurueck()` (Drehknopf-Wechsel, ON/OFF) - explizite
+  User-Vorgabe ("wenn wir den Drehschalter drehen, gehen die Leuchten aus").
 - `baueAnzeigeZustand()`s RISO-Zweig setzt zusätzlich
   `zustand.spannungUnterPe = \`${berechneRisoSpannung()}V\`` (immer ein Wert,
   nie ein Platzhalter, Default `0V`) und überschreibt `zustand.hauptwert` nur,
-  wenn `risoMesswert !== null`.
+  wenn `risoMesswert !== null` - mit korrigierter Einheit: `Infinity` →
+  `'R:>999MΩ'` (fester Text, kein echter MΩ-Wert), sonst
+  `` `R:${risoMesswert.toFixed(2).replace('.', ',')}Ω` `` (Ω, nicht MΩ, siehe
+  oben).
 
 Neu in `messgeraet.js`: `zeichneDisplay()` rendert `zustand.spannungUnterPe`
 unter dem halb gefüllten PE-Kreis (`x+177, kreisY+19`, Schriftgröße 9,
@@ -1003,12 +1069,14 @@ zentriert) - passt noch knapp vor die untere Display-Kante.
 Grenzen des Prototyps (bewusst akzeptiert, siehe KONZEPT.md): mit dem
 heutigen Graph-Modell sind L1/L2/L3/N vollständig getrennte Teilgraphen ohne
 Querverbindung, es gibt noch keinen Mechanismus, der künstlich einen
-Isolationsfehler zwischen zwei Funktionen einspeist. Der "Pfad gefunden"-Zweig
-in `risoTestKlick()` ist deshalb heute praktisch nie erreichbar - der Code ist
-aber bereits dafür strukturiert, sobald ein Fehlerfall-Mechanismus dafür
-existiert.
+Isolationsfehler ZWISCHEN ZWEI FUNKTIONEN einspeist (z.B. L1 gegen N). Der
+"Pfad gefunden"-Zweig in `risoTestKlick()` ist für diesen Fall deshalb heute
+praktisch nie erreichbar - der Code ist aber bereits dafür strukturiert,
+sobald ein Fehlerfall-Mechanismus dafür existiert. Für Schwarz/Blau auf
+DERSELBEN Funktion (Durchgangsprüfung, siehe `gleicheFunktion` oben) ist der
+"Pfad gefunden"-Zweig dagegen der Normalfall, genau wie bei RLOW.
 
-Getestet in `test_messgeraet.js` (12 Tests): Spannung liegt an → 230V
+Getestet in `test_messgeraet.js` (17 Tests): Spannung liegt an → 230V
 angezeigt, TEST wirkungslos; Schwarz/Blau vertauscht (Rollen-Symmetrie, siehe
 `risoPaarTyp()` oben) → dasselbe Ergebnis; Hauptschalter öffnen → 0V, TEST
 zeigt `R:>999MΩ`; RCD öffnen bei weiterhin geschlossenem Hauptschalter →
@@ -1016,14 +1084,19 @@ hinter dem RCD trotzdem 0V/messbar (der eingangs erwähnte
 Einspeisungs-Pfad-Test); TEST bei erneut anliegender Spannung setzt einen
 alten Messwert zurück auf den Platzhalter; 400V zwischen zwei verschiedenen
 Phasen (nur mit testcase_04 testbar, da dort L1/L2/L3 getrennt eingespeist
-werden); Grün nicht auf PE, ungültiges Paar (beide auf derselben Phase), und
-fehlende dritte Messspitze → TEST bleibt jeweils wirkungslos; eine
-Messspitzen-Änderung nach einem TEST-Klick macht den alten Messwert
-ungültig; N-Sonde auf PE statt N (siehe `risoEffektiveAder()` oben) → 230V
-werden trotzdem angezeigt, und die Erkennung eines offenen Hauptschalters
-funktioniert genauso wie bei korrekt platzierter N-Sonde. Dazu ein neuer
-Node-Test in `test_generator.js` für `istSpannungFuehrend()` direkt gegen
-den Graphen.
+werden); Schwarz/Blau auf derselben Phase verhält sich wie RLOW, aber in Ω
+statt MΩ angezeigt (Fehlertabellen-Wert bei geschlossenem Pfad, `>999MΩ` bei
+offenem Schalter dazwischen); Grün nicht auf PE und fehlende dritte
+Messspitze → TEST bleibt jeweils wirkungslos; eine Messspitzen-Änderung nach
+einem TEST-Klick macht den alten Messwert ungültig; N-Sonde auf PE statt N
+(siehe `risoEffektiveAder()` oben) → 230V werden trotzdem angezeigt, und die
+Erkennung eines offenen Hauptschalters funktioniert genauso wie bei korrekt
+platzierter N-Sonde. Dazu vier Ampel-Tests: Rot bei anliegender Spannung,
+Grün bei `>999MΩ` unabhängig vom Grenzwert, ein endlicher Messwert kippt von
+Rot auf Grün, sobald der Grenzwert unter den (in Ω umgerechneten) Messwert
+gesenkt wird, und Reset auf Grau nach einem vollen Drehknopf-Zyklus. Dazu ein
+Node-Test in `test_generator.js` für `istSpannungFuehrend()` direkt gegen den
+Graphen.
 
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen

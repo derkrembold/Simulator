@@ -105,8 +105,10 @@ async function start() {
       // RISOs R-Wert braucht dagegen einen TEST-Klick (siehe unten) - eine
       // Änderung an den Messspitzen macht einen alten Messwert aber ungültig,
       // darum hier zurücksetzen (die Spannungsanzeige selbst ist live, kein
-      // Reset nötig).
+      // Reset nötig). Die Ampel gehört zum selben Messvorgang wie der
+      // Messwert, geht also mit zurück auf aus/grau.
       risoMesswert = null;
+      risoAmpel = null;
       renderMessgeraet();
     } else {
       Popup.zeige({
@@ -235,6 +237,13 @@ async function start() {
   // gefunden ("gesund", zeigt `>999MΩ`), sonst der über die Fehlertabelle
   // summierte Widerstand wie bei RLOW.
   let risoMesswert = null;
+  // Ampel (Leuchtstreifen links/rechts im Display, siehe messgeraet.js) -
+  // zeigt das Ergebnis des letzten TEST-Klicks: `null` = aus/grau (noch kein
+  // TEST-Klick seit dem letzten Reset), `'rot'` = Spannung lag an ODER
+  // Messwert unter dem Grenzwert, `'gruen'` = Messwert über dem Grenzwert
+  // (inkl. Gleichstand) oder `>999MΩ`. Lebt wie risoMesswert nur für den
+  // aktuellen Messvorgang - siehe die risoAmpel-Resets unten.
+  let risoAmpel = null;
 
   function risoTestKlick() {
     if (messgeraetZustand.funktion !== 'RISO' || !graph) return;
@@ -247,13 +256,23 @@ async function start() {
     // vertauscht sein (risoPaarTyp() prüft symmetrisch), Grün muss immer PE
     // sein.
     if (!schwarzAder || !blauAder || !gruenAder) return;
-    if (!risoPaarTyp(schwarzAder, blauAder)) return;
+    // Schwarz/Blau auf derselben Funktion (z.B. beide L1) ist keine
+    // Isolationsmessung, sondern schlicht eine Durchgangsprüfung auf einer
+    // Phase - dieselbe Pfadsuche wie bei RLOW (Fehlertabelle-Summe, oder
+    // `Infinity`/`>999MΩ` bei offenem Schalter dazwischen), unabhängig von
+    // risoPaarTyp()/der L-N/L-L-Spannungslogik. PE-PE bewusst ausgenommen
+    // (Grün deckt PE schon separat ab, PE selbst ist nicht im Graphen).
+    const gleicheFunktion = schwarzAder.funktion === blauAder.funktion && schwarzAder.funktion !== 'PE';
+    if (!gleicheFunktion && !risoPaarTyp(schwarzAder, blauAder)) return;
     if (gruenAder.funktion !== 'PE') return;
     // Sicherheits-Verhalten wie beim echten Gerät: solange Spannung anliegt,
     // springt R auf den Platzhalter zurück, statt einen alten Messwert stehen
-    // zu lassen.
+    // zu lassen. Bei gleicher Funktion liegt zwischen Schwarz/Blau ohnehin
+    // nie eine Spannung an (0V, siehe risoPaarTyp()), dieser Zweig greift
+    // dort also nie. Ampel: Spannung anliegend = "durchgefallen" (rot).
     if (berechneRisoSpannung() > 0) {
       risoMesswert = null;
+      risoAmpel = 'rot';
       renderMessgeraet();
       return;
     }
@@ -261,7 +280,20 @@ async function start() {
     const schwarzEffektiv = risoEffektiveAder(schwarzAder);
     const blauEffektiv = risoEffektiveAder(blauAder);
     const pfad = findePfadZwischenAdern(schwarzEffektiv.funktion, schwarzEffektiv, blauEffektiv);
+    // berechneWiderstand() summiert die Fehlertabelle - die ist immer in Ω
+    // angegeben (wie bei RLOW), nie in MΩ. `risoMesswert` ist deshalb IMMER
+    // ein Ω-Wert, wenn endlich; nur der Infinity-Sentinel wird als „>999MΩ"
+    // dargestellt (siehe baueAnzeigeZustand() unten).
     risoMesswert = pfad ? berechneWiderstand(graph, pfad) : Infinity;
+    // Ampel: Grenzwert ist in MΩ eingestellt, risoMesswert aber in Ω - für
+    // den Vergleich deshalb den Grenzwert in Ω umrechnen (*1_000_000), statt
+    // den Messwert zu dividieren (Rundungsfehler bei sehr kleinen Werten).
+    // >999MΩ (kein Pfad) liegt immer über jedem endlichen Grenzwert -> grün.
+    // Sonst grün ab (einschließlich) Grenzwert, sonst rot. Das gilt bewusst
+    // einheitlich für jeden Pfad-Fund (auch den "gleiche Funktion"-Fall) -
+    // ein niedriger Ω-Wert liegt bei jedem realistischen Grenzwert (MΩ-
+    // Bereich) praktisch immer darunter und zeigt deshalb Rot.
+    risoAmpel = risoMesswert === Infinity || risoMesswert >= risoGrenzwertMOhm * 1_000_000 ? 'gruen' : 'rot';
     renderMessgeraet();
   }
 
@@ -297,6 +329,10 @@ async function start() {
   let rlowKalibrierterWiderstand = 0.4;
   const RISO_MESSSPANNUNGEN = ['50V', '100V', '250V', '500V', '1000V'];
   let risoMessspannungIndex = RISO_MESSSPANNUNGEN.indexOf('500V');
+  // Grenzwert (Mindest-Isolationswiderstand), rechtsbündig im Display (siehe
+  // titelWertRechts) - per ▲/▼ in 10MΩ-Schritten einstellbar, siehe
+  // aendereAusgewaehltesFeld().
+  let risoGrenzwertMOhm = 50;
   // ZI: LS-Typ/Bemessungsstrom/Abschaltzeit einzeln per ◄► auswählbar, dann
   // per ▲/▼ durch die jeweilige Werteliste wandern (Bemessungsstrom siehe
   // docs/referenz/bauteilwerte.md). An beiden Enden geklemmt, wie bei RISO.
@@ -373,16 +409,29 @@ async function start() {
       }
     } else if (funktion === 'RISO') {
       zustand.titelWerte = [RISO_MESSSPANNUNGEN[risoMessspannungIndex]];
+      // Grenzwert (Mindest-Isolationswiderstand nach Norm) rechtsbündig am
+      // Display-Rand, analog zur ZI-ΔU-Ansicht (siehe titelWertRechts unten) -
+      // per ▲/▼ einstellbar (aendereAusgewaehltesFeld()), Default 50MΩ.
+      zustand.titelWertRechts = `${risoGrenzwertMOhm}MΩ`;
       // Live, unabhängig von TEST - siehe berechneRisoSpannung(). Immer ein
       // Wert (Default 0V), nie ein Platzhalter.
       zustand.spannungUnterPe = `${berechneRisoSpannung()}V`;
       // R-Wert nur nach TEST-Klick (siehe risoTestKlick()) - Platzhalter aus
       // zustandFuerFunktion() bleibt stehen, solange risoMesswert null ist.
+      // Einheit: risoMesswert ist (wenn endlich) immer ein Ω-Wert aus der
+      // Fehlertabelle (siehe risoTestKlick()) - nur der Infinity-Sentinel
+      // wird als „>999MΩ" dargestellt (kein echter MΩ-Wert, sondern ein
+      // fester "außerhalb der Skala"-Text).
       if (risoMesswert !== null) {
         zustand.hauptwert = risoMesswert === Infinity
           ? 'R:>999MΩ'
-          : `R:${risoMesswert.toFixed(2).replace('.', ',')}MΩ`;
+          : `R:${risoMesswert.toFixed(2).replace('.', ',')}Ω`;
       }
+      // Ampel (siehe risoTestKlick()) - links rot bei "durchgefallen", rechts
+      // grün bei "bestanden", sonst beide aus/grau (kein TEST-Klick seit dem
+      // letzten Reset).
+      zustand.leuchteLinksAn = risoAmpel === 'rot';
+      zustand.leuchteRechtsAn = risoAmpel === 'gruen';
     } else if (funktion === 'ZI') {
       const ziTitelWerte = [
         ZI_LS_TYPEN[ziLsTypIndex],
@@ -459,7 +508,9 @@ async function start() {
     titelZeigtLabel = false;
     rlowKalibrierterWiderstand = 0.4;
     risoMessspannungIndex = RISO_MESSSPANNUNGEN.indexOf('500V');
+    risoGrenzwertMOhm = 50;
     risoMesswert = null;
+    risoAmpel = null;
     ziLsTypIndex = ZI_LS_TYPEN.indexOf('B');
     ziBemessungsstromIndex = ZI_BEMESSUNGSSTROEME.indexOf('16A');
     ziAbschaltzeitIndex = ZI_ABSCHALTZEITEN.indexOf('0,4s');
@@ -522,6 +573,9 @@ async function start() {
       rlowKalibrierterWiderstand = Math.max(0, Math.round((rlowKalibrierterWiderstand + richtung * 0.1) * 10) / 10);
     } else if (funktion === 'RISO' && zone1Auswahl === 1) {
       risoMessspannungIndex = klemmeIndex(risoMessspannungIndex, richtung, RISO_MESSSPANNUNGEN.length - 1);
+    } else if (funktion === 'RISO' && zone1Auswahl === 2) {
+      // Grenzwert (titelWertRechts) - 10MΩ-Schritte, nicht negativ.
+      risoGrenzwertMOhm = Math.max(0, risoGrenzwertMOhm + richtung * 10);
     } else if (funktion === 'ZI' && titelZeigtLabel) {
       // ΔU-Ansicht: 1=Spannungsfall%, 2=LS-Typ, 3=Bemessungsstrom,
       // 4=Abschaltzeit (rechtsbündig, titelWertRechts) - andere Reihenfolge

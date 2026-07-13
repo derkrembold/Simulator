@@ -44,6 +44,17 @@ async function displayTexte(page) {
   );
 }
 
+// Füllfarben der beiden Ampel-Leuchtstreifen links/rechts im Display-Rahmen
+// (siehe view/messgeraet.js zeichneDisplay(), 6px breit, Display-Höhe) - in
+// der Reihenfolge [links, rechts].
+async function ampelFarben(page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('#messgeraet svg rect')]
+      .filter((r) => r.getAttribute('width') === '6' && r.getAttribute('height') === '190')
+      .map((r) => r.getAttribute('fill'))
+  );
+}
+
 async function klick(page, label) {
   await page.getByText(label, { exact: true }).click();
 }
@@ -55,6 +66,14 @@ async function drehknopfKlick(page) {
 function erwarte(texte, wert, kontext) {
   if (!texte.includes(wert)) {
     throw new Error(`${kontext}: erwarte "${wert}" im Display, gefunden: [${texte.join(', ')}]`);
+  }
+}
+
+function erwarteGleich(tatsaechlich, erwartet, kontext) {
+  const t = JSON.stringify(tatsaechlich);
+  const e = JSON.stringify(erwartet);
+  if (t !== e) {
+    throw new Error(`${kontext}: erwarte ${e}, gefunden ${t}`);
   }
 }
 
@@ -181,6 +200,30 @@ async function main() {
     erwarte(await displayTexte(page), '1000V', 'RISO obere Grenze');
     await klick(page, '▲');
     erwarte(await displayTexte(page), '1000V', 'RISO bleibt bei oberer Grenze geklemmt');
+    await page.close();
+  });
+
+  await pruefe('RISO: Grenzwert (rechtsbündig) in 10MΩ-Schritten einstellbar, unten bei 0 geklemmt, Reset auf 50MΩ', async () => {
+    const page = await neueSeite();
+    await drehknopfKlick(page); // RLOW -> RISO
+    erwarte(await displayTexte(page), '50MΩ', 'RISO Grenzwert-Default');
+
+    await klick(page, '◄►'); // 0=Titel -> 1=Prüfspannung
+    await klick(page, '◄►'); // 1=Prüfspannung -> 2=Grenzwert
+
+    await klick(page, '▲');
+    await klick(page, '▲');
+    erwarte(await displayTexte(page), '70MΩ', 'Grenzwert nach 2x ▲ (50+2*10)');
+
+    await klick(page, '▼');
+    erwarte(await displayTexte(page), '60MΩ', 'Grenzwert nach 1x ▼');
+
+    for (let i = 0; i < 10; i++) await klick(page, '▼');
+    erwarte(await displayTexte(page), '0MΩ', 'Grenzwert bleibt bei 0 geklemmt, wird nicht negativ');
+
+    await drehknopfKlick(page); // RISO -> ZI (Bearbeitung geht verloren)
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // voller Zyklus zurück zu RISO
+    erwarte(await displayTexte(page), '50MΩ', 'Grenzwert nach Funktionswechsel zurück auf Default');
     await page.close();
   });
 
@@ -712,23 +755,36 @@ async function main() {
     await page.close();
   });
 
-  // risoPaarTyp() prüft eine echte Pfad-Suche kann zwischen fast beliebigen
-  // zwei Punkten einen Widerstand finden (siehe RLOW) - für RISO ist ein
-  // Paar auf derselben Phase (oder beide auf N) aber KEINE gültige
-  // Isolationsmessung und muss deshalb abgelehnt werden, obwohl der Graph
-  // dafür technisch einen Wert berechnen könnte.
-  await pruefe('RISO: Schwarz und Blau auf derselben Phase (L1) -> ungültiges Paar, TEST wirkungslos', async () => {
+  // Schwarz+Blau auf derselben Phase ist keine Isolationsmessung (dafür gibt
+  // es risoPaarTyp() für L-N/L-L), sondern schlicht eine Durchgangsprüfung -
+  // TEST verhält sich hier wie RLOW: Fehlertabelle-Summe bei geschlossenem
+  // Pfad, `>999MΩ` bei unterbrochenem (User-Vorgabe, "das ging früher mal").
+  // Die Fehlertabelle ist immer in Ω (wie bei RLOW), die Anzeige zeigt bei
+  // einem endlichen Pfad-Ergebnis deshalb "Ω", nicht "MΩ" - nur der
+  // Infinity-Sentinel bleibt "R:>999MΩ". Die Ampel vergleicht trotzdem gegen
+  // den MΩ-Grenzwert (umgerechnet in Ω, ×1.000.000) - ein realistischer
+  // Ω-Wert liegt darunter praktisch immer -> rot, nur >999MΩ ist grün.
+  await pruefe('RISO: Schwarz und Blau auf derselben Phase (L1) verhält sich wie RLOW (in Ω, nicht MΩ)', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     await drehknopfKlick(page);
 
-    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1 (vor RCD1)
     await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // blau, ebenfalls L1 (RCD1.o1)
     await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
 
-    erwarte(await displayTexte(page), '0V', 'Keine gültige RISO-Kombination -> keine Spannungsanzeige');
+    erwarte(await displayTexte(page), '0V', 'Zwischen zwei Punkten derselben Phase liegt keine Spannung an');
 
     await klick(page, 'TEST');
-    erwarte(await displayTexte(page), 'R:---MΩ', 'Ungültiges Paar (beide L1) liefert keinen Messwert');
+    erwarte(await displayTexte(page), 'R:0,10Ω', 'RCD1 geschlossen -> Fehlertabellen-Wert von N6 (0,1Ω) wie bei RLOW, in Ω');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '0,10Ω liegt weit unter dem MΩ-Grenzwert -> Ampel rot');
+
+    await rcd1.click(); // RCD1 öffnen -> Pfad zwischen den beiden L1-Punkten unterbrochen
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'RCD1 offen -> kein Pfad mehr, >999MΩ');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '>999MΩ liegt immer über dem Grenzwert -> Ampel grün');
     await page.close();
   });
 
@@ -796,6 +852,87 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:>999MΩ', 'TEST liefert nach Spannungswegfall einen Messwert');
+    await page.close();
+  });
+
+  // Ampel (Leuchtstreifen links/rechts im Display-Rahmen, siehe
+  // controller/app.js risoAmpel/risoTestKlick()): links rot = "durchgefallen"
+  // (Spannung an, oder Messwert < Grenzwert), rechts grün = "bestanden"
+  // (Messwert >= Grenzwert, oder >999MΩ). Vor dem ersten TEST-Klick bzw. nach
+  // einem Reset (Drehknopf) sind beide grau.
+  await pruefe('RISO: Ampel zeigt rot, solange Spannung anliegt', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    erwarteGleich(await ampelFarben(page), ['#999999', '#999999'], 'Ampel-Default vor TEST');
+
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Ampel rot bei anliegender Spannung');
+    await page.close();
+  });
+
+  await pruefe('RISO: Ampel grün bei >999MΩ, unabhängig vom eingestellten Grenzwert', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 offen, damit keine Spannung anliegt
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, RCD1.o1 (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, RCD1.o2 (N)
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'Kein Pfad zwischen L1 und N (getrennte Teilgraphen)');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '>999MΩ ist immer über jedem Grenzwert -> grün');
+    await page.close();
+  });
+
+  // Zeigt, dass der Grenzwert wirklich in den Vergleich eingeht (nicht nur
+  // der Infinity-Sonderfall): derselbe endliche Messwert kippt von rot auf
+  // grün, sobald der Grenzwert unter den (in Ω umgerechneten) Messwert
+  // gesenkt wird.
+  await pruefe('RISO: Grenzwert senken kippt einen endlichen Messwert von rot auf grün', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // blau, ebenfalls L1 (RCD1.o1)
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:0,10Ω', 'Fehlertabellen-Wert von N6 (0,1Ω)');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '0,10Ω < 50MΩ (=50.000.000Ω) -> rot');
+
+    await klick(page, '◄►'); // 0=Titel -> 1=Prüfspannung
+    await klick(page, '◄►'); // 1=Prüfspannung -> 2=Grenzwert
+    for (let i = 0; i < 5; i++) await klick(page, '▼'); // Grenzwert auf 0MΩ klemmen
+    erwarte(await displayTexte(page), '0MΩ', 'Grenzwert auf 0MΩ gesenkt');
+
+    await klick(page, 'TEST'); // erneut messen, jetzt mit gesenktem Grenzwert
+    erwarte(await displayTexte(page), 'R:0,10Ω', 'Messwert unverändert');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '0,10Ω >= 0Ω (Grenzwert 0MΩ) -> grün');
+    await page.close();
+  });
+
+  await pruefe('RISO: Drehknopf-Wechsel setzt die Ampel zurück auf grau', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+    await klick(page, 'TEST');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Ampel rot vor dem Drehknopf-Wechsel');
+
+    await drehknopfKlick(page); // RISO -> ZI
+    await drehknopfKlick(page); // ZI -> ZS
+    for (let i = 0; i < 4; i++) await drehknopfKlick(page); // ZS -> FI/RCD -> V~ -> RLOW -> RISO
+    erwarteGleich(await ampelFarben(page), ['#999999', '#999999'], 'Ampel wieder grau nach vollem Zyklus zurück zu RISO');
     await page.close();
   });
 

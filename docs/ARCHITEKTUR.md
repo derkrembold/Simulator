@@ -510,11 +510,14 @@ Pole).
   Bemessungsstrom/Abschaltzeit; FI/RCD: Fehlerstrom/Typ) können dagegen schon
   vorher als Platzhalter erscheinen. Bei ZI/ZS wird zusätzlich `Lim`
   (Mindestauslösestrom) automatisch aus LS-Typ **und** Bemessungsstrom berechnet:
-  `Lim = Faktor(lsTyp) × Bemessungsstrom` (`LIM_FAKTOR_NACH_LS_TYP` +
-  `berechneLimText()`, beide aus `view/messgeraet.js` exportiert und auch von
-  `controller/app.js` für die Live-Neuberechnung genutzt, siehe unten) – kein
-  fest gespeicherter Wert, bleibt also automatisch konsistent, falls sich einer der
-  beiden Eingabewerte später ändert. Der Hauptmesswert ist normalerweise mittig
+  `Lim = Faktor(lsTyp) × Bemessungsstrom` (`LIM_FAKTOR_NACH_LS_TYP`, modulintern
+  in `view/messgeraet.js`, nicht exportiert). Zwei Varianten exportiert:
+  `berechneLimText()` (formatierter Text `Lim: X,XA`, für die Anzeige) und
+  `berechneLim()` (roher Zahlenwert, seit der Isc/Lim-Ampel bei ZI gebraucht -
+  siehe `controller/app.js` unten). Beide von `controller/app.js` für die
+  Live-Neuberechnung genutzt – kein fest gespeicherter Wert, bleibt also
+  automatisch konsistent, falls sich einer der beiden Eingabewerte später
+  ändert. Der Hauptmesswert ist normalerweise mittig
   ausgerichtet, bei FI/RCD über `hauptwertLinksAligniert: true` links (Platz für
   `Uci`/`t` darunter). Noch keins davon an eine echte Netzplan-Berechnung
   angebunden.
@@ -686,9 +689,11 @@ Pole).
   Label links, Wert mittig in einer Spalte; kein `---`, da hier von Anfang an
   ein fester Wert `0V` gezeigt wird statt eines TEST-Platzhalters). Schrauben-
   Klicks zum Anlegen von Messpunkten sind seit dem Messmodus verdrahtet
-  (siehe `app.js` unten), die TEST-Taste seit RISO (`test: risoTestKlick`) -
-  für ZI/ZS/FI/RCD/V~ ist sie weiterhin ohne `onKlick`-Callback und damit
-  nicht klickbar (siehe `schraube()`/`taste()`-Muster in `schaltkasten.js`).
+  (siehe `app.js` unten), die TEST-Taste über den `testKlick()`-Dispatcher
+  seit RISO und ZI (ruft je nach `messgeraetZustand.funktion` `risoTestKlick()`
+  bzw. `ziTestKlick()` auf, siehe dort) - für ZS/FI/RCD/V~ ist sie weiterhin
+  ohne Effekt, da `testKlick()` für diese Funktionen keinen Handler aufruft
+  (siehe `schraube()`/`taste()`-Muster in `schaltkasten.js`).
 - **Display-Rahmen + Ampel-Leuchtstreifen:** `zeichneDisplay()` zeichnet vor
   dem eigentlichen Display-Rechteck einen 6px breiten Rahmen
   (`DISPLAY_RAHMEN_BREITE`), gefüllt in derselben Farbe wie das
@@ -990,8 +995,8 @@ Neu in `app.js`:
   `0`. Liefert den Spannungswert (230V bei `'LN'`, 400V bei `'LL'`) nur, wenn
   `istSpannungFuehrend()` für die **effektiven** Adern (nach
   `risoEffektiveAder()`) true ist, sonst `0`.
-- `risoTestKlick()` - an die TEST-Taste gebunden (`test: risoTestKlick` im
-  Options-Objekt von `renderMessgeraet()`). Bricht ab, wenn Funktion nicht
+- `risoTestKlick()` - an die TEST-Taste gebunden (über den `testKlick()`-
+  Dispatcher, siehe ZI-Abschnitt unten). Bricht ab, wenn Funktion nicht
   RISO ist, eine der drei Messspitzen (Schwarz/Blau/Grün) fehlt, oder Grün
   nicht auf PE sitzt. Für die Zulässigkeit des Schwarz/Blau-Paars gibt es
   zwei Fälle: **gleiche Funktion** (`schwarzAder.funktion ===
@@ -1097,6 +1102,128 @@ Rot auf Grün, sobald der Grenzwert unter den (in Ω umgerechneten) Messwert
 gesenkt wird, und Reset auf Grau nach einem vollen Drehknopf-Zyklus. Dazu ein
 Node-Test in `test_generator.js` für `istSpannungFuehrend()` direkt gegen den
 Graphen.
+
+**ZI (Schleifenimpedanz) - prototypisch umgesetzt.** Anders als RLOW/RISO
+sitzen die beiden Messspitzen bei ZI auf UNTERSCHIEDLICHEN Funktionen (Schwarz
+auf L1/L2/L3, Blau auf N) OHNE vertauschbare Rollen (kein `risoPaarTyp()`-
+Äquivalent - Schwarz muss L sein, Blau muss N sein) und ohne gemeinsamen
+Teilgraphen - `findePfadZwischenAdern()` greift hier also nicht.
+
+Neu in `app.js`:
+- `findePfadZurEinspeisung(funktion, ader)` - wie `findePfadZwischenAdern()`,
+  aber von `graph.einspeisung[funktion]` zu einer einzelnen Ader (probiert
+  wie üblich alle Netz-IDs inkl. `ader.weitere`). `null`, wenn kein
+  Einspeisungs-Netz für die Funktion bekannt ist oder kein Pfad existiert.
+  Wird von RISO nicht gebraucht (das nutzt `istSpannungFuehrend()`, das nur
+  einen Boolean statt des Pfad-Arrays braucht), aber von ZI, wo aus dem Pfad
+  ja noch die Fehlertabelle summiert werden muss.
+- `ZI_VORIMPEDANZ = 0.14` - feste Basisimpedanz (siehe KONZEPT.md
+  "Konfigurierbare Parameter"), noch kein Netzplan-Feld.
+- `ziMesswert` - State-Variable wie `risoMesswert`, startet `null`
+  (Platzhalter `Z:---Ω` aus `zustandFuerFunktion()`). Reset an denselben
+  beiden Stellen wie `risoMesswert`/`risoAmpel` (Messspitzen-Änderung im
+  Schraube-Klick-Handler, `setzeBearbeitungenZurueck()` bei Drehknopf-Wechsel
+  und ON/OFF).
+- `ziTestKlick()` - an die TEST-Taste gebunden (siehe `testKlick()`-Dispatcher
+  unten). Bricht ab, wenn Funktion nicht ZI ist, eine der beiden Messspitzen
+  fehlt, Schwarz nicht auf L1/L2/L3 sitzt, oder Blau nicht auf N sitzt (PE
+  spielt bei ZI keine Rolle, siehe `messpunkte: {pe: 'leer'}` in
+  `messgeraet.js`). Sucht dann **zwei getrennte Pfade** über
+  `findePfadZurEinspeisung()` (L-Sonde → L-Einspeisung, N-Sonde →
+  N-Einspeisung) - **beide** müssen existieren, bevor TEST überhaupt einen
+  Effekt hat (explizite User-Vorgabe: die Verbindung zur Einspeisung wird
+  VOR der eigentlichen Messung geprüft, kein `>999Ω`-Sentinel wie bei RISO,
+  da ZI ohnehin ein spannungsführendes Netz voraussetzt statt ein
+  spannungsfreies - fehlt einer der beiden Pfade, bleibt der Platzhalter
+  einfach stehen). Sind beide Pfade da:
+  `ziMesswert = berechneWiderstand(graph, pfadL) + berechneWiderstand(graph,
+  pfadN) + ZI_VORIMPEDANZ`.
+- `testKlick()` - neuer Dispatcher, an `MessgeraetView.render()`s
+  Options-Objekt gebunden (ersetzt das bisherige direkte `test:
+  risoTestKlick`). Ruft je nach `messgeraetZustand.funktion` `risoTestKlick()`
+  oder `ziTestKlick()` - beide Handler prüfen ihre Funktion ohnehin selbst
+  noch einmal, der Dispatcher dient nur der Übersicht, nicht der Absicherung.
+- `berechneZiSpannung()` - **live**, strukturell identisch zu
+  `berechneRisoSpannung()`, aber mit umgekehrtem Zweck: RISO warnt "hier
+  liegt noch Spannung an, TEST wirkt nicht", ZI zeigt "der Stromkreis ist
+  bereit, TEST wird einen Messwert liefern". Verlangt Schwarz auf L1/L2/L3
+  und Blau auf N (kein LN/LL-Unterschied wie bei RISO, ZI misst immer nur
+  L-N); liefert `230` nur, wenn `istSpannungFuehrend()` für **beide** Adern
+  true ist, sonst `0` (nie `400`, anders als bei RISO).
+- `baueAnzeigeZustand()`s ZI-Zweig setzt `zustand.spannungUnterPe =
+  \`${berechneZiSpannung()}V\`` (immer ein Wert, nie ein Platzhalter, wie bei
+  RISO) - **vor** der `titelZeigtLabel`-Verzweigung, gilt also für beide
+  Ansichten (normale Zl-Ansicht UND ΔU-Ansicht) gleichermaßen, da die
+  Messpunkte-Kreise darunter in beiden Ansichten identisch bleiben. Nur die
+  normale Zl-Ansicht (nicht die ΔU-Ansicht - deren `Z:___Ω`-Zeile bleibt
+  vorerst ein reiner Platzhalter) überschreibt zusätzlich `zustand.hauptwert`
+  mit `` `Z:${ziMesswert.toFixed(2).replace('.', ',')}Ω` ``, wenn
+  `ziMesswert !== null` - und im selben `if`-Block `zustand.nebenwertLinks`
+  (unten links über dem Strich, siehe `messgeraet.js`) mit `` `Isc:${((0.9 *
+  230) / ziMesswert).toFixed(1).replace('.', ',')}A` ``: $I_{sc} = 0{,}9
+  \times 230V / Z$ (Sicherheitsfaktor, siehe KONZEPT.md "Berechnung der
+  Messwerte"). Beide hängen an derselben Bedingung, überschreibt also den
+  Default-Platzhalter `nebenwertLinks: 'Isc:---A'` aus
+  `zustandFuerFunktion()` nur gemeinsam mit `hauptwert`. Im selben `if`-Block
+  außerdem die Isc/Lim-Ampel: `const lim = MessgeraetView.berechneLim(
+  ziTitelWerte[0], ziTitelWerte[1])` (neu exportierte Funktion, roher
+  Zahlenwert statt des formatierten `Lim: X,XA`-Texts aus
+  `berechneLimText()` - beide teilen sich jetzt dieselbe Formel, siehe
+  `messgeraet.js`), dann `zustand.leuchteLinksAn = isc < lim` /
+  `zustand.leuchteRechtsAn = isc >= lim`. Bewusst **live** aus dem
+  aktuellen `ziLsTypIndex`/`ziBemessungsstromIndex` berechnet statt als
+  eigener TEST-Snapshot (anders als `risoAmpel`, das eine echte
+  State-Variable ist) - Isc selbst ändert sich nur durch einen neuen
+  TEST-Klick, Lim kann sich aber per ▲/▼ jederzeit live ändern (siehe
+  `nebenwertRechts` oben), die Ampel zieht also sofort mit, ohne dass es
+  einer eigenen Reset-Logik bedarf. An derselben Stelle
+  wird außerdem
+  `zustand.indikatorDurchgestrichen = ziSpannung === 0` gesetzt (überschreibt
+  den statischen `indikatorDurchgestrichen: true` aus
+  `DREHKNOPF_POSITIONEN`): liegt Spannung an, zeigt der Pfeil-Kasten unten
+  links (siehe `zeichneKastenIndikator()` in `messgeraet.js`) bewusst KEINEN
+  Diagonal-Strich mehr - explizite User-Vorgabe, nur für ZI, RISO bleibt
+  unverändert immer durchgestrichen (dort bedeutet anliegende Spannung ja
+  gerade "TEST wirkt nicht", nicht "bereit"). **Direkt danach:** `if
+  (ziSpannung === 0) ziMesswert = null;` - fällt die Spannung weg (Pfeil-
+  Kasten wird wieder durchgestrichen), wird ein zuvor per TEST ermittelter
+  Wert sofort ungültig, auch OHNE dass sich die Messspitzen ändern (z.B. weil
+  währenddessen ein Schalter geöffnet wurde) - der Platzhalter erscheint
+  sofort beim nächsten Render, nicht erst nach der nächsten
+  Messspitzen-Änderung. Kommt die Spannung später zurück, bleibt
+  `ziMesswert` trotzdem `null`, bis `ziTestKlick()` erneut aufgerufen wird -
+  ein alter Messwert taucht nicht automatisch wieder auf. Bewusst als
+  Seiteneffekt in `baueAnzeigeZustand()` (nicht in einer eigenen
+  Reset-Funktion), da hier bei jedem Render ohnehin schon `ziSpannung` frisch
+  berechnet wird.
+
+Getestet in `test_messgeraet.js` (11 Tests, meist mit testcase_01, da
+`neueSeite()`s Default-Anlage `beispiel_eg.json` keinen Netzplan/Graph hat):
+TEST summiert Vorimpedanz + Fehlertabelle beider Teilpfade und berechnet Isc
+daraus (`Z:0,24Ω` = 0,14Ω Vorimpedanz + 0,1Ω Fehlertabelle N6 + 0Ω N-Seite,
+`Isc:862,5A` = 0,9×230V/0,24Ω, Isc/Lim-Ampel grün, da 862,5A > 80,0A);
+Isc/Lim-Ampel kippt live auf rot, wenn LS-Typ/Bemessungsstrom per ▲/▼ so
+verändert werden, dass Lim über den unverändert gebliebenen Isc-Wert steigt
+(D-Charakteristik, 125A → Lim 2500,0A); testcase_01 SK1 (Ausgangsschrauben
+N13/N14) mit realistischerem Bemessungsstrom (B, 125A statt künstlich hoher
+D-Charakteristik) - Messung läuft normal durch (`Z:0,74Ω`, `Isc:279,7A`),
+Lim (625,0A) liegt aber darüber → Ampel zeigt trotzdem "durchgefallen";
+testcase_02 (SK1,
+Ausgangsschrauben N18/N19) summiert MEHRERE Fehlertabellen-Einträge entlang
+eines einzigen Teilpfads (`Z:0,94Ω` = 0,5Ω L-Pfad aus drei Einträgen N8/N14/N18
++ 0,3Ω N-Pfad aus N10 + 0,14Ω Vorimpedanz), dasselbe nochmal mit C/63A statt
+B/16A (`Isc:220,2A` < `Lim: 630,0A` → wieder "durchgefallen", zeigt dass die
+Ampel testcase-unabhängig korrekt gegen die jeweils eingestellte
+LS-Charakteristik vergleicht), und mit offenem RCD1 davor →
+0V, Pfeil-Kasten durchgestrichen, TEST bleibt wirkungslos; offenes RCD
+(testcase_01) unterbricht beide Teilpfade zur Einspeisung → TEST bleibt wirkungslos;
+Messspitzen-Änderung setzt den Messwert zurück; Drehknopf-Wechsel setzt den
+Messwert zurück; Live-Spannungsanzeige zeigt 230V bei geschlossenen
+Teilpfaden (Pfeil-Kasten dabei undurchgestrichen), 0V sobald RCD1 öffnet
+(Pfeil-Kasten wieder durchgestrichen); Wegfall der Spannung setzt sowohl Z
+als auch Isc zurück auf den Platzhalter, auch ohne Messspitzen-Änderung, und
+beide bleiben stehen, bis nach Rückkehr der Spannung erneut TEST gedrückt
+wird.
 
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen

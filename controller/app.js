@@ -106,9 +106,11 @@ async function start() {
       // Änderung an den Messspitzen macht einen alten Messwert aber ungültig,
       // darum hier zurücksetzen (die Spannungsanzeige selbst ist live, kein
       // Reset nötig). Die Ampel gehört zum selben Messvorgang wie der
-      // Messwert, geht also mit zurück auf aus/grau.
+      // Messwert, geht also mit zurück auf aus/grau. ZIs Z-Wert ist ebenso
+      // TEST-gebunden, derselbe Reset-Grund gilt dort analog.
       risoMesswert = null;
       risoAmpel = null;
+      ziMesswert = null;
       renderMessgeraet();
     } else {
       Popup.zeige({
@@ -147,6 +149,22 @@ async function start() {
         const pfad = findePfad(graph, funktion, netzA, netzB);
         if (pfad) return pfad;
       }
+    }
+    return null;
+  }
+
+  // Wie findePfadZwischenAdern(), aber von der Einspeisung (graph.einspeisung)
+  // zu einer Ader - für ZI/ZS gebraucht, wo Schwarz und Blau auf
+  // UNTERSCHIEDLICHEN Funktionen sitzen (L vs. N) und deshalb kein
+  // gemeinsamer Teilgraph existiert, in dem man direkt zwischen ihnen suchen
+  // könnte (siehe berechneZiMesswert() unten). null, wenn kein
+  // Einspeisungs-Netz für die Funktion bekannt ist oder kein Pfad existiert.
+  function findePfadZurEinspeisung(funktion, ader) {
+    const einspeisungsNetz = graph?.einspeisung?.[funktion];
+    if (!einspeisungsNetz) return null;
+    for (const netz of alleNetzeVonAder(ader)) {
+      const pfad = findePfad(graph, funktion, einspeisungsNetz, netz);
+      if (pfad) return pfad;
     }
     return null;
   }
@@ -297,6 +315,58 @@ async function start() {
     renderMessgeraet();
   }
 
+  // Live-Spannungsanzeige für ZI (wie berechneRisoSpannung(), aber
+  // umgekehrter Zweck: bei RISO warnt sie "hier liegt noch Spannung an, TEST
+  // wirkt nicht" - bei ZI zeigt sie "der Stromkreis ist bereit, TEST wird
+  // einen Messwert liefern", da ZI ja gerade ein spannungsführendes Netz
+  // voraussetzt. Immer 230V oder 0V (nie eine der RISO-typischen 400V, ZI
+  // misst immer L gegen N), unabhängig von TEST.
+  function berechneZiSpannung() {
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    if (!graph || !schwarzAder || !blauAder) return 0;
+    if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion) || blauAder.funktion !== 'N') return 0;
+    const schwarzLebt = istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz);
+    const blauLebt = istSpannungFuehrend(graph, blauAder.funktion, blauAder.netz);
+    return schwarzLebt && blauLebt ? 230 : 0;
+  }
+
+  // Feste Basisimpedanz der Trafostation/Einspeisung (siehe KONZEPT.md
+  // "Konfigurierbare Parameter" - `vorimpedanz`), die bei jeder ZI/ZS-
+  // Berechnung automatisch mit einfließt (reale Schleifenimpedanz ist nie 0,
+  // auch ohne jeden Fehler-Widerstand auf dem Pfad). Noch ein fester
+  // Konstantenwert, kein Netzplan-Feld (analog zu rlowKalibrierterWiderstand).
+  const ZI_VORIMPEDANZ = 0.14;
+
+  // ZI-Messwert, ausgelöst über die TEST-Taste - wie bei RISO nicht
+  // kontinuierlich. `null` = noch kein gültiger TEST-Klick (Platzhalter
+  // bleibt stehen), sonst der berechnete Z-Wert in Ω.
+  let ziMesswert = null;
+
+  function ziTestKlick() {
+    if (messgeraetZustand.funktion !== 'ZI' || !graph) return;
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    // Schwarz muss auf L1/L2/L3 sitzen, Blau auf N - anders als bei RISO
+    // keine vertauschbaren Rollen (Grün/PE spielt bei ZI keine Rolle, siehe
+    // messpunkte in messgeraet.js: pe:'leer').
+    if (!schwarzAder || !blauAder) return;
+    if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return;
+    if (blauAder.funktion !== 'N') return;
+
+    // Beide Teilpfade (L-Sonde -> L-Einspeisung, N-Sonde -> N-Einspeisung)
+    // müssen geschlossen sein, BEVOR die TEST-Taste überhaupt einen Effekt
+    // hat - fehlt einer, bleibt der Platzhalter stehen (explizite
+    // User-Vorgabe, kein "kein Pfad"-Sentinel wie >999MΩ bei RISO, da ZI ein
+    // stromdurchflossenes Netz voraussetzt statt ein spannungsfreies).
+    const pfadL = findePfadZurEinspeisung(schwarzAder.funktion, schwarzAder);
+    const pfadN = findePfadZurEinspeisung('N', blauAder);
+    if (!pfadL || !pfadN) return;
+
+    ziMesswert = berechneWiderstand(graph, pfadL) + berechneWiderstand(graph, pfadN) + ZI_VORIMPEDANZ;
+    renderMessgeraet();
+  }
+
   // Box wird auf die tatsächlich gerenderte Schaltkasten-Breite gesetzt, damit
   // das (schmalere) Messgerät mittig darunter erscheint, ohne die Breite hier
   // zu duplizieren.
@@ -438,6 +508,27 @@ async function start() {
         ZI_BEMESSUNGSSTROEME[ziBemessungsstromIndex],
         ZI_ABSCHALTZEITEN[ziAbschaltzeitIndex]
       ];
+      // Live, unabhängig von TEST - siehe berechneZiSpannung(). Gilt für
+      // beide Ansichten (normale Zl-Ansicht UND ΔU-Ansicht), da die
+      // Messpunkte-Kreise (und damit die Anzeige-Position darunter) in
+      // beiden gleich bleiben.
+      const ziSpannung = berechneZiSpannung();
+      zustand.spannungUnterPe = `${ziSpannung}V`;
+      // Pfeil/Sanduhr-Indikator unten links (siehe messgeraet.js) ist bei ZI
+      // standardmäßig durchgestrichen (TEST-gebunden, siehe
+      // DREHKNOPF_POSITIONEN). Liegt Spannung an, ist der Stromkreis bereit
+      // für eine Messung - dann bewusst undurchgestrichen, als visueller
+      // Bezug zur Live-Spannungsanzeige (explizite User-Vorgabe, nur für ZI,
+      // nicht für RISO - dort bedeutet anliegende Spannung ja gerade "TEST
+      // wirkt nicht", der durchgestrichene Zustand bleibt dort korrekt).
+      zustand.indikatorDurchgestrichen = ziSpannung === 0;
+      // Fällt die Spannung weg (Pfeil-Kasten wird wieder durchgestrichen),
+      // ist ein zuvor gemessener Wert nicht mehr gültig - Platzhalter
+      // `Z:---Ω` erzwingen, statt einen veralteten Messwert stehen zu
+      // lassen. Wird die Spannung später wieder hergestellt, bleibt der
+      // Platzhalter bestehen, bis erneut TEST gedrückt wird (explizite
+      // User-Vorgabe).
+      if (ziSpannung === 0) ziMesswert = null;
       if (titelZeigtLabel) {
         // ΔU-Ansicht (Spannungsfall): eigenständiger Titel statt Zl. LS-Typ
         // und Bemessungsstrom bleiben in der mittleren Reihe, die
@@ -469,6 +560,27 @@ async function start() {
         // damit es mit den ▲/▼-Änderungen oben mitzieht (nicht mehr nur aus
         // den statischen Defaults in zustandFuerFunktion()).
         zustand.nebenwertRechts = MessgeraetView.berechneLimText(ziTitelWerte[0], ziTitelWerte[1]);
+        // Z-Wert nur nach TEST-Klick (siehe ziTestKlick()) - Platzhalter aus
+        // zustandFuerFunktion() ("Z:---Ω") bleibt stehen, solange ziMesswert
+        // null ist (kein "kein Pfad"-Sentinel wie bei RISO, siehe dort).
+        // Isc (Kurzschlussstrom, unten links über dem Strich) hängt an
+        // derselben Bedingung wie Z - beide zeigen den `---`-Platzhalter
+        // (`zustandFuerFunktion()`s Default `nebenwertLinks = 'Isc:---A'`),
+        // solange kein gültiger Messwert vorliegt.
+        if (ziMesswert !== null) {
+          zustand.hauptwert = `Z:${ziMesswert.toFixed(2).replace('.', ',')}Ω`;
+          const isc = (0.9 * 230) / ziMesswert;
+          zustand.nebenwertLinks = `Isc:${isc.toFixed(1).replace('.', ',')}A`;
+          // Ampel: reicht der Kurzschlussstrom aus, um den LS in der
+          // geforderten Zeit auszulösen? Isc > Lim -> grün (bestanden), sonst
+          // rot. Bewusst live aus dem AKTUELLEN LS-Typ/Bemessungsstrom
+          // berechnet (wie Lim selbst, siehe oben) statt als eigener
+          // TEST-Snapshot - ändert man LS-Typ/Bemessungsstrom per ▲/▼, ohne
+          // erneut TEST zu drücken, zieht die Ampel sofort mit.
+          const lim = MessgeraetView.berechneLim(ziTitelWerte[0], ziTitelWerte[1]);
+          zustand.leuchteLinksAn = isc < lim;
+          zustand.leuchteRechtsAn = isc >= lim;
+        }
       }
     } else if (funktion === 'ZS') {
       const zsTitelWerte = [
@@ -511,6 +623,7 @@ async function start() {
     risoGrenzwertMOhm = 50;
     risoMesswert = null;
     risoAmpel = null;
+    ziMesswert = null;
     ziLsTypIndex = ZI_LS_TYPEN.indexOf('B');
     ziBemessungsstromIndex = ZI_BEMESSUNGSSTROEME.indexOf('16A');
     ziAbschaltzeitIndex = ZI_ABSCHALTZEITEN.indexOf('0,4s');
@@ -561,8 +674,17 @@ async function start() {
       },
       auf: () => { aendereAusgewaehltesFeld(1); },
       ab: () => { aendereAusgewaehltesFeld(-1); },
-      test: risoTestKlick
+      test: testKlick
     });
+  }
+
+  // TEST-Taste - dispatcht je nach aktueller Messfunktion (jede der beiden
+  // Handler-Funktionen prüft ihrerseits messgeraetZustand.funktion und bricht
+  // sonst ab, siehe risoTestKlick()/ziTestKlick() - der Dispatch hier dient
+  // nur der Übersicht beim Lesen, nicht der eigentlichen Absicherung).
+  function testKlick() {
+    if (messgeraetZustand.funktion === 'RISO') risoTestKlick();
+    else if (messgeraetZustand.funktion === 'ZI') ziTestKlick();
   }
 
   function aendereAusgewaehltesFeld(richtung) {

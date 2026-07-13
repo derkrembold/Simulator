@@ -295,13 +295,14 @@ Verdrahtung ab, nicht den Anzeigezustand des Messgeräts). Schaltet der
 Bediener das Messgerät aber **aus**, werden alle Messspitzen automatisch
 entfernt – der Messmodus endet, beim nächsten Einschalten legt man frisch an.
 
-**RLOW ist bereits angebunden:** RLOW misst laut Display (nicht durchgestrichener
-Pfeil-Kasten) kontinuierlich, ohne TEST-Taste – jeder Messspitzen-Klick löst
-direkt eine Pfadsuche im Verbindungsgraphen aus (siehe "Pfadverfolgung und
-Fehlersimulation"). Für die übrigen Funktionen (RISO/ZI/ZS/FI-RCD) soll die
-TEST-Taste die angelegten Messspitzen auslesen und daraus (statt der aktuellen
-`---`-Platzhalter) einen echten, aus dem Netzplan berechneten Messwert
-anzeigen – noch nicht umgesetzt.
+**RLOW, RISO und ZI sind bereits angebunden:** RLOW misst laut Display (nicht
+durchgestrichener Pfeil-Kasten) kontinuierlich, ohne TEST-Taste – jeder
+Messspitzen-Klick löst direkt eine Pfadsuche im Verbindungsgraphen aus (siehe
+"Pfadverfolgung und Fehlersimulation"). RISO und ZI lesen dagegen erst beim
+TEST-Klick die angelegten Messspitzen aus und berechnen daraus (statt des
+`---`-Platzhalters) einen echten, aus dem Netzplan/der Fehlertabelle
+berechneten Messwert (siehe "Berechnung der Messwerte"). Für ZS und FI/RCD
+ist das noch nicht umgesetzt.
 
 ### Bedienelemente (als DOM-Elemente)
 
@@ -544,14 +545,66 @@ davon, über welchen Pfad der Wert zustande kam - u.a. weil ein hoher
 Übergangswiderstand (z.B. durch Kontaktkorrosion an einer Klemme) durchaus
 real vorkommen kann und dann korrekt als Auffälligkeit markiert werden soll.
 
-**ZI / ZS** (Impedanz):
+**ZI / ZS** (Impedanz, **ZI prototypisch umgesetzt**):
 `Vorimpedanz` (siehe unten) + alle `Widerstand`-Bauteile auf dem Pfad von der ersten
 Schraube zur Einspeisung und zurück zur zweiten Schraube. Zi und Zs sind **dieselbe
 Berechnung** – der Name unterscheidet sich nur danach, ob hinter einem RCD gemessen
 wird (Zi) oder nicht (Zs), siehe Fehlerquelle #14.
 
-Der Kurzschlussstrom $I_k$ (Fehlerquelle #3) braucht keinen eigenen Messwert – er
-ergibt sich direkt aus Zi/Zs per $I_k = U / Z$, keine eigene Spalte in `bauteile.md` nötig.
+Zwei Messspitzen: Schwarz auf L1/L2/L3, Blau auf N (keine vertauschbaren
+Rollen wie bei RISO, PE spielt keine Rolle). Da L und N unterschiedliche
+Teilgraphen ohne gemeinsamen Pfad sind, wird **zweigeteilt** gesucht: Pfad
+von der L-Sonde zur L-Einspeisung, Pfad von der N-Sonde zur N-Einspeisung -
+jeweils die Fehlertabellen-Summe wie bei RLOW. **Beide** Teilpfade müssen zur
+Einspeisung durchgängig geschlossen sein, BEVOR die TEST-Taste überhaupt
+einen Effekt hat - fehlt einer (z.B. offener Schalter dazwischen), bleibt der
+Platzhalter stehen, kein `>999Ω`-Sentinel wie bei RISO (ZI setzt ja gerade
+ein stromdurchflossenes, spannungsführendes Netz voraus, keine
+spannungsfreie Anlage). Ist die Messung möglich: `Z = Fehlertabelle(L-Pfad) +
+Fehlertabelle(N-Pfad) + Vorimpedanz`. TEST-gebunden wie RISO.
+
+**Live-Spannungsanzeige** unter dem PE-Kreis, dieselbe Anzeige-Position wie
+bei RISO - aber mit umgekehrtem Zweck: bei RISO warnt sie "hier liegt noch
+Spannung an, TEST wirkt nicht", bei ZI zeigt sie "der Stromkreis ist bereit,
+TEST wird einen Messwert liefern" (230V, wenn beide Teilpfade zur
+Einspeisung geschlossen sind, sonst 0V) - naheliegend, da ZI ja gerade ein
+spannungsführendes Netz voraussetzt, RISO dagegen ein spannungsfreies.
+
+**Pfeil-Kasten unten links** (siehe "Messgerät" → "Display" - normalerweise
+durchgestrichen bei TEST-gebundenen Funktionen wie ZI): liegt Spannung an
+(Stromkreis bereit), wird er bei ZI bewusst undurchgestrichen dargestellt -
+optischer Bezug zur Live-Spannungsanzeige. Nur für ZI, nicht für RISO: dort
+bedeutet anliegende Spannung ja gerade "TEST wirkt nicht", der
+durchgestrichene Zustand bleibt dort unverändert korrekt.
+
+**Wegfall der Spannung entwertet einen bestehenden Messwert:** wird der
+Pfeil-Kasten wieder durchgestrichen (Spannung fällt weg, z.B. weil währenddessen
+ein Schalter geöffnet wurde - unabhängig davon, ob die Messspitzen dabei
+angefasst wurden), springt ein zuvor per TEST ermittelter Z-Wert sofort auf
+den Platzhalter `Z:---Ω` zurück, statt veraltet stehen zu bleiben. Kommt die
+Spannung später zurück, bleibt der Platzhalter trotzdem bestehen, bis erneut
+TEST gedrückt wird - ein alter Messwert taucht nicht von selbst wieder auf.
+
+**Isc (Kurzschlussstrom, Fehlerquelle #3, ZI prototypisch umgesetzt):** braucht
+keinen eigenen Messwert – ergibt sich direkt aus dem gemessenen Z per
+$I_{sc} = 0{,}9 \times 230V / Z$ (Sicherheitsfaktor 0,9 nach Norm, da die
+Netzspannung unter Last etwas einbrechen kann), keine eigene Spalte in
+`bauteile.md` nötig. Angezeigt unten links über dem Strich (`Isc:XX,XA`, eine
+Nachkommastelle) - hängt an derselben Bedingung wie der Z-Wert: nur berechnet,
+solange `ziMesswert !== null` ist, sonst bleibt der Platzhalter `Isc:---A`
+stehen (inkl. desselben Resets bei Wegfall der Spannung, siehe oben).
+
+**Isc/Lim-Ampel:** sobald Isc feststeht, vergleicht die Ampel (dieselben
+Leuchtstreifen wie bei RISO) ihn gegen `Lim` (rechts daneben, die
+Mindestauslöseschwelle der gewählten LS-Charakteristik) - reicht der
+Kurzschlussstrom aus, um den LS in der geforderten Zeit auszulösen? **Isc >
+Lim** → grün rechts (bestanden). **Isc < Lim** (inkl. Gleichstand) → rot
+links (der LS würde nicht schnell genug auslösen). Anders als bei RISOs
+Ampel ist dieser Vergleich bewusst **live** statt als TEST-Snapshot
+eingefroren: ändert man LS-Typ/Bemessungsstrom danach per ▲/▼ (Lim selbst
+ist ja ohnehin schon live, siehe "Referenz-LS"), zieht die Ampel sofort mit,
+ohne dass erneut TEST gedrückt werden muss - Isc bleibt dabei unverändert
+der zuletzt gemessene Wert.
 
 **FI/RCD** (RCD-Auslösewerte):
 Keine Berechnung – feste Werte direkt am RCD-Bauteil selbst (Spalten `tA`, `IA`, `UB`
@@ -565,7 +618,9 @@ von `Widerstand`-Bauteilen (kein Spannungsteiler-Modell). Spätere Erweiterung m
 
 - **`vorimpedanz`** – feste Basisimpedanz der Trafostation/Einspeisung, die bei jeder
   Zi/Zs-Berechnung automatisch mit einfließt (reale Schleifenimpedanz ist nie 0, auch
-  ohne jeden Fehler). Default irgendwo im Bereich 0.1–0.5Ω.
+  ohne jeden Fehler). **Umgesetzt für ZI:** fester Wert `0,14Ω`
+  (`ZI_VORIMPEDANZ` in `controller/app.js`) - noch kein Netzplan-Feld, analog
+  zu `rlowKalibrierterWiderstand` bei RLOW.
 - **Messspannung (RISO)** – Prüfspannung für die Isolationswiderstandsmessung, am
   Messgerät per ▲/▼ wählbar (Feld muss vorher über ◄► ausgewählt sein). Gültige
   Werte nach VDE 0100-600/IEC 61557-2: 50V, 100V, 250V, 500V, 1000V. Default
@@ -933,7 +988,8 @@ Zusätzlich trägt das RCD-Bauteil eigene Messwerte (siehe "Messgerät (BENNING 
 - **RCD**: Spalten `tA` (Abschaltzeit), `IA` (Auslösestrom), `UB` (Berührungsspannung)
 
 Der Kurzschlussstrom ($I_{sc}$/$I_k$, Fehlerquelle #3) braucht keine eigene Spalte –
-er ergibt sich direkt aus der berechneten Impedanz (Zi/Zs) per $I_k = U / Z$.
+er ergibt sich direkt aus der berechneten Impedanz (Zi/Zs) per
+$I_{sc} = 0{,}9 \times 230V / Z$ (siehe "Berechnung der Messwerte").
 
 Welche Werte in diesen Spalten überhaupt gültig sind (z.B. gültige LS-Charakteristiken,
 RCD-Typen, genormte Nennstrom-Reihen), steht zentral in
@@ -1148,14 +1204,18 @@ tests/visuell/
 ## Nächste Schritte
 
 Verbindungsgraph, Schalter und Fehlertabelle sind für RLOW umgesetzt (siehe
-"Pfadverfolgung und Fehlersimulation"). RISO ist prototypisch umgesetzt (Live-
-Spannungsprüfung + TEST-gestützte Widerstandsmessung, siehe "Berechnung der
-Messwerte"). Offen:
+"Pfadverfolgung und Fehlersimulation"). RISO und ZI sind prototypisch
+umgesetzt (RISO: Live-Spannungsprüfung + TEST-gestützte Widerstandsmessung;
+ZI: TEST-gestützte Vorimpedanz + Fehlertabelle beider Teilpfade; siehe
+"Berechnung der Messwerte"). Offen:
 
-1. **ZI/ZS an den Verbindungsgraphen anbinden** - nutzt dieselbe
-   Infrastruktur (Graph, Messspitzen, Schalter, Fehlertabelle), aber mit
-   eigenem Messprinzip (Vorimpedanz + Widerstände auf dem Pfad zur
-   Einspeisung und zurück, siehe "Berechnung der Messwerte").
+1. **ZS an den Verbindungsgraphen anbinden** - nutzt dieselbe Berechnung wie
+   ZI (siehe "Berechnung der Messwerte"), braucht aber laut
+   `messgeraet.js`-Messpunkten (`pe:'voll', n:'halb'`) eigentlich eine
+   PE-Sonde statt N - und PE ist bislang nicht im Verbindungsgraphen
+   modelliert (siehe Punkt 3 unten). Bis der PE-Teilgraph existiert, entweder
+   zurückstellen oder (pragmatischer Zwischenschritt) ZS vorerst genauso wie
+   ZI mit L+N messen lassen.
 2. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
    vollständig getrennte Teilgraphen, ein TEST-Klick ohne anliegende
    Spannung liefert deshalb praktisch immer `>999MΩ`. Für echte

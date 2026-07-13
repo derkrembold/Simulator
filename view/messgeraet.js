@@ -28,14 +28,21 @@ const LIM_FAKTOR_NACH_LS_TYP = {
   B: 5, C: 10, D: 20, K: 15, Z: 3, L: 5.25, U: 12, NV: 12, gG: 12
 };
 
-// Berechnet den formatierten Lim-Text ("Lim: X,XA") aus LS-Typ und
-// Bemessungsstrom (String mit "A"-Suffix, z.B. "16A") - gemeinsam genutzt vom
-// initialen/statischen Zustand (zustandFuerFunktion) und vom live editierten
-// Zustand in controller/app.js, damit die Formel nur an einer Stelle steht.
-function berechneLimText(lsTyp, lsBemessungsstrom) {
+// Roher Lim-Zahlenwert (Ampere) aus LS-Typ und Bemessungsstrom (String mit
+// "A"-Suffix, z.B. "16A") - gebraucht sowohl für die Textanzeige
+// (berechneLimText() unten) als auch für den Isc/Lim-Ampel-Vergleich in
+// controller/app.js (ziAmpel), damit die Formel nur an einer Stelle steht.
+function berechneLim(lsTyp, lsBemessungsstrom) {
   const faktor = LIM_FAKTOR_NACH_LS_TYP[lsTyp];
   const bemessungsstrom = parseFloat(lsBemessungsstrom);
-  const lim = faktor * bemessungsstrom;
+  return faktor * bemessungsstrom;
+}
+
+// Berechnet den formatierten Lim-Text ("Lim: X,XA") aus LS-Typ und
+// Bemessungsstrom - gemeinsam genutzt vom initialen/statischen Zustand
+// (zustandFuerFunktion) und vom live editierten Zustand in controller/app.js.
+function berechneLimText(lsTyp, lsBemessungsstrom) {
+  const lim = berechneLim(lsTyp, lsBemessungsstrom);
   return `Lim: ${lim.toFixed(1).replace('.', ',')}A`;
 }
 
@@ -527,6 +534,7 @@ export const MessgeraetView = {
   zustandFuerFunktion,
   naechsteFunktion,
   berechneLimText,
+  berechneLim,
 
   render(container, zustand = BEISPIEL_ZUSTAND, onKlick = {}) {
     const svg = svgEl('svg', {

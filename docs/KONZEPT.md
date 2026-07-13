@@ -295,14 +295,14 @@ Verdrahtung ab, nicht den Anzeigezustand des Messgeräts). Schaltet der
 Bediener das Messgerät aber **aus**, werden alle Messspitzen automatisch
 entfernt – der Messmodus endet, beim nächsten Einschalten legt man frisch an.
 
-**RLOW, RISO und ZI sind bereits angebunden:** RLOW misst laut Display (nicht
-durchgestrichener Pfeil-Kasten) kontinuierlich, ohne TEST-Taste – jeder
-Messspitzen-Klick löst direkt eine Pfadsuche im Verbindungsgraphen aus (siehe
-"Pfadverfolgung und Fehlersimulation"). RISO und ZI lesen dagegen erst beim
-TEST-Klick die angelegten Messspitzen aus und berechnen daraus (statt des
-`---`-Platzhalters) einen echten, aus dem Netzplan/der Fehlertabelle
-berechneten Messwert (siehe "Berechnung der Messwerte"). Für ZS und FI/RCD
-ist das noch nicht umgesetzt.
+**RLOW, RISO, ZI und ZS sind bereits angebunden:** RLOW misst laut Display
+(nicht durchgestrichener Pfeil-Kasten) kontinuierlich, ohne TEST-Taste –
+jeder Messspitzen-Klick löst direkt eine Pfadsuche im Verbindungsgraphen aus
+(siehe "Pfadverfolgung und Fehlersimulation"). RISO, ZI und ZS lesen dagegen
+erst beim TEST-Klick die angelegten Messspitzen aus und berechnen daraus
+(statt des `---`-Platzhalters) einen echten, aus dem Netzplan/der
+Fehlertabelle berechneten Messwert (siehe "Berechnung der Messwerte"). Für
+FI/RCD ist das noch nicht umgesetzt.
 
 ### Bedienelemente (als DOM-Elemente)
 
@@ -545,7 +545,8 @@ davon, über welchen Pfad der Wert zustande kam - u.a. weil ein hoher
 Übergangswiderstand (z.B. durch Kontaktkorrosion an einer Klemme) durchaus
 real vorkommen kann und dann korrekt als Auffälligkeit markiert werden soll.
 
-**ZI / ZS** (Impedanz, **ZI prototypisch umgesetzt**):
+**ZI / ZS** (Impedanz, **ZI vollständig, ZS als erste Iteration prototypisch
+umgesetzt**):
 `Vorimpedanz` (siehe unten) + alle `Widerstand`-Bauteile auf dem Pfad von der ersten
 Schraube zur Einspeisung und zurück zur zweiten Schraube. Zi und Zs sind **dieselbe
 Berechnung** – der Name unterscheidet sich nur danach, ob hinter einem RCD gemessen
@@ -605,6 +606,44 @@ eingefroren: ändert man LS-Typ/Bemessungsstrom danach per ▲/▼ (Lim selbst
 ist ja ohnehin schon live, siehe "Referenz-LS"), zieht die Ampel sofort mit,
 ohne dass erneut TEST gedrückt werden muss - Isc bleibt dabei unverändert
 der zuletzt gemessene Wert.
+
+**ZS (erste Iteration - bewusst vereinfacht):** Messspitzen diesmal Schwarz
+(L1/L2/L3, wie bei ZI) und **Grün** statt Blau als zweite aktive Sonde -
+Grün muss auf PE sitzen, Blau zusätzlich auf N (analog zu ZI/RISO müssen
+alle drei Sonden korrekt platziert sein, damit TEST überhaupt reagiert).
+**Der eigentliche Unterschied zu ZI:** von den zwei Teilpfaden, die
+normalerweise geprüft würden (L und PE bzw. N), wird bei ZS bewusst nur der
+**L-Pfad** verfolgt - der PE-Pfad wird komplett ignoriert, unter der
+Annahme, dass PE immer Durchgang hat (0Ω). Das ist dieselbe Vereinfachung
+wie bei RISOs `risoEffektiveAder()` (siehe oben) und aus demselben Grund
+akzeptiert: ein aufgetrennter PE-Leiter ist im Prüfungsalltag kein
+realistisches Szenario, und PE ist ohnehin noch nicht im Verbindungsgraphen
+modelliert (siehe "Nächste Schritte" - PE-Teilgraph). `Z = Fehlertabelle
+(L-Pfad) + Vorimpedanz` (derselbe feste Wert wie bei ZI, 0,14Ω). TEST-Taste
+funktioniert für die normale Zs-Ansicht UND die ZSrcd-Ansicht gleichermaßen
+(anders als ZIs ΔU-Ansicht, deren Hauptmesswert-Bereich statisch bleibt -
+siehe "Bedienung").
+
+**Live-Spannungsanzeige (umgesetzt):** unter dem PE-Kreis, wie bei ZI - zeigt
+aber bewusst nur an, ob der EINE geprüfte Teilpfad (L-Sonde → L-Einspeisung)
+geschlossen ist, nicht zusätzlich den (ohnehin ignorierten) PE-Pfad. 230V,
+wenn dieser Pfad steht, sonst 0V - exakt deckungsgleich mit der
+Vorbedingung, die auch der TEST-Klick prüft. Alle drei Sonden müssen
+trotzdem korrekt platziert sein (wie beim TEST-Klick), auch wenn nur
+Schwarz tatsächlich ausgewertet wird. Gilt wie der Z-Wert für beide
+Ansichten (Zs und ZSrcd) gleichermaßen.
+
+**Pfeil-Kasten unten links (umgesetzt):** genau wie bei ZI - liegt Spannung
+an (L-Pfad bereit), undurchgestrichen, sonst durchgestrichen.
+
+**Isc/Lim-Ampel (umgesetzt):** genau wie bei ZI - Isc = $0{,}9 \times 230V /
+Z$ (aus `zsMesswert`, sobald vorhanden), verglichen gegen `Lim` (rechts
+daneben, Mindestauslöseschwelle der gewählten LS-Charakteristik). **Isc >
+Lim** → grün rechts. **Isc < Lim** (inkl. Gleichstand) → rot links. Bewusst
+live berechnet (nicht als TEST-Snapshot eingefroren) - ändert man LS-Typ/
+Bemessungsstrom danach per ▲/▼, zieht die Ampel sofort mit. Damit sind ZI
+und ZS jetzt funktional deckungsgleich bis auf den einen bewusst
+akzeptierten Unterschied: ZS prüft/berechnet keinen PE-Pfad.
 
 **FI/RCD** (RCD-Auslösewerte):
 Keine Berechnung – feste Werte direkt am RCD-Bauteil selbst (Spalten `tA`, `IA`, `UB`
@@ -998,20 +1037,22 @@ wiederholt.
 
 ## Pfadverfolgung und Fehlersimulation
 
-**Status: umgesetzt (für RLOW, prototypisch auch RISO).** Ersetzt den früheren
-Ansatz "Widerstand als eigenes Bauteil in der Netzliste" (zu umständlich –
-jeder Fehler hätte den Netzplan selbst verändert). Stattdessen: ein separater
-**Verbindungsgraph**, der Pfade zwischen zwei Schrauben sucht, unter
-Berücksichtigung von Schalterstellungen und optionalen Fehler-Widerständen.
-Umgesetzt: Graph-Generierung (siehe unten) inkl. Ausgabedatei (`graph.json`
-pro Testcase), Anbindung ans Messgerät für RLOW (Messspitzen setzen, Pfad
-wird live verfolgt, siehe "Messmodus" und ARCHITEKTUR.md), Schalterzustand
-(LS/RCD/Hauptschalter klickbar, siehe "Schalter" unten - schaltet
-`kante.geschlossen` live um, RLOW reagiert sofort darauf), die Fehlertabelle
-(siehe unten - Fehler-Widerstände pro Netz, `berechneWiderstand()` summiert
-sie über den gefundenen Pfad), sowie für RISO die Einspeisungs-Erreichbarkeit
-pro Netz (`graph.einspeisung` + `istSpannungFuehrend()`, siehe "Berechnung
-der Messwerte"). ZI/ZS nutzen den Graphen noch nicht.
+**Status: umgesetzt (für RLOW, prototypisch auch RISO/ZI/ZS).** Ersetzt den
+früheren Ansatz "Widerstand als eigenes Bauteil in der Netzliste" (zu
+umständlich – jeder Fehler hätte den Netzplan selbst verändert). Stattdessen:
+ein separater **Verbindungsgraph**, der Pfade zwischen zwei Schrauben sucht,
+unter Berücksichtigung von Schalterstellungen und optionalen
+Fehler-Widerständen. Umgesetzt: Graph-Generierung (siehe unten) inkl.
+Ausgabedatei (`graph.json` pro Testcase), Anbindung ans Messgerät für RLOW
+(Messspitzen setzen, Pfad wird live verfolgt, siehe "Messmodus" und
+ARCHITEKTUR.md), Schalterzustand (LS/RCD/Hauptschalter klickbar, siehe
+"Schalter" unten - schaltet `kante.geschlossen` live um, RLOW reagiert
+sofort darauf), die Fehlertabelle (siehe unten - Fehler-Widerstände pro
+Netz, `berechneWiderstand()` summiert sie über den gefundenen Pfad), sowie
+die Einspeisungs-Erreichbarkeit pro Netz (`graph.einspeisung` +
+`istSpannungFuehrend()`, für RISOs Live-Spannungsprüfung und für ZI/ZS'
+Pfadsuche zur Einspeisung gleichermaßen genutzt, siehe "Berechnung der
+Messwerte").
 
 ### Verbindungsgraph
 
@@ -1051,13 +1092,14 @@ wird stattdessen als eigene Datei `graph.json` pro Testcase geschrieben (von
 derselben CLI wie `anlage.json`, siehe ARCHITEKTUR.md) und zur Laufzeit per
 `Anlage.ladeGraph()` in den Browser geladen; `model/pfad.js` ist ein bewusst
 dupliziertes Browser-Gegenstück zu `findePfad()` (kein Bundler im Projekt, die
-Funktion ist klein genug für eine gepflegte Duplizierung). RLOW und RISO
-nutzen das bereits (siehe "Messmodus"); ZI/ZS folgen später demselben Modell.
+Funktion ist klein genug für eine gepflegte Duplizierung). RLOW, RISO, ZI und
+ZS nutzen das bereits (siehe "Messmodus").
 
 ### Schalter (LS, RCD, Hauptschalter)
 
-**Status: umgesetzt** (für RLOW - siehe "Berechnung der Messwerte" oben,
-RISO/ZI/ZS folgen später demselben Verbindungsgraph-Modell). Das
+**Status: umgesetzt** (für RLOW, RISO, ZI und ZS gleichermaßen - siehe
+"Berechnung der Messwerte" oben, jeder Schalter-Klick wirkt sich sofort auf
+alle Pfadsuchen aus, unabhängig von der aktuell gewählten Messfunktion). Das
 Schalter-Symbol (`zeichneSchalter()` in `schaltkasten.js`) besteht aus zwei
 Teilen:
 - Eine **feste weiße Box** (`#f5f5f5`, Rand `#555555` - dieselbe Grau-Farbe
@@ -1164,8 +1206,17 @@ Schalter dazwischen), bleibt der Messwert beim `---`-Platzhalter.
 
 **Status: prototypisch umgesetzt** (siehe "Berechnung der Messwerte" oben für
 die Details - Live-Spannungsprüfung über `istSpannungFuehrend()`, TEST-Klick
-sucht denselben Pfad wie RLOW). ZI/ZS folgen später demselben Graph-Modell,
-sind aber noch nicht im Detail durchdacht.
+sucht denselben Pfad wie RLOW).
+
+### ZI-/ZS-Berechnung (dritter/vierter Anwendungsfall)
+
+**Status: prototypisch umgesetzt** (siehe "Berechnung der Messwerte" oben).
+Nutzen dasselbe Graph-Modell wie RLOW/RISO, aber mit einem eigenen
+`findePfadZurEinspeisung()`-Helfer (Pfad von einer Sonde zur jeweiligen
+Einspeisung, statt direkt zwischen zwei Sonden wie bei RLOW/RISO - nötig, da
+Schwarz und Blau/Grün auf unterschiedlichen Funktionen sitzen und deshalb
+keinen gemeinsamen Teilgraphen haben). ZI prüft zwei Teilpfade (L und N), ZS
+bewusst nur einen (L, PE wird ignoriert - siehe "Berechnung der Messwerte").
 
 ---
 
@@ -1204,37 +1255,31 @@ tests/visuell/
 ## Nächste Schritte
 
 Verbindungsgraph, Schalter und Fehlertabelle sind für RLOW umgesetzt (siehe
-"Pfadverfolgung und Fehlersimulation"). RISO und ZI sind prototypisch
+"Pfadverfolgung und Fehlersimulation"). RISO, ZI und ZS sind prototypisch
 umgesetzt (RISO: Live-Spannungsprüfung + TEST-gestützte Widerstandsmessung;
-ZI: TEST-gestützte Vorimpedanz + Fehlertabelle beider Teilpfade; siehe
-"Berechnung der Messwerte"). Offen:
+ZI: TEST-gestützte Vorimpedanz + Fehlertabelle beider Teilpfade; ZS: dieselbe
+Mechanik wie ZI, aber mit bewusst ignoriertem PE-Pfad; siehe "Berechnung der
+Messwerte"). Offen:
 
-1. **ZS an den Verbindungsgraphen anbinden** - nutzt dieselbe Berechnung wie
-   ZI (siehe "Berechnung der Messwerte"), braucht aber laut
-   `messgeraet.js`-Messpunkten (`pe:'voll', n:'halb'`) eigentlich eine
-   PE-Sonde statt N - und PE ist bislang nicht im Verbindungsgraphen
-   modelliert (siehe Punkt 3 unten). Bis der PE-Teilgraph existiert, entweder
-   zurückstellen oder (pragmatischer Zwischenschritt) ZS vorerst genauso wie
-   ZI mit L+N messen lassen.
-2. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
+1. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
    vollständig getrennte Teilgraphen, ein TEST-Klick ohne anliegende
    Spannung liefert deshalb praktisch immer `>999MΩ`. Für echte
    Fehlerszenarien bräuchte es einen Weg, zwei Funktionen künstlich über
    einen simulierten Isolationsfehler zu verbinden - der Code
    (`risoTestKlick()`) ist strukturell schon darauf vorbereitet.
-3. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
+2. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
    Hutschienen-Bond Zyklen bilden kann (Parallelwiderstand statt einfacher
-   Pfad-Summe) - ein eigenständiges, größeres Vorhaben. Bis dahin gilt für
-   RISO die bewusste Vereinfachung `risoEffektiveAder()`: eine an PE
-   angelegte Messspitze wird pauschal wie N am Einspeisungspunkt behandelt
-   (siehe "Berechnung der Messwerte" - Abschnitt "Verwechslung N/PE"), statt
-   den tatsächlichen PE-Pfad zu verfolgen. Das ist **Stand heute bewusst so
-   akzeptiert** (ein aufgetrennter PE-Leiter ist im Prüfungsalltag kein
-   realistisches Szenario), aber eine Vereinfachung, keine korrekte
-   Modellierung - sobald der PE-Teilgraph existiert, sollte
-   `risoEffektiveAder()` durch eine echte Pfadsuche über den PE-Graphen
-   ersetzt werden.
-4. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
+   Pfad-Summe) - ein eigenständiges, größeres Vorhaben. Bis dahin gelten zwei
+   bewusste Vereinfachungen: bei RISO wird eine an PE angelegte Messspitze
+   pauschal wie N am Einspeisungspunkt behandelt (`risoEffektiveAder()`,
+   siehe "Berechnung der Messwerte" - Abschnitt "Verwechslung N/PE"); bei ZS
+   wird der PE-Pfad komplett ignoriert (PE-hat-immer-Durchgang-Annahme,
+   siehe "Berechnung der Messwerte" - Abschnitt "ZS"). Beide **Stand heute
+   bewusst so akzeptiert** (ein aufgetrennter PE-Leiter ist im
+   Prüfungsalltag kein realistisches Szenario), aber Vereinfachungen, keine
+   korrekte Modellierung - sobald der PE-Teilgraph existiert, sollten beide
+   durch eine echte Pfadsuche über den PE-Graphen ersetzt werden.
+3. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
    "Schrauben lösen" oben).
-5. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
+4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
    Typ B, Gruppe ohne RCD).

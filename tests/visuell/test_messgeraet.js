@@ -1202,6 +1202,304 @@ async function main() {
     await page.close();
   });
 
+  // --- ZS: erste Iteration (nur der L-Pfad wird geprüft, PE bewusst
+  // ignoriert - siehe KONZEPT.md "Berechnung der Messwerte"). Schwarz auf
+  // L1/L2/L3, Blau auf N, Grün auf PE - Blau/Grün müssen korrekt platziert
+  // sein, damit TEST reagiert, fließen aber NICHT in die Berechnung ein
+  // (Annahme: PE hat immer Durchgang). Z = Fehlertabelle(L-Pfad) +
+  // Vorimpedanz (derselbe Wert wie bei ZI, 0,14Ω).
+  await pruefe('ZS: TEST berechnet nur den L-Pfad + Vorimpedanz, PE/N bleiben unberücksichtigt', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page); // RLOW -> RISO
+    await drehknopfKlick(page); // RISO -> ZI
+    await drehknopfKlick(page); // ZI -> ZS
+    erwarte(await displayTexte(page), 'Z:---Ω', 'ZS-Platzhalter vor TEST');
+    erwarte(await displayTexte(page), '0V', 'Spannungsanzeige-Default vor Messspitzen');
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, RCD1.o1 (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, RCD1.o2 (N)
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+    erwarte(await displayTexte(page), '230V', 'L-Pfad zur Einspeisung geschlossen -> 230V');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,24Ω', 'Fehlertabelle N6 (0,1Ω) + Vorimpedanz (0,14Ω), PE/N ignoriert');
+    erwarte(await displayTexte(page), 'Isc:862,5A', 'Isc = 0,9*230V/0,24Ω');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (862,5A) > Lim (80,0A) -> Ampel grün');
+    await page.close();
+  });
+
+  // Isc/Lim-Ampel live, wie bei ZI - ändert man LS-Typ/Bemessungsstrom
+  // per ▲/▼ nach dem TEST-Klick, zieht die Ampel sofort mit.
+  await pruefe('ZS: Isc/Lim-Ampel kippt live, wenn Lim per ▲/▼ über Isc steigt', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün
+    await klick(page, 'TEST');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (862,5A) > Lim (80,0A) -> zunächst grün');
+
+    await klick(page, '◄►'); // Titel -> LS-Typ
+    await klick(page, '▲'); // B -> C
+    await klick(page, '▲'); // C -> D (Faktor 20 statt 5)
+    await klick(page, '◄►'); // LS-Typ -> Bemessungsstrom
+    for (let i = 0; i < 10; i++) await klick(page, '▲'); // 16A -> 125A (an der oberen Grenze geklemmt)
+
+    erwarte(await displayTexte(page), 'Lim: 2500,0A', 'Lim (D, 125A) liegt jetzt weit über Isc');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Isc (862,5A) < Lim (2500,0A) -> Ampel kippt auf rot');
+    await page.close();
+  });
+
+  // testcase_04, SK1 (linke Reihenklemmen-Gruppe): drei Sonden auf den drei
+  // Ausgangsschrauben N27 (L1), N28 (N), N29 (PE) - anders als bei
+  // testcase_01/02 hat testcase_04 eine eigene Einspeisung je Phase
+  // (graph.einspeisung), der L1-Pfad läuft über RCD1+LS1 mit ZWEI
+  // Fehlertabellen-Einträgen: N1->N6->N9->N20->N24->N27 = 0,13(N20)+0,27(N24)
+  // = 0,40Ω. N-Seite trägt nichts bei (keine Fehlertabellen-Einträge auf dem
+  // N-Pfad). Z = 0,40 + 0,14 (Vorimpedanz) = 0,54Ω;
+  // Isc = 0,9*230/0,54 = 383,3A; bei B/16A (Lim 80,0A) -> Ampel grün.
+  await pruefe('ZS: testcase_04 SK1 (L1) - Z:0,54Ω, Isc:383,3A, Ampel grün bei B/16A', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N27"]').click(); // schwarz, SK1 L1-Ausgang
+    await page.locator('#schaltkasten svg circle[data-netz="N28"]').click(); // blau, SK1 N-Ausgang
+    await page.locator('#schaltkasten svg circle[data-netz="N29"]').click(); // grün, SK1 PE-Ausgang
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,54Ω', 'Fehlertabelle N20 (0,13Ω) + N24 (0,27Ω) + Vorimpedanz (0,14Ω)');
+    erwarte(await displayTexte(page), 'Isc:383,3A', 'Isc = 0,9*230V/0,54Ω');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (383,3A) > Lim (80,0A) -> Ampel grün');
+    await page.close();
+  });
+
+  // testcase_04, SK2 (nächste Reihenklemmen-Gruppe): Ausgangsschrauben N31
+  // (L2), N32 (N), N33 (PE). L2-Pfad N2->N7->N10->N21->N25->N31 =
+  // 0,19(N21)+0,34(N25) = 0,53Ω. Z = 0,53 + 0,14 (Vorimpedanz) = 0,67Ω;
+  // Isc = 0,9*230/0,67 = 309,0A; bei B/16A (Lim 80,0A) -> Ampel grün.
+  // N33 (PE-Ausgang) kommt im SVG zweimal vor (auch als Fallback-Wert der
+  // oberen PE-Reihenklemmen-Eingangsschraube, siehe ARCHITEKTUR.md
+  // "PE-Reihenklemmen-Bugfix") - deshalb per cy="131" auf die untere
+  // (Ausgangs-)Schraube der Reihe 1 eingeschränkt.
+  await pruefe('ZS: testcase_04 SK2 (L2) - Z:0,67Ω, Isc:309,0A, Ampel grün bei B/16A', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N31"]').click(); // schwarz, SK2 L2-Ausgang
+    await page.locator('#schaltkasten svg circle[data-netz="N32"]').click(); // blau, SK2 N-Ausgang
+    await page.locator('#schaltkasten svg circle[data-netz="N33"][cy="131"]').click(); // grün, SK2 PE-Ausgang
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,67Ω', 'Fehlertabelle N21 (0,19Ω) + N25 (0,34Ω) + Vorimpedanz (0,14Ω)');
+    erwarte(await displayTexte(page), 'Isc:309,0A', 'Isc = 0,9*230V/0,67Ω');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (309,0A) > Lim (80,0A) -> Ampel grün');
+    await page.close();
+  });
+
+  // testcase_04, SK3 (dritte Reihenklemmen-Gruppe): Ausgangsschrauben N34
+  // (L3), N35 (N), N36 (PE). L3-Pfad N3->N8->N11->N22->N26->N34 =
+  // 0,41(N22)+0,08(N26) = 0,49Ω. Z = 0,49 + 0,14 (Vorimpedanz) = 0,63Ω;
+  // Isc = 0,9*230/0,63 = 328,6A; bei B/16A (Lim 80,0A) -> Ampel grün. N36
+  // (PE-Ausgang) kommt wieder zweimal vor (siehe SK2-Kommentar oben) -
+  // deshalb per cy="131" auf die untere Schraube eingeschränkt.
+  await pruefe('ZS: testcase_04 SK3 (L3) - Z:0,63Ω, Isc:328,6A, Ampel grün bei B/16A', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N34"]').click(); // schwarz, SK3 L3-Ausgang
+    await page.locator('#schaltkasten svg circle[data-netz="N35"]').click(); // blau, SK3 N-Ausgang
+    await page.locator('#schaltkasten svg circle[data-netz="N36"][cy="131"]').click(); // grün, SK3 PE-Ausgang
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,63Ω', 'Fehlertabelle N22 (0,41Ω) + N26 (0,08Ω) + Vorimpedanz (0,14Ω)');
+    erwarte(await displayTexte(page), 'Isc:328,6A', 'Isc = 0,9*230V/0,63Ω');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (328,6A) > Lim (80,0A) -> Ampel grün');
+    await page.close();
+  });
+
+  // Gleicher Pfad/Messwert wie oben (SK3, L3), aber Bemessungsstrom auf 80A
+  // gestellt (LS-Typ bleibt B): Lim = 5*80 = 400,0A > Isc (328,6A) -> Ampel
+  // kippt auf rot, obwohl der Messwert selbst unverändert bleibt.
+  await pruefe('ZS: testcase_04 SK3 (L3) mit B/80A - Isc (328,6A) < Lim (400,0A), Ampel rot', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N34"]').click(); // schwarz, SK3 L3-Ausgang
+    await page.locator('#schaltkasten svg circle[data-netz="N35"]').click(); // blau, SK3 N-Ausgang
+    await page.locator('#schaltkasten svg circle[data-netz="N36"][cy="131"]').click(); // grün, SK3 PE-Ausgang
+
+    await klick(page, '◄►'); // Titel -> LS-Typ (bleibt B)
+    await klick(page, '◄►'); // LS-Typ -> Bemessungsstrom
+    for (let i = 0; i < 8; i++) await klick(page, '▲'); // 16A -> 80A
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,63Ω', 'Messwert unverändert gegenüber B/16A');
+    erwarte(await displayTexte(page), 'Isc:328,6A', 'Isc unverändert');
+    erwarte(await displayTexte(page), 'Lim: 400,0A', 'Lim (B, 80A) = 5*80');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Isc (328,6A) < Lim (400,0A) -> Ampel rot');
+    await page.close();
+  });
+
+  await pruefe('ZS: Live-Spannungsanzeige fällt auf 0V, sobald der L-Pfad unterbrochen wird - Pfeil-Kasten entsprechend durchgestrichen', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    if (!(await indikatorDurchgestrichen(page))) {
+      throw new Error('Pfeil-Kasten sollte vor Messspitzen durchgestrichen sein');
+    }
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+    erwarte(await displayTexte(page), '230V', 'L-Pfad zunächst geschlossen');
+    if (await indikatorDurchgestrichen(page)) {
+      throw new Error('Pfeil-Kasten sollte bei anliegender Spannung NICHT durchgestrichen sein');
+    }
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 offen -> L-Pfad unterbrochen
+    erwarte(await displayTexte(page), '0V', 'L-Pfad unterbrochen -> 0V, unabhängig vom PE-Pfad');
+    if (!(await indikatorDurchgestrichen(page))) {
+      throw new Error('Pfeil-Kasten sollte wieder durchgestrichen sein, sobald die Spannung wegfällt');
+    }
+    await page.close();
+  });
+
+  await pruefe('ZS: Schwarz nicht auf L1/L2/L3 -> TEST bleibt wirkungslos', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    // Vertauscht: schwarz auf N, blau auf L1 - für ZS (anders als RISO)
+    // keine vertauschbaren Rollen, Schwarz MUSS auf L sitzen.
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // schwarz, N
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // blau, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:---Ω', 'Schwarz auf N statt L -> keine gültige Platzierung');
+    await page.close();
+  });
+
+  await pruefe('ZS: Grün nicht auf PE -> TEST bleibt wirkungslos', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // grün, FÄLSCHLICH auf L1
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:---Ω', 'Grün nicht auf PE -> TEST liefert keinen Messwert, obwohl der L-Pfad geschlossen wäre');
+    await page.close();
+  });
+
+  await pruefe('ZS: Blau nicht auf N -> TEST bleibt wirkungslos', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N7"]').first().click(); // blau, FÄLSCHLICH auf L1 (RCD1.o1, zweiter LS-Zweig)
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:---Ω', 'Blau nicht auf N -> TEST liefert keinen Messwert');
+    await page.close();
+  });
+
+  await pruefe('ZS: offenes RCD unterbricht den L-Pfad zur Einspeisung -> TEST bleibt wirkungslos', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 offen -> L-Pfad unterbrochen
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:---Ω', 'Kein Pfad zur Einspeisung -> TEST liefert keinen Messwert');
+    await page.close();
+  });
+
+  await pruefe('ZS: Messspitzen-Änderung nach TEST setzt den Messwert zurück auf den Platzhalter', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,24Ω', 'TEST liefert zunächst einen Messwert');
+
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün entfernen
+    erwarte(await displayTexte(page), 'Z:---Ω', 'Messspitzen-Änderung setzt den alten Messwert zurück');
+    await page.close();
+  });
+
+  await pruefe('ZS: Drehknopf-Wechsel setzt den Messwert zurück auf den Platzhalter', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,24Ω', 'TEST liefert einen Messwert');
+
+    for (let i = 0; i < 6; i++) await drehknopfKlick(page); // voller Zyklus zurück zu ZS
+    erwarte(await displayTexte(page), 'Z:---Ω', 'Messwert nach Drehknopf-Wechsel wieder Platzhalter');
+    await page.close();
+  });
+
+  await pruefe('ZS: ZSrcd-Ansicht zeigt denselben Messwert wie die normale Zs-Ansicht', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,24Ω', 'Messwert in der normalen Zs-Ansicht');
+
+    await klick(page, '◄►'); // Titel -> LS-Typ
+    await klick(page, '◄►'); // LS-Typ -> Bemessungsstrom
+    await klick(page, '◄►'); // Bemessungsstrom -> Abschaltzeit
+    await klick(page, '◄►'); // Abschaltzeit -> Titel
+    await klick(page, '▲'); // Titel -> ZSrcd-Ansicht
+    erwarte(await displayTexte(page), 'ZSrcd', 'ZSrcd-Ansicht aktiv');
+    erwarte(await displayTexte(page), 'Z:0,24Ω', 'Derselbe Messwert bleibt in der ZSrcd-Ansicht sichtbar');
+    await page.close();
+  });
+
   await browser.close();
   server.close();
   process.exit(alleBestanden ? 0 : 1);

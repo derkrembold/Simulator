@@ -106,11 +106,12 @@ async function start() {
       // Änderung an den Messspitzen macht einen alten Messwert aber ungültig,
       // darum hier zurücksetzen (die Spannungsanzeige selbst ist live, kein
       // Reset nötig). Die Ampel gehört zum selben Messvorgang wie der
-      // Messwert, geht also mit zurück auf aus/grau. ZIs Z-Wert ist ebenso
-      // TEST-gebunden, derselbe Reset-Grund gilt dort analog.
+      // Messwert, geht also mit zurück auf aus/grau. ZIs/ZSs Z-Wert ist
+      // ebenso TEST-gebunden, derselbe Reset-Grund gilt dort analog.
       risoMesswert = null;
       risoAmpel = null;
       ziMesswert = null;
+      zsMesswert = null;
       renderMessgeraet();
     } else {
       Popup.zeige({
@@ -367,6 +368,54 @@ async function start() {
     renderMessgeraet();
   }
 
+  // Live-Spannungsanzeige für ZS - wie berechneZiSpannung(), aber prüft nur
+  // den EINEN Teilpfad, den auch zsTestKlick() unten prüft (L-Sonde ->
+  // L-Einspeisung, PE bewusst ignoriert) - zeigt also exakt an, ob ein
+  // TEST-Klick gerade einen Messwert liefern würde. Alle drei Sonden müssen
+  // trotzdem korrekt platziert sein (wie bei zsTestKlick()), auch wenn nur
+  // Schwarz tatsächlich geprüft wird.
+  function berechneZsSpannung() {
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const gruenAder = messspitzenAderNachFarbe('grün');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    if (!graph || !schwarzAder || !gruenAder || !blauAder) return 0;
+    if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return 0;
+    if (gruenAder.funktion !== 'PE' || blauAder.funktion !== 'N') return 0;
+    return istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz) ? 230 : 0;
+  }
+
+  // ZS-Messwert, ausgelöst über die TEST-Taste - wie ZI nicht kontinuierlich.
+  // `null` = noch kein gültiger TEST-Klick (Platzhalter bleibt stehen), sonst
+  // der berechnete Z-Wert in Ω.
+  let zsMesswert = null;
+
+  function zsTestKlick() {
+    if (messgeraetZustand.funktion !== 'ZS' || !graph) return;
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const gruenAder = messspitzenAderNachFarbe('grün');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    // Schwarz auf L1/L2/L3, Grün auf PE, Blau auf N - alle drei müssen
+    // korrekt platziert sein, damit TEST überhaupt reagiert (explizite
+    // User-Vorgabe), auch wenn PE und N unten NICHT in die Berechnung
+    // einfließen.
+    if (!schwarzAder || !gruenAder || !blauAder) return;
+    if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return;
+    if (gruenAder.funktion !== 'PE') return;
+    if (blauAder.funktion !== 'N') return;
+
+    // Unterschied zu ZI: nur EIN Teilpfad wird geprüft (L-Sonde ->
+    // L-Einspeisung). Der PE-Pfad wird bewusst NICHT verfolgt - Annahme:
+    // PE hat immer Durchgang (0Ω), analog zur PE-Vereinfachung bei RISO
+    // (siehe risoEffektiveAder()). Explizit als vorläufige Vereinfachung
+    // markiert, kann später durch einen echten PE-Teilgraphen ersetzt
+    // werden (siehe KONZEPT.md "Nächste Schritte").
+    const pfadL = findePfadZurEinspeisung(schwarzAder.funktion, schwarzAder);
+    if (!pfadL) return;
+
+    zsMesswert = berechneWiderstand(graph, pfadL) + ZI_VORIMPEDANZ;
+    renderMessgeraet();
+  }
+
   // Box wird auf die tatsächlich gerenderte Schaltkasten-Breite gesetzt, damit
   // das (schmalere) Messgerät mittig darunter erscheint, ohne die Breite hier
   // zu duplizieren.
@@ -591,6 +640,13 @@ async function start() {
       // Lim wie bei ZI live berechnet - gilt für "Zs" UND "ZSrcd" gleichermaßen
       // (siehe Kommentar unten: Isc/Lim bleiben in ZSrcd unverändert).
       zustand.nebenwertRechts = MessgeraetView.berechneLimText(zsTitelWerte[0], zsTitelWerte[1]);
+      // Live, unabhängig von TEST - siehe berechneZsSpannung(). Gilt wie der
+      // Z-Wert unten für beide Ansichten (normale Zs- UND ZSrcd-Ansicht).
+      const zsSpannung = berechneZsSpannung();
+      zustand.spannungUnterPe = `${zsSpannung}V`;
+      // Pfeil/Sanduhr-Indikator unten links wie bei ZI: liegt Spannung an
+      // (L-Pfad bereit), bewusst undurchgestrichen, sonst durchgestrichen.
+      zustand.indikatorDurchgestrichen = zsSpannung === 0;
       if (titelZeigtLabel) {
         // ZSrcd-Ansicht (Zs-Messung durch einen RCD hindurch, ohne ihn
         // auszulösen): eigenständiger Titel statt Zs. "Std"/"Low" togglet
@@ -603,6 +659,22 @@ async function start() {
         zustand.titelWertRechts = zsTitelWerte[2];
       } else {
         zustand.titelWerte = zsTitelWerte;
+      }
+      // Z-Wert nur nach TEST-Klick (siehe zsTestKlick()) - Platzhalter
+      // "Z:---Ω" bleibt stehen, solange zsMesswert null ist. Gilt für BEIDE
+      // Ansichten (normale Zs- UND ZSrcd-Ansicht) - anders als bei ZIs
+      // ΔU-Ansicht (siehe oben) bleibt der Hauptmesswert-Bereich bei ZSrcd
+      // unverändert live, siehe Kommentar oben ("kein Override nötig").
+      if (zsMesswert !== null) {
+        zustand.hauptwert = `Z:${zsMesswert.toFixed(2).replace('.', ',')}Ω`;
+        // Isc/Lim-Ampel wie bei ZI: Isc > Lim -> grün (bestanden), sonst rot.
+        // Live aus dem AKTUELLEN LS-Typ/Bemessungsstrom berechnet, nicht als
+        // TEST-Snapshot eingefroren - siehe ZI-Kommentar für Details.
+        const isc = (0.9 * 230) / zsMesswert;
+        zustand.nebenwertLinks = `Isc:${isc.toFixed(1).replace('.', ',')}A`;
+        const lim = MessgeraetView.berechneLim(zsTitelWerte[0], zsTitelWerte[1]);
+        zustand.leuchteLinksAn = isc < lim;
+        zustand.leuchteRechtsAn = isc >= lim;
       }
     } else if (funktion === 'FI/RCD') {
       zustand.titelWerte = [FIRCD_FEHLERSTROEME[fircdFehlerstromIndex], FIRCD_TYPEN[fircdTypIndex]];
@@ -633,6 +705,7 @@ async function start() {
     zsBemessungsstromIndex = ZI_BEMESSUNGSSTROEME.indexOf('16A');
     zsAbschaltzeitIndex = ZI_ABSCHALTZEITEN.indexOf('0,4s');
     zsStdLowIndex = ZS_STD_LOW.indexOf('Std');
+    zsMesswert = null;
     fircdFehlerstromIndex = FIRCD_FEHLERSTROEME.indexOf('30mA');
     fircdTypIndex = FIRCD_TYPEN.indexOf('AC');
   }
@@ -685,6 +758,7 @@ async function start() {
   function testKlick() {
     if (messgeraetZustand.funktion === 'RISO') risoTestKlick();
     else if (messgeraetZustand.funktion === 'ZI') ziTestKlick();
+    else if (messgeraetZustand.funktion === 'ZS') zsTestKlick();
   }
 
   function aendereAusgewaehltesFeld(richtung) {

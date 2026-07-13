@@ -1225,6 +1225,98 @@ als auch Isc zurück auf den Platzhalter, auch ohne Messspitzen-Änderung, und
 beide bleiben stehen, bis nach Rückkehr der Spannung erneut TEST gedrückt
 wird.
 
+**ZS - prototypisch umgesetzt, iterativ aufgebaut (User-Vorgabe).** Kam in
+mehreren Schritten: zuerst nur die Kern-Messung, dann Live-Spannungsanzeige,
+Pfeil-Kasten-Umschaltung und zuletzt die Isc/Lim-Ampel - alle vier RISO/ZI-
+typischen Bausteine sind inzwischen vollständig nachgezogen (siehe unten).
+
+Anders als ZI (Schwarz+Blau) nutzt ZS **Schwarz+Grün** als aktive Sonden -
+Blau muss trotzdem korrekt auf N sitzen, damit TEST reagiert, fließt aber
+(wie bei ZI) nicht in die Berechnung ein. Der eigentliche Unterschied: nur
+EIN Teilpfad wird verfolgt (L-Sonde → L-Einspeisung), der zweite (PE) wird
+komplett übersprungen - eine bewusste, in `zsTestKlick()` explizit
+kommentierte Vereinfachung (PE hat "immer Durchgang", 0Ω), analog zur
+PE-als-N-Vereinfachung bei RISO (`risoEffektiveAder()`).
+
+Neu in `app.js`:
+- `berechneZsSpannung()` - **live**, strukturell wie `berechneZiSpannung()`,
+  prüft aber bewusst nur den EINEN Teilpfad, den auch `zsTestKlick()` prüft
+  (L-Sonde → L-Einspeisung, PE bewusst ignoriert) - zeigt also exakt an, ob
+  ein TEST-Klick gerade einen Messwert liefern würde. Verlangt trotzdem alle
+  drei Sonden korrekt platziert (Schwarz auf L1/L2/L3, Grün auf PE, Blau auf
+  N), auch wenn nur `istSpannungFuehrend()` für Schwarz ausgewertet wird.
+- `zsMesswert` - State-Variable wie `ziMesswert`, startet `null`. Reset an
+  denselben Stellen (Messspitzen-Änderung im Schraube-Klick-Handler,
+  `setzeBearbeitungenZurueck()`).
+- `zsTestKlick()` - an die TEST-Taste gebunden (`testKlick()`-Dispatcher,
+  jetzt um den ZS-Zweig erweitert). Bricht ab, wenn Funktion nicht ZS ist,
+  eine der drei Messspitzen fehlt, Schwarz nicht auf L1/L2/L3, Grün nicht
+  auf PE, oder Blau nicht auf N sitzt. Sucht dann NUR
+  `findePfadZurEinspeisung(schwarzAder.funktion, schwarzAder)` (kein
+  zweiter Aufruf für Grün/PE, im Gegensatz zu ZIs zwei Aufrufen) - kein Pfad
+  → TEST bleibt wirkungslos, Platzhalter bleibt stehen (kein
+  `>999Ω`-Sentinel, wie bei ZI). Sonst: `zsMesswert =
+  berechneWiderstand(graph, pfadL) + ZI_VORIMPEDANZ` (derselbe
+  Konstantenwert wie bei ZI, per expliziter User-Vorgabe wiederverwendet,
+  kein eigener `ZS_VORIMPEDANZ`).
+- `baueAnzeigeZustand()`s ZS-Zweig berechnet `const zsSpannung =
+  berechneZsSpannung()` einmal und setzt daraus `zustand.spannungUnterPe =
+  \`${zsSpannung}V\`` (immer ein Wert, nie ein Platzhalter, wie bei ZI/RISO)
+  sowie `zustand.indikatorDurchgestrichen = zsSpannung === 0` (Pfeil-Kasten
+  unten links, wie bei ZI: undurchgestrichen, solange der L-Pfad bereit
+  ist). Beide **außerhalb** der `titelZeigtLabel`-Verzweigung platziert,
+  gelten also für Zs UND ZSrcd gleichermaßen. Ebenfalls außerhalb dieser
+  Verzweigung: überschreibt `zustand.hauptwert` mit
+  `` `Z:${zsMesswert.toFixed(2).replace('.', ',')}Ω` ``, wenn `zsMesswert
+  !== null` - anders als ZIs Isc/Ampel-Override, der nur im `else`-Zweig der
+  normalen Zl-Ansicht sitzt. Das ist kein Sonderfall, sondern folgt einem
+  bereits bestehenden Kommentar an der ZSrcd-Verzweigung ("Zone 2/3 bleiben
+  unverändert wie in der normalen Zs-Ansicht - kein Override nötig") -
+  anders als ZIs ΔU-Ansicht (die den Hauptmesswert-Bereich komplett durch
+  statische Platzhalter-Zeilen ersetzt) lässt ZSrcd den Hauptmesswert-Bereich
+  unangetastet. Im selben `if (zsMesswert !== null)`-Block außerdem die
+  Isc/Lim-Ampel: `const isc = (0.9 * 230) / zsMesswert`,
+  `zustand.nebenwertLinks = \`Isc:${isc...}A\``, `const lim =
+  MessgeraetView.berechneLim(zsTitelWerte[0], zsTitelWerte[1])`,
+  `zustand.leuchteLinksAn = isc < lim`, `zustand.leuchteRechtsAn = isc >=
+  lim` - strukturell identisch zu ZIs Isc/Ampel-Berechnung, nur eben
+  außerhalb der `titelZeigtLabel`-Verzweigung (gilt für Zs UND ZSrcd) statt
+  nur im `else`-Zweig.
+- `testKlick()`-Dispatcher um `else if (funktion === 'ZS') zsTestKlick();`
+  ergänzt.
+
+Damit sind ZI und ZS jetzt bis auf einen bewussten Unterschied funktional
+deckungsgleich: ZS prüft/berechnet keinen PE-Pfad (siehe "Grenzen" oben in
+`zsTestKlick()`s Kommentar) - alle anderen Features (Live-Spannungsanzeige,
+Pfeil-Kasten, Isc/Lim-Ampel) sind 1:1 identisch übertragen.
+
+Getestet in `test_messgeraet.js` (14 Tests, meist mit testcase_01): TEST
+berechnet nur den L-Pfad + Vorimpedanz und die Isc/Lim-Ampel daraus
+(`Z:0,24Ω` = 0,1Ω Fehlertabelle N6 + 0,14Ω Vorimpedanz, `Isc:862,5A` >
+`Lim: 80,0A` → grün), PE/N bleiben unberücksichtigt; Isc/Lim-Ampel kippt
+live auf rot, wenn LS-Typ/Bemessungsstrom per ▲/▼ so verändert werden, dass
+Lim über den unveränderten Isc-Wert steigt (D-Charakteristik, 125A → Lim
+2500,0A); testcase_04s drei Stromkreise (SK1/SK2/SK3, je eine eigene Phase
+mit eigener Einspeisung) liefern je einen eigenständigen Zahlen-Regressionstest
+- SK1/L1: `Z:0,54Ω` (N20+N24), `Isc:383,3A`; SK2/L2: `Z:0,67Ω` (N21+N25),
+`Isc:309,0A`; SK3/L3: `Z:0,63Ω` (N22+N26), `Isc:328,6A` - alle drei grün bei
+B/16A, plus ein vierter Test auf demselben SK3-Pfad, der nur den
+Bemessungsstrom auf 80A stellt (`Lim: 400,0A` > `Isc:328,6A`, Messwert
+selbst unverändert) und damit gezielt den Rot-Fall mit einem realistischen
+Nachrechnen-Beispiel abdeckt (statt wie beim ersten ZI/ZS-Ampel-Test nur
+künstlich per D-Charakteristik). Die PE-Ausgangsschraube von SK2/SK3
+(N33/N36) kommt im SVG jeweils zweimal vor (Fallback-Wert der oberen
+PE-Reihenklemmen-Eingangsschraube ohne eigenes Zubringerkabel, siehe
+"PE-Reihenklemmen-Bugfix" oben) - die Tests schränken deshalb per
+`cy="131"` gezielt auf die untere (Ausgangs-)Schraube ein.
+Live-Spannungsanzeige zeigt 230V, solange der L-Pfad geschlossen ist,
+und fällt auf 0V, sobald das zugehörige RCD öffnet (Pfeil-Kasten dabei
+jeweils undurchgestrichen bzw. wieder durchgestrichen); Schwarz nicht auf L,
+Grün nicht auf PE, und Blau nicht auf N → TEST jeweils wirkungslos; offenes
+RCD unterbricht den L-Pfad → TEST wirkungslos; Messspitzen-Änderung und
+Drehknopf-Wechsel setzen den Messwert zurück; die ZSrcd-Ansicht zeigt
+denselben Messwert wie die normale Zs-Ansicht.
+
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen
 - Phase 1 → 2 → 3 → 4 → 5

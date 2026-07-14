@@ -1,6 +1,7 @@
 import { Anlage } from '../model/anlage.js';
 import { SchaltkastenView } from '../view/schaltkasten.js';
 import { MessgeraetView } from '../view/messgeraet.js';
+import { ProtokollView } from '../view/protokoll.js';
 import { Popup } from '../view/popup.js';
 import { findePfad, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
@@ -531,6 +532,11 @@ async function start() {
   // zu duplizieren.
   const messgeraetContainer = document.getElementById('messgeraet');
   messgeraetContainer.style.width = `${schaltkastenSvg.getAttribute('width')}px`;
+
+  // Drittes View-Objekt unter dem Messgerät, gleiche Breite wie der
+  // Schaltkasten (siehe view/protokoll.js).
+  const protokollContainer = document.getElementById('protokoll');
+  ProtokollView.render(protokollContainer, schaltkastenSvg.getAttribute('width'));
 
   // Gerät startet aus. TEST-Taste/Messpunkte-Anlegen folgen noch.
   let messgeraetZustand = MessgeraetView.zustandFuerFunktion('RLOW', false);

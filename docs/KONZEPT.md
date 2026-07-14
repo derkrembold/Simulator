@@ -760,6 +760,55 @@ V~ dreimal für alle drei Paare.
 
 ---
 
+## Prüfprotokoll (View-Objekt)
+
+**Status: erste Ausbaustufe umgesetzt** (rein ein-/ankreuzbar). Drittes
+View-Objekt neben Schaltkasten und Messgerät, unter Letzterem platziert
+(`#protokoll`, `view/protokoll.js`). Inhalt folgt 1:1
+`docs/referenz/Prüfprotokoll.md` (alle Felder/Abschnitte), Optik ist an
+`docs/referenz/Prüfprotokoll.pdf` angelehnt (umrandetes Formularblatt,
+☐-Kästchen zum Ankreuzen) - kein Pixel-genauer Nachbau, sondern derselbe
+"amtliches Formular"-Charakter (schwarzer Rahmen, kompakte Tabellen,
+Ankreuzkästchen).
+
+**Breite:** identisch zur tatsächlich gerenderten Schaltkasten-Breite (wie
+schon beim Messgerät) - `ProtokollView.render(container, breitePx)` bekommt
+die Breite von `controller/app.js` durchgereicht (`schaltkastenSvg.
+getAttribute('width')`), damit alle drei View-Objekte bündig übereinander
+stehen. **Höhe** wächst frei nach unten, je nach Inhalt.
+
+**Aufbau:** anders als Schaltkasten/Messgerät (reines SVG, siehe oben) baut
+`view/protokoll.js` mit normalen HTML-Elementen (Tabellen, `<input>`,
+klickbare ☐/☒-Spans) statt SVG - echte Texteingabe braucht native
+Eingabefelder, SVG ist dafür das falsche Werkzeug. Einziges andere
+HTML-basierte View im Projekt: `view/popup.js`.
+
+Abschnitte (Reihenfolge und Feldnamen exakt wie in `Prüfprotokoll.md`):
+Kopfdaten, Netz, Besichtigen (14 Prüfpunkte, i.O./n.i.O./Bemerkung),
+Erproben (7 Prüfpunkte, gleiches Schema), Erdung/Potentialausgleich (16
+Prüfpunkte, eine Wert-Spalte statt i.O./n.i.O.), Verwendete Messgeräte (3
+Zeilen), Messen – Stromkreisverteiler (20 Spalten, 11 Zeilen, erste Zeile
+mit "Hauptleitung" vorausgefüllt), Prüfergebnis, Abschluss – Auftraggeber/
+Prüfer, und als eigenes zweites Blatt Seite 2 (Übergabe-/Zustandsbericht:
+Mängel/Beurteilung als je 11 linierte Zeilen, plus dieselben
+Abschluss-Felder wie Seite 1).
+
+**Messen – Stromkreisverteiler braucht horizontalen Scroll:** 20 Spalten
+passen bei Schaltkasten-Breite nicht nebeneinander - die Tabelle sitzt in
+einem eigenen `overflow-x: auto`-Container (`.pf-scroll`), unabhängig vom
+Rest des Blatts, das selbst nicht seitlich scrollt.
+
+**Ankreuzen:** jedes ☐/☒-Kästchen ist ein eigenständiger Span mit
+Klick-Listener (Event-Delegation auf dem Wurzel-Container), togglet
+unabhängig von jedem anderen Kästchen - bewusst **kein Radio-Verhalten**,
+auch nicht innerhalb einer Options-Gruppe wie "Netzform" (TN-C/TN-S/...).
+Mehrfachauswahl-Einschränkung, Verknüpfung mit echten Messwerten aus dem
+Messgerät, und Validierung sind explizit **nicht** Teil dieser ersten
+Ausbaustufe - "die einzige Funktion" ist Eintragen/Ankreuzen, laut
+User-Vorgabe. Spätere Erweiterung möglich.
+
+---
+
 ## JSON-Konfiguration der Anlage
 
 ### Struktur (Baum)
@@ -1371,3 +1420,9 @@ Offen:
    "Schrauben lösen" oben).
 4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
    Typ B, Gruppe ohne RCD).
+5. **Prüfprotokoll: Verknüpfung mit echten Messwerten** - aktuell rein
+   ein-/ankreuzbar, ohne Bezug zu den im Messgerät tatsächlich ermittelten
+   Werten (siehe "Prüfprotokoll (View-Objekt)" oben). Spätere Ausbaustufe:
+   automatisches Übernehmen der TEST-Ergebnisse in die passende Zeile/Spalte
+   der Stromkreisverteiler-Tabelle, plus Validierung (z.B. Fehlerquelle #14 -
+   Zi/Zs-Verwechslung - direkt im Protokoll markieren).

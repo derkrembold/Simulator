@@ -793,10 +793,83 @@ function rendern() {
 - Abhaken aktiviert nächsten Schritt
 
 ### protokoll.js
-- Formular mit allen Pflichtfeldern nach VDE 0100-600 Anhang NA
-- Zi/Zs Spalten klar beschriftet
-- Sofortige Bewertung bei Eingabe (grün/rot)
-- Warnung bei falscher Spalte
+
+**Status: erste Ausbaustufe umgesetzt** (rein ein-/ankreuzbar, siehe
+KONZEPT.md "Prüfprotokoll (View-Objekt)"). Drittes View-Objekt neben
+Schaltkasten und Messgerät, gerendert in `#protokoll` unterhalb von
+`#messgeraet`. Anders als `schaltkasten.js`/`messgeraet.js` (reines SVG, per
+`svgEl()`/`document.createElementNS`) baut dieses Modul mit normalen
+HTML-Elementen - Tabellen, `<input type="text">`, klickbare ☐/☒-`<span>`s -
+über einen großen Template-String (`container.innerHTML = ...`), da hier
+echte Texteingabe gebraucht wird (native Eingabefelder statt SVG-Text).
+Zweites HTML-basiertes View im Projekt neben `view/popup.js`.
+
+- `sorgeFuerCss()`: injiziert einmalig ein `<style>`-Element mit allen
+  `.pf-*`-Klassen in `document.head` (Guard über `cssEingefuegt`, damit
+  mehrfaches `render()` - z.B. Testcase-Wechsel - das `<style>` nicht
+  dupliziert). Bewusst modul-eigenes CSS statt Ergänzung in `index.html`s
+  `<style>`-Block (anders als `.popup`), da hier deutlich mehr
+  Formular-spezifische Klassen anfallen als bei einem einzelnen Tooltip.
+- Inhalt/Struktur exakt aus `docs/referenz/Prüfprotokoll.md` übernommen:
+  `BESICHTIGEN_PUNKTE` (14), `ERPROBEN_PUNKTE` (7), `ERDUNG_PUNKTE` (16),
+  `STROMKREIS_SPALTEN` (20, wortgleich aus der Tabellenüberschrift der .md)
+  als Konstanten-Arrays, daraus generieren `pruefpunktTabelle()`/
+  `baueStromkreisverteiler()`/`baueMessgeraeteTabelle()` die jeweiligen
+  `<table>`s. Optik an `docs/referenz/Prüfprotokoll.pdf` angelehnt (schwarz
+  umrandetes Blatt `.pf-blatt`, kompakte Tabellenzellen, ☐-Kästchen) - kein
+  Pixel-Nachbau, sondern derselbe amtliche Formular-Charakter.
+- `ProtokollView.render(container, breitePx)`: setzt `container.style.width`
+  auf `breitePx` (von `controller/app.js` als `schaltkastenSvg.
+  getAttribute('width')` durchgereicht - identisches Prinzip wie beim
+  Messgerät, siehe unten), baut das komplette Formular (Seite 1 + Seite 2
+  als zweites `.pf-blatt` darunter) und hängt EINEN Klick-Listener auf den
+  Wurzel-Container (Event-Delegation über `ev.target.closest('.pf-cb')`)
+  statt eines Listeners pro Kästchen - togglet `textContent` zwischen `☐`
+  und `☒`, unabhängig von jedem anderen Kästchen (bewusst kein
+  Radio-Verhalten, auch nicht innerhalb einer Options-Gruppe wie
+  "Netzform").
+- **Messen – Stromkreisverteiler** (20 Spalten) ist breiter als die
+  Schaltkasten-Breite - eigener `overflow-x: auto`-Wrapper (`.pf-scroll`),
+  unabhängig vom Rest des Blatts, der selbst nicht seitlich scrollt. Erste
+  Datenzeile hat "Hauptleitung" als vorausgefüllten `value` im
+  Zielbezeichnung-Feld (wie in der .md-Vorlage), die restlichen 10 Zeilen
+  sind komplett leer.
+- **Bewusst NICHT Teil dieser Ausbaustufe** (verschoben nach KONZEPT.md
+  "Nächste Schritte"): Verknüpfung mit echten Messwerten aus dem Messgerät,
+  automatische Übernahme ins Protokoll, Bewertung/Validierung (grün/rot),
+  Warnung bei falscher Spalte (Fehlerquelle #14) - das hier beschriebene
+  Modul ist reine Ein-/Ankreuz-Funktion.
+
+`controller/app.js`: `ProtokollView.render(protokollContainer,
+schaltkastenSvg.getAttribute('width'))` direkt nach dem bestehenden
+`messgeraetContainer.style.width`-Aufruf, `index.html` bekam dafür ein neues
+`<div id="protokoll">` unterhalb von `#messgeraet` plus eine minimale
+`#protokoll { margin-top: 20px; }`-Regel.
+
+**Linksbündig, nicht zentriert:** die erste Fassung nutzte `margin: 20px
+auto 0` - der `auto`-Wert links/rechts zentriert den `#protokoll`-Container
+innerhalb der `body`-Breite, nicht innerhalb der (schmaleren)
+Schaltkasten-Breite. Bei einem Viewport, der breiter als der Schaltkasten
+ist, rutschte das Blatt dadurch sichtbar nach rechts, statt direkt unter dem
+Schaltkasten zu stehen (anders als `#messgeraet`, dessen `justify-content:
+center` nur den *Inhalt innerhalb* des ohnehin schon auf Schaltkasten-Breite
+gesetzten Containers zentriert, nicht den Container selbst). Fix: `auto`
+entfernt, nur noch `margin-top` - `#protokoll` bleibt dadurch wie
+`#schaltkasten` im normalen Fluss linksbündig, beide Container haben
+dieselbe linke Kante (verifiziert per `getBoundingClientRect().left` bei
+einem absichtlich breiteren Viewport als die Schaltkasten-Breite, um den
+alten Bug überhaupt sichtbar zu machen).
+
+Getestet in `tests/visuell/test_protokoll.js` (eigene Testdatei, gleiches
+Server/`pruefe()`-Muster wie `test_messgeraet.js`, in `package.json`s
+`test`-Skript ergänzt, 6 Tests): Breite entspricht exakt der gerenderten
+Schaltkasten-Breite; linke Kante steht (bei absichtlich breiterem Viewport
+als die Schaltkasten-Breite) bündig unter der Schaltkasten-Kante statt
+zentriert zu sein; ein Kästchen togglet zwischen ☐/☒ und lässt andere
+Kästchen unberührt; Texteingabe in ein Feld wird übernommen (`inputValue()`);
+die Stromkreisverteiler-Tabelle hat 20 Spalten/12 Zeilen (1 Kopf + 11 Daten)
+und braucht tatsächlich horizontalen Scroll (`scrollWidth > clientWidth`);
+die Besichtigen-Tabelle enthält alle 14 Prüfpunkte aus der .md-Vorlage.
 
 ### timer.js
 - Sichtbarer 45-Minuten Timer

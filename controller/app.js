@@ -68,7 +68,7 @@ async function start() {
     renderMessgeraet(); // RLOW misst kontinuierlich, siehe unten
   }
 
-  const schaltkastenSvg = SchaltkastenView.render(anlage, container, (ader, x, y, kreis) => {
+  const { svg: schaltkastenSvg, schalterHandles } = SchaltkastenView.render(anlage, container, (ader, x, y, kreis) => {
     // Solange das Messgerät an ist (Messmodus), ersetzen Messspitzen die
     // Popups: kein Querschnitt/Farbe-Tooltip mehr, stattdessen legt jeder
     // Klick auf eine Schraube eine farbige Messspitze an (oder nimmt sie
@@ -480,6 +480,11 @@ async function start() {
     if (rcd) {
       fircdMesswert = { iA: rcd.iA, tA: rcd.tA, uB: rcd.uB };
       fircdAmpel = 'gruen';
+      // Erfolgreicher RCD-Test -> der gefundene RCD löst aus, sein Hebel
+      // öffnet sich automatisch (Hebel UND Verbindungsgraph, über denselben
+      // Callback-Pfad wie ein echter Mausklick, siehe zeichneSchalter() in
+      // schaltkasten.js). Explizite User-Vorgabe.
+      schalterHandles.get(rcd.name)?.setGeschlossen(false);
     } else {
       // Kein RCD gefunden - alle Felder bleiben/werden leer (Platzhalter),
       // aber die Ampel geht explizit auf Rot (User-Vorgabe).

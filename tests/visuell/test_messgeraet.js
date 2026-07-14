@@ -1500,11 +1500,11 @@ async function main() {
     await page.close();
   });
 
-  // --- FI/RCD: erste Iteration, analog zu ZS - live Spannungsanzeige +
+  // --- FI/RCD: analog zu ZS aufgebaut - live Spannungsanzeige +
   // Pfeil-Kasten-Umschaltung, dieselbe Platzierungsvorgabe (Schwarz auf
   // L1/L2/L3, Grün auf PE, Blau auf N) und derselbe Ein-Pfad-Check (nur
   // Schwarz -> Einspeisung, PE/N-Pfad bewusst nicht geprüft). Die eigentliche
-  // Auslösewert-Berechnung (I/Uci/t) kommt in einer späteren Iteration.
+  // Auslösewert-Berechnung (I/Uci/t) folgt weiter unten.
   await pruefe('FI/RCD: Live-Spannungsanzeige zeigt 230V bei bereitem Stromkreis, 0V sonst - Pfeil-Kasten entsprechend', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     await drehknopfKlick(page);
@@ -1552,6 +1552,178 @@ async function main() {
     erwarte(await displayTexte(page), 'Uci:1,0V', 'RCD1.uB übernommen');
     erwarte(await displayTexte(page), 't:22,0ms', 'RCD1.tA übernommen');
     erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    await page.close();
+  });
+
+  // Hebel-Umbau: SchaltkastenView.render() gibt jetzt zusätzlich
+  // schalterHandles zurück (Map<bauteilName, {setGeschlossen}>), über die
+  // app.js denselben Zustandswechsel programmatisch auslösen kann wie ein
+  // echter Mausklick (siehe zeichneSchalter() in schaltkasten.js). Genutzt
+  // von fircdTestKlick(): nach einem erfolgreichen RCD-Fund öffnet sich
+  // dessen Hebel automatisch - visuell UND im Verbindungsgraphen.
+  await pruefe('FI/RCD: erfolgreicher TEST öffnet automatisch den Hebel des gefundenen RCD', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    function hebelTransform() {
+      return page.evaluate(() => {
+        const rect = document.querySelector('#schaltkasten svg rect[x="8"][y="322"]'); // RCD1s Schalter-Box
+        const outerG = rect?.parentElement;
+        const hebelG = outerG?.querySelector('g');
+        return hebelG?.getAttribute('transform') ?? null;
+      });
+    }
+    if (await hebelTransform()) {
+      throw new Error('Hebel sollte vor dem TEST geschlossen sein (kein transform)');
+    }
+
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    if (!(await hebelTransform())) {
+      throw new Error('Hebel des gefundenen RCD sollte sich nach erfolgreichem TEST automatisch öffnen');
+    }
+    erwarte(await displayTexte(page), '0V', 'Spannung fällt live auf 0V, da der Pfad jetzt durch den offenen RCD unterbrochen ist');
+    erwarte(await displayTexte(page), 'I:18,0mA', 'übernommene Messwerte bleiben trotz offenem Hebel im Display stehen');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Ampel bleibt grün');
+    await page.close();
+  });
+
+  // testcase_03: RCD1 (G1) speist SK1 (LS1) UND SK2 (LS2) gemeinsam - Schwarz
+  // auf Reihenklemme_L_SK1, Blau auf Reihenklemme_N_SK2 (eine ANDERE
+  // Stromkreis als Schwarz, aber immer noch hinter demselben RCD1), Grün auf
+  // Reihenklemme_PE_SK1. Zeigt, dass die Rollenprüfung (Blau auf N, Grün auf
+  // PE) nur die FUNKTION der Ader prüft, nicht ob sie zum selben Stromkreis
+  // wie Schwarz gehört - für die RCD-Suche selbst zählt ohnehin nur der
+  // Schwarz-Pfad zur Einspeisung (findeErstesRcdAufPfad()).
+  await pruefe('FI/RCD: testcase_03 - Schwarz/Blau/Grün aus unterschiedlichen Stromkreisen hinter RCD1 finden trotzdem RCD1 und öffnen dessen Hebel', async () => {
+    const page = await neueSeiteMitTestcase('testcase_03');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    function hebelTransform() {
+      return page.evaluate(() => {
+        const rect = document.querySelector('#schaltkasten svg rect[x="8"][y="322"]'); // RCD1s Schalter-Box
+        const outerG = rect?.parentElement;
+        const hebelG = outerG?.querySelector('g');
+        return hebelG?.getAttribute('transform') ?? null;
+      });
+    }
+
+    await page.locator('#schaltkasten svg circle[data-netz="N23"]').first().click(); // schwarz, Reihenklemme_L_SK1
+    await page.locator('#schaltkasten svg circle[data-netz="N29"]').first().click(); // blau, Reihenklemme_N_SK2
+    await page.locator('#schaltkasten svg circle[data-netz="N27"]').first().click(); // grün, Reihenklemme_PE_SK1
+
+    if (await indikatorDurchgestrichen(page)) {
+      throw new Error('Pfeil-Kasten sollte bei anliegender Spannung NICHT durchgestrichen sein');
+    }
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'I:16,0mA', 'RCD1.iA übernommen');
+    erwarte(await displayTexte(page), 't:20,0ms', 'RCD1.tA übernommen');
+    if (!(await hebelTransform())) {
+      throw new Error('Hebel von RCD1 sollte sich nach erfolgreichem TEST automatisch öffnen');
+    }
+    await page.close();
+  });
+
+  // testcase_03: RCD3 (G3, zweite Gruppe der zweiten Hutschiene, rechts von
+  // RCD2 gezeichnet) speist SK5/SK6 - Schwarz auf der letzten grauen
+  // Reihenklemme (Reihenklemme_L_SK6), Blau auf der letzten blauen
+  // Reihenklemme (Reihenklemme_N_SK6), Grün auf der (einzigen) grünen
+  // PE-Klemme in der letzten Reihe (anders als der vorige Test: hier die
+  // anlagenweite PE-Klemme, keine Reihenklemme_PE_SKx). Deckt einen anderen
+  // RCD als die bisherigen Tests ab (RCD3 statt RCD1) und den rechtesten
+  // Schalter im Schaltkasten.
+  await pruefe('FI/RCD: testcase_03 - Schwarz/Blau auf SK6, Grün auf der PE-Klemme finden RCD3 und öffnen dessen Hebel (rechter RCD)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_03');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    function hebelTransformRcd3() {
+      return page.evaluate(() => {
+        const rect = document.querySelector('#schaltkasten svg rect[x="152"][y="572"]'); // RCD3s Schalter-Box
+        const outerG = rect?.parentElement;
+        const hebelG = outerG?.querySelector('g');
+        return hebelG?.getAttribute('transform') ?? null;
+      });
+    }
+    if (!(await indikatorDurchgestrichen(page))) {
+      throw new Error('Pfeil-Kasten sollte vor dem Anlegen der Messspitzen durchgestrichen sein');
+    }
+
+    await page.locator('#schaltkasten svg circle[data-netz="N44"]').first().click(); // schwarz, Reihenklemme_L_SK6
+    await page.locator('#schaltkasten svg circle[data-netz="N45"]').first().click(); // blau, Reihenklemme_N_SK6
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').first().click(); // grün, PE-Klemme
+
+    if (await indikatorDurchgestrichen(page)) {
+      throw new Error('Pfeil-Kasten sollte nach vollständig angelegten Messspitzen NICHT mehr durchgestrichen sein');
+    }
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'I:20,0mA', 'RCD3.iA übernommen');
+    erwarte(await displayTexte(page), 'Uci:0,8V', 'RCD3.uB übernommen');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    erwarte(await displayTexte(page), '0V', 'Spannung fällt live auf 0V, da RCD3 jetzt offen ist');
+    if (!(await indikatorDurchgestrichen(page))) {
+      throw new Error('Pfeil-Kasten sollte nach dem Auslösen wieder durchgestrichen sein (keine Spannung mehr)');
+    }
+    if (!(await hebelTransformRcd3())) {
+      throw new Error('Hebel von RCD3 sollte sich nach erfolgreichem TEST automatisch öffnen');
+    }
+    await page.close();
+  });
+
+  // testcase_04: einziges RCD (RCD1, 4-polig, speist L1/L2/L3 gemeinsam) -
+  // Schwarz auf der zweiten grauen Reihenklemme (Reihenklemme_L_SK2, also
+  // L2 statt L1 - testcase_04s drei Stromkreise hängen an je einer eigenen
+  // Phase), Blau auf der zweiten blauen Reihenklemme (Reihenklemme_N_SK2),
+  // Grün auf der anlagenweiten PE-Klemme (wie im vorigen testcase_03-Test).
+  await pruefe('FI/RCD: testcase_04 - Schwarz/Blau auf SK2 (L2), Grün auf der PE-Klemme finden RCD1 und öffnen dessen Hebel', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    function hebelTransformRcd1() {
+      return page.evaluate(() => {
+        const rect = document.querySelector('#schaltkasten svg rect[x="8"][y="322"]'); // RCD1s Schalter-Box
+        const outerG = rect?.parentElement;
+        const hebelG = outerG?.querySelector('g');
+        return hebelG?.getAttribute('transform') ?? null;
+      });
+    }
+
+    await page.locator('#schaltkasten svg circle[data-netz="N31"]').first().click(); // schwarz, Reihenklemme_L_SK2 (L2)
+    await page.locator('#schaltkasten svg circle[data-netz="N32"]').first().click(); // blau, Reihenklemme_N_SK2
+    await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click(); // grün, PE-Klemme
+
+    erwarte(await displayTexte(page), '230V', 'Spannung liegt an, sobald alle drei Sonden korrekt sitzen');
+    if (await indikatorDurchgestrichen(page)) {
+      throw new Error('Pfeil-Kasten sollte bei anliegender Spannung NICHT durchgestrichen sein');
+    }
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'I:16,0mA', 'RCD1.iA übernommen');
+    erwarte(await displayTexte(page), 'Uci:0,9V', 'RCD1.uB übernommen');
+    erwarte(await displayTexte(page), 't:20,0ms', 'RCD1.tA übernommen');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    if (!(await indikatorDurchgestrichen(page))) {
+      throw new Error('Pfeil-Kasten sollte nach dem Auslösen wieder durchgestrichen sein (keine Spannung mehr)');
+    }
+    if (!(await hebelTransformRcd1())) {
+      throw new Error('Hebel von RCD1 sollte sich nach erfolgreichem TEST automatisch öffnen');
+    }
     await page.close();
   });
 
@@ -1662,6 +1834,102 @@ async function main() {
     await klick(page, 'TEST');
     const nachTest = await displayTexte(page);
     erwarteGleich(nachTest, vorTest, 'TEST-Taste verändert bei V~ nichts');
+    await page.close();
+  });
+
+  // testcase_04: drei grau eingefärbte Reihenklemmen_L (SK1/SK2/SK3, je auf
+  // einer eigenen Phase L1/L2/L3 - siehe FARBEN.reihenklemme_l in
+  // schaltkasten.js, unabhängig von der Phase immer grau). N24/N25/N26 sind
+  // die jeweiligen Schrauben.
+  await pruefe('V~: testcase_04 - eine Sonde auf der grauen SK1-Reihenklemme zeigt überall 0V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // schwarz, SK1-grau (L1)
+
+    const texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '0V').length, 3, 'nur eine Sonde gesetzt -> alle drei Paare 0V');
+    await page.close();
+  });
+
+  await pruefe('V~: testcase_04 - Sonden auf SK1- und SK2-Reihenklemme (grau) zeigen Uln=400V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // schwarz, SK1-grau (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').first().click(); // blau, SK2-grau (L2)
+
+    const texte = await displayTexte(page);
+    erwarte(texte, 'Uln:', 'Uln-Label vorhanden');
+    erwarte(texte, '400V', 'SK1/SK2-grau sind verschiedene Außenleiter -> 400V');
+    erwarteGleich(texte.filter((t) => t === '0V').length, 2, 'Ulpe/Unpe bleiben 0V ohne dritte Sonde');
+    await page.close();
+  });
+
+  await pruefe('V~: testcase_04 - alle drei Sonden auf SK1/SK2/SK3-Reihenklemme (grau) zeigen überall 400V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // schwarz, SK1-grau (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').first().click(); // blau, SK2-grau (L2)
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').first().click(); // grün, SK3-grau (L3)
+
+    const texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '400V').length, 3, 'alle drei Paare zwischen unterschiedlichen Außenleitern -> 400V');
+    await page.close();
+  });
+
+  // testcase_04: dieselben Reihenklemme_L_SK1 (grau, N24) und
+  // Reihenklemme_N_SK1/SK3 (blau, N28/N35) wie oben, diesmal L-N-Paare -
+  // zeigt, dass Uln/Ulpe/Unpe rein von den PLATZIERTEN FARBEN abhängen
+  // (Schwarz-Blau/Schwarz-Grün/Blau-Grün), nicht davon, welches Netz
+  // "eigentlich" dahintersteckt. Farbzuweisung folgt der Klickreihenfolge
+  // je Schraube (siehe naechsteMessspitzenFarbe() in app.js): 1./2./3.
+  // Klick auf eine NEUE Schraube vergibt Schwarz/Blau/Grün; ein erneuter
+  // Klick auf dieselbe Schraube zyklisiert ihre Farbe weiter (bereits
+  // belegte Farben werden dabei übersprungen).
+  await pruefe('V~: testcase_04 - Schwarz auf SK1-grau, Blau auf SK1-blau -> Uln=230V, sonst 0V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // 1. Klick -> schwarz, SK1-grau (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N28"]').first().click(); // 2. Klick -> blau, SK1-blau (N)
+
+    const texte = await displayTexte(page);
+    erwarte(texte, '230V', 'Uln: L1(schwarz)-N(blau) ist ein L-N-Paar');
+    erwarteGleich(texte.filter((t) => t === '230V').length, 1, 'nur Uln zeigt einen Wert');
+    erwarteGleich(texte.filter((t) => t === '0V').length, 2, 'Ulpe/Unpe bleiben 0V ohne grüne Sonde');
+    await page.close();
+  });
+
+  await pruefe('V~: testcase_04 - Grün auf SK1-grau, Schwarz auf SK1-blau -> Ulpe=230V, sonst 0V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const grau = page.locator('#schaltkasten svg circle[data-netz="N24"]').first();
+    await grau.click(); await grau.click(); await grau.click(); // schwarz -> blau -> grün, SK1-grau (L1)
+    await page.locator('#schaltkasten svg circle[data-netz="N28"]').first().click(); // 1. Klick auf dieser Schraube -> schwarz (blau/grün schon belegt), SK1-blau (N)
+
+    const texte = await displayTexte(page);
+    erwarte(texte, '230V', 'Ulpe: N(schwarz)-L1(grün) ist ein L-N-Paar');
+    erwarteGleich(texte.filter((t) => t === '230V').length, 1, 'nur Ulpe zeigt einen Wert');
+    erwarteGleich(texte.filter((t) => t === '0V').length, 2, 'Uln/Unpe bleiben 0V ohne blaue Sonde');
+    await page.close();
+  });
+
+  await pruefe('V~: testcase_04 - Blau auf SK1-grau, Grün auf SK3-blau (letzte blaue Klemme) -> Unpe=230V, sonst 0V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const grau = page.locator('#schaltkasten svg circle[data-netz="N24"]').first();
+    await grau.click(); await grau.click(); // schwarz -> blau, SK1-grau (L1)
+    const letzteBlau = page.locator('#schaltkasten svg circle[data-netz="N35"]').first(); // SK3-blau (N), letzte der drei blauen Reihenklemmen
+    await letzteBlau.click(); await letzteBlau.click(); // schwarz -> (blau belegt, übersprungen) -> grün
+
+    const texte = await displayTexte(page);
+    erwarte(texte, '230V', 'Unpe: L1(blau)-N(grün) ist ein L-N-Paar');
+    erwarteGleich(texte.filter((t) => t === '230V').length, 1, 'nur Unpe zeigt einen Wert');
+    erwarteGleich(texte.filter((t) => t === '0V').length, 2, 'Uln/Ulpe bleiben 0V ohne schwarze Sonde');
     await page.close();
   });
 

@@ -460,6 +460,63 @@ Hauptschalter unterbricht L1 und L3 gleichzeitig" - belegen, dass ein Klick
 wirklich mehrere Kanten in verschiedenen Funktions-Teilgraphen (`L1`/`L2`/
 `L3`) gleichzeitig umschaltet, nicht nur eine.
 
+#### Programmatisches Umschalten (`schalterHandles`, Status: umgesetzt)
+
+Bis hierhin konnte ein Hebel nur über den echten Mausklick auf die `<g>`
+umschalten - `geschlossen` und der Rotations-`transform` lebten rein in der
+Closure von `zeichneSchalter()`, ohne dass `controller/app.js` von außen
+darauf zugreifen konnte. Grund für den Umbau: FI/RCD sollte nach einem
+erfolgreichen TEST den gefundenen RCD automatisch auslösen (siehe
+`fircdTestKlick()` unten) - das braucht einen Weg, denselben Zustandswechsel
+programmatisch statt per Klick auszulösen.
+
+- `zeichneSchalter(svg, mitteX, mitteY, breite, onKlick, initialGeschlossen = true)`:
+  neuer fünfter Parameter, Default `true` (unverändertes Verhalten). Die
+  Rotations-Logik (`if (geschlossen) hebel.removeAttribute('transform') else
+  hebel.setAttribute('transform', ...)`) wurde in eine kleine interne
+  `hebelAnwenden()`-Funktion extrahiert, einmal beim Zeichnen aufgerufen
+  (damit `initialGeschlossen: false` sofort korrekt gezeichnet würde - aktuell
+  nirgends genutzt, aber die zuvor stillschweigend immer-geschlossen
+  gezeichnete Startposition war streng genommen falsch, sobald ein Testcase
+  mal mit offenem Schalter starten sollte) und erneut im Klick-Handler.
+  Rückgabewert ist jetzt ein Handle `{ setGeschlossen(neu) }`: no-op, wenn
+  `neu === geschlossen` (kein Redraw/Callback ohne echte Zustandsänderung),
+  sonst exakt derselbe Ablauf wie beim Klick-Handler (`geschlossen = neu`,
+  `hebelAnwenden()`, `onKlick?.(geschlossen)`) - **ein Mausklick und ein
+  programmatischer Aufruf laufen dadurch über denselben Callback-Pfad**, kein
+  zweiter, paralleler Zustand.
+- `geraet()`: neuer `schalterHandles`-Parameter (eine `Map`, optional) -
+  wird nach dem `zeichneSchalter()`-Aufruf mit `schalterHandles?.set(bauteilName,
+  handle)` befüllt, falls `schalterTyp` gesetzt ist. Die `breite`-Rückgabe von
+  `geraet()` selbst blieb unverändert (die Aufrufer akkumulieren `gx +=
+  geraet(...)` bzw. `hx = geraet(...)` für die Positionierung - eine
+  Rückgabetyp-Änderung hier hätte das gebrochen, darum läuft das Handle über
+  einen separaten, von außen hereingereichten Sammel-Parameter statt über den
+  Rückgabewert).
+- `SchaltkastenView.render(...)`: legt `const schalterHandles = new Map()`
+  zu Beginn an, reicht sie an alle 3 `geraet()`-Aufrufstellen (RCD/LS/
+  Hauptschalter) durch, und gibt am Ende statt nur `svg` jetzt
+  `{ svg, schalterHandles }` zurück. Beide bisherigen Aufrufer angepasst:
+  `controller/app.js` destrukturiert `const { svg: schaltkastenSvg,
+  schalterHandles } = SchaltkastenView.render(...)`; `tests/visuell/
+  run_tests.js` ignoriert den Rückgabewert ohnehin (`SchaltkastenView.render(
+  anlage, container, () => {})` ohne Zuweisung), unverändert lauffähig.
+- `fircdTestKlick()`: wird ein RCD gefunden (Ampel grün), zusätzlich
+  `schalterHandles.get(rcd.name)?.setGeschlossen(false)` - öffnet dessen Hebel
+  visuell UND (über den `onKlick`-Callback → `onSchalterKlick` →
+  `schalterUmschalten(rcd.name, false)`) im Verbindungsgraphen, exakt wie ein
+  echter Klick auf diesen Hebel. `schalterUmschalten()` rendert das Messgerät
+  dabei bereits selbst einmal neu (Spannungsanzeige fällt sofort auf 0V, da
+  der Pfad jetzt unterbrochen ist); der bestehende `renderMessgeraet()`-Aufruf
+  am Ende von `fircdTestKlick()` rendert danach nochmal - redundant, aber
+  harmlos, kein zusätzlicher Zustand involviert.
+
+Test in `test_messgeraet.js`: "FI/RCD: erfolgreicher TEST öffnet automatisch
+den Hebel des gefundenen RCD" (testcase_01) - Hebel-Transform vor TEST `null`
+(geschlossen), nach TEST `rotate(180, 20, 340)` (RCD1s Box-Mittelpunkt,
+offen); Spannungsanzeige fällt dabei auf `0V`, die übernommenen Messwerte
+(`I:18,0mA` etc.) und die grüne Ampel bleiben trotzdem im Display stehen.
+
 Größenformel (`schalterBreite(schalterTyp, teAnzahl)`), ausgehend von
 `SCHALTER_BASISBREITE = 24` (Breite `W` beim 1-poligen LS, `SCHALTER_HOEHE =
 36`):
@@ -1375,7 +1432,9 @@ Neu in `app.js`:
   `fircdMesswert = {iA, tA, uB}`, `fircdAmpel = 'gruen'`; kein RCD gefunden
   → `fircdMesswert = null` (alle Felder bleiben/werden Platzhalter),
   `fircdAmpel = 'rot'` (eigener Fehlerfall: "keine RCD-Absicherung auf
-  diesem Pfad gefunden").
+  diesem Pfad gefunden"). Im gefunden-Fall zusätzlich `schalterHandles.get(
+  rcd.name)?.setGeschlossen(false)` - öffnet den Hebel des gefundenen RCD
+  automatisch, siehe "Programmatisches Umschalten" oben.
 - `baueAnzeigeZustand()`s FI/RCD-Zweig setzt `zustand.spannungUnterPe`/
   `zustand.indikatorDurchgestrichen` wie bei ZS, dazu
   `zustand.leuchteLinksAn = fircdAmpel === 'rot'` /
@@ -1385,13 +1444,41 @@ Neu in `app.js`:
   `zustand.nebenwertRechts` (`` `t:${tA}ms` ``, unten rechts) - je eine
   Nachkommastelle, Komma-Format wie überall sonst.
 
-Getestet in `test_messgeraet.js` (4 Tests, alle mit testcase_01):
-Live-Spannungsanzeige zeigt 230V bei geschlossenem L-Pfad (Pfeil-Kasten
-undurchgestrichen), 0V sobald das zugehörige RCD öffnet (Pfeil-Kasten wieder
-durchgestrichen); TEST direkt hinter RCD1 (N6/N8) übernimmt dessen
-`iA`/`uB`/`tA` (`I:18,0mA`, `Uci:1,0V`, `t:22,0ms`), Ampel grün; TEST vor
-RCD1 (N4/N5, nur noch der Leistungsschalter auf dem Pfad) lässt alle drei
-Felder auf dem Platzhalter, Ampel rot, und eine anschließende
+Getestet in `test_messgeraet.js` (8 Tests, testcase_01 sofern nicht anders
+genannt): Live-Spannungsanzeige zeigt 230V bei geschlossenem L-Pfad
+(Pfeil-Kasten undurchgestrichen), 0V sobald das zugehörige RCD öffnet
+(Pfeil-Kasten wieder durchgestrichen); TEST direkt hinter RCD1 (N6/N8)
+übernimmt dessen `iA`/`uB`/`tA` (`I:18,0mA`, `Uci:1,0V`, `t:22,0ms`), Ampel
+grün; derselbe erfolgreiche TEST öffnet zusätzlich automatisch den Hebel von
+RCD1 (Transform vor TEST `null`, danach `rotate(180, 20, 340)`) - die
+Spannung fällt dadurch live auf 0V, Messwerte und grüne Ampel bleiben aber
+stehen; **testcase_03** (RCD1 speist SK1+SK2 gemeinsam): Schwarz auf
+Reihenklemme_L_SK1, Blau auf Reihenklemme_N_SK2 (bewusst ein ANDERER
+Stromkreis als Schwarz, aber weiterhin hinter RCD1), Grün auf
+Reihenklemme_PE_SK1 - Pfeil-Kasten undurchgestrichen, TEST liefert
+`I:16,0mA`/`t:20,0ms` (RCD1s Werte) und öffnet dessen Hebel; belegt, dass die
+Rollenprüfung (Blau auf N, Grün auf PE) nur die Ader-FUNKTION prüft, nicht
+Zugehörigkeit zum selben Stromkreis wie Schwarz - die RCD-Suche selbst folgt
+ohnehin nur dem Schwarz-Pfad zur Einspeisung; **testcase_03, RCD3** (zweite
+Gruppe der zweiten Hutschiene, rechts von RCD2 gezeichnet, speist SK5+SK6):
+Schwarz auf der letzten grauen Reihenklemme (Reihenklemme_L_SK6, N44), Blau
+auf der letzten blauen Reihenklemme (Reihenklemme_N_SK6, N45), Grün auf der
+anlagenweiten PE-Klemme (N3, nicht einer Reihenklemme_PE_SKx - ein anderer
+Bauteiltyp mit derselben Funktion) - Pfeil-Kasten wechselt von
+durchgestrichen zu undurchgestrichen, sobald alle drei Sonden sitzen; TEST
+liefert `I:20,0mA`/`Uci:0,8V` (RCD3s Werte statt RCD1s), Ampel grün, Hebel
+von RCD3 öffnet sich (`rotate(180, 164, 590)` - andere Box-Koordinaten als
+RCD1, da weiter rechts im Schaltkasten gezeichnet), Spannung fällt auf 0V,
+Pfeil-Kasten dadurch wieder durchgestrichen; **testcase_04** (einziges RCD,
+4-polig, speist L1/L2/L3 gemeinsam): Schwarz auf der zweiten grauen
+Reihenklemme (Reihenklemme_L_SK2, hier also L2 statt L1 - testcase_04s drei
+Stromkreise hängen je an einer eigenen Phase), Blau auf der zweiten blauen
+Reihenklemme (Reihenklemme_N_SK2), Grün wieder auf der anlagenweiten
+PE-Klemme - 230V erscheint sofort, Pfeil-Kasten undurchgestrichen, TEST
+liefert `I:16,0mA`/`Uci:0,9V`/`t:20,0ms` (RCD1s Werte), Ampel grün, Hebel von
+RCD1 öffnet sich, Spannung fällt auf 0V, Pfeil-Kasten wieder durchgestrichen;
+TEST vor RCD1 (N4/N5, nur noch der Leistungsschalter auf dem Pfad) lässt
+alle drei Felder auf dem Platzhalter, Ampel rot, und eine anschließende
 Messspitzen-Änderung setzt die Ampel zurück auf grau; bei durchgestrichenem
 Pfeil-Kasten (RCD1 offen) bleibt TEST komplett wirkungslos, Ampel bleibt
 grau statt auf Rot zu springen.
@@ -1426,12 +1513,31 @@ Platzierungsvorgabe.**
   eigene Messwert-Variable, `hauptwertZeilen` wird bei jedem Render frisch
   aus den aktuellen Messspitzen berechnet.
 
-Getestet in `test_messgeraet.js` (4 Tests): alle drei Werte 0V ohne
+Getestet in `test_messgeraet.js` (10 Tests): alle drei Werte 0V ohne
 Messspitzen (testcase_01); Schwarz auf L1, Blau auf N, Grün auf PE liefert
 Uln=230V, Ulpe=230V, Unpe=0V - Unpe bleibt 0V, weil `risoPaarTyp()` für ein
 reines N/PE-Paar `null` liefert (siehe KONZEPT.md, Abschnitt "V~"); zwei
 verschiedene Außenleiter (testcase_04, L1/L2) liefern 400V; ein TEST-Klick
-nach dem Platzieren der Sonden verändert das Display nicht.
+nach dem Platzieren der Sonden verändert das Display nicht. Zusätzlich drei
+Tests auf testcase_04s drei grau eingefärbten Reihenklemme_L_SK1/SK2/SK3
+(`FARBEN.reihenklemme_l` in `schaltkasten.js` ist unabhängig von der Phase
+immer grau, N24/N25/N26 sind die Schrauben): nur eine Sonde gesetzt → alle
+drei Paare 0V; zwei Sonden auf SK1/SK2 (L1/L2) → Uln=400V, Ulpe/Unpe bleiben
+0V; alle drei Sonden auf SK1/SK2/SK3 (L1/L2/L3) → alle drei Paare zwischen
+unterschiedlichen Außenleitern, also überall 400V.
+
+Drei weitere Tests kombinieren dieselbe graue SK1-Klemme (N24, L1) mit den
+blauen Reihenklemme_N_SK1/SK3 (N28/N35, `FARBEN.reihenklemme_n`) zu
+L-N-Paaren und zeigen, dass Uln/Ulpe/Unpe rein von der PLATZIERTEN FARBE
+abhängen, nicht vom "eigentlichen" Netz dahinter: Schwarz auf N24, Blau auf
+N28 → Uln=230V (sonst 0V); Grün auf N24, Schwarz auf N28 → Ulpe=230V (sonst
+0V); Blau auf N24, Grün auf N35 → Unpe=230V (sonst 0V). Die beiden letzten
+Fälle brauchen mehrfaches Klicken derselben Schraube, um eine Farbe zu
+erreichen, die nicht die Standard-Klickreihenfolge (1./2./3. Klick = Schwarz/
+Blau/Grün) ergibt - `naechsteMessspitzenFarbe()` zyklisiert dabei die Farbe
+der geklickten Schraube weiter und überspringt bereits anderswo belegte
+Farben (z.B. 2 Klicks auf einer Schraube mit bereits vergebenem Blau
+anderswo: Schwarz → Grün, Blau wird übersprungen).
 
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen

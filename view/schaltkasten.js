@@ -103,17 +103,22 @@ function schraube(svg, x, y, ader, onKlick) {
 // docs/referenz/hebel_beispiel_geschlossen.svg/hebel_beispiel_offen.svg):
 // eine **feste** weiße Box (Position/Größe ändert sich nie, Rand `#555555`
 // wie der Bauteil-Rand) mit einem klickbaren Hebel darin (eigener Rahmen um
-// Balken + drei Riffel-Linien). Der Hebel füllt geschlossen (Default) die
-// obere Boxhälfte, ein Klick auf die Box dreht ihn um 180° um den
-// Box-Mittelpunkt (`mitteX`/`mitteY`) - danach füllt er die untere
-// Boxhälfte, Balken und Riffelung haben die Seite getauscht, Größe/Form des
-// Hebels bleiben dabei unverändert (reine Rotation, keine Neupositionierung
-// einzelner Elemente). `mitteX`/`mitteY` sind die feste Mitte der Box - die
-// Aufrufer entscheiden, ob mittig oder (beim RCD) linksversetzt. `onKlick`
-// (optional) wird mit dem neuen Zustand (`geschlossen: true/false`) beim
-// Klick aufgerufen - der Aufrufer verbindet das mit dem Verbindungsgraphen
-// (siehe controller/app.js).
-function zeichneSchalter(svg, mitteX, mitteY, breite, onKlick) {
+// Balken + drei Riffel-Linien). Der Hebel füllt geschlossen (Default,
+// `initialGeschlossen`) die obere Boxhälfte, ein Klick auf die Box dreht ihn
+// um 180° um den Box-Mittelpunkt (`mitteX`/`mitteY`) - danach füllt er die
+// untere Boxhälfte, Balken und Riffelung haben die Seite getauscht, Größe/
+// Form des Hebels bleiben dabei unverändert (reine Rotation, keine
+// Neupositionierung einzelner Elemente). `mitteX`/`mitteY` sind die feste
+// Mitte der Box - die Aufrufer entscheiden, ob mittig oder (beim RCD)
+// linksversetzt. `onKlick` (optional) wird mit dem neuen Zustand
+// (`geschlossen: true/false`) beim Klick aufgerufen - der Aufrufer verbindet
+// das mit dem Verbindungsgraphen (siehe controller/app.js). Rückgabewert ist
+// ein Handle `{ setGeschlossen(bool) }`, mit dem derselbe Zustandswechsel
+// auch PROGRAMMATISCH ausgelöst werden kann (ruft denselben `onKlick`-Pfad
+// auf wie ein echter Mausklick - beides landet im selben Callback, siehe
+// controller/app.js `schalterHandles`). No-op, wenn der Zielzustand bereits
+// erreicht ist.
+function zeichneSchalter(svg, mitteX, mitteY, breite, onKlick, initialGeschlossen = true) {
   const x = mitteX - breite / 2;
   const boxY = mitteY - SCHALTER_HOEHE / 2;
 
@@ -149,20 +154,35 @@ function zeichneSchalter(svg, mitteX, mitteY, breite, onKlick) {
   }
   g.appendChild(hebel);
 
-  let geschlossen = true;
-  g.style.cursor = 'pointer';
-  g.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    geschlossen = !geschlossen;
+  let geschlossen = initialGeschlossen;
+
+  function hebelAnwenden() {
     if (geschlossen) {
       hebel.removeAttribute('transform');
     } else {
       hebel.setAttribute('transform', `rotate(180, ${mitteX}, ${mitteY})`);
     }
+  }
+  hebelAnwenden();
+
+  g.style.cursor = 'pointer';
+  g.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    geschlossen = !geschlossen;
+    hebelAnwenden();
     onKlick?.(geschlossen);
   });
 
   svg.appendChild(g);
+
+  return {
+    setGeschlossen(neu) {
+      if (neu === geschlossen) return;
+      geschlossen = neu;
+      hebelAnwenden();
+      onKlick?.(geschlossen);
+    }
+  };
 }
 
 // LS/Leistungsschalter: Breite skaliert linear mit der Polzahl (1-/2-polig
@@ -180,7 +200,7 @@ function schalterBreite(schalterTyp, teAnzahl) {
   return teAnzahl * SCHALTER_BASISBREITE + zusatz;
 }
 
-function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang, onSchraubeKlick, schalterTyp, bauteilName, onSchalterKlick }) {
+function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang, onSchraubeKlick, schalterTyp, bauteilName, onSchalterKlick, schalterHandles }) {
   const breite = teAnzahl * TE_PX;
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: GERAET_H, fill: farben.gehaeuse, stroke: '#555555', 'stroke-width': 1 }));
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: HEADER_H, fill: farben.header }));
@@ -200,7 +220,8 @@ function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang
     const sMitteX = schalterTyp === 'rcd'
       ? x + SCHALTER_RCD_RAND_LINKS + sBreite / 2
       : x + breite / 2;
-    zeichneSchalter(svg, sMitteX, sMitteY, sBreite, (geschlossen) => onSchalterKlick?.(bauteilName, geschlossen));
+    const handle = zeichneSchalter(svg, sMitteX, sMitteY, sBreite, (geschlossen) => onSchalterKlick?.(bauteilName, geschlossen));
+    schalterHandles?.set(bauteilName, handle);
   }
 
   for (let i = 0; i < teAnzahl; i++) {
@@ -230,6 +251,13 @@ export const SchaltkastenView = {
     const svg = svgEl('svg', {});
     container.innerHTML = '';
     container.appendChild(svg);
+
+    // Ein Handle je Schalter-Bauteil (RCD/LS/Hauptschalter), mit dem
+    // controller/app.js den Hebel auch PROGRAMMATISCH umschalten kann (z.B.
+    // FI/RCD: Hebel öffnet automatisch nach erfolgreichem TEST) - siehe
+    // zeichneSchalter() oben. Läuft über denselben `onSchalterKlick`-Pfad
+    // wie ein echter Mausklick, keine zweite Zustandsquelle.
+    const schalterHandles = new Map();
 
     const letzteReihenIndex = anlage.hutschienen.length + 1;
     const inhaltBreite = HUTSCHIENE_LAENGE;
@@ -301,7 +329,7 @@ export const SchaltkastenView = {
             label: `${gruppe.rcd.typ} ${gruppe.rcd.in_ma}mA`,
             adernEingang: gruppe.rcd.eingang.leitung.adern,
             adernAusgang: gruppe.rcd.ausgang.leitung.adern,
-            onSchraubeKlick, schalterTyp: 'rcd', bauteilName: gruppe.rcd.name, onSchalterKlick
+            onSchraubeKlick, schalterTyp: 'rcd', bauteilName: gruppe.rcd.name, onSchalterKlick, schalterHandles
           });
         }
         for (const sk of gruppe.stromkreise) {
@@ -311,7 +339,7 @@ export const SchaltkastenView = {
             label: `${ls.char}${ls.in}`,
             adernEingang: ls.eingang.leitung.adern,
             adernAusgang: ls.ausgang.leitung.adern,
-            onSchraubeKlick, schalterTyp: 'einfach', bauteilName: ls.name, onSchalterKlick
+            onSchraubeKlick, schalterTyp: 'einfach', bauteilName: ls.name, onSchalterKlick, schalterHandles
           });
         }
       }
@@ -327,7 +355,7 @@ export const SchaltkastenView = {
       label: `${hs.in}A`,
       adernEingang: hs.eingang.leitung.adern,
       adernAusgang: hs.ausgang.leitung.adern,
-      onSchraubeKlick, schalterTyp: 'einfach', bauteilName: hs.name, onSchalterKlick
+      onSchraubeKlick, schalterTyp: 'einfach', bauteilName: hs.name, onSchalterKlick, schalterHandles
     });
     for (const feld of ['l1_klemme', 'l2_klemme', 'l3_klemme']) {
       if (anlage[feld]) {
@@ -372,6 +400,6 @@ export const SchaltkastenView = {
     svg.setAttribute('height', gesamtHoehe);
     svg.setAttribute('viewBox', `0 0 ${gesamtBreite} ${gesamtHoehe}`);
 
-    return svg;
+    return { svg, schalterHandles };
   }
 };

@@ -295,14 +295,18 @@ Verdrahtung ab, nicht den Anzeigezustand des Messgeräts). Schaltet der
 Bediener das Messgerät aber **aus**, werden alle Messspitzen automatisch
 entfernt – der Messmodus endet, beim nächsten Einschalten legt man frisch an.
 
-**RLOW, RISO, ZI und ZS sind bereits angebunden:** RLOW misst laut Display
-(nicht durchgestrichener Pfeil-Kasten) kontinuierlich, ohne TEST-Taste –
-jeder Messspitzen-Klick löst direkt eine Pfadsuche im Verbindungsgraphen aus
-(siehe "Pfadverfolgung und Fehlersimulation"). RISO, ZI und ZS lesen dagegen
-erst beim TEST-Klick die angelegten Messspitzen aus und berechnen daraus
-(statt des `---`-Platzhalters) einen echten, aus dem Netzplan/der
-Fehlertabelle berechneten Messwert (siehe "Berechnung der Messwerte"). Für
-FI/RCD ist das noch nicht umgesetzt.
+**Alle sechs Messfunktionen sind angebunden**, aber mit unterschiedlichem
+TEST-Bezug: RLOW misst laut Display (nicht durchgestrichener Pfeil-Kasten)
+kontinuierlich, ohne TEST-Taste – jeder Messspitzen-Klick löst direkt eine
+Pfadsuche im Verbindungsgraphen aus (siehe "Pfadverfolgung und
+Fehlersimulation"). RISO, ZI, ZS und FI/RCD lesen dagegen erst beim
+TEST-Klick die angelegten Messspitzen aus und berechnen daraus (statt des
+`---`-Platzhalters) einen echten, aus dem Netzplan/der Fehlertabelle bzw.
+den RCD-Bauteildaten berechneten Messwert (siehe "Berechnung der
+Messwerte"). V~ braucht wie RLOW **keine TEST-Taste** – alle drei
+Spannungswerte werden live bei jeder Messspitzen-Änderung neu berechnet,
+allerdings ohne die kontinuierliche Pfadsuche-Semantik von RLOW (V~ prüft
+keine Rolle/Platzierung, siehe "Berechnung der Messwerte" - Abschnitt "V~").
 
 ### Bedienelemente (als DOM-Elemente)
 
@@ -545,8 +549,8 @@ davon, über welchen Pfad der Wert zustande kam - u.a. weil ein hoher
 Übergangswiderstand (z.B. durch Kontaktkorrosion an einer Klemme) durchaus
 real vorkommen kann und dann korrekt als Auffälligkeit markiert werden soll.
 
-**ZI / ZS** (Impedanz, **ZI vollständig, ZS als erste Iteration prototypisch
-umgesetzt**):
+**ZI / ZS** (Impedanz, **beide vollständig umgesetzt** - ZS mit einer
+bewusst dauerhaft akzeptierten Vereinfachung, siehe unten):
 `Vorimpedanz` (siehe unten) + alle `Widerstand`-Bauteile auf dem Pfad von der ersten
 Schraube zur Einspeisung und zurück zur zweiten Schraube. Zi und Zs sind **dieselbe
 Berechnung** – der Name unterscheidet sich nur danach, ob hinter einem RCD gemessen
@@ -607,7 +611,7 @@ ist ja ohnehin schon live, siehe "Referenz-LS"), zieht die Ampel sofort mit,
 ohne dass erneut TEST gedrückt werden muss - Isc bleibt dabei unverändert
 der zuletzt gemessene Wert.
 
-**ZS (erste Iteration - bewusst vereinfacht):** Messspitzen diesmal Schwarz
+**ZS (bewusst vereinfacht, keine weitere Iteration geplant):** Messspitzen diesmal Schwarz
 (L1/L2/L3, wie bei ZI) und **Grün** statt Blau als zweite aktive Sonde -
 Grün muss auf PE sitzen, Blau zusätzlich auf N (analog zu ZI/RISO müssen
 alle drei Sonden korrekt platziert sein, damit TEST überhaupt reagiert).
@@ -671,7 +675,15 @@ aber ohne RCD-Kante dazwischen), bleiben alle drei Felder auf dem
 RISO/ZI/ZS) geht trotzdem auf **Rot** - ein eigener Fehlerfall ("keine
 RCD-Absicherung auf diesem Pfad gefunden"), zu unterscheiden vom
 "Pfeil-Kasten durchgestrichen"-Fall oben, der die Ampel unangetastet lässt.
-Wird ein RCD gefunden, geht die Ampel auf **Grün**.
+Wird ein RCD gefunden, geht die Ampel auf **Grün** - zusätzlich öffnet sich
+in diesem Fall automatisch der Hebel des gefundenen RCD (visuell UND im
+Verbindungsgraphen, über dasselbe programmatische Umschalten wie ein echter
+Mausklick, siehe "Schalter" oben) - genau wie beim echten Gerät löst ein
+erfolgreicher RCD-Test das Gerät tatsächlich aus. Die Spannungsanzeige fällt
+dadurch beim nächsten Render live auf 0V zurück (der Pfad ist jetzt
+unterbrochen), die übernommenen Messwerte und die grüne Ampel bleiben aber
+im Display stehen - sie gehören zum abgeschlossenen Messvorgang, nicht zur
+Live-Spannungsanzeige.
 
 **V~** (reine Spannungsmessung, **umgesetzt**):
 Anders als bei RISO/ZI/ZS/FI-RCD gibt es bei V~ **keine Platzierungsvorgabe** -
@@ -1208,6 +1220,25 @@ RLOW nutzt das bereits: `berechneRlowMesswert()` in `controller/app.js` findet
 beiden Messspitzen `geschlossen: false` ist, und zeigt dann wieder den
 `___Ω`-Platzhalter statt eines Messwerts.
 
+**Programmatisches Umschalten (Status: umgesetzt).** Bis vor Kurzem konnte
+ein Hebel nur per Mausklick umschalten - `zeichneSchalter()` hielt Zustand
+und Rotation rein lokal, ohne Weg für `app.js`, von außen einzugreifen.
+`SchaltkastenView.render()` gibt jetzt zusätzlich `schalterHandles`
+zurück, eine `Map<bauteilName, {setGeschlossen(bool)}>` mit einem Eintrag
+je Schalter-Bauteil (RCD/LS/Hauptschalter). `setGeschlossen(neu)` löst
+denselben `onKlick`-Callback aus wie ein echter Mausklick (App und Graph
+erfahren also von einem programmatischen Umschalten genauso wie von einem
+Mausklick - **beides sind Ereignisse, die über denselben Pfad laufen**,
+kein zweiter, paralleler Zustand) und ist ein No-op, wenn der Zielzustand
+bereits erreicht ist. Erster Nutzer: FI/RCD öffnet nach einem erfolgreichen
+TEST automatisch den Hebel des gefundenen RCD (`fircdTestKlick()`, siehe
+"Berechnung der Messwerte" - Abschnitt "FI/RCD"). Nebenbei behoben: der
+Hebel wurde beim Zeichnen bisher immer hart auf "geschlossen" initialisiert,
+unabhängig vom tatsächlichen Ausgangszustand - `zeichneSchalter()` akzeptiert
+jetzt einen `initialGeschlossen`-Parameter (Default weiterhin `true`, aktuell
+nirgends anders befüllt, aber die Voraussetzung für künftige Testcases, die
+mit einem bereits offenen Schalter starten).
+
 ### Schrauben lösen
 
 Der Bediener soll Schrauben auch **lösen** können (Mechanismus/Werkzeug noch
@@ -1311,25 +1342,20 @@ umgesetzt (RISO: Live-Spannungsprüfung + TEST-gestützte Widerstandsmessung;
 ZI: TEST-gestützte Vorimpedanz + Fehlertabelle beider Teilpfade; ZS: dieselbe
 Mechanik wie ZI, aber mit bewusst ignoriertem PE-Pfad; siehe "Berechnung der
 Messwerte"). FI/RCD ist prototypisch umgesetzt (Live-Spannungsanzeige +
-Pfeil-Kasten-Umschaltung wie bei ZS, sowie TEST-gestützte Übernahme der
-Auslösewerte I/Uci/t vom ersten RCD auf dem Pfad zur Einspeisung). V~ ist
-umgesetzt (freie Sondenplatzierung ohne Rollenprüfung, live berechnete
-Uln/Ulpe/Unpe, keine TEST-Taste nötig). Offen:
+Pfeil-Kasten-Umschaltung wie bei ZS, TEST-gestützte Übernahme der
+Auslösewerte I/Uci/t vom ersten RCD auf dem Pfad zur Einspeisung, und
+öffnet nach einem erfolgreichen Fund automatisch dessen Hebel - siehe
+"Schalter" unten). V~ ist umgesetzt (freie Sondenplatzierung ohne
+Rollenprüfung, live berechnete Uln/Ulpe/Unpe, keine TEST-Taste nötig).
+Offen:
 
-1. **FI/RCD: Schalter öffnet nach erfolgreichem TEST** - nach einem
-   erfolgreichen RCD-Test (RCD gefunden, Ampel grün) soll sich der Hebel des
-   gefundenen RCDs automatisch öffnen, sowohl visuell als auch im Graphen.
-   Erfordert einen Umbau: der Hebel-Zustand lebt aktuell rein im
-   DOM/Closure von `zeichneSchalter()` (`view/schaltkasten.js`), ohne Weg
-   für `app.js`, ihn von außen zu setzen - `SchaltkastenView` müsste dafür
-   ein Handle exportieren (z.B. `Map<bauteilName, {setGeschlossen(bool)}>`).
-2. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
+1. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
    vollständig getrennte Teilgraphen, ein TEST-Klick ohne anliegende
    Spannung liefert deshalb praktisch immer `>999MΩ`. Für echte
    Fehlerszenarien bräuchte es einen Weg, zwei Funktionen künstlich über
    einen simulierten Isolationsfehler zu verbinden - der Code
    (`risoTestKlick()`) ist strukturell schon darauf vorbereitet.
-3. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
+2. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
    Hutschienen-Bond Zyklen bilden kann (Parallelwiderstand statt einfacher
    Pfad-Summe) - ein eigenständiges, größeres Vorhaben. Bis dahin gelten zwei
    bewusste Vereinfachungen: bei RISO wird eine an PE angelegte Messspitze
@@ -1341,7 +1367,7 @@ Uln/Ulpe/Unpe, keine TEST-Taste nötig). Offen:
    Prüfungsalltag kein realistisches Szenario), aber Vereinfachungen, keine
    korrekte Modellierung - sobald der PE-Teilgraph existiert, sollten beide
    durch eine echte Pfadsuche über den PE-Graphen ersetzt werden.
-4. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
+3. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
    "Schrauben lösen" oben).
-5. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
+4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
    Typ B, Gruppe ohne RCD).

@@ -546,7 +546,7 @@ export const MessgeraetView = {
 
     svg.appendChild(svgEl('rect', { width: BREITE, height: HOEHE, rx: 12, fill: '#cc0000' }));
     svg.appendChild(svgEl('rect', { x: 8, y: 8, width: BREITE - 16, height: HOEHE - 16, rx: 10, fill: '#dd1111' }));
-    svg.appendChild(text('BENNING IT 130', {
+    svg.appendChild(text('INSTALLATIONSTESTER', {
       x: BREITE / 2, y: 35, 'text-anchor': 'middle', 'font-size': 11, fill: '#ffffff', 'letter-spacing': 2
     }));
 

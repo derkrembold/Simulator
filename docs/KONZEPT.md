@@ -257,14 +257,14 @@ Gruppen darauf in 300mm passen:
 
 ---
 
-## Messgerät (BENNING IT 130)
+## Messgerät (INSTALLATIONSTESTER)
 
 ### Darstellung
 
 Das Messgerät wird als eigene Komponente **unterhalb des Schaltkastens** angezeigt.
 Grundlage ist das Mockup `docs/referenz/messgeraet_mockup.svg`.
 
-**Reale Breite:** 230 mm (BENNING IT 130), im selben Maßstab wie der Schaltkasten
+**Reale Breite:** 230 mm (Vorbild BENNING IT 130, im Simulator als "INSTALLATIONSTESTER" beschriftet), im selben Maßstab wie der Schaltkasten
 dargestellt (1mm = 2px, siehe "Maßstab") → 460px angezeigte Breite. Das interne
 SVG-Koordinatensystem (`view/messgeraet.js`, `BREITE = 640`/`HOEHE = 280`, vom
 Mockup übernommen) bleibt unverändert; die Anzeigegröße wird separat über die
@@ -1001,7 +1001,7 @@ hat entweder das eine oder die drei anderen, nie beides.
 `zi`/`zs`/`rcd` sagen nur, welche Messungen für diesen Stromkreis zutreffen (z.B. `zi`
 nur relevant, wenn der Stromkreis hinter einem RCD liegt). Die eigentlichen Messwerte
 werden **nicht** hier gespeichert, sondern zur Laufzeit aus dem Netzplan berechnet –
-siehe "Messgerät (BENNING IT 130)" → "Berechnung der Messwerte".
+siehe "Messgerät (INSTALLATIONSTESTER)" → "Berechnung der Messwerte".
 
 `leitung` ist die Ausgangsseite der Reihenklemmen (das eine physische Kabel zur
 Endstelle) – dieselbe Ader gilt für die untere Schraube aller drei Reihenklemmen
@@ -1134,7 +1134,7 @@ der angeschlossenen Adern (der steht im Netzplan).
   Einheit als eigene **Spalte "Einheit"** (nicht als Zeile, da diese Tabelle
   Feld/Wert-Paare statt vieler Bauteil-Spalten hat)
 
-Zusätzlich trägt das RCD-Bauteil eigene Messwerte (siehe "Messgerät (BENNING IT 130)"
+Zusätzlich trägt das RCD-Bauteil eigene Messwerte (siehe "Messgerät (INSTALLATIONSTESTER)"
 → "Berechnung der Messwerte"), da diese am Gerät selbst hängen, nicht am Pfad:
 - **RCD**: Spalten `tA` (Abschaltzeit), `IA` (Auslösestrom), `UB` (Berührungsspannung)
 

@@ -544,7 +544,7 @@ nach User-Feedback zur Breite ein zweites Mal (nur die Breiten-Formel für 3+
 Pole).
 
 ### messgeraet.js
-- Rendert das Messgerät (BENNING IT 130) als eigene SVG-Komponente, genau wie
+- Rendert das Messgerät (beschriftet als "INSTALLATIONSTESTER", Vorbild BENNING IT 130) als eigene SVG-Komponente, genau wie
   `schaltkasten.js` per `document.createElementNS` aus einzelnen DOM-Elementen
   aufgebaut (kein eingebettetes Bild) – Vorlage ist `docs/referenz/messgeraet_mockup.svg`.
 - **Skalierung:** internes Koordinatensystem bleibt `viewBox="0 0 640 280"` (vom
@@ -996,7 +996,7 @@ Schrauben per Netz-ID anzuklicken statt über Pixel-Koordinaten).
 **Bugfix - Textauswahl bei schnellem Mehrfachklicken:** mehrere schnelle
 Klicks auf dieselbe Schraube (z.B. beim Messspitzen-Zyklus) lösten die native
 Doppelklick-Textauswahl des Browsers aus, die dann zufällig SVG-Text an
-anderer Stelle markierte (z.B. "BENNING IT 130" blau hervorgehoben - wirkte
+anderer Stelle markierte (z.B. "INSTALLATIONSTESTER" blau hervorgehoben - wirkte
 wie ein Farb-Bug im Messgerät, war aber Text-Selektion). Behoben in
 `index.html`: `#schaltkasten`/`#messgeraet` bekommen `user-select: none`
 (inkl. `-webkit-`/`-moz-`-Präfix).

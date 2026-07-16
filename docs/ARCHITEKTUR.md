@@ -871,6 +871,203 @@ die Stromkreisverteiler-Tabelle hat 20 Spalten/12 Zeilen (1 Kopf + 11 Daten)
 und braucht tatsächlich horizontalen Scroll (`scrollWidth > clientWidth`);
 die Besichtigen-Tabelle enthält alle 14 Prüfpunkte aus der .md-Vorlage.
 
+### steckdosen.js
+
+**Status: Zeichnung, Popup UND Messspitzen umgesetzt** (siehe KONZEPT.md
+"Steckdosen (View-Objekt)"). Viertes View-Objekt, gerendert in `#steckdosen`,
+**oberhalb** von `#schaltkasten` (`index.html`: neues `<div id="steckdosen">`
+vor `<div id="schaltkasten">`, plus `#steckdosen { margin-bottom: 20px; }`
+- bewusst KEIN `display: flex; justify-content: center` wie bei Messgerät,
+siehe "Linksbündig, direkt über dem Schaltkasten" unten). Reines SVG (wie
+`schaltkasten.js`/`messgeraet.js`, per `svgEl()`).
+
+- `findeStromkreis(anlage, sk)`: läuft `anlage.hutschienen[].gruppen[].
+  stromkreise[]` durch und liefert das komplette Stromkreis-Objekt für die
+  gegebene `bezeichnung` (z.B. `"SK1"`) - kein eigener Lookup-Aufbau, direkt
+  auf der schon geladenen `anlage.json` gesucht. Liefert sowohl `.endstelle`
+  (Steckdose/Lichtauslass) als auch `.leitung.adern` (L/N/PE-Ader-Objekte mit
+  Netz-ID, siehe unten).
+- `findeAder(adern, funktion)`: sucht in `sk.leitung.adern` die Ader mit
+  passender Funktion (`'L'` matcht `L1`/`L2`/`L3` per `startsWith`, `'N'`/
+  `'PE'` exakt).
+- `klickbar(el, ader, onKlick)`: macht ein beliebiges SVG-Element (Kreis oder
+  Rechteck) klickbar wie eine Reihenklemmen-Schraube (`schraube()` in
+  `schaltkasten.js`) - setzt `cursor: pointer` und ruft bei Klick
+  `onKlick(ader, ev.clientX, ev.clientY, el)` auf. Ohne `ader` bleibt das
+  Element unklickbar (No-op, `el` wird trotzdem zurückgegeben).
+- `zeichneSteckdose(svg, cx, cy, rotationGrad, adern, onSchraubeKlick)` /
+  `zeichneAnschlussdose(svg, cx, cy, rotationGrad, adern, onSchraubeKlick)`:
+  bauen die jeweilige Zeichnung aus Grundformen
+  (`rect`/`circle`/`path`) mit Konstanten, die 1:1 aus den finalisierten
+  Vorlagen `docs/referenz/steckdose_vorlage.svg`/`anschlussdose_vorlage.svg`
+  übernommen sind (dort mit Playwright `getCTM()`/`getBBox()` exakt
+  vermessen, da die Vorlagen selbst mehrfach verschachtelte
+  Skalierungs-Transforms haben). Alle Maße in mm, multipliziert mit der
+  Modul-Konstante `MM = 2` (1mm = 2px, wie überall sonst im Schaltkasten-
+  Maßstab). Rotation wird als `<g transform="rotate(rotationGrad, cx, cy)">`
+  um das jeweilige Gerätezentrum gelegt - bei einer Steckdose (die selbst
+  180°-punktsymmetrisch ist) macht das bei `@180` optisch keinen sichtbaren
+  Unterschied, ist aber korrekt umgesetzt (per Playwright am `transform`-
+  Attribut verifiziert, nicht am Pixel-Bild).
+  - Steckdose: äußerer/innerer abgerundeter Rahmen, Außenkreis, vier
+    Kontakt-Kerben (eine Geometrie + Vorzeichen-Spiegelung für die anderen
+    drei Ecken, analog zum `<use>`-Mirroring in der Vorlage, hier aber direkt
+    über `mx`/`my` ∈ `{1,-1}` in der Pfad-Berechnung statt eines echten
+    `<use>`-Elements), zwei L/N-Kontaktkreise (r=2mm, klickbar über
+    `findeAder(adern, 'L'/'N')`), zwei PE-Kontakte (Rechtecke oben/unten,
+    beide mit derselben PE-Ader klickbar - physisch derselbe Punkt).
+  - Anschlussdose: zwei konzentrische Ringe, drei Steckklemmen
+    (`zeichneWagoKlemme()`) exakt symmetrisch im 120°-Abstand auf einem
+    gemeinsamen Radius (`BLOCK_RADIUS_MM`) platziert - Winkel/Farbe/Funktion
+    fest zugeordnet (`KLEMMEN`-Array: N/blau bei -90°, L/schwarz bei 30°,
+    PE/grün bei 150°, identisch zur Vorlage). Nur der graue
+    Messspitzen-Kontaktkreis jeder Steckklemme ist klickbar (über
+    `findeAder(adern, funktion)`), der farbige Kennzeichnungskreis daneben
+    nicht (reine Funktions-Anzeige, kein eigener Anschlusspunkt). Die
+    grauen/farbigen Kontaktkreise (`BLOCK_GREY_DX/DY`, `BLOCK_COLOR_DX/DY`)
+    mussten nachträglich korrigiert werden - die erste Vermessung der Vorlage
+    nutzte versehentlich den Startpunkt des Bogenpfads (ein Punkt auf dem
+    Kreisrand) statt des echten Kreismittelpunkts, wodurch die orangenen
+    Klemmdeckel sichtbar neben statt über ihren Kreisen lagen. Fix:
+    Mittelpunkt über `getBBox()`-Zentrum (korrekt für Rechteck UND
+    Bogenpfad) statt eines geratenen Referenzpunkts neu vermessen.
+- `SteckdosenView.render(container, breitePx, anlage, onSchraubeKlick)`:
+  liest `anlage.steckdosen_platzierung` (siehe unten), berechnet
+  Raster-Inhaltsbreite/-höhe aus `max(row)`/`max(col)` und der Zellgröße
+  `ZELLE_MM = 95` (deckt die größere Vorlage, Steckdose ca. 79x76mm, plus
+  Abstand), zeichnet pro Platzierung das per `findeStromkreis()` bestimmte
+  Gerät (`.endstelle`) mit seinen Adern (`.leitung.adern`) an die Zellmitte.
+  Fehlt das Feld oder ist leer (z.B. die handgepflegte
+  `anlagen/beispiel_eg.json` ohne `bauteile.md`), bleibt der Container leer
+  und `display: none` - kein Fehlerfall.
+- **Rahmen:** doppelte Umrandung um eine weiße Gerätefläche (zwei
+  ineinander liegende `rect`s mit `rx`/`stroke-width` wie `kasten`/
+  `innenRand` in `SchaltkastenView.render()`). Anders als beim
+  Schaltkasten-Kasten (zwei unterschiedlich dunkle Grautöne
+  `#cccccc`/`#e5e5e5` für Außen-/Innenfläche) füllt hier nur das äußere
+  `rect` mit leichtem Grau (`#eeeeee`); das innere `rect` ist bereits
+  `#ffffff` und bildet damit gleichzeitig die innere Rahmenlinie UND die
+  Gerätefläche - der Rahmen liegt dadurch **direkt** an der weißen Fläche
+  an, kein grauer Rand mehr dazwischen (nur noch der schmale
+  `RAHMEN_INSET = 8px` breite Abstand zwischen äußerer und innerer
+  Rahmenlinie ist grau; ursprünglich `RAHMEN_PADDING = 20px` mit separatem
+  weißen Innen-`rect`, auf zwei aufeinanderfolgende User-Vorgaben hin zu
+  dieser schlankeren Fassung vereinfacht). Die SVG-Breite ist exakt
+  `breitePx` (von `controller/app.js` durchgereicht, s.u.), nicht die
+  Rasterbreite - das Raster selbst wird per `<g transform="translate(...)">`
+  horizontal in der weißen Fläche zentriert. Die Höhe ergibt sich aus der
+  Rasterhöhe plus `2 * RAHMEN_INSET`.
+
+**Datenherkunft (`generate_anlage.js`):** neue Sektion `## Steckdosen
+(Platzierung)` in `bauteile.md` (Raster-Tabelle, Zelle = SK-Nummer oder
+`SK-Nummer@Winkel` oder `–`) wird von `parseSteckdosenPlatzierung()` geparst
+(eigene Funktion statt der generischen `leseMarkdownTabelle()`, da die
+Kopf-/erste Spalte hier nur Lese-Labels ohne Bedeutung sind, keine
+Objekt-Keys) und in `parseBauteile()`s Rückgabewert als `steckdosenPlatzierung`
+(flaches Array `{row, col, sk, rotation}`) abgelegt. `generiereAnlage()`
+übernimmt das unverändert als `anlage.steckdosen_platzierung` - rein additiv,
+kein bestehendes Feld verändert. Alle vier `anlage.json` wurden dafür
+regeneriert und promotet (`node generate_anlage.js <testcase> ` +
+`anlage_generated.json` → `anlage.json`), der Diff ist entsprechend rein
+additiv (nur das neue Feld, siehe `git diff`).
+
+**Ader-Daten für die Kontaktpunkte:** brauchten KEINE neue Datenquelle -
+`sk.leitung.adern` (schon in `anlage.json` vorhanden, von `generiereAnlage()`
+aus dem LS-Ausgang gebaut) trägt bereits dieselben Netz-IDs wie die
+`Endstelle_SKx.i1/i2/i3`-Knoten im Netzplan (z.B. testcase_01 SK1: N13/N14/
+N15). `findeAder()` in `steckdosen.js` greift direkt darauf zu.
+
+**Klick-Callback wird mit dem Schaltkasten geteilt:** `controller/app.js`
+extrahierte den bisher inline in `SchaltkastenView.render()` definierten
+Klick-Handler in eine eigene, benannte Funktion `onSchraubeKlick(ader, x, y,
+kreis)` (Farbzyklus/Messspitzen-Overlay bei eingeschaltetem, `Popup.zeige()`
+bei ausgeschaltetem Messgerät - unverändert in der Logik, siehe "Messspitzen
+(Messmodus)" oben) und reicht **dieselbe Funktion** an beide Views durch:
+`SchaltkastenView.render(anlage, container, onSchraubeKlick,
+schalterUmschalten)` und `SteckdosenView.render(document.getElementById(
+'steckdosen'), schaltkastenSvg.getAttribute('width'), anlage,
+onSchraubeKlick)` (Aufruf muss NACH `SchaltkastenView.render()` stehen, da
+`schaltkastenSvg` erst dort entsteht). Möglich, weil `onSchraubeKlick`
+nichts Schaltkasten-Spezifisches referenziert, nur den übergebenen
+`kreis`/`ader` - die Messspitzen-Maps (`messspitzenFarbe`/`messspitzenAder`/
+`messspitzenOverlay`) sind ohnehin generisch über das DOM-Element als Key
+indiziert, nicht über eine Bauteil-ID. Echte Messwerte (z.B. V~ Uln zwischen
+den L/N-Kontakten einer Steckdose) funktionieren dadurch **ohne
+Zusatzarbeit**, da `findePfad()`/`berechneWiderstand()` nur über die Netz-ID
+der Ader gehen (`ader.netz`, aus `sk.leitung.adern`) - völlig unabhängig
+davon, ob die Messspitze am Schaltkasten oder an einer Steckdose sitzt.
+
+**Bug: Messspitze auf `<rect>`-Kontakten landete bei (0,0).** Der
+Overlay-Kreis in `onSchraubeKlick()` wurde bisher direkt mit `cx:
+kreis.getAttribute('cx'), cy: kreis.getAttribute('cy')` positioniert - für
+Reihenklemmen-Schrauben und die meisten Steckdosen-Kontakte (`<circle>`)
+korrekt, aber die beiden PE-Kontakte an der Steckdose sind `<rect>`s (siehe
+`zeichneSteckdose()` oben) und haben kein `cx`/`cy`-Attribut, `getAttribute`
+liefert dafür `null`. Ohne gültige Koordinaten landete die Messspitze am
+SVG-Ursprung (0,0), also sichtbar oben links im Bild statt auf dem
+Rechteck. Fix: neue Helper-Funktion `schraubenMitte(el)` in
+`controller/app.js` prüft `el.tagName` - bei `'rect'` wird die Mitte aus
+`x + width/2`/`y + height/2` berechnet, sonst (also bei `<circle>`)
+weiterhin `cx`/`cy` gelesen.
+
+**Linksbündig, direkt über dem Schaltkasten:** dieselbe Falle wie bei
+`protokoll.js` (siehe dort "Linksbündig, nicht zentriert") - `display: flex;
+justify-content: center` hätte den Inhalt innerhalb der vollen Body-Breite
+zentriert statt innerhalb der (schmaleren) Schaltkasten-Breite, da
+`#steckdosen` (anders als `#messgeraet`/`#protokoll`) nicht auf die
+Schaltkasten-Breite gesetzt wird. Bewusst weggelassen, `#steckdosen` bleibt
+im normalen Fluss linksbündig wie `#schaltkasten` selbst (verifiziert per
+`getBoundingClientRect().left` bei absichtlich breiterem Viewport).
+
+**Bewusst noch offen** (siehe KONZEPT.md "Nächste Schritte"): Drehstromsteckdose
+(eigener testcase_05, eigene Vorlage).
+
+Getestet in `tests/visuell/test_steckdosen.js` (19 Tests): ohne
+Platzierungstabelle bleibt der Container leer/unsichtbar; linke Kante steht
+(bei absichtlich breiterem Viewport als die Schaltkasten-Breite) bündig
+unter der Schaltkasten-Kante statt zentriert zu sein; Breite entspricht
+exakt der gerenderten Schaltkasten-Breite; die orangenen Klemmdeckel jeder
+Wago-Klemme sitzen nah über ihrem eigenen Kontaktkreis (Regressionstest für
+den oben beschriebenen Vermessungsfehler); testcase_01
+zeichnet die richtige Geräte-Mischung (2 Steckdosen + 1 Anschlussdose,
+gezählt über `rect[rx]`/ungefüllte `circle`-Elemente) und die Anschlussdose
+trägt alle drei erwarteten Kontaktfarben; testcase_02 dreht nur SK4 um 90°
+(`transform`-Attribut geprüft), die anderen drei Geräte bleiben bei 0°;
+testcase_03 zeichnet alle 6 Geräte im korrekten 2x3-Raster (SVG-Breite/-Höhe
+stimmen exakt mit `ZELLE_MM` überein); ein Klick auf einen grauen Kontakt
+zeigt bei ausgeschaltetem Messgerät das Popup mit Querschnitt/Farbe; an der
+Anschlussdose ist nur der graue Kontaktkreis klickbar (`cursor: pointer`),
+der farbige Kennzeichnungskreis nicht; bei eingeschaltetem Messgerät legt
+ein Klick eine Messspitze an (Overlay statt Popup); V~ über die L/N-Kontakte
+derselben Steckdose zeigt echte 230V; eine Messspitze auf einem PE-Kontakt
+(`<rect>`) erscheint exakt auf dessen Mitte statt bei (0,0) - Regressionstest
+für den oben beschriebenen `schraubenMitte()`-Bugfix; testcase_03 - Messspitzen
+an der oberen linken, um 180° rotierten Steckdose (SK1@180, blau links=N,
+schwarz rechts=L, grün auf PE) finden RCD1 korrekt und öffnen dessen Hebel
+(230V vor TEST/Pfeil-Kasten nicht durchgestrichen, nach TEST 0V/durchgestrichen)
+- deckt zusätzlich ab, dass die Ader-Zuordnung auch bei rotierten Geräten
+stimmt (der rotationsbedingte Farbtausch links/rechts wurde vorab per
+Playwright an den tatsächlichen Bildschirmkoordinaten verifiziert); ZI:
+testcase_03 - Messspitzen an der unteren rechten Anschlussdose (SK6, die
+letzten drei grauen Kreise im DOM in der Reihenfolge N/L/PE aus dem
+`KLEMMEN`-Array) liefern nach TEST Z:0,14Ω und Isc:1478,6A (230V/nicht
+durchgestrichen davor) - Klick jeweils auf den Kontakt mit passender
+Kennzeichnungsfarbe (schwarz auf schwarz=L usw.); RLOW: PE-Kontakt der
+Steckdose (`rect`) + die anlagenweite PE-Klemme im Schaltkasten (zwei
+unterschiedliche Netze) zeigt pauschal 0Ω - Regressionstest für den
+`berechneRlowMesswert()`-PE-Workaround, siehe "Berechnung der Messwerte" -
+"RLOW-Berechnung"; RLOW: PE-Kontakt der Anschlussdose (SK2, grauer Kontakt im
+PE-Block) + PE-Klemme im Schaltkasten zeigt ebenfalls pauschal 0Ω; RLOW:
+PE-Kontakt der oberen Steckdose + PE-Kontakt der danebenliegenden
+Anschlussdose (beide Sonden innerhalb des Steckdosen-Views) zeigt ebenfalls
+pauschal 0Ω; RLOW: obere Steckdose (SK1@180) + mittlere linke
+Steckdose (SK3, unrotiert) durchlaufen in einem Testablauf drei
+Sonden-Zustände nacheinander (0,00Ω / `---` / 0,75Ω je nachdem, ob Schwarz
+und Blau auf demselben Netz-`funktion` liegen) - Farbe "umsetzen" erfordert
+zwei Klicks auf die alte Schraube (einmal weiter im Zyklus, einmal zurück
+auf leer), bevor die neue Schraube die Farbe annehmen kann, genau wie am
+echten Gerät.
+
 ### timer.js
 - Sichtbarer 45-Minuten Timer
 - Stufe 3: Sprachansagen zu definierten Zeitpunkten
@@ -950,6 +1147,17 @@ nicht-durchgestrichene Pfeil-Kasten im RLOW-Display), was
   ID trägt, oder beide Adern eine unterschiedliche `funktion` haben (z.B.
   schwarz auf L1, blau auf N - kein gemeinsamer Teilgraph, siehe
   `GRAPH_FUNKTIONEN` oben).
+- **WORKAROUND für PE-zu-PE:** haben beide Adern `funktion === 'PE'`, wird
+  sofort `0` zurückgegeben, OHNE `findePfad()` aufzurufen - `graph.PE`
+  existiert nicht (`GRAPH_FUNKTIONEN` in `generate_anlage.js` hat nur
+  L1/L2/L3/N), `findePfad()` würde also immer `null` liefern und der
+  Platzhalter bliebe stehen, obwohl PE in diesem Modell nie geschaltet wird
+  (kein PE-Schalter, siehe netzplan.md Annahme 1) und deshalb elektrisch
+  immer durchgängig ist. Deckt jede Kombination aus PE-Bauteilen ab
+  (Reihenklemme, PE-Klemme, Steckdose, Anschlussdose), unabhängig von deren
+  Netz-ID - user-gemeldeter Bug, als bewusster, klar dokumentierter
+  Sonderfall gefixt, **entfällt ersatzlos** sobald der PE-Teilgraph existiert
+  (siehe KONZEPT.md "Nächste Schritte" - PE-Teilgraph).
 - Sonst `findePfad(graph, funktion, schwarzAder.netz, blauAder.netz)`
   (`model/pfad.js`); existiert ein Pfad, wird `berechneWiderstand(graph,
   pfad)` zurückgegeben, sonst `null`.

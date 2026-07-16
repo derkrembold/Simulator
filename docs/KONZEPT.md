@@ -809,6 +809,133 @@ User-Vorgabe. Spätere Erweiterung möglich.
 
 ---
 
+## Steckdosen (View-Objekt)
+
+**Status: erste Ausbaustufe umgesetzt** (reine Zeichnung, noch keine
+Interaktion). Viertes View-Objekt, **oberhalb** des Schaltkastens platziert
+(`#steckdosen`, `view/steckdosen.js`) - zeigt die Steckdosen und
+Anschlussdosen (3 Steckklemmen, für Lichtauslass-Endstellen) der Anlage in
+einem Raster, wie in `bauteile.md` festgelegt.
+
+**Platzierungstabelle:** neue Sektion `## Steckdosen (Platzierung)` in
+`bauteile.md`, direkt unter der Stromkreise-Tabelle - ein Raster, bei dem
+jede Zelle entweder `–` (leer) oder eine SK-Nummer trägt, optional mit
+`@<Winkel>`-Suffix (90/180/270, im Uhrzeigersinn, 0° = kein Suffix). Zwei
+Zusatzspalten/-zeilen ("Spalte 1"/"Reihe 1" usw.) sorgen nur dafür, dass die
+bedeutungslose Markdown-Kopfzeile nicht über den echten SK-Werten fett
+erscheint. Mehrfaches Vorkommen derselben SK-Nummer = mehrere
+Steckdosen/Anschlussdosen an derselben Endstelle. Der Endstellen-**Typ**
+(Steckdose vs. Anschlussdose) steht **nicht** in dieser Tabelle, sondern wird
+beim Rendern über die SK-Nummer in der schon vorhandenen `## Stromkreise`-
+Tabelle nachgeschlagen (`stromkreis.endstelle`, `"Steckdose"` oder
+`"Lichtauslass"`) - keine Redundanz.
+
+`generate_anlage.js` (`parseSteckdosenPlatzierung()`) parst diese Tabelle in
+`anlage.steckdosen_platzierung` (Array aus `{row, col, sk, rotation}`) - kein
+eigenes Bauteil im Verbindungsgraphen, reine Layout-Information fürs View.
+
+**Zeichnung:** Vorlagen `docs/referenz/steckdose_vorlage.svg` und
+`docs/referenz/anschlussdose_vorlage.svg` (mit Playwright exakt vermessen,
+alle Maße in mm), im selben Maßstab wie der Schaltkasten (1mm = 2px, siehe
+"Maßstab") direkt mit `svgEl()`-Grundformen nachgebaut (kein eingebettetes
+Bild). Beide Vorlagen haben ihre grauen (und bei der Anschlussdose auch
+farbigen) Kontaktkreise bewusst auf denselben realen Radius wie die
+Reihenklemmen-Schraube skaliert (r=2mm). Rotation (`@<Winkel>`) wird als
+SVG-`rotate()` um das Gerätezentrum umgesetzt.
+
+**Kontaktpunkte sind klickbar** (graue Kreise/Vierecke - der farbige
+Kennzeichnungskreis an der Anschlussdose NICHT), genau wie eine
+Reihenklemmen-Schraube - und teilen sich denselben Klick-Callback wie der
+Schaltkasten (`onSchraubeKlick` in `controller/app.js`, einmal definiert, an
+beide Views durchgereicht). `anlage.json` trägt pro Stromkreis unter
+`sk.leitung.adern` bereits dieselben Netz-IDs wie die `Endstelle_SKx`-Knoten
+im Verbindungsgraphen, deshalb ist keine eigene Anbindung nötig: bei
+ausgeschaltetem Messgerät zeigt ein Klick Querschnitt/Farbe (Popup, wie am
+Schaltkasten); bei eingeschaltetem Messgerät legt ein Klick eine Messspitze
+an (Farbzyklus, Overlay) - und **echte Messwerte funktionieren sofort**, da
+`findePfad()`/`berechneWiderstand()` etc. ohnehin nur über die Netz-ID der
+Ader gehen, unabhängig davon, ob die Messspitze am Schaltkasten oder an
+einer Steckdose sitzt (z.B. Uln=230V zwischen den L/N-Kontakten derselben
+Steckdose, siehe Test unten).
+
+**Bug behoben - Messspitze auf PE-Kontakten falsch positioniert:** die
+Overlay-Positionierung ging bisher immer von `cx`/`cy` des geklickten
+Elements aus - das gilt für Reihenklemmen-Schrauben und die meisten
+Steckdosen-Kontakte (alles `<circle>`), aber die beiden PE-Kontakte an der
+Steckdose sind `<rect>`s (siehe "Zeichnung" oben) und haben kein `cx`/`cy`.
+Die Messspitze landete deshalb bei (0,0), also oben links im Bild. Fix:
+`schraubenMitte()` in `controller/app.js` berechnet den Mittelpunkt je nach
+Element-Typ (`x+width/2`/`y+height/2` bei `<rect>`, sonst `cx`/`cy`).
+
+**Raster:** jede Zelle ist `ZELLE_MM=95` mm (190px) groß - deckt die größere
+der beiden Vorlagen (Steckdose, äußerer Rahmen ca. 79x76mm) plus Abstand.
+Ohne Platzierungstabelle (z.B. die handgepflegte `beispiel_eg.json` ohne
+`bauteile.md`) bleibt der Container leer und unsichtbar (`display: none`) -
+kein Fehlerfall.
+
+**Rahmen:** doppelte Umrandung (zwei ineinanderliegende, unterschiedlich
+dunkel umrandete Linien, wie die äußere Box des Schaltkastens) um eine weiße
+Gerätefläche. Die innere Rahmenlinie liegt **direkt** an dieser weißen
+Fläche an (kein zusätzlicher grauer Rand dazwischen) - das leichte Grau
+(`#eeeeee`) bleibt auf den schmalen Abstand zwischen äußerer und innerer
+Rahmenlinie beschränkt (`RAHMEN_INSET = 8px`). Breite exakt wie der
+Schaltkasten (`breitePx` von `controller/app.js` durchgereicht, wie schon
+bei Messgerät/Protokoll). Da das Geräte-Raster meist schmaler als die weiße
+Fläche ist, wird es darin horizontal zentriert; die Höhe wächst mit der
+Zeilenzahl des Rasters.
+
+**Linksbündig, direkt über dem Schaltkasten:** wie schon beim Prüfprotokoll
+(siehe dort "Linksbündig, nicht zentriert") KEIN `display: flex;
+justify-content: center` auf `#steckdosen` - das würde den Inhalt innerhalb
+der vollen Body-Breite zentrieren statt innerhalb der (schmaleren)
+Schaltkasten-Breite. `#steckdosen` bleibt im normalen Fluss linksbündig,
+genau wie `#schaltkasten` selbst.
+
+**Noch nicht umgesetzt:** die Drehstromsteckdose (braucht einen eigenen
+testcase_05 und eine eigene 5-Schrauben-Steckklemme, siehe "Nächste
+Schritte").
+
+**Getestet in `tests/visuell/test_steckdosen.js`** (19 Tests): Container
+bleibt ohne Platzierungstabelle unsichtbar; linke Kante steht (bei
+absichtlich breiterem Viewport als die Schaltkasten-Breite) bündig unter der
+Schaltkasten-Kante statt zentriert zu sein; Breite entspricht exakt der
+gerenderten Schaltkasten-Breite; die orangenen Klemmdeckel jeder Wago-Klemme
+sitzen jeweils nah über ihrem eigenen Kontaktkreis statt seitlich versetzt;
+testcase_01 zeichnet die richtige Geräte-Mischung (2 Steckdosen +
+1 Anschlussdose) und die Anschlussdose trägt die drei erwarteten
+Kontaktfarben (Blau/Grün/Schwarz); testcase_02 dreht nur SK4 um 90°, alle
+anderen bleiben bei 0°; testcase_03 zeichnet alle 6 Geräte im korrekten
+2x3-Raster (Breite/Höhe stimmen mit `ZELLE_MM` überein); ein Klick auf einen
+grauen Kontakt zeigt bei ausgeschaltetem Messgerät das Popup mit
+Querschnitt/Farbe; an der Anschlussdose ist nur der graue Kontaktkreis
+klickbar, der farbige Kennzeichnungskreis nicht; bei eingeschaltetem
+Messgerät legt ein Klick eine Messspitze an (Overlay statt Popup); V~ über
+die L/N-Kontakte derselben Steckdose zeigt echte 230V, ganz ohne
+Zusatzarbeit am Verbindungsgraphen; eine Messspitze auf einem PE-Kontakt
+(Rechteck statt Kreis) erscheint exakt mittig darauf statt oben links im
+Bild (Regressionstest für einen Bug, siehe unten); testcase_03 - Messspitzen
+an der oberen linken, um 180° rotierten Steckdose (blau links=N, schwarz
+rechts=L, grün auf PE) finden RCD1 korrekt (230V vor TEST, nach TEST 0V,
+Pfeil-Kasten durchgestrichen, Hebel öffnet) - deckt zusätzlich ab, dass die
+Ader-Zuordnung auch bei rotierten Geräten stimmt; ZI: testcase_03 -
+Messspitzen an der unteren rechten Anschlussdose (SK6) liefern nach TEST
+Z:0,14Ω und Isc:1478,6A (230V/nicht durchgestrichen davor); RLOW: PE-Kontakt
+der Steckdose + PE-Klemme im Schaltkasten (WORKAROUND, siehe "RLOW-Berechnung")
+zeigt pauschal 0Ω; RLOW: PE-Kontakt der Anschlussdose (grün-Block) +
+PE-Klemme im Schaltkasten zeigt ebenfalls pauschal 0Ω; RLOW: PE-Kontakt der
+oberen Steckdose + PE-Kontakt der danebenliegenden Anschlussdose (beide
+Sonden innerhalb des Steckdosen-Views, kein Schaltkasten-Kontakt beteiligt)
+zeigt ebenfalls pauschal 0Ω; RLOW: obere Steckdose
+(SK1@180) + mittlere linke Steckdose (SK3) durchlaufen in einem Testablauf
+drei Sonden-Zustände
+nacheinander (0,00Ω bei gleicher Funktion, `---` bei unterschiedlicher,
+0,75Ω nach erneutem Wechsel zurück auf gleiche Funktion mit
+Fehlertabellen-Eintrag) - deckt zusätzlich das "Umsetzen" einer Messspitze
+über den Farbzyklus ab (alte Schraube erst zweimal klicken bis leer, dann
+neue Schraube einmal klicken).
+
+---
+
 ## JSON-Konfiguration der Anlage
 
 ### Struktur (Baum)
@@ -1333,6 +1460,18 @@ Fehlertabellen-Einträge der Netze entlang dieses Pfads** (0Ω, wenn keine
 Fehlertabellen-Einträge auf dem Weg liegen). Existiert kein Pfad (offener
 Schalter dazwischen), bleibt der Messwert beim `---`-Platzhalter.
 
+**WORKAROUND für PE-zu-PE, bis der PE-Teilgraph existiert:** da PE kein
+eigener Teilgraph ist (siehe "Nächste Schritte" - PE-Teilgraph), würde eine
+RLOW-Messung zwischen zwei PE-Punkten (z.B. eine grüne Reihenklemme und die
+PE-Klemme, oder eine PE-Steckdose) nie einen Pfad finden und dauerhaft beim
+Platzhalter bleiben - obwohl PE in diesem Modell nie geschaltet wird (kein
+PE-Schalter) und deshalb elektrisch immer durchgängig ist. `berechneRlowMesswert()`
+in `controller/app.js` behandelt PE-zu-PE deshalb als Sonderfall und liefert
+pauschal **0Ω**, unabhängig davon, an welchen zwei PE-Bauteilen (Reihenklemme,
+PE-Klemme, Steckdose, Anschlussdose) die Messspitzen sitzen. Ignoriert bewusst
+etwaige Fehlertabellen-Einträge auf PE-Netzen (aktuell in keinem Testcase
+vorhanden). **Entfällt ersatzlos**, sobald der echte PE-Teilgraph existiert.
+
 ### RISO-Berechnung (zweiter Anwendungsfall, prototypisch)
 
 **Status: prototypisch umgesetzt** (siehe "Berechnung der Messwerte" oben für
@@ -1415,7 +1554,10 @@ Offen:
    bewusst so akzeptiert** (ein aufgetrennter PE-Leiter ist im
    Prüfungsalltag kein realistisches Szenario), aber Vereinfachungen, keine
    korrekte Modellierung - sobald der PE-Teilgraph existiert, sollten beide
-   durch eine echte Pfadsuche über den PE-Graphen ersetzt werden.
+   durch eine echte Pfadsuche über den PE-Graphen ersetzt werden. Dritte
+   Vereinfachung aus demselben Grund: RLOW liefert bei PE-zu-PE pauschal 0Ω
+   (`berechneRlowMesswert()`-Workaround, siehe "RLOW-Berechnung" oben) -
+   entfällt ebenfalls ersatzlos, sobald der PE-Teilgraph existiert.
 3. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
    "Schrauben lösen" oben).
 4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
@@ -1426,3 +1568,8 @@ Offen:
    automatisches Übernehmen der TEST-Ergebnisse in die passende Zeile/Spalte
    der Stromkreisverteiler-Tabelle, plus Validierung (z.B. Fehlerquelle #14 -
    Zi/Zs-Verwechslung - direkt im Protokoll markieren).
+6. **Steckdosen: Drehstromsteckdose** - normale Steckdose/Anschlussdose sind
+   fertig (Zeichnung, Popup UND Messspitzen-Mechanismus, siehe "Steckdosen
+   (View-Objekt)" oben). Fehlt noch: eigener testcase_05, eigene Vorlage mit
+   5-Schrauben-Steckklemme (L1/L2/L3/N/PE) - explizit als separater,
+   späterer Schritt vorgemerkt.

@@ -419,6 +419,22 @@ async function main() {
     await page.close();
   });
 
+  // WORKAROUND (siehe KONZEPT.md "Nächste Schritte" - PE-Teilgraph, und
+  // controller/app.js berechneRlowMesswert()): PE ist noch kein eigener
+  // Teilgraph im Verbindungsgraphen, eine PE-zu-PE-Messung würde deshalb
+  // ohne Sonderfall immer beim Platzhalter bleiben - obwohl PE in diesem
+  // Modell nie geschaltet wird und elektrisch immer durchgängig ist. Bis
+  // der echte PE-Teilgraph existiert: PE-zu-PE liefert pauschal 0Ω, egal an
+  // welchen zwei PE-Bauteilen die Messspitzen sitzen (hier: Reihenklemme_PE
+  // N9 und die anlagenweite PE-Klemme N3, zwei unterschiedliche Netze).
+  await pruefe('RLOW: WORKAROUND - PE-zu-PE (Reihenklemme + PE-Klemme, unterschiedliche Netze) zeigt 0Ω', async () => {
+    const page = await neueSeiteMitTestcase('testcase_01');
+    await page.locator('#schaltkasten svg circle[data-netz="N9"]').first().click(); // schwarz, Reihenklemme_PE_SK1
+    await page.locator('#schaltkasten svg circle[data-netz="N3"]').first().click(); // blau, PE-Klemme
+    erwarte([await rlowHauptwert(page)], 'R:0,00Ω', 'PE-zu-PE liefert pauschal 0Ω (Workaround ohne PE-Teilgraph)');
+    await page.close();
+  });
+
   // RCD1.o1 speist LS1 (N6) UND LS2 (N7) über dieselbe physische Schraube
   // (siehe netzplan.md-Annahme 2, ader.weitere in generate_anlage.js). Eine
   // Messspitze an dieser geteilten Schraube trägt data-netz="N6" +

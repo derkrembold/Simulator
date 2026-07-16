@@ -300,11 +300,35 @@ function baueKlemme(netze, pinPrefix, eingangPin, ausgangPin, funktion) {
 
 // --- bauteile.md parsen ---
 
+// Parst die "Steckdosen (Platzierung)"-Tabelle in bauteile.md: ein Raster mit
+// Zeilen-/Spaltenbeschriftung ("Reihe n"/"Spalte n" - ohne Bedeutung fürs
+// Parsing, nur damit die Kopfzeile nicht versehentlich fett über den echten
+// SK-Werten steht). Zellinhalt ist `SKn`, `SKn@<Winkel>` (90/180/270 im
+// Uhrzeigersinn) oder `–` (leer, wird übersprungen).
+function parseSteckdosenPlatzierung(abschnitt) {
+  const zeilen = abschnitt.split('\n').map((z) => z.trim()).filter((z) => z.startsWith('|'));
+  if (zeilen.length < 3) return [];
+  const datenZeilen = zeilen.slice(2); // Zeile 1 = Kopf, Zeile 2 = Trennstriche
+
+  const platzierungen = [];
+  datenZeilen.forEach((zeile, row) => {
+    const zellen = zeile.split('|').slice(1, -1).map((z) => z.trim());
+    zellen.slice(1).forEach((zelle, col) => { // erste Zelle = Zeilen-Label ("Reihe n")
+      const wert = bereinige(zelle);
+      if (!wert) return;
+      const treffer = wert.match(/^(SK\d+)(?:@(\d+))?$/);
+      if (!treffer) return;
+      platzierungen.push({ row, col, sk: treffer[1], rotation: treffer[2] ? parseInt(treffer[2], 10) : 0 });
+    });
+  });
+  return platzierungen;
+}
+
 function parseBauteile(ordner) {
   const text = fs.readFileSync(path.join(ordner, 'bauteile.md'), 'utf8');
   const abschnitte = text.split(/^## /m).slice(1);
 
-  const ergebnis = { bauteile: [], stromkreise: [], kopfdaten: {} };
+  const ergebnis = { bauteile: [], stromkreise: [], kopfdaten: {}, steckdosenPlatzierung: [] };
 
   for (const abschnitt of abschnitte) {
     if (abschnitt.startsWith('Bauteile')) {
@@ -336,6 +360,8 @@ function parseBauteile(ordner) {
       for (const zeile of leseMarkdownTabelle(abschnitt)) {
         ergebnis.kopfdaten[zeile.Feld.trim()] = zeile.Wert.trim();
       }
+    } else if (abschnitt.startsWith('Steckdosen')) {
+      ergebnis.steckdosenPlatzierung = parseSteckdosenPlatzierung(abschnitt);
     }
   }
 
@@ -346,7 +372,7 @@ function parseBauteile(ordner) {
 
 function generiereAnlage(ordner) {
   const { netze, bauteilTabelle } = parseNetzplan(ordner);
-  const { bauteile, stromkreise, kopfdaten } = parseBauteile(ordner);
+  const { bauteile, stromkreise, kopfdaten, steckdosenPlatzierung } = parseBauteile(ordner);
 
   const findeBauteil = (name) => bauteile.find((b) => b.name === name);
   const hauptschalter = findeBauteil('Leistungsschalter') || findeBauteil('Hauptschalter');
@@ -366,6 +392,13 @@ function generiereAnlage(ordner) {
     netzform: kopfdaten['Netzform'],
     spannung_einspeisung: parseInt(kopfdaten['Spannung Einspeisung'], 10),
     spannung_stromkreise: parseInt(kopfdaten['Spannung Stromkreise'], 10),
+
+    // Raster für das Steckdosen-View-Objekt oberhalb des Schaltkastens (siehe
+    // view/steckdosen.js und die "## Steckdosen (Platzierung)"-Tabelle in
+    // bauteile.md) - der Endstellen-Typ (Steckdose/Anschlussdose) steht NICHT
+    // hier, sondern wird über `bezeichnung` in stromkreise[].endstelle
+    // nachgeschlagen (keine Redundanz).
+    steckdosen_platzierung: steckdosenPlatzierung,
 
     reihenklemmen: { vorhanden: true, breite_mm: 6, hoehe_mm: 49 },
 
@@ -545,7 +578,7 @@ function generiereAnlage(ordner) {
   return anlage;
 }
 
-module.exports = { generiereAnlage, generiereGraph, findePfad, berechneWiderstand, istSpannungFuehrend };
+module.exports = { generiereAnlage, generiereGraph, findePfad, berechneWiderstand, istSpannungFuehrend, parseBauteile };
 
 // --- Main (nur bei direktem Aufruf, nicht beim require() aus anderen Skripten) ---
 

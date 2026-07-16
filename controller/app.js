@@ -2,6 +2,7 @@ import { Anlage } from '../model/anlage.js';
 import { SchaltkastenView } from '../view/schaltkasten.js';
 import { MessgeraetView } from '../view/messgeraet.js';
 import { ProtokollView } from '../view/protokoll.js';
+import { SteckdosenView } from '../view/steckdosen.js';
 import { Popup } from '../view/popup.js';
 import { findePfad, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
@@ -16,6 +17,20 @@ function svgKreis(attrs) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;
+}
+
+// Mittelpunkt eines Schrauben-Elements - meist ein <circle> (hat schon
+// cx/cy), aber die PE-Kontakte an der Steckdose sind <rect>s (siehe
+// view/steckdosen.js zeichneSteckdose()), die kein cx/cy haben und deren
+// Mitte deshalb aus x/y/width/height berechnet werden muss.
+function schraubenMitte(el) {
+  if (el.tagName === 'rect') {
+    return {
+      cx: parseFloat(el.getAttribute('x')) + parseFloat(el.getAttribute('width')) / 2,
+      cy: parseFloat(el.getAttribute('y')) + parseFloat(el.getAttribute('height')) / 2
+    };
+  }
+  return { cx: el.getAttribute('cx'), cy: el.getAttribute('cy') };
 }
 
 // Nächster Zustand im Zyklus leer -> schwarz -> blau -> grün -> leer -> ...,
@@ -36,6 +51,7 @@ async function start() {
   const container = document.getElementById('schaltkasten');
   const pfad = new URLSearchParams(window.location.search).get('anlage') ?? 'anlagen/beispiel_eg.json';
   const anlage = await Anlage.laden(pfad);
+
   // Verbindungsgraph für die Pfadverfolgung (RLOW, siehe KONZEPT.md
   // "Pfadverfolgung und Fehlersimulation") - null, wenn der Testcase keinen
   // Netzplan hat (z.B. die handgepflegte beispiel_eg.json). Ohne Graph bleibt
@@ -69,7 +85,11 @@ async function start() {
     renderMessgeraet(); // RLOW misst kontinuierlich, siehe unten
   }
 
-  const { svg: schaltkastenSvg, schalterHandles } = SchaltkastenView.render(anlage, container, (ader, x, y, kreis) => {
+  // Klick auf eine Schraube/einen Kontaktpunkt - identisch für Schaltkasten-
+  // UND Steckdosen-Kontakte (siehe view/steckdosen.js), da diese Funktion
+  // nichts Schaltkasten-Spezifisches referenziert, nur `kreis`/`ader` aus dem
+  // jeweiligen Aufruf.
+  function onSchraubeKlick(ader, x, y, kreis) {
     // Solange das Messgerät an ist (Messmodus), ersetzen Messspitzen die
     // Popups: kein Querschnitt/Farbe-Tooltip mehr, stattdessen legt jeder
     // Klick auf eine Schraube eine farbige Messspitze an (oder nimmt sie
@@ -89,8 +109,9 @@ async function start() {
       if (naechsteFarbe !== null) {
         messspitzenFarbe.set(kreis, naechsteFarbe);
         messspitzenAder.set(kreis, ader);
+        const { cx, cy } = schraubenMitte(kreis);
         const overlay = svgKreis({
-          cx: kreis.getAttribute('cx'), cy: kreis.getAttribute('cy'), r: 7,
+          cx, cy, r: 7,
           fill: MESSSPITZEN_FARBWERTE[naechsteFarbe], stroke: '#ffffff', 'stroke-width': 2.5
         });
         overlay.style.pointerEvents = 'none'; // Klicks sollen weiter beim Schrauben-Kreis ankommen (Zyklus geht weiter)
@@ -123,7 +144,15 @@ async function start() {
         weitere: ader.weitere?.map((w) => ({ querschnitt: `${w.querschnitt_mm2} mm²`, farbe: w.farbe }))
       }, x, y);
     }
-  }, schalterUmschalten);
+  }
+
+  const { svg: schaltkastenSvg, schalterHandles } = SchaltkastenView.render(anlage, container, onSchraubeKlick, schalterUmschalten);
+
+  // Viertes View-Objekt, oberhalb des Schaltkastens (siehe view/steckdosen.js).
+  // Breite exakt wie der Schaltkasten (derselbe Rahmen-Look). Kontaktpunkte
+  // teilen sich denselben Klick-Callback wie der Schaltkasten - Messspitzen
+  // lassen sich also genauso anlegen wie an den Reihenklemmen-Schrauben.
+  SteckdosenView.render(document.getElementById('steckdosen'), schaltkastenSvg.getAttribute('width'), anlage, onSchraubeKlick);
 
   // Alle Netz-IDs, die an einer Ader hängen - normalerweise nur ihre eigene,
   // bei einer physisch geteilten Schraube (siehe generate_anlage.js
@@ -188,6 +217,21 @@ async function start() {
     const blauAder = messspitzenAderNachFarbe('blau');
     if (!schwarzAder || !blauAder) return null;
     if (schwarzAder.funktion !== blauAder.funktion) return null;
+
+    // WORKAROUND (siehe KONZEPT.md "Nächste Schritte" - PE-Teilgraph): PE
+    // ist noch nicht Teil des Verbindungsgraphen (`graph.PE` existiert
+    // nicht, GRAPH_FUNKTIONEN in generate_anlage.js hat nur L1/L2/L3/N),
+    // findePfad() würde also für PE immer null liefern - obwohl PE
+    // elektrisch in diesem Modell nie geschaltet wird (kein PE-Schalter,
+    // siehe netzplan.md Annahme 1 "PE umgeht Leistungsschalter und RCD")
+    // und deshalb praktisch immer durchgängig ist. Bis der echte
+    // PE-Teilgraph existiert: PE-zu-PE liefert pauschal 0Ω - unabhängig
+    // davon, welche PE-Bauteile (Reihenklemme, PE-Klemme, Steckdose,
+    // Anschlussdose) die Messspitzen tragen. Ignoriert bewusst etwaige
+    // Fehlertabellen-Einträge auf PE-Netzen (aktuell in keinem Testcase
+    // vorhanden). Entfällt ersatzlos, sobald der PE-Teilgraph existiert.
+    if (schwarzAder.funktion === 'PE') return 0;
+
     const pfad = findePfadZwischenAdern(schwarzAder.funktion, schwarzAder, blauAder);
     return pfad ? berechneWiderstand(graph, pfad) : null;
   }

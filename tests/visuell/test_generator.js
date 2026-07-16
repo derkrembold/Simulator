@@ -6,7 +6,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { generiereAnlage, generiereGraph, findePfad, berechneWiderstand, istSpannungFuehrend } = require('./generate_anlage.js');
+const { generiereAnlage, generiereGraph, findePfad, berechneWiderstand, istSpannungFuehrend, parseBauteile } = require('./generate_anlage.js');
 
 let alleBestanden = true;
 
@@ -328,6 +328,51 @@ pruefe('Graph: istSpannungFuehrend() prüft den kompletten Pfad zur Einspeisung,
   if (!istSpannungFuehrend(graph, 'L1', 'N4')) {
     throw new Error('N4 (vor RCD1, hinter dem Leistungsschalter) sollte weiterhin spannungsführend sein');
   }
+});
+
+// --- parseSteckdosenPlatzierung (über parseBauteile) gegen die "Steckdosen
+// (Platzierung)"-Tabelle in bauteile.md aller vier Testcases - View-Objekt
+// selbst noch nicht umgesetzt, siehe KONZEPT.md "Nächste Schritte". ---
+
+pruefe('Steckdosen-Platzierung: testcase_01 (2x2, eine Lücke)', () => {
+  const { steckdosenPlatzierung } = parseBauteile(TESTCASE_01);
+  gleich(steckdosenPlatzierung, [
+    { row: 0, col: 0, sk: 'SK1', rotation: 0 },
+    { row: 0, col: 1, sk: 'SK2', rotation: 0 },
+    { row: 1, col: 0, sk: 'SK1', rotation: 0 }
+  ], 'testcase_01 Steckdosen-Platzierung');
+});
+
+pruefe('Steckdosen-Platzierung: testcase_02 (2x2, SK4 um 90° gedreht)', () => {
+  const { steckdosenPlatzierung } = parseBauteile(TESTCASE_02);
+  gleich(steckdosenPlatzierung, [
+    { row: 0, col: 0, sk: 'SK1', rotation: 0 },
+    { row: 0, col: 1, sk: 'SK2', rotation: 0 },
+    { row: 1, col: 0, sk: 'SK3', rotation: 0 },
+    { row: 1, col: 1, sk: 'SK4', rotation: 90 }
+  ], 'testcase_02 Steckdosen-Platzierung');
+});
+
+pruefe('Steckdosen-Platzierung: testcase_03 (2x3, SK1/SK5 um 180° gedreht)', () => {
+  const { steckdosenPlatzierung } = parseBauteile(TESTCASE_03);
+  gleich(steckdosenPlatzierung, [
+    { row: 0, col: 0, sk: 'SK1', rotation: 180 },
+    { row: 0, col: 1, sk: 'SK2', rotation: 0 },
+    { row: 1, col: 0, sk: 'SK3', rotation: 0 },
+    { row: 1, col: 1, sk: 'SK4', rotation: 0 },
+    { row: 2, col: 0, sk: 'SK5', rotation: 180 },
+    { row: 2, col: 1, sk: 'SK6', rotation: 0 }
+  ], 'testcase_03 Steckdosen-Platzierung');
+});
+
+pruefe('Steckdosen-Platzierung: testcase_04 (2x2, SK1 zweimal - einmal um 180° gedreht)', () => {
+  const { steckdosenPlatzierung } = parseBauteile(TESTCASE_04);
+  gleich(steckdosenPlatzierung, [
+    { row: 0, col: 0, sk: 'SK1', rotation: 0 },
+    { row: 0, col: 1, sk: 'SK1', rotation: 180 },
+    { row: 1, col: 0, sk: 'SK2', rotation: 0 },
+    { row: 1, col: 1, sk: 'SK3', rotation: 0 }
+  ], 'testcase_04 Steckdosen-Platzierung');
 });
 
 process.exit(alleBestanden ? 0 : 1);

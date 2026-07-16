@@ -29,6 +29,22 @@ Verdrahtung nicht ableitbar sind (Nennstrom, Typ, Charakteristik, ...).
 | SK1 | Steckdosen Zimmer 1 | Steckdose | nein / ja / ja |
 | SK2 | Licht Zimmer 1 | Lichtauslass | nein / ja / ja |
 
+## Steckdosen (Platzierung)
+
+Raster für die Anordnung der Steckdosen/Anschlussdosen oberhalb des
+Schaltkastens (View-Objekt, noch nicht umgesetzt). Jede Zelle referenziert
+eine SK-Nummer aus der Stromkreise-Tabelle oben (Endstellen-Typ Steckdose
+vs. Anschlussdose/Lichtauslass wird von dort übernommen, nicht hier
+dupliziert); `–` = leere Zelle. Optionales `@<Winkel>`-Suffix (90/180/270)
+dreht die Zeichnung im Uhrzeigersinn beim Installieren, ohne Suffix = 0°.
+Mehrfaches Vorkommen derselben SK-Nummer = mehrere Steckdosen an dieser
+Endstelle.
+
+|         | Spalte 1 | Spalte 2 |
+|---------|----------|----------|
+| Reihe 1 | SK1      | SK2      |
+| Reihe 2 | SK1      | –        |
+
 ## Anlage (Kopfdaten)
 
 | Feld | Wert | Einheit |

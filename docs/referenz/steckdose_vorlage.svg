@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="109.98193mm"
+   height="105.40096mm"
+   viewBox="0 0 109.98193 105.40096"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1"
+     transform="translate(-16.962311,-65.156809)">
+    <!-- Alles neu zentriert auf denselben Mittelpunkt (71.8,118) - vorher
+         hatten Rahmen/Kreis/Kontakte leicht unterschiedliche Zentren.
+         Äußerer Kreis als echtes <circle> statt 4-Segment-Bogenpfad (der
+         hatte unten links dieselbe sichtbare Lücke wie beim Ring der
+         Anschlussdose). -->
+    <!-- Steckdose insgesamt 10% kleiner (Faktor 0.9, um denselben
+         Mittelpunkt 71.8/118) - AUSSER den grauen Kontaktkreisen (L/N),
+         deren Durchmesser bewusst unverändert bei r=2 bleibt (siehe deren
+         eigene Gruppen weiter unten). -->
+    <circle
+       style="fill:none;stroke:#000000;stroke-width:1.05648"
+       id="path1"
+       cx="71.8" cy="118" r="21.057603" />
+    <!-- Die vier Kontakt-Kerben: nur eine (oben links) ist echte Geometrie,
+         die anderen drei sind Spiegelungen davon um die Mittelachsen
+         (x=71.8 bzw. y=118) - garantiert exakte Symmetrie statt von Hand
+         nachgezogener, leicht ungleicher Kopien. -->
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.05648"
+       d="m 51.131234,114.961841 h 3.154004 v -8.163306"
+       id="path2" />
+    <use href="#path2" transform="matrix(-1,0,0,1,143.6,0)" id="path2-8" />
+    <use href="#path2" transform="matrix(1,0,0,-1,0,236)" id="path2-8-1" />
+    <use href="#path2" transform="matrix(-1,0,0,-1,143.6,236)" id="path2-2" />
+    <!-- L/N-Kontaktkreise weiterhin r=2 (derselbe reale Radius wie die
+         Reihenklemmen-Schraube, r=4px bei 1mm=2px, siehe
+         view/schaltkasten.js schraube()) - nur die Position ist mit der
+         restlichen Steckdose näher an die Mitte gerückt, der Radius bleibt
+         bewusst unangetastet (auch in dieser Runde). -->
+    <g transform="translate(62.890162,118) scale(0.654899) translate(-59.298201,-117.323914)">
+      <path
+         style="fill:#666666;fill-opacity:1;stroke:none;stroke-width:1.05648"
+         id="path3"
+         d="m 57.28468,119.62012 a 3.0539844,3.0539844 0 0 1 -0.290383,-4.30092 3.0539844,3.0539844 0 0 1 4.299773,-0.30685 3.0539844,3.0539844 0 0 1 0.323318,4.29857 3.0539844,3.0539844 0 0 1 -4.297296,0.33978" />
+    </g>
+    <g transform="translate(80.709838,118) scale(0.654899) translate(-83.741821,-117.502872)">
+      <path
+         style="fill:#666666;fill-opacity:1;stroke:none;stroke-width:1.05648"
+         id="path3-2"
+         d="m 81.728303,119.79908 a 3.0539844,3.0539844 0 0 1 -0.290383,-4.30092 3.0539844,3.0539844 0 0 1 4.299772,-0.30685 3.0539844,3.0539844 0 0 1 0.323319,4.29856 3.0539844,3.0539844 0 0 1 -4.297296,0.33978" />
+    </g>
+    <!-- PE-Kontakte diesmal ebenfalls unangetastet (Größe UND wie schon vorher
+         nur die Position an die kleinere Steckdose angepasst). -->
+    <rect
+       style="fill:#666666;fill-opacity:1;stroke:none;stroke-width:1.05648"
+       id="rect3"
+       width="2.267583"
+       height="7.833471"
+       x="70.666208"
+       y="96.483746" />
+    <rect
+       style="fill:#666666;fill-opacity:1;stroke:none;stroke-width:1.05648"
+       id="rect3-6"
+       width="2.267583"
+       height="7.833471"
+       x="70.666208"
+       y="131.682783" />
+    <!-- Ecken leicht abgerundet (rx/ry). -->
+    <rect
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.05648;stroke-opacity:1"
+       id="rect4"
+       width="55.102277"
+       height="53.223653"
+       x="44.248862"
+       y="91.388174"
+       rx="2.7" ry="2.7" />
+    <rect
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.05648;stroke-opacity:1"
+       id="rect4-6"
+       width="79.406654"
+       height="76.067119"
+       x="32.096674"
+       y="79.966441"
+       rx="3.6" ry="3.6" />
+  </g>
+</svg>

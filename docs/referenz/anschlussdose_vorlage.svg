@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="100.30611mm"
+   height="100.30632mm"
+   viewBox="0 0 100.30611 100.30632"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1"
+     transform="translate(-21.515372,-182.25991)">
+    <!-- Skalierung um den Dosen-Mittelpunkt (71.505,232.605), Faktor 0.6549:
+         bringt die grauen/farbigen Kreise (ursprünglich r=3.0539844) auf
+         r≈2 - denselben realen Radius wie die Reihenklemmen-Schraube
+         (r=4px bei 1mm=2px, siehe view/schaltkasten.js schraube() und
+         docs/KONZEPT.md "Maßstab"). Die Klemmdeckel-Rechtecke unten sind
+         bereits vor der Skalierung exakt bündig an die jeweilige graue Box
+         gesetzt (kein Spalt) und paarweise auf derselben Höhe. -->
+    <g transform="translate(71.505,232.605) scale(0.6549) translate(-71.505,-232.605)">
+    <!-- Ring als zwei echte, garantiert geschlossene Kreise (statt der
+         ursprünglichen 4-Segment-Bogenpfade, die unten links eine sichtbare
+         Lücke hatten) - selber Mittelpunkt (71.505,232.605) und Radius wie
+         zuvor. -->
+    <circle
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.05648;stroke-opacity:1"
+       id="path4"
+       cx="71.505" cy="232.605" r="47.464012" />
+    <circle
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1.05648;stroke-opacity:1"
+       id="path4-6"
+       cx="71.505" cy="232.605" r="49.627251" />
+    <!-- Die drei Klemmblöcke unten sitzen jetzt exakt symmetrisch im 120°-
+         Abstand auf einem gemeinsamen Radius (23.468) um denselben
+         Mittelpunkt (oben: -90°, unten rechts: 30°, unten links: 150°) -
+         jeder Block dabei unverändert in sich selbst (Rechtecke/Kreise nur
+         gemeinsam verschoben, nicht rotiert). -->
+    <rect
+       style="fill:#ececec;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect5"
+       width="21.886889"
+       height="10.688946"
+       x="60.561555"
+       y="203.792497" />
+    <path
+       style="fill:#666666;fill-opacity:1;stroke:none;stroke-width:1.05648"
+       id="path3-1"
+       d="m 64.684976,211.501197 a 3.0539844,3.0539844 0 0 1 -0.290383,-4.30092 3.0539844,3.0539844 0 0 1 4.299773,-0.30685 3.0539844,3.0539844 0 0 1 0.323318,4.29857 3.0539844,3.0539844 0 0 1 -4.297296,0.33978" />
+    <path
+       style="fill:#0000ff;fill-opacity:1;stroke:none;stroke-width:1.05648"
+       id="path3-1-9"
+       d="m 74.217676,211.712237 a 3.0539844,3.0539844 0 0 1 -0.290383,-4.30091 3.0539844,3.0539844 0 0 1 4.299772,-0.30685 3.0539844,3.0539844 0 0 1 0.323319,4.29856 3.0539844,3.0539844 0 0 1 -4.297296,0.33978" />
+    <rect
+       style="fill:#ff7f2a;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect6"
+       width="8.652956"
+       height="2.2904885"
+       x="61.579549"
+       y="201.502009" />
+    <rect
+       style="fill:#ff7f2a;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect6-2"
+       width="8.652956"
+       height="2.2904885"
+       x="72.224496"
+       y="201.502009" />
+    <rect
+       style="fill:#ececec;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect5-1"
+       width="21.886889"
+       height="10.688946"
+       x="40.237645"
+       y="238.994542" />
+    <path
+       style="fill:#666666;fill-opacity:1;stroke:none;stroke-width:1.05648"
+       id="path3-1-3"
+       d="m 44.361067,246.703242 a 3.0539844,3.0539844 0 0 1 -0.290383,-4.30091 3.0539844,3.0539844 0 0 1 4.299772,-0.30686 3.0539844,3.0539844 0 0 1 0.323318,4.29857 3.0539844,3.0539844 0 0 1 -4.297296,0.33978" />
+    <path
+       style="fill:#44aa00;fill-opacity:1;stroke:none;stroke-width:1.05648"
+       id="path3-1-9-8"
+       d="m 53.893766,246.914292 a 3.0539844,3.0539844 0 0 1 -0.290383,-4.30092 3.0539844,3.0539844 0 0 1 4.299772,-0.30685 3.0539844,3.0539844 0 0 1 0.323319,4.29856 3.0539844,3.0539844 0 0 1 -4.297296,0.33978" />
+    <rect
+       style="fill:#ff7f2a;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect6-7"
+       width="8.652956"
+       height="2.2904885"
+       x="41.255643"
+       y="236.704053" />
+    <rect
+       style="fill:#ff7f2a;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect6-2-4"
+       width="8.652956"
+       height="2.2904885"
+       x="51.900586"
+       y="236.704053" />
+    <rect
+       style="fill:#ececec;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect5-1-3"
+       width="21.886889"
+       height="10.688946"
+       x="80.885466"
+       y="238.994542" />
+    <path
+       style="fill:#666666;fill-opacity:1;stroke:none;stroke-width:1.05648"
+       id="path3-1-3-1"
+       d="m 85.008895,246.703222 a 3.0539844,3.0539844 0 0 1 -0.290383,-4.30092 3.0539844,3.0539844 0 0 1 4.299772,-0.30685 3.0539844,3.0539844 0 0 1 0.323319,4.29856 3.0539844,3.0539844 0 0 1 -4.297296,0.33978" />
+    <path
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.05648"
+       id="path3-1-9-8-9"
+       d="m 94.541595,246.914282 a 3.0539844,3.0539844 0 0 1 -0.290383,-4.30092 3.0539844,3.0539844 0 0 1 4.299772,-0.30685 3.0539844,3.0539844 0 0 1 0.323318,4.29856 3.0539844,3.0539844 0 0 1 -4.297296,0.33978" />
+    <rect
+       style="fill:#ff7f2a;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect6-7-8"
+       width="8.652956"
+       height="2.2904885"
+       x="81.903463"
+       y="236.704053" />
+    <rect
+       style="fill:#ff7f2a;fill-opacity:1;stroke:none;stroke-width:1.05648;stroke-opacity:1"
+       id="rect6-2-4-6"
+       width="8.652956"
+       height="2.2904885"
+       x="92.548414"
+       y="236.704053" />
+    </g>
+  </g>
+</svg>

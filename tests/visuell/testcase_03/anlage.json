@@ -4,6 +4,44 @@
   "netzform": "TN-S",
   "spannung_einspeisung": 400,
   "spannung_stromkreise": 230,
+  "steckdosen_platzierung": [
+    {
+      "row": 0,
+      "col": 0,
+      "sk": "SK1",
+      "rotation": 180
+    },
+    {
+      "row": 0,
+      "col": 1,
+      "sk": "SK2",
+      "rotation": 0
+    },
+    {
+      "row": 1,
+      "col": 0,
+      "sk": "SK3",
+      "rotation": 0
+    },
+    {
+      "row": 1,
+      "col": 1,
+      "sk": "SK4",
+      "rotation": 0
+    },
+    {
+      "row": 2,
+      "col": 0,
+      "sk": "SK5",
+      "rotation": 180
+    },
+    {
+      "row": 2,
+      "col": 1,
+      "sk": "SK6",
+      "rotation": 0
+    }
+  ],
   "reihenklemmen": {
     "vorhanden": true,
     "breite_mm": 6,

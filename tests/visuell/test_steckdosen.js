@@ -83,6 +83,14 @@ async function main() {
     );
   }
 
+  // Klickt die Schalter-Box (RCD/LS/Hauptschalter) an ihrer festen
+  // Rechteck-Position (siehe view/schaltkasten.js zeichneSchalter()).
+  async function schalterKlick(page, x, y) {
+    const g = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator(`rect[x="${x}"][y="${y}"]`) });
+    await g.click();
+  }
+
   async function rlowHauptwert(page) {
     return page.evaluate(() =>
       [...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent.startsWith('R:'))?.textContent
@@ -460,6 +468,41 @@ async function main() {
     await kreise.nth(0).click({ force: true }); // leer -> schwarz (frei)
     erwarte([await rlowHauptwert(page)], 'R:0,75Ω', 'SK1 rechts (L) + SK3 links (L) -> Fehlertabellen-Summe');
 
+    await page.close();
+  });
+
+  // testcase_01: PE-zu-N-WORKAROUND (siehe oben) über den Steckdosen-View -
+  // Blau auf den blauen (N-)Kontakt der Anschlussdose (SK2), Schwarz auf den
+  // PE-Kontakt der unteren Steckdose (zweite SK1-Platzierung, andere
+  // physische Steckdose, aber dieselbe Ader/Netz wie die obere). Kein
+  // Fehlertabellen-Eintrag auf dem N-Pfad in testcase_01 -> 0,00Ω, solange
+  // alle Schalter Richtung Einspeisung geschlossen sind.
+  await pruefe('RLOW: testcase_01 - Anschlussdose (blau=N) + untere Steckdose (PE) zeigt 0,00Ω bei geschlossenen Schaltern', async () => {
+    const page = await seiteMitTestcase('testcase_01');
+    await klick(page, 'ON/OFF');
+    await page.locator('#steckdosen circle[fill="#666666"]').nth(2).click({ force: true }); // blau, SK2 N-Block
+    await page.locator('#steckdosen rect[fill="#666666"]').nth(2).click({ force: true }); // schwarz, untere Steckdose PE
+    erwarte([await rlowHauptwert(page)], 'R:0,00Ω', 'N-Pfad zur Einspeisung geschlossen, keine Fehlertabellen-Einträge in testcase_01');
+    await page.close();
+  });
+
+  await pruefe('RLOW: testcase_01 - dieselben Sonden bleiben beim Platzhalter, sobald der Hauptschalter offen ist', async () => {
+    const page = await seiteMitTestcase('testcase_01');
+    await klick(page, 'ON/OFF');
+    await page.locator('#steckdosen circle[fill="#666666"]').nth(2).click({ force: true }); // blau, SK2 N-Block
+    await page.locator('#steckdosen rect[fill="#666666"]').nth(2).click({ force: true }); // schwarz, untere Steckdose PE
+    await schalterKlick(page, '12', '572'); // Hauptschalter
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'Hauptschalter offen -> N-Pfad zur Einspeisung unterbrochen');
+    await page.close();
+  });
+
+  await pruefe('RLOW: testcase_01 - dieselben Sonden bleiben beim Platzhalter, sobald RCD1 offen ist (Hauptschalter zu)', async () => {
+    const page = await seiteMitTestcase('testcase_01');
+    await klick(page, 'ON/OFF');
+    await page.locator('#steckdosen circle[fill="#666666"]').nth(2).click({ force: true }); // blau, SK2 N-Block
+    await page.locator('#steckdosen rect[fill="#666666"]').nth(2).click({ force: true }); // schwarz, untere Steckdose PE
+    await schalterKlick(page, '8', '322'); // RCD1
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD1 offen -> N-Pfad zur Einspeisung unterbrochen');
     await page.close();
   });
 

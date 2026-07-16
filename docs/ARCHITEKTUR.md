@@ -1022,7 +1022,7 @@ im normalen Fluss linksbündig wie `#schaltkasten` selbst (verifiziert per
 **Bewusst noch offen** (siehe KONZEPT.md "Nächste Schritte"): Drehstromsteckdose
 (eigener testcase_05, eigene Vorlage).
 
-Getestet in `tests/visuell/test_steckdosen.js` (19 Tests): ohne
+Getestet in `tests/visuell/test_steckdosen.js` (22 Tests): ohne
 Platzierungstabelle bleibt der Container leer/unsichtbar; linke Kante steht
 (bei absichtlich breiterem Viewport als die Schaltkasten-Breite) bündig
 unter der Schaltkasten-Kante statt zentriert zu sein; Breite entspricht
@@ -1066,7 +1066,13 @@ Sonden-Zustände nacheinander (0,00Ω / `---` / 0,75Ω je nachdem, ob Schwarz
 und Blau auf demselben Netz-`funktion` liegen) - Farbe "umsetzen" erfordert
 zwei Klicks auf die alte Schraube (einmal weiter im Zyklus, einmal zurück
 auf leer), bevor die neue Schraube die Farbe annehmen kann, genau wie am
-echten Gerät.
+echten Gerät; RLOW: PE-zu-N-Workaround über den Steckdosen-View
+(Anschlussdose blau=N-Kontakt der SK2 + untere Steckdose PE-Kontakt, zweite
+SK1-Platzierung) - 0,00Ω bei geschlossenen Schaltern (keine
+Fehlertabellen-Einträge auf dem N-Pfad in testcase_01), Platzhalter sobald
+der Hauptschalter (`rect[x="12"][y="572"]`) ODER RCD1
+(`rect[x="8"][y="322"]`) einzeln geöffnet wird - jeweils eigener Test mit
+denselben Sonden, nur die Schalterstellung ändert sich.
 
 ### timer.js
 - Sichtbarer 45-Minuten Timer
@@ -1143,6 +1149,19 @@ nicht-durchgestrichene Pfeil-Kasten im RLOW-Display), was
 `baueAnzeigeZustand()` und darin `berechneRlowMesswert()` auslöst:
 - Sucht in `messspitzenFarbe` die Kreise mit Farbe `schwarz` bzw. `blau` und
   liest über `messspitzenAder` deren `ader`-Objekt.
+- **WORKAROUND für PE-zu-N** (Prüfung läuft VOR der `funktion`-Gleichheits-
+  prüfung unten, sonst würde PE≠N sofort mit `null` abbrechen): trägt eine
+  der beiden Adern `funktion === 'PE'` und die andere `funktion === 'N'`,
+  wird NICHT `findePfadZwischenAdern()` verwendet, sondern
+  `findePfadZurEinspeisung('N', nAder)` - dieselbe Hilfsfunktion, die
+  ZI/ZS schon für ihren Pfad zur Einspeisung nutzen (siehe dort). PE gilt
+  wie beim PE-zu-PE-Workaround unten als immer durchgängig, nur der
+  N-Pfad wird tatsächlich verfolgt. Existiert kein Pfad (offener Schalter
+  Richtung Einspeisung), bleibt der Platzhalter stehen; sonst wird -
+  anders als bei ZS - NUR `berechneWiderstand(graph, pfadN)`
+  zurückgegeben, OHNE `ZI_VORIMPEDANZ` zu addieren (bleibt ein RLOW-, kein
+  ZS/ZI-Wert). User-gemeldeter Bug/Feature-Wunsch, **entfällt ersatzlos**
+  sobald der PE-Teilgraph existiert.
 - Bricht mit `null` ab, wenn eine der beiden Messspitzen fehlt, keine `netz`-
   ID trägt, oder beide Adern eine unterschiedliche `funktion` haben (z.B.
   schwarz auf L1, blau auf N - kein gemeinsamer Teilgraph, siehe
@@ -1165,6 +1184,12 @@ nicht-durchgestrichene Pfeil-Kasten im RLOW-Display), was
   ein Zahlenwert überschreibt `zustand.hauptwert` mit `` `R:${wert.toFixed(2)
   .replace('.', ',')}Ω` `` (z.B. `R:0,60Ω`, zwei Nachkommastellen für
   eindeutiges manuelles Nachrechnen).
+
+Die PE-zu-N- und PE-zu-PE-Workarounds sind in `test_messgeraet.js` getestet:
+PE-zu-N summiert die Fehlertabelle auf dem N-Pfad zur Einspeisung (testcase_02,
+N10 = 0,30Ω, ohne Vorimpedanz) und bleibt beim Platzhalter, sobald RCD1
+(Richtung Einspeisung) öffnet; PE-zu-PE (Reihenklemme + PE-Klemme,
+unterschiedliche Netze) liefert pauschal 0Ω.
 
 **Fehlertabelle - Anbindung an RLOW: umgesetzt.** `berechneWiderstand(graph,
 pfad)` (in `model/pfad.js` und gespiegelt in `generate_anlage.js`) summiert

@@ -895,7 +895,7 @@ genau wie `#schaltkasten` selbst.
 testcase_05 und eine eigene 5-Schrauben-Steckklemme, siehe "Nächste
 Schritte").
 
-**Getestet in `tests/visuell/test_steckdosen.js`** (19 Tests): Container
+**Getestet in `tests/visuell/test_steckdosen.js`** (22 Tests): Container
 bleibt ohne Platzierungstabelle unsichtbar; linke Kante steht (bei
 absichtlich breiterem Viewport als die Schaltkasten-Breite) bündig unter der
 Schaltkasten-Kante statt zentriert zu sein; Breite entspricht exakt der
@@ -932,7 +932,11 @@ nacheinander (0,00Ω bei gleicher Funktion, `---` bei unterschiedlicher,
 0,75Ω nach erneutem Wechsel zurück auf gleiche Funktion mit
 Fehlertabellen-Eintrag) - deckt zusätzlich das "Umsetzen" einer Messspitze
 über den Farbzyklus ab (alte Schraube erst zweimal klicken bis leer, dann
-neue Schraube einmal klicken).
+neue Schraube einmal klicken); RLOW: PE-zu-N-Workaround über den
+Steckdosen-View (Anschlussdose blau=N + untere Steckdose PE) zeigt 0,00Ω bei
+geschlossenen Schaltern, bleibt aber beim Platzhalter, sobald der
+Hauptschalter ODER RCD1 einzeln geöffnet wird (drei Tests, dieselben Sonden,
+unterschiedliche Schalterstellungen).
 
 ---
 
@@ -1472,6 +1476,16 @@ PE-Klemme, Steckdose, Anschlussdose) die Messspitzen sitzen. Ignoriert bewusst
 etwaige Fehlertabellen-Einträge auf PE-Netzen (aktuell in keinem Testcase
 vorhanden). **Entfällt ersatzlos**, sobald der echte PE-Teilgraph existiert.
 
+**WORKAROUND für PE-zu-N, bis der PE-Teilgraph existiert:** ähnlich gelagert
+wie PE-zu-PE, aber diesmal mit einer Sonde auf N: PE gilt weiterhin als immer
+durchgängig (0Ω), die eigentliche Messung läuft deshalb nur über den N-Pfad
+zur Einspeisung - **wie bei ZS, aber für N statt L, und OHNE die feste
+Vorimpedanz** (bleibt ein RLOW-Wert, kein ZS/ZI-Wert). Ist irgendein Schalter
+auf dem Weg zur Einspeisung offen, bleibt der Platzhalter stehen; sind alle
+geschlossen, wird die Fehlertabelle entlang dieses N-Pfads aufsummiert und
+kontinuierlich angezeigt (ohne TEST-Taste, wie RLOW sonst auch). Ebenfalls
+**entfällt ersatzlos**, sobald der echte PE-Teilgraph existiert.
+
 ### RISO-Berechnung (zweiter Anwendungsfall, prototypisch)
 
 **Status: prototypisch umgesetzt** (siehe "Berechnung der Messwerte" oben für
@@ -1555,9 +1569,11 @@ Offen:
    Prüfungsalltag kein realistisches Szenario), aber Vereinfachungen, keine
    korrekte Modellierung - sobald der PE-Teilgraph existiert, sollten beide
    durch eine echte Pfadsuche über den PE-Graphen ersetzt werden. Dritte
-   Vereinfachung aus demselben Grund: RLOW liefert bei PE-zu-PE pauschal 0Ω
-   (`berechneRlowMesswert()`-Workaround, siehe "RLOW-Berechnung" oben) -
-   entfällt ebenfalls ersatzlos, sobald der PE-Teilgraph existiert.
+   Vereinfachung aus demselben Grund: RLOW liefert bei PE-zu-PE pauschal 0Ω,
+   und bei PE-zu-N nur die Fehlertabelle des N-Pfads zur Einspeisung ohne
+   Vorimpedanz (`berechneRlowMesswert()`-Workarounds, siehe
+   "RLOW-Berechnung" oben) - entfallen ebenfalls ersatzlos, sobald der
+   PE-Teilgraph existiert.
 3. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
    "Schrauben lösen" oben).
 4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD

@@ -216,20 +216,39 @@ async function start() {
     const schwarzAder = messspitzenAderNachFarbe('schwarz');
     const blauAder = messspitzenAderNachFarbe('blau');
     if (!schwarzAder || !blauAder) return null;
+
+    // WORKAROUND PE-zu-N (siehe KONZEPT.md "Nächste Schritte" -
+    // PE-Teilgraph): eine Sonde auf PE, die andere auf N - PE gilt wie beim
+    // PE-zu-PE-Workaround unten als immer durchgängig (0Ω), die eigentliche
+    // Messung läuft deshalb nur über den N-Pfad zur Einspeisung
+    // (`findePfadZurEinspeisung()`, dieselbe Funktion, die ZI/ZS schon für
+    // ihren Pfad zur Einspeisung nutzen). Ist irgendein Schalter auf diesem
+    // Weg offen, bleibt der Platzhalter stehen - sind alle geschlossen, wird
+    // (anders als bei ZS) NUR die Fehlertabelle aufsummiert, OHNE feste
+    // Vorimpedanz, da es ein RLOW- und kein ZS/ZI-Wert bleibt. Entfällt
+    // ersatzlos, sobald der PE-Teilgraph existiert.
+    const peAder = schwarzAder.funktion === 'PE' ? schwarzAder : (blauAder.funktion === 'PE' ? blauAder : null);
+    const nAder = schwarzAder.funktion === 'N' ? schwarzAder : (blauAder.funktion === 'N' ? blauAder : null);
+    if (peAder && nAder) {
+      const pfadN = findePfadZurEinspeisung('N', nAder);
+      return pfadN ? berechneWiderstand(graph, pfadN) : null;
+    }
+
     if (schwarzAder.funktion !== blauAder.funktion) return null;
 
-    // WORKAROUND (siehe KONZEPT.md "Nächste Schritte" - PE-Teilgraph): PE
-    // ist noch nicht Teil des Verbindungsgraphen (`graph.PE` existiert
-    // nicht, GRAPH_FUNKTIONEN in generate_anlage.js hat nur L1/L2/L3/N),
-    // findePfad() würde also für PE immer null liefern - obwohl PE
-    // elektrisch in diesem Modell nie geschaltet wird (kein PE-Schalter,
-    // siehe netzplan.md Annahme 1 "PE umgeht Leistungsschalter und RCD")
-    // und deshalb praktisch immer durchgängig ist. Bis der echte
-    // PE-Teilgraph existiert: PE-zu-PE liefert pauschal 0Ω - unabhängig
-    // davon, welche PE-Bauteile (Reihenklemme, PE-Klemme, Steckdose,
-    // Anschlussdose) die Messspitzen tragen. Ignoriert bewusst etwaige
-    // Fehlertabellen-Einträge auf PE-Netzen (aktuell in keinem Testcase
-    // vorhanden). Entfällt ersatzlos, sobald der PE-Teilgraph existiert.
+    // WORKAROUND PE-zu-PE (siehe KONZEPT.md "Nächste Schritte" -
+    // PE-Teilgraph): PE ist noch nicht Teil des Verbindungsgraphen
+    // (`graph.PE` existiert nicht, GRAPH_FUNKTIONEN in generate_anlage.js
+    // hat nur L1/L2/L3/N), findePfad() würde also für PE immer null
+    // liefern - obwohl PE elektrisch in diesem Modell nie geschaltet wird
+    // (kein PE-Schalter, siehe netzplan.md Annahme 1 "PE umgeht
+    // Leistungsschalter und RCD") und deshalb praktisch immer durchgängig
+    // ist. Bis der echte PE-Teilgraph existiert: PE-zu-PE liefert pauschal
+    // 0Ω - unabhängig davon, welche PE-Bauteile (Reihenklemme, PE-Klemme,
+    // Steckdose, Anschlussdose) die Messspitzen tragen. Ignoriert bewusst
+    // etwaige Fehlertabellen-Einträge auf PE-Netzen (aktuell in keinem
+    // Testcase vorhanden). Entfällt ersatzlos, sobald der PE-Teilgraph
+    // existiert.
     if (schwarzAder.funktion === 'PE') return 0;
 
     const pfad = findePfadZwischenAdern(schwarzAder.funktion, schwarzAder, blauAder);

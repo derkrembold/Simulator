@@ -435,6 +435,34 @@ async function main() {
     await page.close();
   });
 
+  // WORKAROUND PE-zu-N (siehe KONZEPT.md "Nächste Schritte" - PE-Teilgraph,
+  // und controller/app.js berechneRlowMesswert()): eine Sonde auf PE (gilt
+  // wie oben als immer durchgängig), die andere auf N - die Messung läuft
+  // dann nur über den N-Pfad zur Einspeisung (`findePfadZurEinspeisung()`,
+  // dieselbe Funktion wie bei ZI/ZS), OHNE feste Vorimpedanz (anders als
+  // ZS), da es ein RLOW-Wert bleibt. testcase_02 hat mit N10 (RCD1.o2)
+  // extra einen Fehlertabellen-Eintrag auf dem N-Pfad (0,30Ω).
+  await pruefe('RLOW: WORKAROUND - PE-zu-N summiert die Fehlertabelle auf dem N-Pfad zur Einspeisung (ohne Vorimpedanz)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_02');
+    await page.locator('#schaltkasten svg circle[data-netz="N10"]').first().click(); // schwarz, N (RCD1.o2)
+    await page.locator('#schaltkasten svg circle[data-farbe="gn-ge"]').first().click(); // blau, PE
+    erwarte([await rlowHauptwert(page)], 'R:0,30Ω', 'N-Pfad zur Einspeisung geschlossen -> nur Fehlertabelle (N10), keine Vorimpedanz');
+    await page.close();
+  });
+
+  await pruefe('RLOW: WORKAROUND - PE-zu-N bleibt beim Platzhalter, solange ein Schalter Richtung Einspeisung offen ist', async () => {
+    const page = await neueSeiteMitTestcase('testcase_02');
+    await page.locator('#schaltkasten svg circle[data-netz="N10"]').first().click(); // schwarz, N (RCD1.o2)
+    await page.locator('#schaltkasten svg circle[data-farbe="gn-ge"]').first().click(); // blau, PE
+    erwarte([await rlowHauptwert(page)], 'R:0,30Ω', 'zunächst wie im vorigen Test durchgängig');
+
+    const rcd1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]')
+      .filter({ has: page.locator('rect[x="8"][y="322"]') });
+    await rcd1.click(); // RCD1 öffnen -> N-Pfad zur Einspeisung unterbrochen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD1 offen -> N-Pfad zur Einspeisung unterbrochen, Platzhalter bleibt');
+    await page.close();
+  });
+
   // RCD1.o1 speist LS1 (N6) UND LS2 (N7) über dieselbe physische Schraube
   // (siehe netzplan.md-Annahme 2, ader.weitere in generate_anlage.js). Eine
   // Messspitze an dieser geteilten Schraube trägt data-netz="N6" +

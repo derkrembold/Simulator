@@ -543,6 +543,76 @@ promotet (nur Label-`y` und die neuen Schalter-Symbol-Elemente als Diff), dann
 nach User-Feedback zur Breite ein zweites Mal (nur die Breiten-Formel für 3+
 Pole).
 
+#### 3-poliger LS (`testcase_05`, Status: umgesetzt)
+
+Verhält sich grafisch wie ein 4-poliges RCD: eine Schalter-Box, ein Hebel,
+aber drei Ein- und drei Ausgangsschrauben statt einer. Da `geraet()` die
+Schrauben bereits generisch über `teAnzahl` zeichnet und `schalterBreite()`
+die Breite bereits generisch berechnet (siehe oben, beides schon für den
+3-poligen Hauptschalter aus testcase_04 gebaut), sowie die Graph-Kantenbildung
+(`kantenFuerFunktion()`) bereits generisch über `bauteil.pole` läuft, brauchte
+`view/schaltkasten.js` **keine** Änderung. `TE_TABELLE['LS-3']`
+(`generate_anlage.js`) war bereits vorhanden, nur ungenutzt.
+
+Die eigentliche Lücke war der Gruppe→Stromkreis→LS-Baustein in
+`generate_anlage.js` (Zeilen ~459-530 vor der Änderung): er ging von genau
+einer Phase pro Stromkreis aus (`phase` als einzelner String, verwendet für
+`ls.eingang/ausgang`, Endstelle-Pin-Adern und `reihenklemmen_eingang`). Wurde
+auf ein `phasen`-Array verallgemeinert (`for (let i = 1; i <= (ls.pole ?? 1);
+i++) { ... funktion aus Netz von ls.name.i${i} ... }`, ein Eintrag je Pol des
+LS, gelesen aus dem tatsächlich verdrahteten Netz statt angenommen). Daraus
+folgen drei Konventionen:
+
+- **Reihenklemmen:** bewusst **keine** neue, verbreiterte
+  "3-Phasen-Reihenklemme" als eigener Bauteil-Typ (explizite User-Entscheidung:
+  "tendenziell zusammenpacken, als wie bei testcase_04"), sondern drei
+  separate, normale einphasige Reihenklemmen, benannt `Reihenklemme_L1_<SK>`/
+  `_L2_<SK>`/`_L3_<SK>` (Suffix nur bei `phasen.length > 1` - ein normaler
+  einphasiger Stromkreis bleibt bei `Reihenklemme_L_<SK>`, unverändert).
+  Dadurch wird `reihenklemmen_eingang.l` in `anlage.json` **immer** ein Array
+  (vorher ein einzelnes Objekt) - ein 1-elementiges Array beim einphasigen
+  Regelfall, ein Eintrag pro Phase beim mehrpoligen LS. `view/schaltkasten.js`s
+  Reihe-1-Rendering (Reihenklemmen) wurde entsprechend von "immer genau eine
+  L-Klemme zeichnen" auf eine Schleife über `adern.filter(a =>
+  a.funktion.startsWith('L'))` umgebaut - für alle bestehenden 1-phasigen
+  Testcases verhaltensgleich (Schleife mit genau einem Element), da
+  `lEingangListe[i]` bei fehlendem `reihenklemmen_eingang.l[i]` auf
+  `lAusgang` zurückfällt.
+- **Endstelle-Pins:** von der festen `i1`=Phase/`i2`=N/`i3`=PE-Konvention auf
+  eine dynamische `[...phasen, 'N', 'PE']`-Indizierung verallgemeinert (`i1`
+  bis `iN` je Phase, danach N, danach PE) - bei drei Phasen `i1`=L1, `i2`=L2,
+  `i3`=L3, `i4`=N, `i5`=PE.
+- **`ls.polig`/`ls.te`** aus `ls.pole` bzw. `TE_TABELLE['LS-'+ls.pole]`,
+  analog zum Hauptschalter.
+
+`testcase_05` (Hauptschalter Pole=3, RCD1 Pole=4, LS1 Pole=3, Endstelle
+`Drehstromsteckdose`) verwendet bewusst dieselbe Netz-Nummerierung und
+dieselben Fehlertabellen-Werte wie testcase_04s drei einpolige LS (N20-N22
+RCD1-Ausgang, N24-N26 LS1-Ausgang, N27/N31/N34 Endstelle L1/L2/L3, N28
+Endstelle N, N29 Endstelle PE) - dadurch liefert ZS für L1/L2/L3 exakt
+dieselben Werte wie testcase_04s SK1/SK2/SK3 (Z:0,54Ω/Isc:383,3A,
+Z:0,67Ω/Isc:309,0A, Z:0,63Ω/Isc:328,6A), was als Korrektheits-Beleg diente
+statt neue, unabhängig zu verifizierende Werte zu erfinden. Ursprünglich
+war hier `Festanschluss` (ohne Platzierungstabelle) gewählt worden, um die
+damals noch nicht gebaute Drehstromsteckdosen-Vorlage nicht
+vorauszusetzen - nach deren Fertigstellung (siehe "steckdosen.js" unten)
+wurde auf `Drehstromsteckdose` mit eigener `## Steckdosen (Platzierung)`-
+Sektion umgestellt.
+
+**Rückwärtskompatibilität:** die vier bestehenden Testcases (01-04) wurden mit
+`generate_anlage.js` neu generiert und `anlage.json`/`graph.json` ersetzt -
+einziger Diff war die neue Array-Form von `reihenklemmen_eingang.l`, keine
+Verhaltensänderung (per Diff und vollem `npm test`-Lauf bestätigt).
+
+Getestet in `test_generator.js` (4 Tests: Graph-Kanten des 3-poligen LS1
+- drei separate Kanten L1/L2/L3, keine in N; Fehlertabellen-Summe pro Phase
+gegen testcase_04 verglichen; `anlage.json`-Form von testcase_05 - ein
+Stromkreis, `ls.polig=3`, drei Reihenklemmen-Eingangs-Adern;
+Rückwärtskompatibilität - testcase_01-04s `reihenklemmen_eingang.l` bleibt ein
+1-elementiges Array) und `test_messgeraet.js` (4 Tests: ZS-Messwerte für
+L1/L2/L3 gegen testcase_04 verglichen; der 3-polige LS1 wird als **eine**
+78px breite Schalter-Box gerendert, nicht drei einzelne).
+
 ### messgeraet.js
 - Rendert das Messgerät (beschriftet als "INSTALLATIONSTESTER", Vorbild BENNING IT 130) als eigene SVG-Komponente, genau wie
   `schaltkasten.js` per `document.createElementNS` aus einzelnen DOM-Elementen
@@ -1019,10 +1089,39 @@ Schaltkasten-Breite gesetzt wird. Bewusst weggelassen, `#steckdosen` bleibt
 im normalen Fluss linksbündig wie `#schaltkasten` selbst (verifiziert per
 `getBoundingClientRect().left` bei absichtlich breiterem Viewport).
 
-**Bewusst noch offen** (siehe KONZEPT.md "Nächste Schritte"): Drehstromsteckdose
-(eigener testcase_05, eigene Vorlage).
+**Drehstromsteckdose (`zeichneDrehstromsteckdose()`, Status: umgesetzt,
+siehe `testcase_05`):** 5-poliger CEE-Kontakt, geometrisch 1:1 aus
+`docs/referenz/drehstromsteckdose_vorlage.svg` übernommen (diese Vorlage
+selbst wurde iterativ mit dem User per Playwright-Renderings abgestimmt,
+nicht aus einem gescannten Referenzbild vermessen wie Steckdose/
+Anschlussdose). Drei konzentrische Kreise (rot außen `r=49.5`, schwarz
+`r=42`, hellrot innen `r=34.5`), ein schwarzer Halbkreis als
+Führungsnase unten (rein optisch, `<path>` mit Kreisbogen), ein
+dekorativer Mittelpunkt (`r=3.5`, dunkelrot, kein `onKlick`), und 5
+funktionale Kontakte (`DREHSTROM_KONTAKTE`-Array: dunkelroter Ring
+`r=5.8` + grauer Klickpunkt `r=2`, exakt zentriert) im 72°-Abstand -
+PE unten (`dx=0, dy=21`), im Uhrzeigersinn L1/L2/L3/N. Alle Maße bis auf
+den Klickradius werden mit `DREHSTROM_SKALIERUNG = 0.85` multipliziert:
+die Vorlage ist mit 99mm Außendurchmesser zeichnet, was die bestehende
+`ZELLE_MM = 95` Raster-Zelle knapp überschritten hätte - auf
+Nutzer-Entscheidung hin wurde die Vorlage selbst verkleinert (84,15mm
+Außendurchmesser) statt das Raster für alle Testcases zu vergrößern, damit
+testcase_01-04 unverändert bleiben. Der klickbare Kontaktradius bleibt
+bewusst bei den realen 2mm (nicht mitskaliert), wie überall sonst im
+Schaltkasten. Auswahl über `stromkreis.endstelle === 'Drehstromsteckdose'`
+in `SteckdosenView.render()` (dritter Zweig neben `'Steckdose'` und dem
+Anschlussdose-Fallback für alles andere).
 
-Getestet in `tests/visuell/test_steckdosen.js` (22 Tests): ohne
+`testcase_05` (3-poliger LS, siehe "3-poliger LS" oben) nutzt diese
+Vorlage: `bauteile.md` wurde von `Endstelle: Festanschluss` (ohne
+Platzierungstabelle) auf `Endstelle: Drehstromsteckdose` mit einer neuen
+`## Steckdosen (Platzierung)`-Sektion umgestellt. `generate_anlage.js`
+neu generiert und promotet - der Diff war rein additiv/metadaten-artig
+(`steckdosen_platzierung` neu befüllt, `ziel`/`endstelle`-Strings
+geändert), `graph.json` **unverändert** (der Endstellen-Typ beeinflusst
+nur die Zeichnung, nicht die Verdrahtung/den Verbindungsgraphen).
+
+Getestet in `tests/visuell/test_steckdosen.js` (24 Tests): ohne
 Platzierungstabelle bleibt der Container leer/unsichtbar; linke Kante steht
 (bei absichtlich breiterem Viewport als die Schaltkasten-Breite) bündig
 unter der Schaltkasten-Kante statt zentriert zu sein; Breite entspricht
@@ -1072,7 +1171,14 @@ SK1-Platzierung) - 0,00Ω bei geschlossenen Schaltern (keine
 Fehlertabellen-Einträge auf dem N-Pfad in testcase_01), Platzhalter sobald
 der Hauptschalter (`rect[x="12"][y="572"]`) ODER RCD1
 (`rect[x="8"][y="322"]`) einzeln geöffnet wird - jeweils eigener Test mit
-denselben Sonden, nur die Schalterstellung ändert sich.
+denselben Sonden, nur die Schalterstellung ändert sich; testcase_05 - die
+Drehstromsteckdose zeichnet genau 5 graue Kontakte (`circle[fill=
+"#666666"]`) und 6 dunkelrote Kreise (`circle[fill="#800000"]`, 5
+Kontaktringe + 1 dekorativer Mittelpunkt); ein Klick auf jeden der 5
+Kontakte in DOM-Reihenfolge zeigt im Popup die erwartete Aderfarbe
+(PE=gn-ge, L1=schwarz, L2=braun, L3=grau, N=blau) - deckt sowohl die
+Zeichenreihenfolge (PE zuerst, dann im Uhrzeigersinn L1/L2/L3/N) als auch
+die korrekte Ader-Zuordnung ab.
 
 ### timer.js
 - Sichtbarer 45-Minuten Timer

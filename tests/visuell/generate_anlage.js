@@ -458,29 +458,48 @@ function generiereAnlage(ordner) {
 
     const stromkreiseDerGruppe = lsListe.map((ls) => {
       const skNr = ls.name.replace('LS', 'SK'); // Konvention: LS1 <-> SK1
+
+      // Mehrpolige LS (z.B. 3-polig hinter einem 4-poligen RCD, ein
+      // dreiphasiger Stromkreis statt mehrerer einphasiger - siehe
+      // testcase_05) haben eine Phase pro Pol, an ${ls.name}.i1/.i2/.i3/...
+      // Bei einem normalen 1-poligen LS ist das schlicht ein Array mit
+      // einem Eintrag - unverändertes Verhalten gegenüber vorher.
       const sk = stromkreise.find((s) => s.nr === skNr);
-      const phase = findeNetz(netze, `${ls.name}.i1`)?.pins.find((p) => p.pin === `${ls.name}.i1`)?.funktion ?? 'L1';
+      const phasen = [];
+      for (let i = 1; i <= (ls.pole ?? 1); i++) {
+        const pin = `${ls.name}.i${i}`;
+        const funktion = findeNetz(netze, pin)?.pins.find((p) => p.pin === pin)?.funktion;
+        phasen.push(funktion ?? 'L1');
+      }
 
       // Über die Endstelle-Pins gesucht (nicht über die Reihenklemme selbst) - robust
       // gegenüber PE-Klemmen, die eingehende+weiterführende Ader auf demselben `io1`
-      // Pin tragen (mehrere Netze an einem Pin, siehe Annahme 7).
+      // Pin tragen (mehrere Netze an einem Pin, siehe Annahme 7). Bei mehreren
+      // Phasen wächst die Pin-Liste entsprechend (i1..i3 = L1/L2/L3, i4 = N, i5 = PE).
       let leitungKabeltyp = null;
-      const endstellePins = { [phase]: 'i1', N: 'i2', PE: 'i3' };
-      const leitungAdern = [phase, 'N', 'PE'].map((funktion) => {
+      const alleFunktionen = [...phasen, 'N', 'PE'];
+      const endstellePins = {};
+      alleFunktionen.forEach((funktion, i) => { endstellePins[funktion] = `i${i + 1}`; });
+      const leitungAdern = alleFunktionen.map((funktion) => {
         const treffer = findeNetz(netze, `Endstelle_${skNr}.${endstellePins[funktion]}`);
         if (treffer) leitungKabeltyp = leitungKabeltyp ?? treffer.kabeltyp;
         return treffer ? baueAder(treffer, funktion) : null;
       }).filter(Boolean);
 
-      // Eingangsseite der drei Reihenklemmen (L/N/PE) - kann von der Ausgangsseite
-      // (leitung, oben) abweichen, z.B. wenn `io1` der PE-Reihenklemme unverbunden
-      // ist (PE kommt dann nur über den Hutschienen-Bond, siehe Annahmen in
-      // netzplan.md). null, wenn nichts angeschlossen ist.
+      // Eingangsseite der Reihenklemmen - kann von der Ausgangsseite (leitung,
+      // oben) abweichen, z.B. wenn `io1` der PE-Reihenklemme unverbunden ist
+      // (PE kommt dann nur über den Hutschienen-Bond, siehe Annahmen in
+      // netzplan.md). null, wenn nichts angeschlossen ist. `l` ist ein Array,
+      // eine Reihenklemme pro Phase (bei mehreren Phasen bewusst DREI separate,
+      // normale Reihenklemmen `Reihenklemme_L1/L2/L3_SKx` statt eines neuen
+      // Mehrphasen-Bauteils - stehen einfach nebeneinander, weil sie zur
+      // selben Gruppe gehören, analog zu mehreren einpoligen Stromkreisen).
       const reihenklemmenEingang = {
-        l: (() => {
-          const t = findeNetz(netze, `Reihenklemme_L_${skNr}.i1`);
+        l: phasen.map((phase) => {
+          const suffix = phasen.length > 1 ? phase.replace('L', '') : '';
+          const t = findeNetz(netze, `Reihenklemme_L${suffix}_${skNr}.i1`);
           return t ? baueAder(t, phase) : null;
-        })(),
+        }),
         n: (() => {
           const t = findeNetz(netze, `Reihenklemme_N_${skNr}.i1`);
           return t ? baueAder(t, 'N') : null;
@@ -495,7 +514,7 @@ function generiereAnlage(ordner) {
         nr: parseInt(skNr.replace('SK', ''), 10),
         bezeichnung: skNr,
         ziel: sk.ziel,
-        phasen: [phase],
+        phasen,
         ls: {
           // Bauteilname aus bauteile.md (z.B. "LS1") - verbindende ID zum
           // Verbindungsgraphen (siehe KONZEPT.md "Schalter").
@@ -504,8 +523,8 @@ function generiereAnlage(ordner) {
           in: ls.nennstrom,
           polig: ls.pole,
           te: TE_TABELLE[`LS-${ls.pole}`],
-          eingang: baueLeitung(netze, ls.name, 'i', [phase]),
-          ausgang: baueLeitung(netze, ls.name, 'o', [phase])
+          eingang: baueLeitung(netze, ls.name, 'i', phasen),
+          ausgang: baueLeitung(netze, ls.name, 'o', phasen)
         },
         afdd: null,
         endstelle: sk.endstelle,

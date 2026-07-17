@@ -1,17 +1,19 @@
-// Viertes View-Objekt, oberhalb des Schaltkastens: zeichnet Steckdosen und
-// Anschlussdosen (3 Steckklemmen, für Lichtauslass-Endstellen) im Raster, wie
-// in der "## Steckdosen (Platzierung)"-Tabelle in bauteile.md festgelegt
-// (geparst von generate_anlage.js -> anlage.steckdosen_platzierung). Die
-// Kontaktpunkte (graue Kreise/Vierecke) sind klickbar wie eine
+// Viertes View-Objekt, oberhalb des Schaltkastens: zeichnet Steckdosen,
+// Anschlussdosen (3 Steckklemmen, für Lichtauslass-Endstellen) und
+// Drehstromsteckdosen (5-poliger CEE-Kontakt, für dreiphasige Festanschlüsse)
+// im Raster, wie in der "## Steckdosen (Platzierung)"-Tabelle in bauteile.md
+// festgelegt (geparst von generate_anlage.js -> anlage.steckdosen_platzierung).
+// Die Kontaktpunkte (graue Kreise/Vierecke) sind klickbar wie eine
 // Reihenklemmen-Schraube - `sk.leitung.adern` aus anlage.json trägt bereits
 // dieselben Netz-IDs wie die Endstelle_SKx-Knoten im Verbindungsgraphen,
 // keine eigene Datenquelle nötig. Der Klick-Callback wird 1:1 mit dem
 // Schaltkasten geteilt (siehe controller/app.js onSchraubeKlick) - Popup bei
 // ausgeschaltetem, Messspitzen bei eingeschaltetem Messgerät.
 //
-// Geometrie 1:1 aus den finalisierten Vorlagen docs/referenz/steckdose_vorlage.svg
-// und docs/referenz/anschlussdose_vorlage.svg übernommen (dort mit Playwright
-// exakt vermessen) - alle Maße in mm, relativ zum jeweiligen Gerätezentrum.
+// Geometrie 1:1 aus den finalisierten Vorlagen docs/referenz/steckdose_vorlage.svg,
+// docs/referenz/anschlussdose_vorlage.svg und docs/referenz/drehstromsteckdose_vorlage.svg
+// übernommen (dort mit Playwright exakt vermessen bzw. direkt aus der
+// Vorlage abgeleitet) - alle Maße in mm, relativ zum jeweiligen Gerätezentrum.
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -168,6 +170,63 @@ function zeichneAnschlussdose(svg, cx, cy, rotationGrad, adern, onSchraubeKlick)
   svg.appendChild(g);
 }
 
+// --- Drehstromsteckdose (Vorlage: docs/referenz/drehstromsteckdose_vorlage.svg)
+// - 5-poliger CEE-Kontakt für dreiphasige Festanschlüsse (siehe testcase_05,
+// 3-poliger LS). Vorlage ist mit 99mm Außendurchmesser gezeichnet, das würde
+// die 95mm-Raster-Zelle knapp überschreiten - deshalb hier um den Faktor 0,85
+// verkleinert (Außendurchmesser 84,15mm), passt bequem in die bestehende
+// Zellengröße, keine Änderung an anderen Testcases nötig. Der klickbare
+// Kontaktradius bleibt bewusst bei 2mm (nicht mitskaliert) - derselbe reale
+// Radius wie überall sonst im Schaltkasten (Reihenklemmen-Schraube).
+const DREHSTROM_SKALIERUNG = 0.85;
+const DREHSTROM_R_AUSSEN = 49.5 * DREHSTROM_SKALIERUNG;
+const DREHSTROM_R_SCHWARZ = 42 * DREHSTROM_SKALIERUNG;
+const DREHSTROM_R_INNEN = 34.5 * DREHSTROM_SKALIERUNG;
+const DREHSTROM_R_MITTE = 3.5 * DREHSTROM_SKALIERUNG;
+const DREHSTROM_R_KONTAKTRING = 5.8 * DREHSTROM_SKALIERUNG;
+const DREHSTROM_NASE_R = 5 * DREHSTROM_SKALIERUNG;
+const DREHSTROM_NASE_START_DX = 5.17138 * DREHSTROM_SKALIERUNG, DREHSTROM_NASE_START_DY = 41.329479 * DREHSTROM_SKALIERUNG;
+const DREHSTROM_NASE_BREITE = 10 * DREHSTROM_SKALIERUNG;
+
+// Kontakt-Mittelpunkte relativ zum Dosen-Zentrum, PE unten, im Uhrzeigersinn
+// L1/L2/L3/N alle 72° (siehe Vorlage) - ebenfalls um den Skalierungsfaktor
+// verkleinert.
+const DREHSTROM_KONTAKTE = [
+  { funktion: 'PE', dx: 0, dy: 21 },
+  { funktion: 'L1', dx: -19.97, dy: 6.49 },
+  { funktion: 'L2', dx: -12.34, dy: -16.99 },
+  { funktion: 'L3', dx: 12.34, dy: -16.99 },
+  { funktion: 'N', dx: 19.97, dy: 6.49 }
+].map(({ funktion, dx, dy }) => ({ funktion, dx: dx * DREHSTROM_SKALIERUNG, dy: dy * DREHSTROM_SKALIERUNG }));
+
+function zeichneDrehstromsteckdose(svg, cx, cy, rotationGrad, adern, onSchraubeKlick) {
+  const g = svgEl('g', { transform: `rotate(${rotationGrad}, ${cx}, ${cy})` });
+
+  g.appendChild(svgEl('circle', { cx, cy, r: DREHSTROM_R_AUSSEN * MM, fill: '#ff0000', stroke: '#000000', 'stroke-width': 1.05648 }));
+  g.appendChild(svgEl('circle', { cx, cy, r: DREHSTROM_R_SCHWARZ * MM, fill: '#1a1a1a' }));
+  g.appendChild(svgEl('circle', { cx, cy, r: DREHSTROM_R_INNEN * MM, fill: '#ff5555' }));
+
+  // Führungsnase unten (Keying): schwarzer Halbkreis.
+  const naseStartX = cx + DREHSTROM_NASE_START_DX * MM, naseStartY = cy + DREHSTROM_NASE_START_DY * MM;
+  g.appendChild(svgEl('path', {
+    d: `M ${naseStartX} ${naseStartY} a ${DREHSTROM_NASE_R * MM} ${DREHSTROM_NASE_R * MM} 0 0 1 ${-DREHSTROM_NASE_BREITE * MM} 0 z`,
+    fill: '#000000', stroke: '#000000', 'stroke-width': 1.05648
+  }));
+
+  // Mittlerer Punkt: rein dekorativ, keine Funktion.
+  g.appendChild(svgEl('circle', { cx, cy, r: DREHSTROM_R_MITTE * MM, fill: '#800000', stroke: '#000000', 'stroke-width': 1.05648 }));
+
+  // 5 funktionale Kontakte: dunkelroter Ring + grauer Klickpunkt (r=2mm,
+  // derselbe reale Radius wie die Reihenklemmen-Schraube).
+  for (const { funktion, dx, dy } of DREHSTROM_KONTAKTE) {
+    const kx = cx + dx * MM, ky = cy + dy * MM;
+    g.appendChild(svgEl('circle', { cx: kx, cy: ky, r: DREHSTROM_R_KONTAKTRING * MM, fill: '#800000', stroke: '#000000', 'stroke-width': 1.05648 }));
+    g.appendChild(klickbar(svgEl('circle', { cx: kx, cy: ky, r: 2 * MM, fill: '#666666' }), findeAder(adern, funktion), onSchraubeKlick));
+  }
+
+  svg.appendChild(g);
+}
+
 // Rahmen um die Geräte: doppelte Umrandung im selben Look wie die äußere Box
 // des Schaltkastens (siehe view/schaltkasten.js SchaltkastenView.render()) -
 // Außenrahmen leichtes Grau, Innenrahmen liegt direkt an der weißen
@@ -228,6 +287,8 @@ export const SteckdosenView = {
       const adern = stromkreis?.leitung?.adern;
       if (stromkreis?.endstelle === 'Steckdose') {
         zeichneSteckdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
+      } else if (stromkreis?.endstelle === 'Drehstromsteckdose') {
+        zeichneDrehstromsteckdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
       } else {
         // Lichtauslass (und alle anderen, noch nicht eigens gezeichneten
         // Endstellen-Typen) -> Anschlussdose mit drei Steckklemmen.

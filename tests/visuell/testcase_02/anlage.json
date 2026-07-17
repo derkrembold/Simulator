@@ -245,12 +245,14 @@
                 ]
               },
               "reihenklemmen_eingang": {
-                "l": {
-                  "funktion": "L1",
-                  "farbe": "schwarz",
-                  "querschnitt_mm2": 2.5,
-                  "netz": "N14"
-                },
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N14"
+                  }
+                ],
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",
@@ -336,12 +338,14 @@
                 ]
               },
               "reihenklemmen_eingang": {
-                "l": {
-                  "funktion": "L1",
-                  "farbe": "schwarz",
-                  "querschnitt_mm2": 1.5,
-                  "netz": "N15"
-                },
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 1.5,
+                    "netz": "N15"
+                  }
+                ],
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",
@@ -489,12 +493,14 @@
                 ]
               },
               "reihenklemmen_eingang": {
-                "l": {
-                  "funktion": "L1",
-                  "farbe": "schwarz",
-                  "querschnitt_mm2": 2.5,
-                  "netz": "N16"
-                },
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N16"
+                  }
+                ],
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",
@@ -575,12 +581,14 @@
                 ]
               },
               "reihenklemmen_eingang": {
-                "l": {
-                  "funktion": "L1",
-                  "farbe": "schwarz",
-                  "querschnitt_mm2": 2.5,
-                  "netz": "N17"
-                },
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N17"
+                  }
+                ],
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",

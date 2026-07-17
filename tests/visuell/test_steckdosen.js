@@ -321,6 +321,35 @@ async function main() {
     await page.close();
   });
 
+  await pruefe('Steckdosen: testcase_05 - Drehstromsteckdose zeichnet 5 klickbare Kontakte (PE/L1/L2/L3/N) plus 6 dunkelrote Ringe (5 Kontakte + 1 dekorativer Mittelpunkt)', async () => {
+    const page = await seiteMitTestcase('testcase_05');
+    const info = await page.evaluate(() => {
+      const svg = document.querySelector('#steckdosen svg');
+      return {
+        grau: svg.querySelectorAll('circle[fill="#666666"]').length,
+        dunkelrot: svg.querySelectorAll('circle[fill="#800000"]').length
+      };
+    });
+    if (info.grau !== 5) throw new Error(`erwarte 5 graue Kontaktkreise, gefunden ${info.grau}`);
+    if (info.dunkelrot !== 6) throw new Error(`erwarte 6 dunkelrote Kreise (5 Kontaktringe + 1 dekorativer Mittelpunkt), gefunden ${info.dunkelrot}`);
+    await page.close();
+  });
+
+  await pruefe('Steckdosen: testcase_05 - Popup-Reihenfolge der Drehstromsteckdose ist PE, L1, L2, L3, N mit den richtigen Aderfarben', async () => {
+    const page = await seiteMitTestcase('testcase_05');
+    // Messgerät ist per Default aus - kein ON/OFF-Klick nötig.
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    const erwartet = ['gn-ge', 'schwarz', 'braun', 'grau', 'blau']; // PE, L1, L2, L3, N
+    for (let i = 0; i < erwartet.length; i++) {
+      await klickeMitte(page, kreise.nth(i));
+      const popupText = await page.evaluate(() => document.querySelector('.popup')?.textContent ?? '');
+      if (!popupText.includes(erwartet[i])) {
+        throw new Error(`Kontakt ${i} (erwarte Farbe "${erwartet[i]}"): Popup zeigt "${popupText}"`);
+      }
+    }
+    await page.close();
+  });
+
   // testcase_03: SK1 (obere linke Steckdose, @180 rotiert) hängt an RCD1.
   // Durch die Rotation erscheint der N-Kontakt (blau) visuell LINKS und der
   // L-Kontakt (schwarz) visuell RECHTS - deckt also nebenbei ab, dass die

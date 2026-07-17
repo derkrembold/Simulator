@@ -239,12 +239,14 @@
                 ]
               },
               "reihenklemmen_eingang": {
-                "l": {
-                  "funktion": "L1",
-                  "farbe": "schwarz",
-                  "querschnitt_mm2": 2.5,
-                  "netz": "N11"
-                },
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N11"
+                  }
+                ],
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",
@@ -330,12 +332,14 @@
                 ]
               },
               "reihenklemmen_eingang": {
-                "l": {
-                  "funktion": "L1",
-                  "farbe": "schwarz",
-                  "querschnitt_mm2": 1.5,
-                  "netz": "N12"
-                },
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 1.5,
+                    "netz": "N12"
+                  }
+                ],
                 "n": {
                   "funktion": "N",
                   "farbe": "blau",

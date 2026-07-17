@@ -187,6 +187,7 @@ const TESTCASE_01 = path.join(__dirname, 'testcase_01');
 const TESTCASE_02 = path.join(__dirname, 'testcase_02');
 const TESTCASE_03 = path.join(__dirname, 'testcase_03');
 const TESTCASE_04 = path.join(__dirname, 'testcase_04');
+const TESTCASE_05 = path.join(__dirname, 'testcase_05');
 
 pruefe('Graph: L1-Pfad Einspeisung -> Endstelle SK1 folgt der erwarteten Kette', () => {
   const graph = generiereGraph(TESTCASE_01);
@@ -327,6 +328,73 @@ pruefe('Graph: istSpannungFuehrend() prüft den kompletten Pfad zur Einspeisung,
   }
   if (!istSpannungFuehrend(graph, 'L1', 'N4')) {
     throw new Error('N4 (vor RCD1, hinter dem Leistungsschalter) sollte weiterhin spannungsführend sein');
+  }
+});
+
+// --- 3-poliger LS (testcase_05, siehe KONZEPT.md "3-poliger LS") - EINE
+// Komponente (LS1, Pole=3) statt drei einpoliger LS, für einen einzigen
+// dreiphasigen Stromkreis. Verdrahtung/Fehlertabelle bewusst identisch zu
+// testcase_04 gehalten (dieselben Netz-IDs), damit sich die Messwerte pro
+// Phase 1:1 vergleichen lassen. ---
+
+pruefe('Graph: testcase_05 - der 3-polige LS1 hat drei separate Kanten (L1/L2/L3), keine in N', () => {
+  const graph = generiereGraph(TESTCASE_05);
+  const kanteL1 = graph.L1.kanten.find((k) => k.bauteil === 'LS1');
+  const kanteL2 = graph.L2.kanten.find((k) => k.bauteil === 'LS1');
+  const kanteL3 = graph.L3.kanten.find((k) => k.bauteil === 'LS1');
+  const kanteN = graph.N.kanten.find((k) => k.bauteil === 'LS1');
+  gleich(kanteL1, { von: 'N20', nach: 'N24', bauteil: 'LS1', geschlossen: true }, 'LS1 L1-Kante');
+  gleich(kanteL2, { von: 'N21', nach: 'N25', bauteil: 'LS1', geschlossen: true }, 'LS1 L2-Kante');
+  gleich(kanteL3, { von: 'N22', nach: 'N26', bauteil: 'LS1', geschlossen: true }, 'LS1 L3-Kante');
+  if (kanteN) throw new Error(`LS1 sollte keine Kante im N-Teilgraphen haben, gefunden: ${JSON.stringify(kanteN)}`);
+});
+
+pruefe('Graph: testcase_05 - Fehlertabellen-Summe pro Phase über den 3-poligen LS1 stimmt mit testcase_04s drei einpoligen LS überein', () => {
+  const graph = generiereGraph(TESTCASE_05);
+  // Dieselben Netz-IDs/Fehlertabellen-Werte wie testcase_04 (dort auf
+  // LS1/LS2/LS3 verteilt, hier alle auf demselben, 3-poligen LS1).
+  const faelle = [
+    ['L1', 'N9', 'N24', 0.40],
+    ['L2', 'N10', 'N25', 0.53],
+    ['L3', 'N11', 'N26', 0.49]
+  ];
+  for (const [funktion, von, nach, erwartet] of faelle) {
+    const pfad = findePfad(graph, funktion, von, nach);
+    const widerstand = berechneWiderstand(graph, pfad);
+    if (Math.abs(widerstand - erwartet) > 1e-9) {
+      throw new Error(`${funktion} ${von}->${nach}: erwarte ${erwartet}Ω, bekommen: ${widerstand}`);
+    }
+  }
+});
+
+pruefe('anlage.json: testcase_05 - EIN Stromkreis mit drei Phasen, ls.polig=3, drei Reihenklemmen-Eingangs-Adern', () => {
+  const anlage = generiereAnlage(TESTCASE_05);
+  const stromkreise = anlage.hutschienen[0].gruppen[0].stromkreise;
+  if (stromkreise.length !== 1) throw new Error(`erwarte genau einen Stromkreis, gefunden ${stromkreise.length}`);
+  const sk = stromkreise[0];
+  gleich(sk.phasen, ['L1', 'L2', 'L3'], 'SK1 phasen');
+  gleich(sk.ls.polig, 3, 'LS1 polig');
+  gleich(sk.ls.te, 3, 'LS1 TE-Breite');
+  if (!Array.isArray(sk.reihenklemmen_eingang.l) || sk.reihenklemmen_eingang.l.length !== 3) {
+    throw new Error(`erwarte reihenklemmen_eingang.l als 3-elementiges Array, gefunden: ${JSON.stringify(sk.reihenklemmen_eingang.l)}`);
+  }
+  gleich(sk.reihenklemmen_eingang.l.map((a) => a.funktion), ['L1', 'L2', 'L3'], 'Reihenklemmen-Eingang Funktionen');
+  // Endstelle trägt fünf Adern (L1/L2/L3/N/PE) statt der sonst üblichen drei.
+  gleich(sk.leitung.adern.map((a) => a.funktion), ['L1', 'L2', 'L3', 'N', 'PE'], 'Endstelle-Adern');
+});
+
+pruefe('anlage.json: testcase_01/02/03/04 - reihenklemmen_eingang.l ist weiterhin ein 1-elementiges Array (Rückwärtskompatibilität)', () => {
+  for (const testcase of [TESTCASE_01, TESTCASE_02, TESTCASE_03, TESTCASE_04]) {
+    const anlage = generiereAnlage(testcase);
+    for (const hutschiene of anlage.hutschienen) {
+      for (const gruppe of hutschiene.gruppen) {
+        for (const sk of gruppe.stromkreise) {
+          if (!Array.isArray(sk.reihenklemmen_eingang.l) || sk.reihenklemmen_eingang.l.length !== 1) {
+            throw new Error(`${testcase} ${sk.bezeichnung}: erwarte reihenklemmen_eingang.l als 1-elementiges Array, gefunden: ${JSON.stringify(sk.reihenklemmen_eingang.l)}`);
+          }
+        }
+      }
+    }
   }
 });
 

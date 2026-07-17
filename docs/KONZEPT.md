@@ -811,11 +811,12 @@ User-Vorgabe. Spätere Erweiterung möglich.
 
 ## Steckdosen (View-Objekt)
 
-**Status: erste Ausbaustufe umgesetzt** (reine Zeichnung, noch keine
-Interaktion). Viertes View-Objekt, **oberhalb** des Schaltkastens platziert
-(`#steckdosen`, `view/steckdosen.js`) - zeigt die Steckdosen und
-Anschlussdosen (3 Steckklemmen, für Lichtauslass-Endstellen) der Anlage in
-einem Raster, wie in `bauteile.md` festgelegt.
+**Status: umgesetzt** (Zeichnung, Popup UND Messspitzen-Mechanismus).
+Viertes View-Objekt, **oberhalb** des Schaltkastens platziert
+(`#steckdosen`, `view/steckdosen.js`) - zeigt Steckdosen, Anschlussdosen
+(3 Steckklemmen, für Lichtauslass-Endstellen) und Drehstromsteckdosen
+(5-poliger CEE-Kontakt, für dreiphasige Festanschlüsse) der Anlage in einem
+Raster, wie in `bauteile.md` festgelegt.
 
 **Platzierungstabelle:** neue Sektion `## Steckdosen (Platzierung)` in
 `bauteile.md`, direkt unter der Stromkreise-Tabelle - ein Raster, bei dem
@@ -834,14 +835,33 @@ Tabelle nachgeschlagen (`stromkreis.endstelle`, `"Steckdose"` oder
 `anlage.steckdosen_platzierung` (Array aus `{row, col, sk, rotation}`) - kein
 eigenes Bauteil im Verbindungsgraphen, reine Layout-Information fürs View.
 
-**Zeichnung:** Vorlagen `docs/referenz/steckdose_vorlage.svg` und
-`docs/referenz/anschlussdose_vorlage.svg` (mit Playwright exakt vermessen,
-alle Maße in mm), im selben Maßstab wie der Schaltkasten (1mm = 2px, siehe
-"Maßstab") direkt mit `svgEl()`-Grundformen nachgebaut (kein eingebettetes
-Bild). Beide Vorlagen haben ihre grauen (und bei der Anschlussdose auch
-farbigen) Kontaktkreise bewusst auf denselben realen Radius wie die
-Reihenklemmen-Schraube skaliert (r=2mm). Rotation (`@<Winkel>`) wird als
-SVG-`rotate()` um das Gerätezentrum umgesetzt.
+**Zeichnung:** Vorlagen `docs/referenz/steckdose_vorlage.svg`,
+`docs/referenz/anschlussdose_vorlage.svg` und
+`docs/referenz/drehstromsteckdose_vorlage.svg` (mit Playwright exakt
+vermessen bzw. direkt aus der Vorlage abgeleitet, alle Maße in mm), im
+selben Maßstab wie der Schaltkasten (1mm = 2px, siehe "Maßstab") direkt mit
+`svgEl()`-Grundformen nachgebaut (kein eingebettetes Bild). Alle drei
+Vorlagen haben ihre grauen (und bei Anschlussdose/Drehstromsteckdose auch
+farbigen bzw. dunkelroten) Kontaktkreise bewusst auf denselben realen Radius
+wie die Reihenklemmen-Schraube skaliert (r=2mm). Rotation (`@<Winkel>`) wird
+als SVG-`rotate()` um das Gerätezentrum umgesetzt.
+
+**Drehstromsteckdose (Status: umgesetzt, siehe `testcase_05`):**
+5-poliger CEE-Kontakt für dreiphasige Festanschlüsse - drei konzentrische
+Ringe (rot außen, schwarz, hellrot innen), ein schwarzer Halbkreis als
+Führungsnase unten (rein optisch), ein dekorativer Mittelpunkt ohne
+Funktion, und 5 funktionale Kontakte im exakten 72°-Abstand: PE unten, im
+Uhrzeigersinn L1/L2/L3/N (`DREHSTROM_KONTAKTE` in `view/steckdosen.js`,
+Reihenfolge entspricht der Zeichenreihenfolge im DOM). Die Vorlage selbst ist
+mit 99mm Außendurchmesser gezeichnet (Vorbild: reales rotes CEE-Gehäuse),
+würde die 95mm-Raster-Zelle aber knapp überschreiten - deshalb um den Faktor
+0,85 auf 84,15mm Außendurchmesser herunterskaliert (User-Entscheidung: die
+Vorlage verkleinern statt das Raster für alle Testcases zu vergrößern). Der
+klickbare Kontaktradius bleibt bewusst bei den realen 2mm (nicht
+mitskaliert). In `bauteile.md` wird der Typ über `stromkreis.endstelle ===
+"Drehstromsteckdose"` ausgewählt (analog zu `"Steckdose"`), alle anderen
+Werte (inkl. `"Festanschluss"`) fallen weiterhin auf die Anschlussdose
+zurück.
 
 **Kontaktpunkte sind klickbar** (graue Kreise/Vierecke - der farbige
 Kennzeichnungskreis an der Anschlussdose NICHT), genau wie eine
@@ -891,11 +911,7 @@ der vollen Body-Breite zentrieren statt innerhalb der (schmaleren)
 Schaltkasten-Breite. `#steckdosen` bleibt im normalen Fluss linksbündig,
 genau wie `#schaltkasten` selbst.
 
-**Noch nicht umgesetzt:** die Drehstromsteckdose (braucht einen eigenen
-testcase_05 und eine eigene 5-Schrauben-Steckklemme, siehe "Nächste
-Schritte").
-
-**Getestet in `tests/visuell/test_steckdosen.js`** (22 Tests): Container
+**Getestet in `tests/visuell/test_steckdosen.js`** (24 Tests): Container
 bleibt ohne Platzierungstabelle unsichtbar; linke Kante steht (bei
 absichtlich breiterem Viewport als die Schaltkasten-Breite) bündig unter der
 Schaltkasten-Kante statt zentriert zu sein; Breite entspricht exakt der
@@ -936,7 +952,13 @@ neue Schraube einmal klicken); RLOW: PE-zu-N-Workaround über den
 Steckdosen-View (Anschlussdose blau=N + untere Steckdose PE) zeigt 0,00Ω bei
 geschlossenen Schaltern, bleibt aber beim Platzhalter, sobald der
 Hauptschalter ODER RCD1 einzeln geöffnet wird (drei Tests, dieselben Sonden,
-unterschiedliche Schalterstellungen).
+unterschiedliche Schalterstellungen); testcase_05 - die Drehstromsteckdose
+zeichnet genau 5 klickbare graue Kontakte plus 6 dunkelrote Kreise (5
+Kontaktringe + 1 dekorativer Mittelpunkt); ein Klick auf jeden der 5
+Kontakte in DOM-Reihenfolge zeigt im Popup nacheinander die erwartete
+Aderfarbe (PE=gn-ge, L1=schwarz, L2=braun, L3=grau, N=blau) - belegt sowohl
+die Zeichenreihenfolge (PE unten, im Uhrzeigersinn L1/L2/L3/N) als auch die
+korrekte Ader-Zuordnung.
 
 ---
 
@@ -1117,7 +1139,7 @@ hat entweder das eine oder die drei anderen, nie beides.
   "endstelle": "Steckdose",
   "leitung": { "typ": "NYM-J", "adern": [ { "funktion": "L1", ... }, { "funktion": "N", ... }, { "funktion": "PE", ... } ] },
   "reihenklemmen_eingang": {
-    "l": { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 2.5 },
+    "l": [ { "funktion": "L1", "farbe": "schwarz", "querschnitt_mm2": 2.5 } ],
     "n": { "funktion": "N", "farbe": "blau", "querschnitt_mm2": 2.5 },
     "pe": null
   },
@@ -1135,16 +1157,27 @@ werden **nicht** hier gespeichert, sondern zur Laufzeit aus dem Netzplan berechn
 siehe "Messgerät (INSTALLATIONSTESTER)" → "Berechnung der Messwerte".
 
 `leitung` ist die Ausgangsseite der Reihenklemmen (das eine physische Kabel zur
-Endstelle) – dieselbe Ader gilt für die untere Schraube aller drei Reihenklemmen
-(L/N/PE). `reihenklemmen_eingang` ist die **Eingangsseite** und kann davon abweichen:
-z.B. hat die PE-Reihenklemme oft **kein** eigenes Zubringerkabel (PE kommt dann nur
-über den Hutschienen-Bond, siehe "Netzliste" → Hutschienen-Bond) – in dem Fall ist
-`pe: null`, und die entsprechende Schraube im Rendering ist unverbunden (keine
-`data-querschnitt`/`data-farbe`-Attribute, nicht anklickbar). Fehlt das Feld
-`reihenklemmen_eingang` komplett (z.B. bei handgeschriebenen Anlagen ohne
-Netzplan-Ursprung), fällt der Renderer auf die Ausgangsseite zurück.
+Endstelle) – dieselbe Ader gilt für die untere Schraube aller Reihenklemmen mit
+derselben Funktion. `reihenklemmen_eingang` ist die **Eingangsseite** und kann
+davon abweichen: z.B. hat die PE-Reihenklemme oft **kein** eigenes Zubringerkabel
+(PE kommt dann nur über den Hutschienen-Bond, siehe "Netzliste" → Hutschienen-Bond)
+– in dem Fall ist `pe: null`, und die entsprechende Schraube im Rendering ist
+unverbunden (keine `data-querschnitt`/`data-farbe`-Attribute, nicht anklickbar).
+Fehlt das Feld `reihenklemmen_eingang` komplett (z.B. bei handgeschriebenen
+Anlagen ohne Netzplan-Ursprung), fällt der Renderer auf die Ausgangsseite zurück.
 
-**Endstellen:** Steckdose, CEE-Steckdose 16A, CEE-Steckdose 32A, Festanschluss, Lichtauslass
+**`reihenklemmen_eingang.l` ist immer ein Array** (eine Reihenklemme pro
+Phase) – bei einem normalen einpoligen Stromkreis ein Array mit genau einem
+Eintrag (siehe Beispiel oben), bei einem mehrpoligen LS (siehe "3-poliger
+LS" unten) mit einem Eintrag pro Phase (`phasen`/`l` haben dann immer
+dieselbe Länge). `n`/`pe` bleiben immer Singular-Werte, da Neutralleiter und
+PE unabhängig von der Phasenzahl nur je einmal vorhanden sind.
+
+**Endstellen:** Steckdose, Drehstromsteckdose, Festanschluss, Lichtauslass –
+freier String, keine Validierung in `generate_anlage.js`. Nur `Steckdose`
+und `Drehstromsteckdose` haben eine eigene Zeichnung im Steckdosen-View
+(`SteckdosenView.render()`); alle anderen Werte (inkl. `Festanschluss`)
+fallen auf die Anschlussdose zurück (siehe "Steckdosen (View-Objekt)").
 
 **Leitung:**
 ```json
@@ -1380,7 +1413,9 @@ Jeder schaltbare Bauteil hat eine **doppelte Rolle**:
   Zustand `geschlossen: true/false`. Die Pfadsuche überspringt Kanten mit
   `geschlossen: false`. Bei einem 4-poligen RCD steuert ein Klick also bis zu
   vier Kanten gleichzeitig (eine je Pol), da alle denselben Schalterzustand
-  referenzieren.
+  referenzieren. Dieselbe Kantenbildung ist komponenten-agnostisch (läuft
+  generisch über `bauteil.pole`, egal ob RCD/LS/Hauptschalter) - der
+  3-polige LS (siehe unten) brauchte hier deshalb **keine** Änderung.
 
 Verbindende ID zwischen SVG und Graph: der Bauteilname aus `bauteile.md`
 (`LS1`, `RCD1`, `Hauptschalter`, ...) – dafür trägt jetzt auch `anlage.json`
@@ -1418,6 +1453,80 @@ unabhängig vom tatsächlichen Ausgangszustand - `zeichneSchalter()` akzeptiert
 jetzt einen `initialGeschlossen`-Parameter (Default weiterhin `true`, aktuell
 nirgends anders befüllt, aber die Voraussetzung für künftige Testcases, die
 mit einem bereits offenen Schalter starten).
+
+### 3-poliger LS
+
+**Status: umgesetzt** (siehe `testcase_05`). Ein 3-poliger LS verhält sich
+grafisch wie ein 4-poliger RCD: **eine** Schalter-Box mit **einem** Hebel, der
+aber über drei Eingangs- und drei Ausgangsschrauben liegt (statt vier bei
+einem 4-poligen RCD ohne N-Schaltung, bzw. drei Ein-/Ausgänge ohne eigenen
+N-Pol). Er sitzt normalerweise hinter einem 3-poligen RCD und schützt **einen**
+dreiphasigen Stromkreis (nicht drei unabhängige einphasige) – Input 1/2/3 sind
+L1/L2/L3, die zusammen zu einer Endstelle führen (z. B. ein Festanschluss oder
+eine Drehstromsteckdose, siehe "Steckdosen (View-Objekt)" oben). Reihenfolge
+und Mischung auf der Hutschiene
+sind frei: 1-polige und 3-polige LS dürfen beliebig gemischt und in beliebiger
+Reihenfolge hinter einem RCD stehen, solange die TE-Breite passt.
+
+Da `geraet()` (`view/schaltkasten.js`) die Schrauben bereits generisch über
+`teAnzahl` zeichnet und `schalterBreite()` die Breite bereits generisch aus
+`teAnzahl` berechnet (beides schon für den 3-poligen Hauptschalter aus
+testcase_04 gebaut, siehe "Mehrphasige Anlagen" oben), und da die
+Graph-Kantenbildung ebenfalls generisch über `bauteil.pole` läuft (siehe
+"Schalter (LS, RCD, Hauptschalter)" oben), brauchte die reine Darstellung und
+Verdrahtung **keine** Codeänderung. `TE_TABELLE['LS-3']` (`generate_anlage.js`)
+war bereits vorhanden, nur ungenutzt.
+
+Die echte Lücke war der Gruppe→Stromkreis→LS-Baustein in
+`generate_anlage.js`: der ging bisher von genau einer Phase pro Stromkreis
+aus (`phase` als einzelner String, verwendet für `ls.eingang/ausgang`,
+Endstelle-Pins und `reihenklemmen_eingang`). Er wurde auf ein `phasen`-Array
+verallgemeinert (`for (let i = 1; i <= (ls.pole ?? 1); i++)`, ein Eintrag je
+Pol des LS). Daraus folgen drei konkrete Konventionen:
+
+- **Reihenklemmen:** ein dreiphasiger Stromkreis bekommt **drei separate,
+  normale einphasige Reihenklemmen** (kein neuer, verbreiterter
+  Bauteil-Typ), benannt `Reihenklemme_L1_<SK>` / `_L2_<SK>` / `_L3_<SK>`
+  (Suffix nur bei mehr als einer Phase – ein normaler einphasiger Stromkreis
+  bleibt bei `Reihenklemme_L_<SK>`, unverändert). `reihenklemmen_eingang.l`
+  ist deshalb immer ein Array (siehe Konvention weiter oben), eines pro
+  Phase; `n`/`pe` bleiben Singular. Diese drei Reihenklemmen werden auf der
+  Hutschiene bewusst nebeneinander gruppiert (wie testcase_04s drei
+  einpolige LS), damit optisch klar bleibt, dass sie zu einem Stromkreis
+  gehören.
+- **Endstelle-Pins:** von der festen `i1`=Phase/`i2`=N/`i3`=PE-Konvention auf
+  eine dynamische `[...phasen, 'N', 'PE']`-Indizierung verallgemeinert –
+  bei drei Phasen also `i1`=L1, `i2`=L2, `i3`=L3, `i4`=N, `i5`=PE.
+- **`ls.polig`/`ls.te`** werden aus `ls.pole` bzw. `TE_TABELLE['LS-'+ls.pole]`
+  übernommen, genau wie beim Hauptschalter.
+
+Für `testcase_05` wurde bewusst dieselbe Netz-Nummerierung und dieselben
+Fehlertabellen-Werte wie in `testcase_04`s drei einpoligen LS wiederverwendet
+– dadurch liefert ZS für L1/L2/L3 exakt dieselben Werte
+(Z:0,54Ω/Isc:383,3A, Z:0,67Ω/Isc:309,0A, Z:0,63Ω/Isc:328,6A) wie testcase_04s
+SK1/SK2/SK3, was als starke Korrektheits-Bestätigung diente statt neue,
+unabhängig zu verifizierende Werte zu erfinden. Die Endstelle in
+`testcase_05` ist eine `Drehstromsteckdose` (siehe "Steckdosen
+(View-Objekt)" oben) mit einer eigenen Steckdosen-Platzierungstabelle -
+ursprünglich war hier bewusst `Festanschluss` ohne Platzierungstabelle
+gewählt worden (Drehstromsteckdosen-Vorlage existierte noch nicht), nach
+deren Fertigstellung wurde `testcase_05` auf `Drehstromsteckdose`
+umgestellt (reine Metadaten-/Platzierungsänderung, Verbindungsgraph
+unverändert - siehe Diff-Verifikation in "Rückwärtskompatibilität" unten,
+analog).
+
+**Rückwärtskompatibilität:** die vier bestehenden Testcases (01-04) wurden
+mit `generate_anlage.js` neu generiert und ihre `anlage.json` ersetzt – der
+einzige Unterschied war die neue Array-Form von `reihenklemmen_eingang.l`
+(vorher ein einzelnes Objekt, jetzt ein 1-elementiges Array), keine
+Verhaltensänderung (bestätigt per Diff und per vollem Testlauf).
+
+**Getestet in:** `test_generator.js` (Graph-Kanten des 3-poligen LS,
+Fehlertabellen-Summe pro Phase im Vergleich zu testcase_04, `anlage.json`-
+Form von testcase_05, Rückwärtskompatibilität von testcase_01-04) und
+`test_messgeraet.js` (ZS-Messwerte für L1/L2/L3 gegen testcase_04 verglichen,
+sowie dass der 3-polige LS als **eine** 78px breite Schalter-Box gerendert
+wird, nicht drei einzelne).
 
 ### Schrauben lösen
 
@@ -1584,8 +1693,10 @@ Offen:
    automatisches Übernehmen der TEST-Ergebnisse in die passende Zeile/Spalte
    der Stromkreisverteiler-Tabelle, plus Validierung (z.B. Fehlerquelle #14 -
    Zi/Zs-Verwechslung - direkt im Protokoll markieren).
-6. **Steckdosen: Drehstromsteckdose** - normale Steckdose/Anschlussdose sind
-   fertig (Zeichnung, Popup UND Messspitzen-Mechanismus, siehe "Steckdosen
-   (View-Objekt)" oben). Fehlt noch: eigener testcase_05, eigene Vorlage mit
-   5-Schrauben-Steckklemme (L1/L2/L3/N/PE) - explizit als separater,
-   späterer Schritt vorgemerkt.
+6. **3-Phasen-Reihenklemme als eigener Bauteil-Typ** - beim 3-poligen LS
+   (siehe "3-poliger LS" oben) wurde bewusst **nicht** diese Richtung
+   gewählt, sondern drei separate, normale einphasige Reihenklemmen
+   gruppiert. Für später vorgemerkt: eine eigens verbreiterte
+   "3-Phasen-Reihenklemme" (eine Komponente statt drei) könnte für
+   Hutschienen-Platzersparnis oder eine kompaktere Darstellung nützlich
+   sein - nicht die gewählte Richtung, nur eine notierte Möglichkeit.

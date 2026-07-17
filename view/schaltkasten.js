@@ -288,26 +288,33 @@ export const SchaltkastenView = {
       for (const gruppe of hutschiene.gruppen) {
         for (const sk of gruppe.stromkreise) {
           // Ausgangsseite (zur Endstelle) kommt aus sk.leitung - immer vorhanden.
+          // lAusgangListe hat normalerweise ein Element, bei einem mehrpoligen
+          // LS (siehe testcase_05) eines pro Phase (L1/L2/L3).
           const adern = sk.leitung?.adern ?? [];
-          const lAusgang = adern.find((a) => a.funktion.startsWith('L'));
+          const lAusgangListe = adern.filter((a) => a.funktion.startsWith('L'));
           const nAusgang = findeAder(adern, 'N');
           const peAusgang = findeAder(adern, 'PE');
 
           // Eingangsseite kann abweichen (z.B. PE-Reihenklemme ohne eigenes
           // Zubringerkabel, siehe reihenklemmen_eingang in generate_anlage.js).
-          // Fällt PRO FELD auf die Ausgangsseite zurück - nicht nur, wenn das
-          // ganze `reihenklemmen_eingang`-Objekt fehlt (ältere/handgeschriebene
-          // anlage.json ohne Netzplan-Ursprung), sondern auch, wenn ein
-          // einzelnes Feld darin `null` ist (z.B. PE ohne eigenes
-          // Zubringerkabel - elektrisch trotzdem erreichbar über den
-          // Hutschienen-Bond, die Schraube muss also trotzdem klickbar sein).
+          // Fällt PRO FELD (bzw. pro Phase bei `l`) auf die Ausgangsseite
+          // zurück - nicht nur, wenn das ganze `reihenklemmen_eingang`-Objekt
+          // fehlt (ältere/handgeschriebene anlage.json ohne Netzplan-Ursprung),
+          // sondern auch, wenn ein einzelnes Feld darin `null` ist (z.B. PE
+          // ohne eigenes Zubringerkabel - elektrisch trotzdem erreichbar über
+          // den Hutschienen-Bond, die Schraube muss also trotzdem klickbar sein).
           const eingang = sk.reihenklemmen_eingang;
-          const lEingang = eingang?.l ?? lAusgang;
+          const lEingangListe = lAusgangListe.map((lAusgang, i) => eingang?.l?.[i] ?? lAusgang);
           const nEingang = eingang?.n ?? nAusgang;
           const peEingang = eingang?.pe ?? peAusgang;
 
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, aderEingang: lEingang, aderAusgang: lAusgang, onSchraubeKlick });
-          x += RK_BREITE;
+          // Eine Reihenklemme pro L-Phase (bei einem mehrpoligen LS also
+          // mehrere nebeneinander - bewusst normale, einzelne Reihenklemmen
+          // statt eines neuen Mehrphasen-Bauteils, siehe KONZEPT.md).
+          lAusgangListe.forEach((lAusgang, i) => {
+            klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, aderEingang: lEingangListe[i], aderAusgang: lAusgang, onSchraubeKlick });
+            x += RK_BREITE;
+          });
           klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_n }, aderEingang: nEingang, aderAusgang: nAusgang, onSchraubeKlick });
           x += RK_BREITE;
           klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_pe }, aderEingang: peEingang, aderAusgang: peAusgang, onSchraubeKlick });

@@ -1395,6 +1395,76 @@ async function main() {
     await page.close();
   });
 
+  // testcase_05: EIN 3-poliger LS1 statt drei einpoliger (siehe KONZEPT.md
+  // "3-poliger LS") - dieselbe Verdrahtung/Fehlertabelle wie testcase_04s
+  // drei separate LS, deshalb müssen dieselben Z/Isc-Werte pro Phase
+  // rauskommen (Nachweis, dass das Zusammenfassen zu einer Komponente die
+  // Pfadsuche/Fehlertabellen-Summierung nicht verändert).
+  await pruefe('ZS: testcase_05 - 3-poliger LS1, Phase L1 liefert denselben Wert wie testcase_04 SK1 (L1)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N27"]').click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N28"]').click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N29"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,54Ω', 'wie testcase_04 SK1 (L1): Fehlertabelle N20+N24 + Vorimpedanz');
+    erwarte(await displayTexte(page), 'Isc:383,3A', 'Isc = 0,9*230V/0,54Ω');
+    await page.close();
+  });
+
+  await pruefe('ZS: testcase_05 - derselbe 3-polige LS1, Phase L2 liefert denselben Wert wie testcase_04 SK2 (L2)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N31"]').click(); // schwarz, L2
+    await page.locator('#schaltkasten svg circle[data-netz="N28"]').click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N29"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,67Ω', 'wie testcase_04 SK2 (L2): Fehlertabelle N21+N25 + Vorimpedanz');
+    erwarte(await displayTexte(page), 'Isc:309,0A', 'Isc = 0,9*230V/0,67Ω');
+    await page.close();
+  });
+
+  await pruefe('ZS: testcase_05 - derselbe 3-polige LS1, Phase L3 liefert denselben Wert wie testcase_04 SK3 (L3)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N34"]').click(); // schwarz, L3
+    await page.locator('#schaltkasten svg circle[data-netz="N28"]').click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N29"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,63Ω', 'wie testcase_04 SK3 (L3): Fehlertabelle N22+N26 + Vorimpedanz');
+    erwarte(await displayTexte(page), 'Isc:328,6A', 'Isc = 0,9*230V/0,63Ω');
+    await page.close();
+  });
+
+  // Der 3-polige LS1 muss als EINE Schalter-Box mit genau einem Hebel
+  // gezeichnet werden (wie beim 4-poligen RCD/3-poligen Hauptschalter),
+  // nicht als drei separate 1-TE-Boxen - Breite nach der "einfach"-Formel
+  // in schaltkasten.js (3 Pole: 3*24 + (3-2)*6 = 78px).
+  await pruefe('Schaltkasten: testcase_05 - der 3-polige LS1 ist EINE Schalter-Box mit 78px Breite (keine drei einzelnen)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({
+        x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width')
+      }))
+    );
+    if (boxen.length !== 3) throw new Error(`erwarte 3 Schalter-Boxen (RCD1, LS1, Hauptschalter), gefunden ${boxen.length}: ${JSON.stringify(boxen)}`);
+    const ls1Box = boxen.find((b) => b.w === '78' && b.y === '322');
+    if (!ls1Box) throw new Error(`erwarte eine 78px breite Schalter-Box für LS1 in Reihe 2, gefunden: ${JSON.stringify(boxen)}`);
+    await page.close();
+  });
+
   await pruefe('ZS: Live-Spannungsanzeige fällt auf 0V, sobald der L-Pfad unterbrochen wird - Pfeil-Kasten entsprechend durchgestrichen', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     await drehknopfKlick(page);

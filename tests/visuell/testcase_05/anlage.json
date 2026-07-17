@@ -1,32 +1,14 @@
 {
-  "name": "Unterverteiler Testcase 04",
-  "beschreibung": "3-poliger Hauptschalter, 4-poliger RCD auf 3 Phasen (L1/L2/L3)",
+  "name": "Unterverteiler Testcase 05",
+  "beschreibung": "3-poliger Hauptschalter, 4-poliger RCD, EIN 3-poliger LS (statt drei einpoliger) für einen einzigen dreiphasigen Stromkreis",
   "netzform": "TN-S",
   "spannung_einspeisung": 400,
-  "spannung_stromkreise": 230,
+  "spannung_stromkreise": 400,
   "steckdosen_platzierung": [
     {
       "row": 0,
       "col": 0,
       "sk": "SK1",
-      "rotation": 0
-    },
-    {
-      "row": 0,
-      "col": 1,
-      "sk": "SK1",
-      "rotation": 180
-    },
-    {
-      "row": 1,
-      "col": 0,
-      "sk": "SK2",
-      "rotation": 0
-    },
-    {
-      "row": 1,
-      "col": 1,
-      "sk": "SK3",
       "rotation": 0
     }
   ],
@@ -129,7 +111,7 @@
         {
           "id": "G1",
           "bezeichnung": "Gruppe 1",
-          "phase": "L1/L2/L3",
+          "phase": "L1",
           "rcd": {
             "name": "RCD1",
             "typ": "A",
@@ -139,7 +121,7 @@
             "nennstrom_a": 40,
             "selektiv": false,
             "abklemmen_bei_iso": false,
-            "max_ls_anzahl": 3,
+            "max_ls_anzahl": 1,
             "tA": 20,
             "iA": 16,
             "uB": 0.9,
@@ -152,24 +134,6 @@
                     "farbe": "schwarz",
                     "querschnitt_mm2": 10,
                     "netz": "N9"
-                  },
-                  {
-                    "funktion": "L2",
-                    "farbe": "braun",
-                    "querschnitt_mm2": 10,
-                    "netz": "N10"
-                  },
-                  {
-                    "funktion": "L3",
-                    "farbe": "grau",
-                    "querschnitt_mm2": 10,
-                    "netz": "N11"
-                  },
-                  {
-                    "funktion": "N",
-                    "farbe": "blau",
-                    "querschnitt_mm2": 10,
-                    "netz": "N12"
                   }
                 ]
               }
@@ -183,24 +147,6 @@
                     "farbe": "schwarz",
                     "querschnitt_mm2": 2.5,
                     "netz": "N20"
-                  },
-                  {
-                    "funktion": "L2",
-                    "farbe": "braun",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N21"
-                  },
-                  {
-                    "funktion": "L3",
-                    "farbe": "grau",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N22"
-                  },
-                  {
-                    "funktion": "N",
-                    "farbe": "blau",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N23"
                   }
                 ]
               }
@@ -210,16 +156,18 @@
             {
               "nr": 1,
               "bezeichnung": "SK1",
-              "ziel": "Steckdosen Zimmer 1 (L1)",
+              "ziel": "Steckdose Werkstatt (Drehstrom)",
               "phasen": [
-                "L1"
+                "L1",
+                "L2",
+                "L3"
               ],
               "ls": {
                 "name": "LS1",
                 "char": "B",
                 "in": 16,
-                "polig": 1,
-                "te": 1,
+                "polig": 3,
+                "te": 3,
                 "eingang": {
                   "leitung": {
                     "typ": "NYM-J",
@@ -229,6 +177,18 @@
                         "farbe": "schwarz",
                         "querschnitt_mm2": 2.5,
                         "netz": "N20"
+                      },
+                      {
+                        "funktion": "L2",
+                        "farbe": "braun",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N21"
+                      },
+                      {
+                        "funktion": "L3",
+                        "farbe": "grau",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N22"
                       }
                     ]
                   }
@@ -242,13 +202,25 @@
                         "farbe": "schwarz",
                         "querschnitt_mm2": 2.5,
                         "netz": "N24"
+                      },
+                      {
+                        "funktion": "L2",
+                        "farbe": "braun",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N25"
+                      },
+                      {
+                        "funktion": "L3",
+                        "farbe": "grau",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N26"
                       }
                     ]
                   }
                 }
               },
               "afdd": null,
-              "endstelle": "Steckdose",
+              "endstelle": "Drehstromsteckdose",
               "leitung": {
                 "typ": "NYM-J",
                 "adern": [
@@ -257,6 +229,18 @@
                     "farbe": "schwarz",
                     "querschnitt_mm2": 2.5,
                     "netz": "N27"
+                  },
+                  {
+                    "funktion": "L2",
+                    "farbe": "braun",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N31"
+                  },
+                  {
+                    "funktion": "L3",
+                    "farbe": "grau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N34"
                   },
                   {
                     "funktion": "N",
@@ -279,6 +263,18 @@
                     "farbe": "schwarz",
                     "querschnitt_mm2": 2.5,
                     "netz": "N24"
+                  },
+                  {
+                    "funktion": "L2",
+                    "farbe": "braun",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N25"
+                  },
+                  {
+                    "funktion": "L3",
+                    "farbe": "grau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N26"
                   }
                 ],
                 "n": {
@@ -293,182 +289,6 @@
                   "querschnitt_mm2": 2.5,
                   "netz": "N30"
                 }
-              },
-              "messungen": {
-                "zi": false,
-                "zs": true,
-                "rcd": true
-              }
-            },
-            {
-              "nr": 2,
-              "bezeichnung": "SK2",
-              "ziel": "Steckdosen Zimmer 2 (L2)",
-              "phasen": [
-                "L2"
-              ],
-              "ls": {
-                "name": "LS2",
-                "char": "B",
-                "in": 16,
-                "polig": 1,
-                "te": 1,
-                "eingang": {
-                  "leitung": {
-                    "typ": "NYM-J",
-                    "adern": [
-                      {
-                        "funktion": "L2",
-                        "farbe": "braun",
-                        "querschnitt_mm2": 2.5,
-                        "netz": "N21"
-                      }
-                    ]
-                  }
-                },
-                "ausgang": {
-                  "leitung": {
-                    "typ": "NYM-J",
-                    "adern": [
-                      {
-                        "funktion": "L2",
-                        "farbe": "braun",
-                        "querschnitt_mm2": 2.5,
-                        "netz": "N25"
-                      }
-                    ]
-                  }
-                }
-              },
-              "afdd": null,
-              "endstelle": "Steckdose",
-              "leitung": {
-                "typ": "NYM-J",
-                "adern": [
-                  {
-                    "funktion": "L2",
-                    "farbe": "braun",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N31"
-                  },
-                  {
-                    "funktion": "N",
-                    "farbe": "blau",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N32"
-                  },
-                  {
-                    "funktion": "PE",
-                    "farbe": "gn-ge",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N33"
-                  }
-                ]
-              },
-              "reihenklemmen_eingang": {
-                "l": [
-                  {
-                    "funktion": "L2",
-                    "farbe": "braun",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N25"
-                  }
-                ],
-                "n": {
-                  "funktion": "N",
-                  "farbe": "blau",
-                  "querschnitt_mm2": 2.5,
-                  "netz": "N23"
-                },
-                "pe": null
-              },
-              "messungen": {
-                "zi": false,
-                "zs": true,
-                "rcd": true
-              }
-            },
-            {
-              "nr": 3,
-              "bezeichnung": "SK3",
-              "ziel": "Steckdosen Zimmer 3 (L3)",
-              "phasen": [
-                "L3"
-              ],
-              "ls": {
-                "name": "LS3",
-                "char": "B",
-                "in": 16,
-                "polig": 1,
-                "te": 1,
-                "eingang": {
-                  "leitung": {
-                    "typ": "NYM-J",
-                    "adern": [
-                      {
-                        "funktion": "L3",
-                        "farbe": "grau",
-                        "querschnitt_mm2": 2.5,
-                        "netz": "N22"
-                      }
-                    ]
-                  }
-                },
-                "ausgang": {
-                  "leitung": {
-                    "typ": "NYM-J",
-                    "adern": [
-                      {
-                        "funktion": "L3",
-                        "farbe": "grau",
-                        "querschnitt_mm2": 2.5,
-                        "netz": "N26"
-                      }
-                    ]
-                  }
-                }
-              },
-              "afdd": null,
-              "endstelle": "Steckdose",
-              "leitung": {
-                "typ": "NYM-J",
-                "adern": [
-                  {
-                    "funktion": "L3",
-                    "farbe": "grau",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N34"
-                  },
-                  {
-                    "funktion": "N",
-                    "farbe": "blau",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N35"
-                  },
-                  {
-                    "funktion": "PE",
-                    "farbe": "gn-ge",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N36"
-                  }
-                ]
-              },
-              "reihenklemmen_eingang": {
-                "l": [
-                  {
-                    "funktion": "L3",
-                    "farbe": "grau",
-                    "querschnitt_mm2": 2.5,
-                    "netz": "N26"
-                  }
-                ],
-                "n": {
-                  "funktion": "N",
-                  "farbe": "blau",
-                  "querschnitt_mm2": 2.5,
-                  "netz": "N23"
-                },
-                "pe": null
               },
               "messungen": {
                 "zi": false,

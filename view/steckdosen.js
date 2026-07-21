@@ -1,19 +1,22 @@
 // Viertes View-Objekt, oberhalb des Schaltkastens: zeichnet Steckdosen,
-// Anschlussdosen (3 Steckklemmen, für Lichtauslass-Endstellen) und
+// Anschlussdosen (3 Steckklemmen, für Lichtauslass-Endstellen),
 // Drehstromsteckdosen (5-poliger CEE-Kontakt, für dreiphasige Festanschlüsse)
-// im Raster, wie in der "## Steckdosen (Platzierung)"-Tabelle in bauteile.md
-// festgelegt (geparst von generate_anlage.js -> anlage.steckdosen_platzierung).
-// Die Kontaktpunkte (graue Kreise/Vierecke) sind klickbar wie eine
-// Reihenklemmen-Schraube - `sk.leitung.adern` aus anlage.json trägt bereits
-// dieselben Netz-IDs wie die Endstelle_SKx-Knoten im Verbindungsgraphen,
-// keine eigene Datenquelle nötig. Der Klick-Callback wird 1:1 mit dem
-// Schaltkasten geteilt (siehe controller/app.js onSchraubeKlick) - Popup bei
-// ausgeschaltetem, Messspitzen bei eingeschaltetem Messgerät.
+// und 5-polige Anschlussdosen (feste Verdrahtung statt Stecker, z.B. für
+// einen Herdanschluss) im Raster, wie in der "## Steckdosen (Platzierung)"-
+// Tabelle in bauteile.md festgelegt (geparst von generate_anlage.js ->
+// anlage.steckdosen_platzierung). Die Kontaktpunkte (graue Kreise/Vierecke)
+// sind klickbar wie eine Reihenklemmen-Schraube - `sk.leitung.adern` aus
+// anlage.json trägt bereits dieselben Netz-IDs wie die Endstelle_SKx-Knoten
+// im Verbindungsgraphen, keine eigene Datenquelle nötig. Der Klick-Callback
+// wird 1:1 mit dem Schaltkasten geteilt (siehe controller/app.js
+// onSchraubeKlick) - Popup bei ausgeschaltetem, Messspitzen bei
+// eingeschaltetem Messgerät.
 //
 // Geometrie 1:1 aus den finalisierten Vorlagen docs/referenz/steckdose_vorlage.svg,
-// docs/referenz/anschlussdose_vorlage.svg und docs/referenz/drehstromsteckdose_vorlage.svg
-// übernommen (dort mit Playwright exakt vermessen bzw. direkt aus der
-// Vorlage abgeleitet) - alle Maße in mm, relativ zum jeweiligen Gerätezentrum.
+// docs/referenz/anschlussdose_vorlage.svg, docs/referenz/drehstromsteckdose_vorlage.svg
+// und docs/referenz/herdanschlussdose_vorlage.svg übernommen (dort mit
+// Playwright exakt vermessen bzw. direkt aus der Vorlage abgeleitet) - alle
+// Maße in mm, relativ zum jeweiligen Gerätezentrum.
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -227,6 +230,70 @@ function zeichneDrehstromsteckdose(svg, cx, cy, rotationGrad, adern, onSchraubeK
   svg.appendChild(g);
 }
 
+// --- 5-polige Anschlussdose (Vorlage: docs/referenz/herdanschlussdose_vorlage.svg)
+// - feste Verdrahtung (kein Stecker) mit 5 Wago-Klemmen (L1/L2/L3/N/PE), z.B.
+// für einen Herdanschluss. Quadratisches Gehäuse mit 89mm Kantenlänge - passt
+// ohne Skalierung in die 95mm-Raster-Zelle (anders als die Drehstromsteckdose).
+// Layout wie in der Vorlage: 2 Reihen (3 Klemmen oben: N/PE/L1, 2 Klemmen
+// unten: L3/L2), keine kreisförmige Anordnung wie bei Steckdose/
+// Drehstromsteckdose, da hier keine Steckverbindung mit Führungsnase nötig ist.
+
+const HERD_GEHAEUSE_MM = 89, HERD_GEHAEUSE_RX = 2;
+const HERD_BOX_W = 21.886889, HERD_BOX_H = 10.688946;
+const HERD_GREY_DX = -4.806, HERD_GREY_DY = 0.068; // Messspitzen-Kontakt (grau)
+const HERD_COLOR_DX = 4.726, HERD_COLOR_DY = 0.279; // Funktions-Kennzeichnung
+const HERD_CAP_W = 8.652956, HERD_CAP_H = 2.2904885;
+const HERD_CAP1_DX = -5.599, HERD_CAP2_DX = 5.046, HERD_CAP_DY = -6.644;
+
+// Klemmen-Mittelpunkte relativ zum Gehäuse-Zentrum (siehe Vorlage, exakt
+// vermessen und pro Reihe ausgerichtet).
+const HERD_KLEMMEN = [
+  { funktion: 'N', dx: -26.7, dy: -26.25, farbe: '#0000ff' },
+  { funktion: 'PE', dx: 0, dy: -26.25, farbe: '#44aa00' },
+  { funktion: 'L1', dx: 26.7, dy: -26.25, farbe: '#806600' },
+  { funktion: 'L3', dx: -13.85, dy: 30.9, farbe: '#b3b3b3' },
+  { funktion: 'L2', dx: 13.85, dy: 30.9, farbe: '#000000' }
+];
+
+function zeichneHerdKlemme(g, bcx, bcy, farbe, ader, onSchraubeKlick) {
+  g.appendChild(svgEl('rect', {
+    x: bcx - HERD_BOX_W * MM / 2, y: bcy - HERD_BOX_H * MM / 2,
+    width: HERD_BOX_W * MM, height: HERD_BOX_H * MM, fill: '#ececec'
+  }));
+  g.appendChild(svgEl('rect', {
+    x: bcx + HERD_CAP1_DX * MM - HERD_CAP_W * MM / 2, y: bcy + HERD_CAP_DY * MM - HERD_CAP_H * MM / 2,
+    width: HERD_CAP_W * MM, height: HERD_CAP_H * MM, fill: '#ff7f2a'
+  }));
+  g.appendChild(svgEl('rect', {
+    x: bcx + HERD_CAP2_DX * MM - HERD_CAP_W * MM / 2, y: bcy + HERD_CAP_DY * MM - HERD_CAP_H * MM / 2,
+    width: HERD_CAP_W * MM, height: HERD_CAP_H * MM, fill: '#ff7f2a'
+  }));
+  // Messspitzen-Kontakt (grau) - r=2mm, derselbe reale Radius wie die
+  // Reihenklemmen-Schraube (die Vorlage selbst zeichnet ihn größer, siehe
+  // docs/referenz/herdanschlussdose_vorlage.svg - hier wie überall sonst im
+  // Schaltkasten auf den realen Schraubenradius vereinheitlicht). Der
+  // farbige Kreis daneben ist nur eine Funktions-Kennzeichnung, kein eigener
+  // Kontakt - nicht klickbar.
+  g.appendChild(klickbar(svgEl('circle', { cx: bcx + HERD_GREY_DX * MM, cy: bcy + HERD_GREY_DY * MM, r: 2 * MM, fill: '#666666' }), ader, onSchraubeKlick));
+  g.appendChild(svgEl('circle', { cx: bcx + HERD_COLOR_DX * MM, cy: bcy + HERD_COLOR_DY * MM, r: 2 * MM, fill: farbe }));
+}
+
+function zeichneFuenfpoligeAnschlussdose(svg, cx, cy, rotationGrad, adern, onSchraubeKlick) {
+  const g = svgEl('g', { transform: `rotate(${rotationGrad}, ${cx}, ${cy})` });
+
+  g.appendChild(svgEl('rect', {
+    x: cx - HERD_GEHAEUSE_MM * MM / 2, y: cy - HERD_GEHAEUSE_MM * MM / 2,
+    width: HERD_GEHAEUSE_MM * MM, height: HERD_GEHAEUSE_MM * MM, rx: HERD_GEHAEUSE_RX * MM,
+    fill: 'none', stroke: '#000000', 'stroke-width': 1.05648
+  }));
+
+  for (const { funktion, dx, dy, farbe } of HERD_KLEMMEN) {
+    zeichneHerdKlemme(g, cx + dx * MM, cy + dy * MM, farbe, findeAder(adern, funktion), onSchraubeKlick);
+  }
+
+  svg.appendChild(g);
+}
+
 // Rahmen um die Geräte: doppelte Umrandung im selben Look wie die äußere Box
 // des Schaltkastens (siehe view/schaltkasten.js SchaltkastenView.render()) -
 // Außenrahmen leichtes Grau, Innenrahmen liegt direkt an der weißen
@@ -289,6 +356,8 @@ export const SteckdosenView = {
         zeichneSteckdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
       } else if (stromkreis?.endstelle === 'Drehstromsteckdose') {
         zeichneDrehstromsteckdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
+      } else if (stromkreis?.endstelle === '5-polige Anschlussdose') {
+        zeichneFuenfpoligeAnschlussdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
       } else {
         // Lichtauslass (und alle anderen, noch nicht eigens gezeichneten
         // Endstellen-Typen) -> Anschlussdose mit drei Steckklemmen.

@@ -350,6 +350,48 @@ async function main() {
     await page.close();
   });
 
+  await pruefe('Steckdosen: testcase_06 - 5-polige Anschlussdose zeichnet 5 klickbare Kontakte plus 5 farbige Kennzeichnungskreise (N/PE/L1/L3/L2)', async () => {
+    const page = await seiteMitTestcase('testcase_06');
+    // testcase_06 hat inzwischen 3 Geräte im Steckdosen-View (SK1 = 5-polige
+    // Anschlussdose, SK2 = Steckdose, SK3 = Lichtauslass/Anschlussdose) -
+    // auf das quadratische Gehäuse der 5-poligen Anschlussdose scopen
+    // (einziges Gerät mit `rect[rx="4"]`, siehe HERD_GEHAEUSE_RX in
+    // view/steckdosen.js) statt auf die ganze SVG.
+    const info = await page.evaluate(() => {
+      // rx="4" matcht auch die äußere Steckdosen-Rahmenfläche (fill="#ffffff")
+      // - fill="none" grenzt gezielt auf das Herdanschlussdose-Gehäuse ein
+      // (reines Umriss-Rechteck, siehe zeichneFuenfpoligeAnschlussdose()).
+      const gehaeuse = document.querySelector('#steckdosen svg rect[rx="4"][fill="none"]');
+      const gruppe = gehaeuse.closest('g');
+      return {
+        grau: gruppe.querySelectorAll('circle[fill="#666666"]').length,
+        farbig: [...gruppe.querySelectorAll('circle')].map((c) => c.getAttribute('fill')).filter((f) => f !== '#666666')
+      };
+    });
+    if (info.grau !== 5) throw new Error(`erwarte 5 graue Kontaktkreise, gefunden ${info.grau}`);
+    // Zeichenreihenfolge (HERD_KLEMMEN in view/steckdosen.js): N, PE, L1, L3, L2.
+    const erwarteteFarben = ['#0000ff', '#44aa00', '#806600', '#b3b3b3', '#000000'];
+    if (JSON.stringify(info.farbig) !== JSON.stringify(erwarteteFarben)) {
+      throw new Error(`erwarte Kennzeichnungsfarben ${JSON.stringify(erwarteteFarben)}, gefunden ${JSON.stringify(info.farbig)}`);
+    }
+    await page.close();
+  });
+
+  await pruefe('Steckdosen: testcase_06 - Popup-Reihenfolge der 5-poligen Anschlussdose ist N, PE, L1, L3, L2 mit den richtigen Aderfarben', async () => {
+    const page = await seiteMitTestcase('testcase_06');
+    // Messgerät ist per Default aus - kein ON/OFF-Klick nötig.
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    const erwartet = ['blau', 'gn-ge', 'schwarz', 'grau', 'braun']; // N, PE, L1, L3, L2
+    for (let i = 0; i < erwartet.length; i++) {
+      await klickeMitte(page, kreise.nth(i));
+      const popupText = await page.evaluate(() => document.querySelector('.popup')?.textContent ?? '');
+      if (!popupText.includes(erwartet[i])) {
+        throw new Error(`Kontakt ${i} (erwarte Farbe "${erwartet[i]}"): Popup zeigt "${popupText}"`);
+      }
+    }
+    await page.close();
+  });
+
   // testcase_03: SK1 (obere linke Steckdose, @180 rotiert) hängt an RCD1.
   // Durch die Rotation erscheint der N-Kontakt (blau) visuell LINKS und der
   // L-Kontakt (schwarz) visuell RECHTS - deckt also nebenbei ab, dass die

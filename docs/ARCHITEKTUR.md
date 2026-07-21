@@ -604,14 +604,99 @@ Sektion umgestellt.
 einziger Diff war die neue Array-Form von `reihenklemmen_eingang.l`, keine
 Verhaltensänderung (per Diff und vollem `npm test`-Lauf bestätigt).
 
-Getestet in `test_generator.js` (4 Tests: Graph-Kanten des 3-poligen LS1
+**3-poliger LS ohne RCD (`testcase_06`, Status: umgesetzt) - Bugfix in
+`generate_anlage.js`:** eine Gruppe kann komplett ohne RCD-Mitglied sein
+(z.B. ein LS direkt hinter der Hauptsicherung). Die Gruppen-Konstruktion
+(`const rcd = mitglieder.find(b => b.name.startsWith('RCD'))`) lieferte in
+diesem Fall `undefined`, und der anschließende ungeprüfte Zugriff
+(`rcd.name`, `rcd.typ`, ... im zurückgegebenen Gruppen-Objekt) warf einen
+TypeError - `view/schaltkasten.js` (`if (gruppe.rcd) {...}`, siehe
+"Schalter (LS, RCD, Hauptschalter)" oben) hatte diesen Fall bereits
+vorgesehen, nur der Generator-Pfad fehlte und wurde nie durchlaufen (alle
+bisherigen Testcases hatten in jeder Gruppe ein RCD). Fix: `rcd: rcd ? {
+...} : null` - der komplette `rcd`-Objektaufbau wird nur noch ausgeführt,
+wenn ein RCD-Mitglied existiert. Zusätzlich wurde `_tabelle` (bestimmt, auf
+welcher Hutschiene die Gruppe landet) von `bauteilTabelle[rcd.name]` auf
+`[...tabellenDerGruppe][0]` umgestellt - `tabellenDerGruppe` wird ohnehin
+schon über ALLE Gruppen-Mitglieder gebildet (für die
+Mehrere-Hutschienen-Validierung, siehe oben), funktioniert also unabhängig
+davon, ob ein RCD existiert. `testcase_06` ist strukturell identisch zu
+`testcase_05`, nur hängt LS1 direkt an den Hauptschalter-Ausgängen statt an
+einem RCD-Ausgang - die Fehlertabelle sitzt dadurch nur noch auf einer
+Stufe (LS1-Ausgang) statt zwei.
+
+**Zweite Gruppe G2 (RCD2, 2-polig, + LS2/LS3, je 1-polig) auf derselben
+Hutschiene wie G1:** ein normaler einphasiger Fall (analog `testcase_01`,
+1 RCD + 2 LS), zusätzlich in `testcase_06` ergänzt, um zu belegen, dass
+eine RCD-lose Gruppe (G1) und eine Gruppe mit RCD (G2) problemlos
+nebeneinander auf derselben Hutschiene existieren können - **keine
+Code-Änderung nötig**, `generate_anlage.js`s `gruppen`-Konstruktion ist
+bereits generisch über `mitglieder.filter(b => b.name.startsWith('LS'))`
+pro Gruppen-ID, unabhängig davon, wie viele andere Gruppen auf derselben
+Hutschiene existieren. RCD2 ist 2-polig (L1+N) - kein neuer Bauteil-Fall,
+`TE_TABELLE['RCD-2']` wird bereits in `testcase_01` verwendet. RCD2 zapft
+denselben Hauptschalter-Ausgang (N9, L1) und dieselbe ungeschaltete N-Ader
+(N12) an wie LS1 - zwei Bauteile am selben Ausgangspin, analog testcase_01
+Annahme 2 (RCD1.o1 speist dort ebenfalls zwei LS über getrennte
+Ausgangsadern). RCD2.o1 verzweigt zu LS2 UND LS3 (16A/10A), RCD2.o2 (N)
+versorgt beide Stromkreise gemeinsam über dieselbe Ader (analog testcase_01
+Annahme 3). LS2/LS3 speisen SK2 (Steckdose) bzw. SK3 (Lichtauslass) mit je
+einer eigenen L-/N-/PE-Reihenklemme auf derselben obersten Hutschiene wie
+SK1s Reihenklemmen - PE über den lokalen Hutschienen-Bond statt einer
+eigenen Zubringerader (analog testcase_01 Annahme 4).
+
+**Nachträglich ergänzt:** zwei weitere Fehlertabellen-Einträge (N46=0,13Ω
+auf dem N-Leiter zur Steckdose SK2, N48=0,19Ω auf dem L-Leiter zur
+3-poligen Anschlussdose SK3 - reiner `graph.json`-Diff, `anlage.json`
+unverändert) sowie eine Änderung von RCD2s Auslösewerten in `bauteile.md`
+(`tA` 22→21ms, `iA` 18→24mA, `uB` 1→0,9V - reiner Datenwert, kein
+Code-Fix, `anlage.json`-Diff betrifft nur diese drei Felder im
+`rcd`-Objekt).
+
+Getestet in `test_generator.js` (8 Tests: Graph-Kanten des 3-poligen LS1
 - drei separate Kanten L1/L2/L3, keine in N; Fehlertabellen-Summe pro Phase
 gegen testcase_04 verglichen; `anlage.json`-Form von testcase_05 - ein
 Stromkreis, `ls.polig=3`, drei Reihenklemmen-Eingangs-Adern;
 Rückwärtskompatibilität - testcase_01-04s `reihenklemmen_eingang.l` bleibt ein
-1-elementiges Array) und `test_messgeraet.js` (4 Tests: ZS-Messwerte für
-L1/L2/L3 gegen testcase_04 verglichen; der 3-polige LS1 wird als **eine**
-78px breite Schalter-Box gerendert, nicht drei einzelne).
+1-elementiges Array; testcase_06s `gruppe.rcd === null` ohne Absturz; LS1
+direkt am Hauptschalter ohne RCD-Kante; Fehlertabellen-Summe ohne RCD-Anteil;
+Gruppe G2s RCD2 verzweigt korrekt vom selben Hauptschalter-Ausgang wie LS1,
+mit zwei Ausgangskanten zu LS2/LS3) und `test_messgeraet.js` (16 Tests:
+ZS-Messwerte für L1/L2/L3 gegen testcase_04 verglichen; der 3-polige LS1
+wird als **eine** 78px breite Schalter-Box gerendert, nicht drei einzelne;
+testcase_06s ZS-Werte L1/L2/L3 ohne RCD-Anteil; FI/RCD findet auf Gruppe G1
+keinen RCD - TEST bleibt wirkungslos, Ampel rot; Gruppe G1 hat keine eigene
+RCD-Box, während Gruppe G2 daneben genau 5 Schalter-Boxen zeigt: LS1 (78px)
++ RCD2/LS2/LS3 (je 24px) in Reihe 2, plus der unveränderte Hauptschalter in
+der letzten Reihe; FI/RCD über die Steckdose SK2 selbst gemessen (Schwarz
+auf L links, Blau auf N rechts, Grün auf PE, siehe `zeichneSteckdose()`)
+findet RCD2 und übernimmt dessen aktuelle Auslösewerte `I:24,0mA`/
+`Uci:0,9V`/`t:21,0ms`; ZI über dieselben Steckdose-Kontakte summiert L- UND
+N-Fehlertabelle korrekt zu `Z:0,27Ω`/`Isc:766,7A`, obwohl nur der N-Pfad
+einen Eintrag trägt - belegt, dass der leere L-Pfad-Beitrag als 0 statt als
+Fehler behandelt wird; ZS über dieselben Kontakte ignoriert bewusst den
+N-Pfad und zeigt nur die reine Vorimpedanz - `Z:0,14Ω`/`Isc:1478,6A`,
+Ampel grün; V~ über dieselben Kontakte mit ECHTEN Rollen (anders als der
+400V-Test mit drei verschiedenen Außenleitern weiter unten) zeigt
+`Uln:230V`/`Ulpe:230V`/`Unpe:0V` - N und PE liegen im gesunden Stromkreis
+auf demselben Potential -, und fällt nach Öffnen von LS2 (dem ersten LS
+nach RCD2, versorgt SK2 selbst) komplett auf `0V`/`0V`/`0V` zurück; V~
+GERÄTEÜBERGREIFEND - Schwarz auf dem schwarzen (L-)Kontakt der 3-poligen
+Anschlussdose SK3 (siehe `KLEMMEN`-Array in `view/steckdosen.js`:
+N/blau bei -90°, L/schwarz bei 30°, PE/grün bei 150°), Blau/Grün bleiben
+auf der Steckdose SK2 - liefert dieselben Werte (beide Stromkreise teilen
+sich denselben N-Pfad über `RCD2.o2`), fällt nach Öffnen von LS3 - dem
+zweiten LS nach RCD2, versorgt SK3 - ebenfalls komplett auf 0V; dieselbe
+geräteübergreifende Sondenplatzierung auf FI/RCD findet ebenfalls RCD2,
+übernimmt `I:24,0mA`/`Uci:0,9V`/`t:21,0ms` und öffnet nach erfolgreichem
+TEST automatisch dessen Hebel - die Spannung fällt dadurch auf 0V, Werte
+und grüne Ampel bleiben stehen, analog dem bereits bestehenden
+testcase_01-Test; und FI/RCD mit DREI verschiedenen Geräten gleichzeitig
+(Schwarz auf SK3, Blau auf SK1s N-Kontakt, Grün auf SK2s PE) findet
+ebenfalls RCD2 - belegt, dass die RCD-Suche ausschließlich über den Pfad
+der schwarzen L-Sonde läuft, Blau/Grün nur auf korrekt platziert geprüft
+werden - und öffnet den RCD2-Hebel sichtbar, `transform`-Attribut vorher
+`null` (geschlossen), danach `rotate(180, ...)` (offen)).
 
 ### messgeraet.js
 - Rendert das Messgerät (beschriftet als "INSTALLATIONSTESTER", Vorbild BENNING IT 130) als eigene SVG-Komponente, genau wie
@@ -1121,7 +1206,104 @@ neu generiert und promotet - der Diff war rein additiv/metadaten-artig
 geändert), `graph.json` **unverändert** (der Endstellen-Typ beeinflusst
 nur die Zeichnung, nicht die Verdrahtung/den Verbindungsgraphen).
 
-Getestet in `tests/visuell/test_steckdosen.js` (24 Tests): ohne
+**5-polige Anschlussdose (`zeichneFuenfpoligeAnschlussdose()`, Status:
+umgesetzt, siehe `testcase_06`):** feste Verdrahtung statt Stecker (z.B.
+Herdanschluss), geometrisch 1:1 aus `docs/referenz/herdanschlussdose_vorlage.svg`
+übernommen - diese Vorlage wurde direkt vom User bereitgestellt
+(`herdanschlussdose.svg`, ein reales Referenzbild, anders als bei der
+Drehstromsteckdose, die iterativ ohne Referenzbild entwickelt wurde) und
+dann gemeinsam bereinigt. Quadratisches Gehäuse (`HERD_GEHAEUSE_MM = 89`,
+`rx=2` leicht abgerundete Ecken) mit 5 Wago-Klemmen
+(`HERD_KLEMMEN`-Array) in zwei Reihen wie in der Vorlage - oben N/PE/L1,
+unten L3/L2 (keine kreisförmige Anordnung wie bei der Drehstromsteckdose,
+da hier keine Steckverbindung mit Führungsnase nötig ist). Jede Klemme
+(`zeichneHerdKlemme()`) besteht aus hellgrauem Block-Rechteck
+(`HERD_BOX_W/H`), zwei orangenen Klemmdeckeln (`HERD_CAP_W/H`,
+`HERD_CAP1_DX`/`HERD_CAP2_DX` symmetrisch um den Block-Mittelpunkt) und
+zwei Kontaktkreisen: grauer Klickpunkt (`HERD_GREY_DX/DY`, r=2mm, wie
+überall sonst im Schaltkasten - die Vorlage selbst zeichnet ihn größer,
+hier auf den realen Schraubenradius vereinheitlicht) und farbiger
+Kennzeichnungskreis (`HERD_COLOR_DX/DY`, nicht klickbar). Die
+Kennzeichnungsfarben (`HERD_KLEMMEN[].farbe`) sind 1:1 aus der Vorlage
+übernommen und weichen bewusst von der sonst projektweiten Aderfarben-
+Konvention ab (L1=`#806600` braun statt der üblichen schwarz, L2=`#000000`
+schwarz statt braun, L3=`#b3b3b3` hellgrau, N=`#0000ff` blau, PE=`#44aa00`
+grün) - reine, unabhängige Bauteil-Kennzeichnung laut User-Vorgabe.
+
+**Vermessung/Bereinigung der Vorlage:** in der Referenzzeichnung waren alle
+5 Klemmen-Blöcke bereits mit identischer Innen-Geometrie kopiert
+(Kappen-/Kreis-Offsets relativ zum jeweiligen Block-Mittelpunkt exakt
+gleich in allen 5 Blöcken, verifiziert per Koordinatenvergleich), aber die
+5 Block-Mittelpunkte selbst waren nicht sauber pro Reihe ausgerichtet
+(leicht unterschiedliche Y-Werte/Abstände). Auf zwei User-Rückfragen hin
+("orangenen Boxen nicht ganz aligned" / "aligne die hellgrauen Boxen")
+wurden die Block-Mittelpunkte auf exakt gleiche Y pro Reihe und gleichmäßige
+X-Abstände vereinheitlicht (`HERD_KLEMMEN[].dx/dy`), sowie die beiden
+Klemmdeckel jedes Blocks auf identische Y-Höhe gebracht (`HERD_CAP_DY`
+gemeinsam statt zwei leicht unterschiedlicher Werte) - jeweils per
+`getBoundingClientRect()` an den tatsächlich gerenderten Pixel-Koordinaten
+verifiziert, nicht nur an den SVG-Quell-Attributen.
+
+Größencheck: das 89mm-Gehäuse passt ohne Skalierung in die `ZELLE_MM = 95`
+Raster-Zelle - anders als die Drehstromsteckdose (99mm Kreis-Durchmesser)
+war hier kein Skalierungsfaktor nötig. Einzige Einschränkung: bei einer
+45°-Drehung würde die Diagonale eines 89mm-Quadrats (≈126mm) die Zelle
+überschreiten - betrifft aber keinen unterstützten Anwendungsfall, da
+`@<Winkel>` laut Konvention nur 0/90/180/270 zulässt, und bei diesen vier
+Werten bleibt die quadratische Grundfläche unverändert (verifiziert per
+Playwright-Rendering bei 90°). Auswahl über `stromkreis.endstelle ===
+'5-polige Anschlussdose'` in `SteckdosenView.render()` (vierter, letzter
+spezifischer Zweig, alle anderen Werte fallen weiterhin auf die
+3-Klemmen-Anschlussdose zurück).
+
+`testcase_06` (3-poliger LS ohne RCD, siehe "3-poliger LS ohne RCD" oben)
+nutzt diese Vorlage: `bauteile.md` wurde von `Endstelle: Festanschluss`
+(ohne Platzierungstabelle) auf `Endstelle: 5-polige Anschlussdose` mit
+einer neuen `## Steckdosen (Platzierung)`-Sektion umgestellt - der Diff war
+wieder rein additiv/metadaten-artig, `graph.json` unverändert. Messwerte
+über die neuen Kontakte gemessen (ZS über L1) liefern exakt denselben Wert
+wie direkt am Schaltkasten-Netz gemessen (`Z:0,34Ω`/`Isc:608,8A`).
+
+**Sechs vom User Schritt für Schritt vorgegebene Testcases** (alle über die
+Kontakte der 5-poligen Anschlussdose statt direkt am Schaltkasten gemessen -
+verifiziert nebenbei, dass die Anschlussdose exakt an dieselben Netz-IDs
+angeschlossen ist wie die entsprechenden Reihenklemmen/Hauptschalter-
+Schrauben) in `test_messgeraet.js`: RLOW N-Kontakt↔N-Klemme unten
+(`R:0,17Ω`, trifft den Fehlertabellen-Eintrag N26 auf der Reihenklemme);
+RLOW L1-Kontakt↔Hauptschalter-Eingang (`R:0,20Ω`, Platzhalter sobald
+Hauptschalter ODER LS1 einzeln geöffnet wird - drei Zustände in einem
+Testablauf); RISO bei offenem Hauptschalter (`R:>999MΩ`, Ampel grün); ZI
+über L3 (`Z:0,46Ω` - summiert L3s Fehlertabelle UND den N-Reihenklemmen-
+Fehlerwiderstand, da ZI anders als ZS beide Teilpfade zählt); ZS über L2
+(`Z:0,42Ω`, identisch zum Schaltkasten-Wert); V~ mit drei Sonden auf drei
+verschiedenen Außenleitern (überall 400V). Bei allen sechs war die
+Farbzuordnung der Kontakte zu beachten - die Kennzeichnungsfarben der
+Anschlussdose weichen bewusst von den Aderfarben ab (siehe oben:
+braun=L1, schwarz=L2, grau=L3), und welche Messspitzenfarbe (schwarz/blau/
+grün) ein Kontakt bekommt, hängt von der KLICKREIHENFOLGE ab (1./2./3.
+Klick auf eine neue Schraube), nicht von der Position - beim Verifizieren
+mit Playwright wurde deshalb zunächst versehentlich in falscher Reihenfolge
+geklickt (Kontakt-Position statt gewünschter Farbrolle), was RISO korrekt
+mit Platzhalter statt Messwert quittierte, bis die Klickreihenfolge
+korrigiert wurde.
+
+**Nachträglicher Testfix wegen Gruppe G2 (siehe "3-poliger LS ohne RCD"
+oben):** `testcase_06` hat seit der zweiten Gruppe drei Geräte im
+Steckdosen-View (5-polige Anschlussdose SK1, Steckdose SK2, Anschlussdose
+SK3 für Lichtauslass) statt nur eines - ein Test, der bisher pauschal
+`svg.querySelectorAll('circle[fill="#666666"]')` über die GESAMTE
+Steckdosen-SVG zählte, fand plötzlich 10 statt 5 graue Kontakte. Fix: auf
+das Gehäuse-Rechteck der 5-poligen Anschlussdose scopen
+(`rect[rx="4"][fill="none"]` - `rx="4"` matcht auch das äußere
+Rahmen-Rechteck der Steckdosen-SVG selbst, `fill="none"` grenzt gezielt auf
+das Geräte-Gehäuse ein), dann nur innerhalb von dessen `<g>`-Elternelement
+zählen. Der zweite, bereits bestehende Test (Popup-Reihenfolge, arbeitet
+mit `.nth(i)` statt einem Gesamt-Count) brauchte keine Änderung, da SK1 als
+erstes Gerät im Raster (Reihe 1, Spalte 1) auch als erstes im DOM gerendert
+wird - die ersten 5 grauen Kreise gehören dadurch weiterhin zuverlässig zu
+SK1.
+
+Getestet in `tests/visuell/test_steckdosen.js` (26 Tests): ohne
 Platzierungstabelle bleibt der Container leer/unsichtbar; linke Kante steht
 (bei absichtlich breiterem Viewport als die Schaltkasten-Breite) bündig
 unter der Schaltkasten-Kante statt zentriert zu sein; Breite entspricht
@@ -1178,7 +1360,16 @@ Kontaktringe + 1 dekorativer Mittelpunkt); ein Klick auf jeden der 5
 Kontakte in DOM-Reihenfolge zeigt im Popup die erwartete Aderfarbe
 (PE=gn-ge, L1=schwarz, L2=braun, L3=grau, N=blau) - deckt sowohl die
 Zeichenreihenfolge (PE zuerst, dann im Uhrzeigersinn L1/L2/L3/N) als auch
-die korrekte Ader-Zuordnung ab.
+die korrekte Ader-Zuordnung ab; testcase_06 - die 5-polige Anschlussdose
+zeichnet genau 5 graue Kontakte und 5 farbige Kennzeichnungskreise in der
+erwarteten Reihenfolge/Farbe (`#0000ff`/`#44aa00`/`#806600`/`#b3b3b3`/
+`#000000` = N/PE/L1/L3/L2); ein Klick auf jeden der 5 Kontakte in
+DOM-Reihenfolge zeigt im Popup die erwartete Aderfarbe (N=blau, PE=gn-ge,
+L1=schwarz, L3=grau, L2=braun) - deckt die Zeichenreihenfolge (zwei Reihen
+wie in der Vorlage) und die korrekte Ader-Zuordnung ab; zusätzlich in
+`test_messgeraet.js`: ZS über die Kontakte der 5-poligen Anschlussdose
+gemessen liefert `Z:0,34Ω`/`Isc:608,8A`, identisch zum direkt am
+Schaltkasten-Netz N23 gemessenen Wert.
 
 ### timer.js
 - Sichtbarer 45-Minuten Timer
@@ -1312,7 +1503,7 @@ Teilgraph ist (kein `{knoten, kanten}`-Objekt), filtert
 .filter((k) => graph[k]?.kanten)`), um es beim Schalter-Kanten-Update nicht
 fälschlich als Teilgraph zu behandeln.
 
-Alle 4 Testcases tragen Beispiel-Netze mit Widerstand - bewusst nicht
+Alle Testcases tragen Beispiel-Netze mit Widerstand - bewusst nicht
 flächendeckend, der User befüllt die Tabelle nach Bedarf selbst weiter.
 `graph.json` wurde bei jeder Ergänzung neu generiert und promotet (isolierter
 Diff: nur das `fehlertabelle`-Feld, `anlage.json`/`anlage.svg` unverändert).

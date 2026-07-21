@@ -546,11 +546,20 @@ function generiereAnlage(ordner) {
     const rcdFunktionen = [...(vorkommendePhasen.length ? vorkommendePhasen : [gruppenPhase]), 'N'];
 
     return {
-      _tabelle: bauteilTabelle[rcd.name] ?? null,
+      // Tabellen-Zugehörigkeit über alle Mitglieder ermittelt (nicht nur
+      // über das RCD) - eine Gruppe kann auch ganz ohne RCD sein (siehe
+      // unten), `tabellenDerGruppe` wurde oben bereits auf genau einen
+      // Eintrag geprüft.
+      _tabelle: [...tabellenDerGruppe][0] ?? null,
       id: gruppeId,
       bezeichnung: `Gruppe ${gruppeId.replace('G', '')}`,
       phase: vorkommendePhasen.length > 1 ? vorkommendePhasen.join('/') : gruppenPhase,
-      rcd: {
+      // Eine Gruppe kann auch ganz ohne RCD sein (z.B. ein 3-poliger LS
+      // direkt hinter der Hauptsicherung, ohne vorgeschalteten FI/RCD - siehe
+      // testcase_06). `view/schaltkasten.js` überspringt die RCD-Box dann
+      // bereits (`if (gruppe.rcd) {...}`), hier wird entsprechend `null`
+      // statt eines Objekts gesetzt.
+      rcd: rcd ? {
         // Bauteilname aus bauteile.md (z.B. "RCD1") - verbindende ID zum
         // Verbindungsgraphen (siehe KONZEPT.md "Schalter").
         name: rcd.name,
@@ -572,7 +581,7 @@ function generiereAnlage(ordner) {
         uB: rcd.uB,
         eingang: baueLeitung(netze, rcd.name, 'i', rcdFunktionen),
         ausgang: baueLeitung(netze, rcd.name, 'o', rcdFunktionen)
-      },
+      } : null,
       stromkreise: stromkreiseDerGruppe
     };
   });

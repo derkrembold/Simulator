@@ -1,0 +1,644 @@
+{
+  "name": "Unterverteiler Testcase 06",
+  "beschreibung": "3-poliger Hauptschalter, Gruppe G1 = EIN 3-poliger LS OHNE vorgeschaltetes RCD (dreiphasiger Stromkreis), Gruppe G2 = 2-poliger RCD + zwei 1-polige LS (zwei normale einphasige Stromkreise) - beide Gruppen auf derselben Hutschiene",
+  "netzform": "TN-S",
+  "spannung_einspeisung": 400,
+  "spannung_stromkreise": 400,
+  "steckdosen_platzierung": [
+    {
+      "row": 0,
+      "col": 0,
+      "sk": "SK1",
+      "rotation": 0
+    },
+    {
+      "row": 0,
+      "col": 1,
+      "sk": "SK2",
+      "rotation": 0
+    },
+    {
+      "row": 0,
+      "col": 2,
+      "sk": "SK3",
+      "rotation": 0
+    }
+  ],
+  "reihenklemmen": {
+    "vorhanden": true,
+    "breite_mm": 6,
+    "hoehe_mm": 49
+  },
+  "pe_klemme": {
+    "vorhanden": true,
+    "breite_mm": 12,
+    "hoehe_mm": 49,
+    "eingang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "PE",
+            "farbe": "gn-ge",
+            "querschnitt_mm2": 16,
+            "netz": "N5"
+          }
+        ]
+      }
+    },
+    "ausgang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "PE",
+            "farbe": "gn-ge",
+            "querschnitt_mm2": 2.5,
+            "netz": "N30"
+          }
+        ]
+      }
+    }
+  },
+  "hauptsicherung": {
+    "typ": "Hauptschalter",
+    "name": "Hauptschalter",
+    "polig": 3,
+    "te": 3,
+    "in": 35,
+    "eingang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "L1",
+            "farbe": "schwarz",
+            "querschnitt_mm2": 10,
+            "netz": "N6"
+          },
+          {
+            "funktion": "L2",
+            "farbe": "braun",
+            "querschnitt_mm2": 10,
+            "netz": "N7"
+          },
+          {
+            "funktion": "L3",
+            "farbe": "grau",
+            "querschnitt_mm2": 10,
+            "netz": "N8"
+          }
+        ]
+      }
+    },
+    "ausgang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "L1",
+            "farbe": "schwarz",
+            "querschnitt_mm2": 10,
+            "netz": "N9"
+          },
+          {
+            "funktion": "L2",
+            "farbe": "braun",
+            "querschnitt_mm2": 10,
+            "netz": "N10"
+          },
+          {
+            "funktion": "L3",
+            "farbe": "grau",
+            "querschnitt_mm2": 10,
+            "netz": "N11"
+          }
+        ]
+      }
+    }
+  },
+  "hutschienen": [
+    {
+      "gruppen": [
+        {
+          "id": "G1",
+          "bezeichnung": "Gruppe 1",
+          "phase": "L1",
+          "rcd": null,
+          "stromkreise": [
+            {
+              "nr": 1,
+              "bezeichnung": "SK1",
+              "ziel": "Herdanschluss Küche (ohne RCD)",
+              "phasen": [
+                "L1",
+                "L2",
+                "L3"
+              ],
+              "ls": {
+                "name": "LS1",
+                "char": "B",
+                "in": 16,
+                "polig": 3,
+                "te": 3,
+                "eingang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 10,
+                        "netz": "N9"
+                      },
+                      {
+                        "funktion": "L2",
+                        "farbe": "braun",
+                        "querschnitt_mm2": 10,
+                        "netz": "N10"
+                      },
+                      {
+                        "funktion": "L3",
+                        "farbe": "grau",
+                        "querschnitt_mm2": 10,
+                        "netz": "N11"
+                      }
+                    ]
+                  }
+                },
+                "ausgang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N20"
+                      },
+                      {
+                        "funktion": "L2",
+                        "farbe": "braun",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N21"
+                      },
+                      {
+                        "funktion": "L3",
+                        "farbe": "grau",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N22"
+                      }
+                    ]
+                  }
+                }
+              },
+              "afdd": null,
+              "endstelle": "5-polige Anschlussdose",
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N23"
+                  },
+                  {
+                    "funktion": "L2",
+                    "farbe": "braun",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N24"
+                  },
+                  {
+                    "funktion": "L3",
+                    "farbe": "grau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N25"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N26"
+                  },
+                  {
+                    "funktion": "PE",
+                    "farbe": "gn-ge",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N27"
+                  }
+                ]
+              },
+              "reihenklemmen_eingang": {
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N20"
+                  },
+                  {
+                    "funktion": "L2",
+                    "farbe": "braun",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N21"
+                  },
+                  {
+                    "funktion": "L3",
+                    "farbe": "grau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N22"
+                  }
+                ],
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 10,
+                  "netz": "N12"
+                },
+                "pe": {
+                  "funktion": "PE",
+                  "farbe": "gn-ge",
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N30"
+                }
+              },
+              "messungen": {
+                "zi": false,
+                "zs": true,
+                "rcd": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "G2",
+          "bezeichnung": "Gruppe 2",
+          "phase": "L1",
+          "rcd": {
+            "name": "RCD2",
+            "typ": "A",
+            "polig": 2,
+            "te": 2,
+            "in_ma": 30,
+            "nennstrom_a": 40,
+            "selektiv": false,
+            "abklemmen_bei_iso": false,
+            "max_ls_anzahl": 2,
+            "tA": 21,
+            "iA": 24,
+            "uB": 0.9,
+            "eingang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 10,
+                    "netz": "N9"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 10,
+                    "netz": "N12"
+                  }
+                ]
+              }
+            },
+            "ausgang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N40",
+                    "weitere": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N41"
+                      }
+                    ]
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N42"
+                  }
+                ]
+              }
+            }
+          },
+          "stromkreise": [
+            {
+              "nr": 2,
+              "bezeichnung": "SK2",
+              "ziel": "Steckdosen Werkstatt",
+              "phasen": [
+                "L1"
+              ],
+              "ls": {
+                "name": "LS2",
+                "char": "B",
+                "in": 16,
+                "polig": 1,
+                "te": 1,
+                "eingang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N40"
+                      }
+                    ]
+                  }
+                },
+                "ausgang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N43"
+                      }
+                    ]
+                  }
+                }
+              },
+              "afdd": null,
+              "endstelle": "Steckdose",
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N45"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N46"
+                  },
+                  {
+                    "funktion": "PE",
+                    "farbe": "gn-ge",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N47"
+                  }
+                ]
+              },
+              "reihenklemmen_eingang": {
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N43"
+                  }
+                ],
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N42"
+                },
+                "pe": null
+              },
+              "messungen": {
+                "zi": false,
+                "zs": true,
+                "rcd": true
+              }
+            },
+            {
+              "nr": 3,
+              "bezeichnung": "SK3",
+              "ziel": "Licht Werkstatt",
+              "phasen": [
+                "L1"
+              ],
+              "ls": {
+                "name": "LS3",
+                "char": "B",
+                "in": 10,
+                "polig": 1,
+                "te": 1,
+                "eingang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N41"
+                      }
+                    ]
+                  }
+                },
+                "ausgang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N44"
+                      }
+                    ]
+                  }
+                }
+              },
+              "afdd": null,
+              "endstelle": "Lichtauslass",
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N48"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N49"
+                  },
+                  {
+                    "funktion": "PE",
+                    "farbe": "gn-ge",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N52"
+                  }
+                ]
+              },
+              "reihenklemmen_eingang": {
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N44"
+                  }
+                ],
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N42"
+                },
+                "pe": null
+              },
+              "messungen": {
+                "zi": false,
+                "zs": true,
+                "rcd": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "n_klemme": {
+    "vorhanden": true,
+    "breite_mm": 12,
+    "hoehe_mm": 49,
+    "eingang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "N",
+            "farbe": "blau",
+            "querschnitt_mm2": 16,
+            "netz": "N4"
+          }
+        ]
+      }
+    },
+    "ausgang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "N",
+            "farbe": "blau",
+            "querschnitt_mm2": 10,
+            "netz": "N12"
+          }
+        ]
+      }
+    }
+  },
+  "l1_klemme": {
+    "vorhanden": true,
+    "breite_mm": 12,
+    "hoehe_mm": 49,
+    "eingang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "L1",
+            "farbe": "schwarz",
+            "querschnitt_mm2": 16,
+            "netz": "N1"
+          }
+        ]
+      }
+    },
+    "ausgang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "L1",
+            "farbe": "schwarz",
+            "querschnitt_mm2": 10,
+            "netz": "N6"
+          }
+        ]
+      }
+    }
+  },
+  "l2_klemme": {
+    "vorhanden": true,
+    "breite_mm": 12,
+    "hoehe_mm": 49,
+    "eingang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "L2",
+            "farbe": "braun",
+            "querschnitt_mm2": 16,
+            "netz": "N2"
+          }
+        ]
+      }
+    },
+    "ausgang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "L2",
+            "farbe": "braun",
+            "querschnitt_mm2": 10,
+            "netz": "N7"
+          }
+        ]
+      }
+    }
+  },
+  "l3_klemme": {
+    "vorhanden": true,
+    "breite_mm": 12,
+    "hoehe_mm": 49,
+    "eingang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "L3",
+            "farbe": "grau",
+            "querschnitt_mm2": 16,
+            "netz": "N3"
+          }
+        ]
+      }
+    },
+    "ausgang": {
+      "leitung": {
+        "typ": "NYM-J",
+        "adern": [
+          {
+            "funktion": "L3",
+            "farbe": "grau",
+            "querschnitt_mm2": 10,
+            "netz": "N8"
+          }
+        ]
+      }
+    }
+  }
+}

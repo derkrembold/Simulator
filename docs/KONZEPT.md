@@ -552,21 +552,26 @@ real vorkommen kann und dann korrekt als Auffälligkeit markiert werden soll.
 **ZI / ZS** (Impedanz, **beide vollständig umgesetzt** - ZS mit einer
 bewusst dauerhaft akzeptierten Vereinfachung, siehe unten):
 `Vorimpedanz` (siehe unten) + alle `Widerstand`-Bauteile auf dem Pfad von der ersten
-Schraube zur Einspeisung und zurück zur zweiten Schraube. Zi und Zs sind **dieselbe
-Berechnung** – der Name unterscheidet sich nur danach, ob hinter einem RCD gemessen
-wird (Zi) oder nicht (Zs), siehe Fehlerquelle #14.
+Schraube zur Einspeisung und zurück zur zweiten Schraube. Zi und Zs nutzen
+denselben **Mechanismus** (Pfadsuche + Fehlertabellen-Summe + Vorimpedanz,
+TEST-gebunden) - der Name unterscheidet sich danach, ob hinter einem RCD
+gemessen wird (Zi) oder nicht (Zs), siehe Fehlerquelle #14. **Aber ihre
+Formeln sind NICHT identisch:** Zi summiert L-Pfad UND N-Pfad, Zs (siehe
+unten) bewusst nur den L-Pfad - PE und N bleiben dort unberücksichtigt.
 
-Zwei Messspitzen: Schwarz auf L1/L2/L3, Blau auf N (keine vertauschbaren
-Rollen wie bei RISO, PE spielt keine Rolle). Da L und N unterschiedliche
-Teilgraphen ohne gemeinsamen Pfad sind, wird **zweigeteilt** gesucht: Pfad
-von der L-Sonde zur L-Einspeisung, Pfad von der N-Sonde zur N-Einspeisung -
-jeweils die Fehlertabellen-Summe wie bei RLOW. **Beide** Teilpfade müssen zur
-Einspeisung durchgängig geschlossen sein, BEVOR die TEST-Taste überhaupt
-einen Effekt hat - fehlt einer (z.B. offener Schalter dazwischen), bleibt der
-Platzhalter stehen, kein `>999Ω`-Sentinel wie bei RISO (ZI setzt ja gerade
-ein stromdurchflossenes, spannungsführendes Netz voraus, keine
-spannungsfreie Anlage). Ist die Messung möglich: `Z = Fehlertabelle(L-Pfad) +
-Fehlertabelle(N-Pfad) + Vorimpedanz`. TEST-gebunden wie RISO.
+Zwei Messspitzen bei ZI: Schwarz auf L1/L2/L3, Blau auf N (keine
+vertauschbaren Rollen wie bei RISO, PE spielt keine Rolle). Da L und N
+unterschiedliche Teilgraphen ohne gemeinsamen Pfad sind, wird **zweigeteilt**
+gesucht: Pfad von der L-Sonde zur L-Einspeisung, Pfad von der N-Sonde zur
+N-Einspeisung - jeweils die Fehlertabellen-Summe wie bei RLOW. **Beide**
+Teilpfade müssen zur Einspeisung durchgängig geschlossen sein, BEVOR die
+TEST-Taste überhaupt einen Effekt hat - fehlt einer (z.B. offener Schalter
+dazwischen), bleibt der Platzhalter stehen, kein `>999Ω`-Sentinel wie bei
+RISO (ZI setzt ja gerade ein stromdurchflossenes, spannungsführendes Netz
+voraus, keine spannungsfreie Anlage). Ist die Messung möglich: **bei ZI**
+`Z = Fehlertabelle(L-Pfad) + Fehlertabelle(N-Pfad) + Vorimpedanz`
+(`ziTestKlick()` in `controller/app.js` summiert explizit `pfadL + pfadN +
+ZI_VORIMPEDANZ`). TEST-gebunden wie RISO.
 
 **Live-Spannungsanzeige** unter dem PE-Kreis, dieselbe Anzeige-Position wie
 bei RISO - aber mit umgekehrtem Zweck: bei RISO warnt sie "hier liegt noch
@@ -615,15 +620,26 @@ der zuletzt gemessene Wert.
 (L1/L2/L3, wie bei ZI) und **Grün** statt Blau als zweite aktive Sonde -
 Grün muss auf PE sitzen, Blau zusätzlich auf N (analog zu ZI/RISO müssen
 alle drei Sonden korrekt platziert sein, damit TEST überhaupt reagiert).
-**Der eigentliche Unterschied zu ZI:** von den zwei Teilpfaden, die
-normalerweise geprüft würden (L und PE bzw. N), wird bei ZS bewusst nur der
-**L-Pfad** verfolgt - der PE-Pfad wird komplett ignoriert, unter der
-Annahme, dass PE immer Durchgang hat (0Ω). Das ist dieselbe Vereinfachung
-wie bei RISOs `risoEffektiveAder()` (siehe oben) und aus demselben Grund
-akzeptiert: ein aufgetrennter PE-Leiter ist im Prüfungsalltag kein
-realistisches Szenario, und PE ist ohnehin noch nicht im Verbindungsgraphen
-modelliert (siehe "Nächste Schritte" - PE-Teilgraph). `Z = Fehlertabelle
-(L-Pfad) + Vorimpedanz` (derselbe feste Wert wie bei ZI, 0,14Ω). TEST-Taste
+**Der eigentliche Unterschied zu ZI:** obwohl bei ZS - anders als bei ZI -
+sogar DREI Sonden korrekt platziert sein müssen (L, N UND PE), fließt in
+die Berechnung nur der **L-Pfad** ein - sowohl der PE-Pfad ALS AUCH der
+N-Pfad werden komplett ignoriert (`zsTestKlick()` in `controller/app.js`
+prüft `blauAder.funktion === 'N'` und `gruenAder.funktion === 'PE'` nur als
+Platzierungs-Voraussetzung, summiert aber ausschließlich
+`findePfadZurEinspeisung(schwarzAder.funktion, schwarzAder)` - anders als
+ZI, das explizit `pfadL + pfadN` addiert, siehe oben). Das beruht auf der
+Annahme, dass PE immer Durchgang hat (0Ω) - dieselbe Vereinfachung wie bei
+RISOs `risoEffektiveAder()` (siehe oben) und aus demselben Grund akzeptiert:
+ein aufgetrennter PE-Leiter ist im Prüfungsalltag kein realistisches
+Szenario, und PE ist ohnehin noch nicht im Verbindungsgraphen modelliert
+(siehe "Nächste Schritte" - PE-Teilgraph). Der N-Pfad wird aus demselben
+Grund wie PE weggelassen, obwohl N technisch bereits ein eigener
+Funktions-Teilgraph ist (anders als PE) - eine reale Unterbrechung/einen
+Fehlerwiderstand auf dem N-Leiter zwischen Sonde und Einspeisung würde ZS
+aktuell also **nicht** erkennen (ein Fehlertabellen-Eintrag auf einem
+N-seitigen Netz hätte hier keine Wirkung auf den angezeigten Z-Wert). `Z =
+Fehlertabelle(L-Pfad) + Vorimpedanz` (derselbe feste Wert wie bei ZI,
+0,14Ω). TEST-Taste
 funktioniert für die normale Zs-Ansicht UND die ZSrcd-Ansicht gleichermaßen
 (anders als ZIs ΔU-Ansicht, deren Hauptmesswert-Bereich statisch bleibt -
 siehe "Bedienung").
@@ -814,9 +830,10 @@ User-Vorgabe. Spätere Erweiterung möglich.
 **Status: umgesetzt** (Zeichnung, Popup UND Messspitzen-Mechanismus).
 Viertes View-Objekt, **oberhalb** des Schaltkastens platziert
 (`#steckdosen`, `view/steckdosen.js`) - zeigt Steckdosen, Anschlussdosen
-(3 Steckklemmen, für Lichtauslass-Endstellen) und Drehstromsteckdosen
-(5-poliger CEE-Kontakt, für dreiphasige Festanschlüsse) der Anlage in einem
-Raster, wie in `bauteile.md` festgelegt.
+(3 Steckklemmen, für Lichtauslass-Endstellen), Drehstromsteckdosen
+(5-poliger CEE-Kontakt, für dreiphasige Festanschlüsse) und 5-polige
+Anschlussdosen (feste Verdrahtung statt Stecker, z.B. für einen
+Herdanschluss) der Anlage in einem Raster, wie in `bauteile.md` festgelegt.
 
 **Platzierungstabelle:** neue Sektion `## Steckdosen (Platzierung)` in
 `bauteile.md`, direkt unter der Stromkreise-Tabelle - ein Raster, bei dem
@@ -836,15 +853,17 @@ Tabelle nachgeschlagen (`stromkreis.endstelle`, `"Steckdose"` oder
 eigenes Bauteil im Verbindungsgraphen, reine Layout-Information fürs View.
 
 **Zeichnung:** Vorlagen `docs/referenz/steckdose_vorlage.svg`,
-`docs/referenz/anschlussdose_vorlage.svg` und
-`docs/referenz/drehstromsteckdose_vorlage.svg` (mit Playwright exakt
+`docs/referenz/anschlussdose_vorlage.svg`,
+`docs/referenz/drehstromsteckdose_vorlage.svg` und
+`docs/referenz/herdanschlussdose_vorlage.svg` (mit Playwright exakt
 vermessen bzw. direkt aus der Vorlage abgeleitet, alle Maße in mm), im
 selben Maßstab wie der Schaltkasten (1mm = 2px, siehe "Maßstab") direkt mit
-`svgEl()`-Grundformen nachgebaut (kein eingebettetes Bild). Alle drei
-Vorlagen haben ihre grauen (und bei Anschlussdose/Drehstromsteckdose auch
-farbigen bzw. dunkelroten) Kontaktkreise bewusst auf denselben realen Radius
-wie die Reihenklemmen-Schraube skaliert (r=2mm). Rotation (`@<Winkel>`) wird
-als SVG-`rotate()` um das Gerätezentrum umgesetzt.
+`svgEl()`-Grundformen nachgebaut (kein eingebettetes Bild). Alle vier
+Vorlagen haben ihre grauen (und bei Anschlussdose/Drehstromsteckdose/
+5-poliger Anschlussdose auch farbigen bzw. dunkelroten) Kontaktkreise
+bewusst auf denselben realen Radius wie die Reihenklemmen-Schraube skaliert
+(r=2mm). Rotation (`@<Winkel>`) wird als SVG-`rotate()` um das
+Gerätezentrum umgesetzt.
 
 **Drehstromsteckdose (Status: umgesetzt, siehe `testcase_05`):**
 5-poliger CEE-Kontakt für dreiphasige Festanschlüsse - drei konzentrische
@@ -862,6 +881,38 @@ mitskaliert). In `bauteile.md` wird der Typ über `stromkreis.endstelle ===
 "Drehstromsteckdose"` ausgewählt (analog zu `"Steckdose"`), alle anderen
 Werte (inkl. `"Festanschluss"`) fallen weiterhin auf die Anschlussdose
 zurück.
+
+**5-polige Anschlussdose (Status: umgesetzt, siehe `testcase_06`):** feste
+Verdrahtung statt Stecker (z.B. für einen Herdanschluss) - quadratisches
+Gehäuse (89mm Kantenlänge, leicht abgerundete Ecken) mit 5 Wago-Klemmen
+(`HERD_KLEMMEN` in `view/steckdosen.js`) in zwei Reihen wie in der
+Vorlage: oben N/PE/L1, unten L3/L2 (keine kreisförmige 72°-Anordnung wie bei
+der Drehstromsteckdose - hier keine Steckverbindung mit Führungsnase nötig).
+Jede Klemme besteht wie schon bei der 3-Klemmen-Anschlussdose aus grauem
+Kontaktkreis (klickbar, r=2mm) + farbigem Kennzeichnungskreis (nicht
+klickbar, rein dekorativ) + zwei orangenen Klemmdeckeln. Die
+Kennzeichnungsfarben stammen 1:1 aus der User-Vorlage und weichen bewusst
+von der sonst im Projekt üblichen Aderfarben-Konvention ab (dort L1=schwarz/
+L2=braun/L3=grau, hier laut User-Vorgabe L1=braun(`#806600`)/L2=schwarz/
+L3=hellgrau(`#b3b3b3`), N=blau, PE=grün) - reine, unabhängige
+Bauteil-Kennzeichnung, keine Aderfarbe. Die Vorlage
+(`docs/referenz/herdanschlussdose_vorlage.svg`) wurde vom User bereitgestellt
+(`herdanschlussdose.svg`, eine reale Herdanschlussdose) und iterativ bereinigt:
+alle 5 Klemmen-Blöcke hatten in der Referenz bereits identische
+Innen-Geometrie (Kappen/Kreise relativ zum Block-Mittelpunkt), nur die
+Block-Mittelpunkte selbst waren nicht sauber pro Reihe ausgerichtet - jetzt
+liegen alle Blöcke einer Reihe exakt auf derselben Höhe (verifiziert per
+gerenderten Pixel-Koordinaten, nicht nur SVG-Attributen). Das 89mm-Gehäuse
+passt ohne Skalierung in die 95mm-Raster-Zelle (bei den unterstützten
+Rotationswinkeln 0/90/180/270 bleibt die quadratische Grundfläche
+unverändert - anders als z.B. bei 45°, das aber ohnehin kein gültiger
+Wert ist). Ausgewählt über `stromkreis.endstelle === '5-polige
+Anschlussdose'` (dritter spezifischer Zweig neben `'Steckdose'` und
+`'Drehstromsteckdose'`, alle anderen Werte fallen weiterhin auf die
+3-Klemmen-Anschlussdose zurück). `testcase_06` (3-poliger LS ohne RCD)
+nutzte anfangs `Festanschluss` als Platzhalter-Endstelle, wurde nach
+Fertigstellung der Vorlage umgestellt - Messwerte über die neuen Kontakte
+stimmen exakt mit den direkt am Schaltkasten gemessenen überein.
 
 **Kontaktpunkte sind klickbar** (graue Kreise/Vierecke - der farbige
 Kennzeichnungskreis an der Anschlussdose NICHT), genau wie eine
@@ -911,7 +962,7 @@ der vollen Body-Breite zentrieren statt innerhalb der (schmaleren)
 Schaltkasten-Breite. `#steckdosen` bleibt im normalen Fluss linksbündig,
 genau wie `#schaltkasten` selbst.
 
-**Getestet in `tests/visuell/test_steckdosen.js`** (24 Tests): Container
+**Getestet in `tests/visuell/test_steckdosen.js`** (26 Tests): Container
 bleibt ohne Platzierungstabelle unsichtbar; linke Kante steht (bei
 absichtlich breiterem Viewport als die Schaltkasten-Breite) bündig unter der
 Schaltkasten-Kante statt zentriert zu sein; Breite entspricht exakt der
@@ -958,7 +1009,13 @@ Kontaktringe + 1 dekorativer Mittelpunkt); ein Klick auf jeden der 5
 Kontakte in DOM-Reihenfolge zeigt im Popup nacheinander die erwartete
 Aderfarbe (PE=gn-ge, L1=schwarz, L2=braun, L3=grau, N=blau) - belegt sowohl
 die Zeichenreihenfolge (PE unten, im Uhrzeigersinn L1/L2/L3/N) als auch die
-korrekte Ader-Zuordnung.
+korrekte Ader-Zuordnung; testcase_06 - die 5-polige Anschlussdose zeichnet
+genau 5 klickbare graue Kontakte und 5 farbige Kennzeichnungskreise in der
+erwarteten Reihenfolge/Farbe (N/PE/L1/L3/L2); ein Klick auf jeden der 5
+Kontakte in DOM-Reihenfolge zeigt im Popup die erwartete Aderfarbe (N=blau,
+PE=gn-ge, L1=schwarz, L3=grau, L2=braun) - belegt sowohl die
+Zeichenreihenfolge (zwei Reihen wie in der Vorlage) als auch die korrekte
+Ader-Zuordnung.
 
 ---
 
@@ -1173,11 +1230,13 @@ LS" unten) mit einem Eintrag pro Phase (`phasen`/`l` haben dann immer
 dieselbe Länge). `n`/`pe` bleiben immer Singular-Werte, da Neutralleiter und
 PE unabhängig von der Phasenzahl nur je einmal vorhanden sind.
 
-**Endstellen:** Steckdose, Drehstromsteckdose, Festanschluss, Lichtauslass –
-freier String, keine Validierung in `generate_anlage.js`. Nur `Steckdose`
-und `Drehstromsteckdose` haben eine eigene Zeichnung im Steckdosen-View
+**Endstellen:** Steckdose, Drehstromsteckdose, 5-polige Anschlussdose,
+Festanschluss, Lichtauslass – freier String, keine Validierung in
+`generate_anlage.js`. Nur `Steckdose`, `Drehstromsteckdose` und `5-polige
+Anschlussdose` haben eine eigene Zeichnung im Steckdosen-View
 (`SteckdosenView.render()`); alle anderen Werte (inkl. `Festanschluss`)
-fallen auf die Anschlussdose zurück (siehe "Steckdosen (View-Objekt)").
+fallen auf die 3-Klemmen-Anschlussdose zurück (siehe "Steckdosen
+(View-Objekt)").
 
 **Leitung:**
 ```json
@@ -1521,12 +1580,140 @@ einzige Unterschied war die neue Array-Form von `reihenklemmen_eingang.l`
 (vorher ein einzelnes Objekt, jetzt ein 1-elementiges Array), keine
 Verhaltensänderung (bestätigt per Diff und per vollem Testlauf).
 
+**3-poliger LS ohne RCD (`testcase_06`, Status: umgesetzt):** ein 3-poliger
+LS muss nicht zwingend hinter einem RCD sitzen – manchmal hängt er direkt
+hinter der Hauptsicherung. Dabei kam ein Bug in `generate_anlage.js` zutage:
+die Gruppen-Konstruktion suchte `rcd = mitglieder.find(b =>
+b.name.startsWith('RCD'))`, fand aber bei einer Gruppe ohne RCD-Bauteil
+`undefined` – der anschließende, ungeprüfte Zugriff auf `rcd.name`/`rcd.typ`
+warf einen TypeError. `view/schaltkasten.js` hatte diesen Fall dagegen
+bereits vorgesehen (`if (gruppe.rcd) {...}`, überspringt die RCD-Box), nur
+der Generator-Pfad fehlte – er wurde vorher nie durchlaufen, da alle
+bisherigen Testcases in jeder Gruppe ein RCD hatten. Fix: der `rcd`-Block
+wird jetzt nur gebaut, wenn ein RCD-Mitglied existiert (`rcd: rcd ? {...} :
+null`), und die Hutschienen-Zuordnung (`_tabelle`) wird über alle
+Gruppen-Mitglieder statt nur über das RCD ermittelt (funktioniert dadurch
+unabhängig davon, ob ein RCD existiert). `testcase_06` ist strukturell
+identisch zu `testcase_05` (derselbe 3-polige Hauptschalter, derselbe
+3-polige LS1 für einen dreiphasigen Stromkreis), aber LS1 hängt direkt an
+den Hauptschalter-Ausgängen statt an einem RCD-Ausgang – die
+Fehlertabellen-Werte sitzen dadurch nur noch auf einer Stufe (LS1-Ausgang)
+statt zwei. Endstelle ist eine `5-polige Anschlussdose` (siehe "Steckdosen
+(View-Objekt)" oben) mit eigener Steckdosen-Platzierungstabelle - anfangs
+war hier bewusst `Festanschluss` ohne Platzierungstabelle gewählt worden
+(Vorlage existierte noch nicht), nach deren Fertigstellung wurde auf
+`5-polige Anschlussdose` umgestellt, analog zu `testcase_05`s Vorgehen bei
+der Drehstromsteckdose.
+
+Zusätzlich trägt `testcase_06` (auf Wunsch, um einen ZI-Testcase zu
+erweitern - diesen Fall gab es vorher in keinem Testcase) einen
+Fehlertabellen-Eintrag auf der N-Reihenklemme (`Reihenklemme_N_SK1.o1` →
+`Endstelle_SK1.i4`, Netz N26, 0,17Ω). Da ZI (anders als ZS, siehe "ZS"
+unten) den N-Pfad explizit mitsummiert, liefert ZI mit Schwarz auf L1 + Blau
+auf N `Z:0,51Ω` (Fehlertabelle N20=0,20Ω + N26=0,17Ω + Vorimpedanz 0,14Ω).
+
+**Zweite Gruppe G2 (RCD2, 2-polig, + LS2/LS3, je 1-polig) auf derselben
+Hutschiene wie G1:** ein normaler einphasiger Fall (analog `testcase_01`,
+1 RCD + 2 LS), zusätzlich in `testcase_06` ergänzt, um zu zeigen, dass eine
+Gruppe ohne RCD (G1) und eine Gruppe mit RCD (G2) problemlos auf derselben
+Hutschiene koexistieren. RCD2 ist 2-polig (L1+N) - ein bereits etabliertes,
+vielfach getestetes Bauteil (kein neuer Code-Pfad nötig, anders als die
+eingangs erwogene, nie umgesetzte 3-polige-RCD-Idee). RCD2 zapft denselben
+Hauptschalter-Ausgang (N9, L1) und dieselbe ungeschaltete N-Ader (N12) an
+wie LS1 - zwei Bauteile am selben Ausgangspin, analog testcase_01 (dort
+speist RCD1.o1 sowohl LS1 als auch LS2 über zwei separate Ausgangsadern).
+RCD2.o1 verzweigt ebenso zu LS2 UND LS3 (unterschiedliche Nennströme,
+16A/10A), RCD2.o2 (N) versorgt beide Stromkreise gemeinsam über dieselbe
+Ader. LS2/LS3 speisen SK2 (Steckdose) bzw. SK3 (Lichtauslass) - je eine
+eigene L-/N-/PE-Reihenklemme auf derselben obersten Hutschiene wie SK1s
+Reihenklemmen, PE über den lokalen Hutschienen-Bond statt einer eigenen
+Zubringerader (analog testcase_01). Verifiziert: FI/RCD auf SK2/SK3 findet
+korrekt RCD2 (Auslösewerte aus `bauteile.md` übernommen, siehe unten), ZS
+lieferte anfangs `Z:0,14Ω` (reine Vorimpedanz, noch keine
+Fehlertabellen-Einträge auf den neuen Netzen).
+
+**Nachträglich ergänzt:** zwei weitere Fehlertabellen-Einträge auf Gruppe
+G2 - N-Leiter zur Steckdose SK2 (`Reihenklemme_N_SK2.o1` →
+`Endstelle_SK2.i2`, Netz N46, 0,13Ω) und L-Leiter zur 3-poligen
+Anschlussdose SK3 (`Reihenklemme_L_SK3.o1` → `Endstelle_SK3.i1`, Netz N48,
+0,19Ω - "3-polig" zur Unterscheidung von SK1s 5-poliger Anschlussdose).
+Sowie RCD2s Auslösewerte auf User-Wunsch geändert: `tA` 22→21ms, `iA`
+18→24mA, `uB` 1→0,9V (reiner `bauteile.md`-Datenwert, kein Code-Fix).
+Verifiziert per FI/RCD über die Steckdosen-Kontakte selbst (Schwarz auf
+L links, Blau auf N rechts, Grün auf PE - siehe `zeichneSteckdose()`):
+`I:24,0mA`/`Uci:0,9V`/`t:21,0ms`. Dieselben Kontakte diesmal auf ZI:
+`Z:0,27Ω` = N-Fehlertabelle (N46=0,13Ω, L-Pfad ohne eigenen Eintrag) +
+Vorimpedanz (0,14Ω), `Isc:766,7A`. Und nochmal dieselben Kontakte auf ZS
+(ignoriert anders als ZI den N-Pfad, siehe "ZS" oben): reine Vorimpedanz,
+`Z:0,14Ω`/`Isc:1478,6A`, Ampel grün. Und ein letztes Mal auf V~ - diesmal
+mit ECHTEN Rollen (nicht wie beim 400V-Test unten drei verschiedene
+Außenleiter): `Uln:230V`/`Ulpe:230V`/`Unpe:0V` (N und PE liegen im gesunden
+Stromkreis auf demselben Potential). Öffnet man LS2 (den ersten LS nach
+RCD2, versorgt SK2/die Steckdose selbst), fallen alle drei auf 0V.
+
+**Geräteübergreifende V~-Messung:** Blau/Grün bleiben auf der Steckdose SK2
+(N/PE), Schwarz wandert auf den schwarzen Kontakt (= L) der 3-poligen
+Anschlussdose SK3 - zeigt, dass V~ auch über zwei verschiedene Geräte
+hinweg funktioniert, solange die Funktionen stimmen (beide Stromkreise
+teilen sich denselben N-Pfad über RCD2.o2). Ergebnis identisch:
+`Uln:230V`/`Ulpe:230V`/`Unpe:0V`. Öffnet man LS3 (den zweiten LS nach RCD2,
+versorgt SK3), fallen wieder alle drei auf 0V. Dieselbe geräteübergreifende
+Sondenplatzierung auf FI/RCD: findet ebenfalls RCD2, übernimmt
+`I:24,0mA`/`Uci:0,9V`/`t:21,0ms` und öffnet nach erfolgreichem TEST
+automatisch dessen Hebel (siehe "Programmatisches Umschalten" oben) - die
+Spannung fällt dadurch auf 0V, Werte und grüne Ampel bleiben stehen. Noch
+einen Schritt weiter: DREI verschiedene Geräte gleichzeitig (Schwarz auf
+SK3s schwarzem L-Kontakt, Blau auf SK1s blauem N-Kontakt - der 5-poligen
+Anschlussdose selbst -, Grün auf SK2s PE) - findet trotzdem RCD2 (die
+Suche läuft nur über den Pfad der schwarzen Sonde, Blau/Grün müssen nur
+korrekt platziert sein) und öffnet sichtbar dessen Hebel (`transform`
+vorher `null`, danach `rotate(180, ...)`).
+
 **Getestet in:** `test_generator.js` (Graph-Kanten des 3-poligen LS,
 Fehlertabellen-Summe pro Phase im Vergleich zu testcase_04, `anlage.json`-
-Form von testcase_05, Rückwärtskompatibilität von testcase_01-04) und
+Form von testcase_05, Rückwärtskompatibilität von testcase_01-04,
+`testcase_06`s `gruppe.rcd === null` ohne Absturz, LS1 direkt am
+Hauptschalter ohne RCD-Kante, Fehlertabellen-Summe ohne RCD-Anteil, Gruppe
+G2s RCD2 verzweigt korrekt vom selben Hauptschalter-Ausgang wie LS1, mit
+zwei Ausgangskanten zu LS2/LS3) und
 `test_messgeraet.js` (ZS-Messwerte für L1/L2/L3 gegen testcase_04 verglichen,
-sowie dass der 3-polige LS als **eine** 78px breite Schalter-Box gerendert
-wird, nicht drei einzelne).
+dass der 3-polige LS als **eine** 78px breite Schalter-Box gerendert wird,
+nicht drei einzelne, `testcase_06`s ZS-Werte L1/L2/L3 ohne RCD-Anteil, dass
+FI/RCD dort keinen RCD findet - TEST bleibt wirkungslos, Ampel rot -, und
+dass Gruppe G1 keine eigene RCD-Box hat, während Gruppe G2 daneben genau
+5 Schalter-Boxen zeigt: LS1 (78px) + RCD2/LS2/LS3 (je 24px) in Reihe 2, plus
+der unveränderte Hauptschalter in der letzten Reihe; zusätzlich, dass die
+Steckdose SK2 tatsächlich RCD2 findet und dessen aktuelle Auslösewerte
+übernimmt - Schwarz auf L links, Blau auf N rechts, Grün auf PE, siehe
+`zeichneSteckdose()` -, sowie ZI über dieselben Steckdose-Kontakte, das den
+N-Fehlertabellen-Eintrag korrekt mitsummiert, ZS über dieselben Kontakte,
+das ihn bewusst ignoriert und nur die Vorimpedanz zeigt, V~ über dieselben
+Kontakte mit echten Rollen (Uln/Ulpe=230V, Unpe=0V), das nach Öffnen von
+LS2 komplett auf 0V zurückfällt, V~ geräteübergreifend - Schwarz auf
+dem schwarzen (L-)Kontakt der 3-poligen Anschlussdose SK3, Blau/Grün
+weiterhin auf der Steckdose SK2 -, das dieselben Werte liefert und nach
+Öffnen von LS3 ebenfalls komplett auf 0V zurückfällt, dieselbe
+geräteübergreifende Sondenplatzierung auf FI/RCD, das RCD2 findet und nach
+erfolgreichem TEST automatisch dessen Hebel öffnet, und schließlich DREI
+verschiedene Geräte gleichzeitig (Schwarz auf SK3, Blau auf SK1, Grün auf
+SK2), das ebenfalls RCD2 findet und dessen Hebel-Transform sichtbar von
+`null` auf `rotate(180,...)` wechselt). Zusätzlich sechs vom User
+Schritt für Schritt vorgegebene Testcases, alle über die Kontakte der
+5-poligen Anschlussdose gemessen (nicht direkt am Schaltkasten) - verifiziert
+also nebenbei, dass die Anschlussdose exakt an dieselben Netz-IDs
+angeschlossen ist wie die entsprechenden Schaltkasten-Schrauben: RLOW
+zwischen N-Kontakt der Anschlussdose und der N-Klemme unten summiert den
+Fehlertabellen-Eintrag auf der Reihenklemme (`R:0,17Ω`); RLOW zwischen
+L1-Kontakt und Hauptschalter-Eingang summiert nur LS1s Fehlertabellen-Eintrag
+(`R:0,20Ω`), Platzhalter sobald Hauptschalter ODER der 3-polige LS1 offen
+ist; RISO bei offenem Hauptschalter (Schwarz auf braun=L1, Blau auf blau=N,
+Grün auf grün=PE) zeigt `R:>999MΩ`, Ampel grün (kein artifizieller
+Isolationsfehler modelliert); ZI (Schwarz auf grau=L3, Blau auf blau=N)
+summiert L- UND N-Fehlertabelle zu `Z:0,46Ω` - trifft genau den eigens für
+diesen Zweck angelegten N-Reihenklemmen-Fehlerwiderstand; ZS (Schwarz auf
+schwarz=L2) liefert `Z:0,42Ω`, identisch zum direkt am Schaltkasten
+gemessenen Wert; V~ mit drei Sonden auf drei unterschiedlichen Außenleitern
+(braun=L1, grau=L3, schwarz=L2) zeigt überall 400V.
 
 ### Schrauben lösen
 
@@ -1560,8 +1747,8 @@ Design widerstandslos/ideal) – `berechneWiderstand(graph, pfad)` summiert
 schlicht die Fehlertabellen-Einträge aller Netz-IDs, die `findePfad()` im
 Pfad-Array zurückgibt.
 
-Alle 4 Testcases tragen inzwischen je 3 Beispiel-Netze mit Widerstand (auf
-einem bekannten L1-Pfad, siehe die jeweilige `netzplan.md`) – bewusst nicht
+Alle Testcases tragen inzwischen mehrere Beispiel-Netze mit Widerstand (auf
+bekannten Pfaden, siehe die jeweilige `netzplan.md`) – bewusst nicht
 alle Leitungen, der User füllt die Tabelle nach Bedarf selbst weiter auf.
 
 ### RLOW-Berechnung (erster Anwendungsfall)
@@ -1635,13 +1822,14 @@ tests/visuell/
   testcase_02/   ← 2 RCDs auf einer Hutschiene
   testcase_03/   ← 3 RCDs auf 2 Hutschienen (Gruppe 1 allein, Gruppe 2+3 zusammen)
   testcase_04/   ← 3-poliger Hauptschalter (L1+L2+L3, kein N), 4-poliger RCD auf allen 3 Phasen
+  testcase_05/   ← 3-poliger LS (EINE Komponente statt drei einpoliger) hinter 4-poligem RCD, Drehstromsteckdose als Endstelle
+  testcase_06/   ← Gruppe G1: 3-poliger LS OHNE RCD, 5-polige Anschlussdose; Gruppe G2: 2-poliger RCD + 2x 1-poliger LS (beide auf derselben Hutschiene)
   ...
 ```
 
 **Geplant für später (noch nicht umgesetzt):**
 - Gruppe mit AFDD
 - RCD Typ B
-- Gruppe ohne RCD
 
 ---
 
@@ -1686,7 +1874,7 @@ Offen:
 3. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
    "Schrauben lösen" oben).
 4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
-   Typ B, Gruppe ohne RCD).
+   Typ B).
 5. **Prüfprotokoll: Verknüpfung mit echten Messwerten** - aktuell rein
    ein-/ankreuzbar, ohne Bezug zu den im Messgerät tatsächlich ermittelten
    Werten (siehe "Prüfprotokoll (View-Objekt)" oben). Spätere Ausbaustufe:

@@ -188,6 +188,7 @@ const TESTCASE_02 = path.join(__dirname, 'testcase_02');
 const TESTCASE_03 = path.join(__dirname, 'testcase_03');
 const TESTCASE_04 = path.join(__dirname, 'testcase_04');
 const TESTCASE_05 = path.join(__dirname, 'testcase_05');
+const TESTCASE_06 = path.join(__dirname, 'testcase_06');
 
 pruefe('Graph: L1-Pfad Einspeisung -> Endstelle SK1 folgt der erwarteten Kette', () => {
   const graph = generiereGraph(TESTCASE_01);
@@ -394,6 +395,58 @@ pruefe('anlage.json: testcase_01/02/03/04 - reihenklemmen_eingang.l ist weiterhi
           }
         }
       }
+    }
+  }
+});
+
+// --- 3-poliger LS OHNE RCD (testcase_06) - eine Gruppe kann komplett ohne
+// RCD-Mitglied sein (z.B. LS direkt hinter der Hauptsicherung). Regressionstest
+// für einen Bug, bei dem `generate_anlage.js` ungeprüft auf `rcd.name` (etc.)
+// zugriff, obwohl `rcd` bei einer Gruppe ohne RCD-Bauteil `undefined` ist -
+// warf vorher einen TypeError. ---
+
+pruefe('anlage.json: testcase_06 - Gruppe ohne RCD-Mitglied wird als gruppe.rcd = null generiert (kein Absturz)', () => {
+  const anlage = generiereAnlage(TESTCASE_06);
+  const gruppe = anlage.hutschienen[0].gruppen[0];
+  if (gruppe.rcd !== null) throw new Error(`erwarte gruppe.rcd === null, gefunden: ${JSON.stringify(gruppe.rcd)}`);
+  const sk = gruppe.stromkreise[0];
+  gleich(sk.phasen, ['L1', 'L2', 'L3'], 'SK1 phasen');
+  gleich(sk.ls.polig, 3, 'LS1 polig');
+});
+
+pruefe('Graph: testcase_06 - LS1 hängt direkt am Hauptschalter, keine RCD-Kante dazwischen (Gruppe G1)', () => {
+  const graph = generiereGraph(TESTCASE_06);
+  const kanteHauptschalter = graph.L1.kanten.find((k) => k.bauteil === 'Hauptschalter');
+  const kanteLs1 = graph.L1.kanten.find((k) => k.bauteil === 'LS1');
+  gleich(kanteHauptschalter.nach, kanteLs1.von, 'Hauptschalter-Ausgang == LS1-Eingang (direkt verbunden, keine Zwischenstufe)');
+});
+
+// Gruppe G2 (RCD2 2-polig + LS2/LS3) sitzt auf derselben Hutschiene wie G1,
+// zapft aber denselben Hauptschalter-Ausgang (N9) an wie LS1 - RCD2 muss
+// trotzdem als eigene, korrekte Kante existieren.
+pruefe('Graph: testcase_06 - Gruppe G2 (RCD2 2-polig + LS2/LS3) verzweigt korrekt vom selben Hauptschalter-Ausgang wie LS1', () => {
+  const graph = generiereGraph(TESTCASE_06);
+  const kanteHauptschalter = graph.L1.kanten.find((k) => k.bauteil === 'Hauptschalter');
+  const kanteRcd2Ls2 = graph.L1.kanten.find((k) => k.bauteil === 'RCD2' && k.von === kanteHauptschalter.nach);
+  const kanteLs2 = graph.L1.kanten.find((k) => k.bauteil === 'LS2');
+  const kanteLs3 = graph.L1.kanten.find((k) => k.bauteil === 'LS3');
+  if (!kanteRcd2Ls2) throw new Error('erwarte eine RCD2-Kante ab demselben Netz wie der Hauptschalter-Ausgang');
+  gleich(graph.L1.kanten.filter((k) => k.bauteil === 'RCD2').length, 2, 'RCD2 hat zwei Ausgangskanten (zu LS2 und LS3)');
+  if (!kanteLs2 || !kanteLs3) throw new Error('erwarte je eine Kante für LS2 und LS3');
+});
+
+pruefe('Graph: testcase_06 - Fehlertabellen-Summe pro Phase über LS1 (ohne RCD-Anteil)', () => {
+  const graph = generiereGraph(TESTCASE_06);
+  const faelle = [
+    ['L1', 'N9', 'N23', 0.20],
+    ['L2', 'N10', 'N24', 0.28],
+    ['L3', 'N11', 'N25', 0.15]
+  ];
+  for (const [funktion, von, nach, erwartet] of faelle) {
+    const pfad = findePfad(graph, funktion, von, nach);
+    const widerstand = berechneWiderstand(graph, pfad);
+    if (Math.abs(widerstand - erwartet) > 1e-9) {
+      throw new Error(`${funktion} ${von}->${nach}: erwarte ${erwartet}Ω, bekommen: ${widerstand}`);
     }
   }
 });

@@ -659,6 +659,53 @@ async function main() {
     await page.close();
   });
 
+  // testcase_06: N-Kontakt der 5-poligen Anschlussdose (blau, Netz N26) bis
+  // zur N-Klemme unten (Ausgang-Schraube, Netz N12) - dazwischen liegt nur
+  // die Reihenklemme_N_SK1 mit dem Fehlertabellen-Eintrag N26=0,17Ω (siehe
+  // KONZEPT.md "3-poliger LS ohne RCD"). N12 kommt zweimal im DOM vor (auch
+  // als Eingang-Schraube der Reihenklemme_N_SK1 oben) - nth(1) ist die
+  // N-Klemme selbst (unterste Zeile im Schaltkasten).
+  await pruefe('RLOW: testcase_06 - N-Kontakt der 5-poligen Anschlussdose bis zur N-Klemme unten summiert den Fehlertabellen-Eintrag auf der Reihenklemme (0,17Ω)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await page.locator('#steckdosen circle[fill="#666666"]').nth(0).click(); // schwarz, N-Kontakt der Anschlussdose
+    await page.locator('#schaltkasten svg circle[data-netz="N12"]').nth(1).click(); // blau, N-Klemme unten
+    erwarte([await rlowHauptwert(page)], 'R:0,17Ω', 'Fehlertabelle N26 (0,17Ω) auf der Reihenklemme_N_SK1');
+    await page.close();
+  });
+
+  // testcase_06: L1-Kontakt der 5-poligen Anschlussdose (oben, schwarz) bis
+  // zum Hauptschalter-Eingang L1 (unten, blau) - dazwischen liegen
+  // Hauptschalter, LS1 (3-polig) und Reihenklemme_L1_SK1, aber nur LS1s
+  // Ausgang (N20) trägt einen Fehlertabellen-Eintrag (0,20Ω). Öffnet man
+  // Hauptschalter ODER den 3-poligen LS1 einzeln, ist der Pfad unterbrochen
+  // und der Platzhalter bleibt - drei Zustände in einem Testablauf, analog
+  // zum bestehenden Muster (siehe RLOW: testcase_01 oben).
+  await pruefe('RLOW: testcase_06 - L1-Kontakt der Anschlussdose bis Hauptschalter-Eingang summiert nur LS1s Fehlertabellen-Eintrag (0,20Ω), Platzhalter sobald Hauptschalter ODER der 3-polige LS1 offen ist', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await page.locator('#steckdosen circle[fill="#666666"]').nth(2).click(); // schwarz, L1-Kontakt der Anschlussdose
+    // N6 kommt zweimal vor (auch als Ausgang der L1-Klemme) - nth(0) ist der
+    // Hauptschalter selbst (zuerst gezeichnet, weiter links).
+    await page.locator('#schaltkasten svg circle[data-netz="N6"]').nth(0).click(); // blau, Hauptschalter-Eingang L1
+
+    erwarte([await rlowHauptwert(page)], 'R:0,20Ω', 'Fehlertabelle N20 (0,20Ω) auf dem LS1-Ausgang, beide Schalter zu');
+
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y') }))
+    );
+    const ls1Box = boxen.find((b) => b.y === '322');
+    const hauptschalterBox = boxen.find((b) => b.y === '572');
+    const ls1 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${ls1Box.x}"][y="${ls1Box.y}"]`) });
+    const hauptschalter = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${hauptschalterBox.x}"][y="${hauptschalterBox.y}"]`) });
+
+    await hauptschalter.click(); // Hauptschalter öffnen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'Platzhalter, sobald der Hauptschalter offen ist');
+
+    await hauptschalter.click(); // Hauptschalter wieder schließen
+    await ls1.click(); // 3-poliger LS1 öffnen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'Platzhalter, sobald der 3-polige LS1 offen ist (Hauptschalter wieder zu)');
+    await page.close();
+  });
+
   // --- RISO: Spannungsprüfung (live) + Isolationswiderstand (TEST-Taste) ---
   // Anders als RLOW misst RISO nicht kontinuierlich, sondern erst nach TEST -
   // UND zeigt vorher/statt eines Widerstands die anliegende Spannung zwischen
@@ -725,6 +772,33 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:>999MΩ', 'RISO zeigt >999MΩ (kein Pfad zwischen L1 und N)');
+    await page.close();
+  });
+
+  // testcase_06: Hauptschalter offen (Schalterzustand lebt unabhängig vom
+  // Messgerät, kann also vorher gesetzt werden) - Sonden an der 5-poligen
+  // Anschlussdose. Farbzyklus: 1. Klick=schwarz, 2.=blau, 3.=grün - Klick-
+  // Reihenfolge L1, N, PE ergibt Schwarz auf braun(L1), Blau auf blau(N),
+  // Grün auf grün(PE), wie vom User beschrieben.
+  await pruefe('RISO: testcase_06 - Hauptschalter offen, Sonden an der 5-poligen Anschlussdose (Schwarz auf braun=L1, Blau auf blau=N, Grün auf grün=PE) -> TEST zeigt R:>999MΩ, Ampel grün', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y') }))
+    );
+    const hauptschalterBox = boxen.find((b) => b.y === '572');
+    const hauptschalter = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${hauptschalterBox.x}"][y="${hauptschalterBox.y}"]`) });
+    await hauptschalter.click();
+
+    await drehknopfKlick(page);
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(2).click(); // L1 (braun) -> schwarz
+    await kreise.nth(0).click(); // N (blau) -> blau
+    await kreise.nth(1).click(); // PE (grün) -> grün
+    erwarte(await displayTexte(page), '0V', 'kein Pfad zur Einspeisung, solange der Hauptschalter offen ist');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'kein artifizieller Isolationsfehler modelliert');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'hoher Widerstand -> Ampel grün rechts');
     await page.close();
   });
 
@@ -1137,6 +1211,55 @@ async function main() {
     await page.close();
   });
 
+  // testcase_06: über die 5-polige Anschlussdose gemessen (Schwarz auf
+  // grau=L3 unten links, Blau auf blau=N, Grün auf grün=PE). Anders als ZS
+  // summiert ZI explizit BEIDE Teilpfade (L UND N) - hier trifft das genau
+  // den N-Reihenklemmen-Fehlerwiderstand (N26=0,17Ω), der eigens für einen
+  // ZI-Testcase angelegt wurde (siehe KONZEPT.md "3-poliger LS ohne RCD"):
+  // Z = Fehlertabelle(L3-Pfad, N22=0,15Ω) + Fehlertabelle(N-Pfad, N26=0,17Ω)
+  // + Vorimpedanz (0,14Ω) = 0,46Ω.
+  await pruefe('ZI: testcase_06 - über die 5-polige Anschlussdose gemessen (Schwarz auf grau=L3, Blau auf blau=N) summiert L- UND N-Fehlertabelle: Z:0,46Ω', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(3).click(); // L3 (grau, unten links) -> schwarz
+    await kreise.nth(0).click(); // N (blau) -> blau
+    await kreise.nth(1).click(); // PE (grün) -> grün
+
+    erwarte(await displayTexte(page), '230V', 'beide Teilpfade zur Einspeisung geschlossen');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,46Ω', 'Fehlertabelle N22 (0,15Ω) + N26 (0,17Ω) + Vorimpedanz (0,14Ω)');
+    erwarte(await displayTexte(page), 'Isc:450,0A', 'Isc = 0,9*230V/0,46Ω');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (450,0A) > Lim (80,0A) -> Ampel grün');
+    await page.close();
+  });
+
+  // testcase_06 Gruppe G2: dieselben Steckdose-Kontakte wie beim FI/RCD-Test
+  // oben (Schwarz auf L links, Blau auf N rechts, Grün auf PE), diesmal auf
+  // ZI - summiert L-Pfad (kein Fehlertabellen-Eintrag) UND N-Pfad
+  // (Reihenklemme_N_SK2-Ausgang N46, 0,13Ω, siehe "3-poliger LS ohne RCD" ->
+  // "Zweite Gruppe G2").
+  await pruefe('ZI: testcase_06 - über die Steckdose SK2 gemessen (Schwarz auf L links, Blau auf N rechts) summiert den N-Fehlertabellen-Eintrag: Z:0,27Ω', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // Steckdose links (L) -> schwarz
+    await kreise.nth(6).click(); // Steckdose rechts (N) -> blau
+    await page.locator('#steckdosen rect[fill="#666666"]').first().click(); // Steckdose PE -> grün
+
+    erwarte(await displayTexte(page), '230V', 'beide Teilpfade zur Einspeisung geschlossen');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,27Ω', 'N-Fehlertabelle N46 (0,13Ω) + Vorimpedanz (0,14Ω), L-Pfad ohne Eintrag');
+    erwarte(await displayTexte(page), 'Isc:766,7A', 'Isc = 0,9*230V/0,27Ω');
+    await page.close();
+  });
+
   await pruefe('ZI: fehlende Verbindung zur Einspeisung (offenes RCD) -> TEST bleibt wirkungslos', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     await drehknopfKlick(page);
@@ -1462,6 +1585,264 @@ async function main() {
     if (boxen.length !== 3) throw new Error(`erwarte 3 Schalter-Boxen (RCD1, LS1, Hauptschalter), gefunden ${boxen.length}: ${JSON.stringify(boxen)}`);
     const ls1Box = boxen.find((b) => b.w === '78' && b.y === '322');
     if (!ls1Box) throw new Error(`erwarte eine 78px breite Schalter-Box für LS1 in Reihe 2, gefunden: ${JSON.stringify(boxen)}`);
+    await page.close();
+  });
+
+  // testcase_06: derselbe 3-polige LS1, aber OHNE vorgeschaltetes RCD
+  // (Gruppe besteht nur aus LS1) - Regressionstest für den Bug, bei dem
+  // `generate_anlage.js` bei einer RCD-losen Gruppe abstürzte (siehe
+  // KONZEPT.md "3-poliger LS" / ARCHITEKTUR.md). ZS muss trotzdem normal
+  // funktionieren (nur der RCD-Fehlertabellen-Anteil entfällt), und FI/RCD
+  // darf keinen RCD finden (kein RCD auf dem Pfad zur Einspeisung).
+  await pruefe('ZS: testcase_06 - 3-poliger LS1 OHNE RCD, Phase L1', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N23"]').click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N27"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,34Ω', 'Fehlertabelle N20 (0,20Ω) + Vorimpedanz');
+    erwarte(await displayTexte(page), 'Isc:608,8A', 'Isc = 0,9*230V/0,34Ω');
+    await page.close();
+  });
+
+  await pruefe('ZS: testcase_06 - derselbe 3-polige LS1 OHNE RCD, Phase L2', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').click(); // schwarz, L2
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N27"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,42Ω', 'Fehlertabelle N21 (0,28Ω) + Vorimpedanz');
+    erwarte(await displayTexte(page), 'Isc:492,9A', 'Isc = 0,9*230V/0,42Ω');
+    await page.close();
+  });
+
+  await pruefe('ZS: testcase_06 - derselbe 3-polige LS1 OHNE RCD, Phase L3', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').click(); // schwarz, L3
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N27"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,29Ω', 'Fehlertabelle N22 (0,15Ω) + Vorimpedanz');
+    erwarte(await displayTexte(page), 'Isc:713,8A', 'Isc = 0,9*230V/0,29Ω');
+    await page.close();
+  });
+
+  await pruefe('Schaltkasten: testcase_06 - Gruppe G1 (LS1, keine RCD-Box) UND Gruppe G2 (RCD2 2-polig + LS2/LS3) auf derselben Hutschiene, Hauptschalter unverändert', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({
+        x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width')
+      }))
+    );
+    // 5 Schalter-Boxen: LS1 (78px, Gruppe G1) + RCD2/LS2/LS3 (je 24px,
+    // Gruppe G2) in Reihe 2 (y=322), plus Hauptschalter (78px) in der
+    // letzten Reihe (y=572) - keine eigene RCD-Box für G1.
+    if (boxen.length !== 5) throw new Error(`erwarte genau 5 Schalter-Boxen, gefunden ${boxen.length}: ${JSON.stringify(boxen)}`);
+    const ls1Box = boxen.find((b) => b.w === '78' && b.y === '322');
+    if (!ls1Box) throw new Error(`erwarte eine 78px breite Schalter-Box für LS1 in Reihe 2, gefunden: ${JSON.stringify(boxen)}`);
+    const hauptschalterBox = boxen.find((b) => b.w === '78' && b.y === '572');
+    if (!hauptschalterBox) throw new Error(`erwarte eine 78px breite Schalter-Box für den Hauptschalter in der letzten Reihe, gefunden: ${JSON.stringify(boxen)}`);
+    const gruppe2Boxen = boxen.filter((b) => b.w === '24' && b.y === '322');
+    if (gruppe2Boxen.length !== 3) throw new Error(`erwarte 3 weitere 24px breite Boxen (RCD2, LS2, LS3) in Reihe 2, gefunden ${gruppe2Boxen.length}: ${JSON.stringify(boxen)}`);
+    await page.close();
+  });
+
+  await pruefe('FI/RCD: testcase_06 - kein RCD auf dem Pfad -> TEST bleibt wirkungslos, Ampel rot', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    for (let i = 0; i < 4; i++) await drehknopfKlick(page); // RLOW -> RISO -> ZI -> ZS -> FI/RCD
+
+    await page.locator('#schaltkasten svg circle[data-netz="N23"]').click(); // schwarz, L1
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').click(); // blau, N
+    await page.locator('#schaltkasten svg circle[data-netz="N27"]').click(); // grün, PE
+
+    await klick(page, 'TEST');
+    const texte = await displayTexte(page);
+    if (texte.some((t) => t.startsWith('I:') && t !== 'I:___mA')) {
+      throw new Error(`erwarte weiterhin Platzhalter I:___mA (kein RCD gefunden), gefunden: [${texte.join(', ')}]`);
+    }
+    erwarte(texte, 'I:___mA', 'kein RCD gefunden - Platzhalter bleibt');
+    const ampel = await ampelFarben(page);
+    if (ampel[0] !== '#ff6666') throw new Error(`erwarte rote Ampel links, gefunden: ${JSON.stringify(ampel)}`);
+    await page.close();
+  });
+
+  // testcase_06 Gruppe G2: SK2 (Steckdose) hängt hinter RCD2 - FI/RCD muss
+  // dort im Gegensatz zu SK1 (Gruppe G1, kein RCD) tatsächlich einen RCD
+  // finden. Steckdose-Kontakte: L links (dx=-8.9mm, schwarz), N rechts
+  // (dx=+8.9mm, blau), PE oben/unten (grün) - siehe zeichneSteckdose() in
+  // view/steckdosen.js. Werte (24,0mA/0,9V/21,0ms) aus bauteile.md RCD2.
+  await pruefe('FI/RCD: testcase_06 - Steckdose (SK2, Gruppe G2) findet RCD2, übernimmt dessen Auslösewerte', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    for (let i = 0; i < 4; i++) await drehknopfKlick(page); // RLOW -> RISO -> ZI -> ZS -> FI/RCD
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // Steckdose links (L) -> schwarz
+    await kreise.nth(6).click(); // Steckdose rechts (N) -> blau
+    await page.locator('#steckdosen rect[fill="#666666"]').first().click(); // Steckdose PE -> grün
+
+    erwarte(await displayTexte(page), '230V', 'Stromkreis bereit, RCD2 noch geschlossen');
+
+    await klick(page, 'TEST');
+    const texte = await displayTexte(page);
+    erwarte(texte, 'I:24,0mA', 'RCD2s Auslösestrom übernommen');
+    erwarte(texte, 'Uci:0,9V', 'RCD2s Berührungsspannung übernommen');
+    erwarte(texte, 't:21,0ms', 'RCD2s Abschaltzeit übernommen');
+    await page.close();
+  });
+
+  // testcase_06 Gruppe G2: dieselbe geräteübergreifende Sondenplatzierung
+  // wie beim V~-Test oben (Schwarz auf dem schwarzen L-Kontakt der
+  // 3-poligen Anschlussdose SK3, Blau/Grün auf der Steckdose SK2), diesmal
+  // auf FI/RCD - findet ebenfalls RCD2 und öffnet nach erfolgreichem TEST
+  // automatisch dessen Hebel (siehe fircdTestKlick() in controller/app.js) -
+  // die Spannung fällt dadurch auf 0V, die übernommenen Werte und die grüne
+  // Ampel bleiben trotzdem stehen (analog dem bereits bestehenden
+  // testcase_01-Test "erfolgreicher TEST öffnet automatisch den Hebel").
+  await pruefe('FI/RCD: testcase_06 - Schwarz auf der 3-poligen Anschlussdose SK3 (L), Blau/Grün auf der Steckdose SK2 (N/PE) findet RCD2 und öffnet dessen Hebel automatisch', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    for (let i = 0; i < 4; i++) await drehknopfKlick(page); // RLOW -> RISO -> ZI -> ZS -> FI/RCD
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(8).click(); // SK3 schwarzer Kontakt (L) -> schwarz
+    await kreise.nth(6).click(); // Steckdose rechts (N) -> blau
+    await page.locator('#steckdosen rect[fill="#666666"]').first().click(); // Steckdose PE -> grün
+
+    erwarte(await displayTexte(page), '230V', 'Stromkreis bereit, RCD2 noch geschlossen');
+
+    await klick(page, 'TEST');
+    const texte = await displayTexte(page);
+    erwarte(texte, 'I:24,0mA', 'RCD2s Auslösestrom übernommen');
+    erwarte(texte, 'Uci:0,9V', 'RCD2s Berührungsspannung übernommen');
+    erwarte(texte, 't:21,0ms', 'RCD2s Abschaltzeit übernommen');
+    erwarte(texte, '0V', 'RCD2 hat automatisch ausgelöst, Spannung fällt auf 0V');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    await page.close();
+  });
+
+  // testcase_06 Gruppe G2: DREI verschiedene Steckdosen-View-Geräte
+  // gleichzeitig - Schwarz auf dem schwarzen L-Kontakt der 3-poligen
+  // Anschlussdose SK3, Blau auf dem blauen N-Kontakt der 5-poligen
+  // Anschlussdose SK1 (!), Grün auf PE der Steckdose SK2. Findet trotzdem
+  // RCD2 (die RCD-Suche läuft nur über den Pfad der schwarzen L-Sonde,
+  // Blau/Grün müssen nur korrekt platziert sein, siehe risoTestKlick()-
+  // Kommentar zu Schwarz/Blau/Grün-Rollen) und öffnet dessen Hebel sichtbar
+  // (kein transform vorher, `rotate(180, ...)` danach).
+  await pruefe('FI/RCD: testcase_06 - drei verschiedene Geräte gleichzeitig (Schwarz auf 3-poliger Anschlussdose SK3, Blau auf 5-poliger Anschlussdose SK1, Grün auf Steckdose SK2) findet RCD2 und öffnet sichtbar dessen Hebel', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    for (let i = 0; i < 4; i++) await drehknopfKlick(page); // RLOW -> RISO -> ZI -> ZS -> FI/RCD
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(8).click(); // SK3 schwarzer Kontakt (L) -> schwarz
+    await kreise.nth(0).click(); // SK1 blauer Kontakt (N) -> blau
+    await page.locator('#steckdosen rect[fill="#666666"]').first().click(); // Steckdose SK2 PE -> grün
+
+    erwarte(await displayTexte(page), '230V', 'Stromkreis bereit, RCD2 noch geschlossen');
+
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width') }))
+    );
+    const rcd2Box = boxen.filter((b) => b.w === '24' && b.y === '322').sort((a, b) => parseFloat(a.x) - parseFloat(b.x))[0];
+    const hebelVor = await page.evaluate((box) => {
+      const g = [...document.querySelectorAll('#schaltkasten svg g[style*="cursor: pointer"]')].find((g) => g.querySelector(`rect[x="${box.x}"][y="${box.y}"]`));
+      return g.querySelector('g[transform]')?.getAttribute('transform') ?? null;
+    }, rcd2Box);
+    if (hebelVor !== null) throw new Error(`erwarte RCD2-Hebel vor TEST geschlossen (kein transform), gefunden: ${hebelVor}`);
+
+    await klick(page, 'TEST');
+    const texte = await displayTexte(page);
+    erwarte(texte, 'I:24,0mA', 'RCD2s Auslösestrom übernommen');
+    erwarte(texte, 'Uci:0,9V', 'RCD2s Berührungsspannung übernommen');
+    erwarte(texte, 't:21,0ms', 'RCD2s Abschaltzeit übernommen');
+    erwarte(texte, '0V', 'RCD2 hat automatisch ausgelöst, Spannung fällt auf 0V');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+
+    const hebelNach = await page.evaluate((box) => {
+      const g = [...document.querySelectorAll('#schaltkasten svg g[style*="cursor: pointer"]')].find((g) => g.querySelector(`rect[x="${box.x}"][y="${box.y}"]`));
+      return g.querySelector('g[transform]')?.getAttribute('transform') ?? null;
+    }, rcd2Box);
+    if (!hebelNach || !hebelNach.startsWith('rotate(180,')) throw new Error(`erwarte RCD2-Hebel nach TEST offen (rotate(180,...)), gefunden: ${hebelNach}`);
+    await page.close();
+  });
+
+  // testcase_06s Endstelle ist jetzt eine 5-polige Anschlussdose (siehe
+  // view/steckdosen.js zeichneFuenfpoligeAnschlussdose()) statt Festanschluss
+  // - Messwerte müssen über deren Kontakte genauso funktionieren wie direkt
+  // am Schaltkasten-Netz (dieselbe Netz-ID, keine Zusatzarbeit nötig).
+  // Zeichenreihenfolge (HERD_KLEMMEN): N, PE, L1, L3, L2.
+  await pruefe('ZS: testcase_06 - über die Kontakte der 5-poligen Anschlussdose gemessen liefert denselben Wert wie direkt am Schaltkasten', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(2).click(); // L1 -> schwarz
+    await kreise.nth(0).click(); // N -> blau
+    await kreise.nth(1).click(); // PE -> grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,34Ω', 'wie direkt am Schaltkasten-Netz N23 (L1) gemessen');
+    erwarte(await displayTexte(page), 'Isc:608,8A', 'Isc = 0,9*230V/0,34Ω');
+    await page.close();
+  });
+
+  await pruefe('ZS: testcase_06 - über die 5-polige Anschlussdose gemessen (Schwarz auf schwarz=L2, unten rechts) liefert denselben Wert wie direkt am Schaltkasten', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(4).click(); // L2 (schwarz, unten rechts) -> schwarz
+    await kreise.nth(0).click(); // N -> blau
+    await kreise.nth(1).click(); // PE -> grün
+
+    erwarte(await displayTexte(page), '230V', 'L-Pfad zur Einspeisung geschlossen');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,42Ω', 'wie direkt am Schaltkasten-Netz N24 (L2) gemessen');
+    erwarte(await displayTexte(page), 'Isc:492,9A', 'Isc = 0,9*230V/0,42Ω');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (492,9A) > Lim (80,0A) -> Ampel grün');
+    await page.close();
+  });
+
+  // testcase_06 Gruppe G2: dieselben Steckdose-Kontakte wie bei den FI/RCD-
+  // und ZI-Tests oben (Schwarz auf L links, Blau auf N rechts, Grün auf PE),
+  // diesmal auf ZS - anders als ZI wird nur der L-Pfad gezählt, der bei SK2
+  // keinen eigenen Fehlertabellen-Eintrag trägt (nur N46 auf dem N-Pfad, den
+  // ZS bewusst ignoriert) - deshalb bleibt Z hier bei der reinen Vorimpedanz.
+  await pruefe('ZS: testcase_06 - über die Steckdose SK2 gemessen (Schwarz auf L links, Blau auf N rechts) ignoriert den N-Fehlertabellen-Eintrag: Z:0,14Ω', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+    await drehknopfKlick(page);
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // Steckdose links (L) -> schwarz
+    await kreise.nth(6).click(); // Steckdose rechts (N) -> blau
+    await page.locator('#steckdosen rect[fill="#666666"]').first().click(); // Steckdose PE -> grün
+
+    erwarte(await displayTexte(page), '230V', 'L-Pfad zur Einspeisung geschlossen');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'Z:0,14Ω', 'reine Vorimpedanz, L-Pfad ohne eigenen Fehlertabellen-Eintrag');
+    erwarte(await displayTexte(page), 'Isc:1478,6A', 'Isc = 0,9*230V/0,14Ω');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (1478,6A) > Lim (80,0A) -> Ampel grün');
     await page.close();
   });
 
@@ -1990,6 +2371,105 @@ async function main() {
 
     const texte = await displayTexte(page);
     erwarteGleich(texte.filter((t) => t === '400V').length, 3, 'alle drei Paare zwischen unterschiedlichen Außenleitern -> 400V');
+    await page.close();
+  });
+
+  // testcase_06: dieselbe Prüfung wie oben, diesmal über die Kontakte der
+  // 5-poligen Anschlussdose statt direkt am Schaltkasten - Schwarz auf
+  // braun=L1 (oben rechts), Blau auf grau=L3 (unten links), Grün auf
+  // schwarz=L2 (unten rechts). V~ prüft keine Rollen (freie
+  // Sondenplatzierung), alle drei Sonden sitzen auf unterschiedlichen
+  // Außenleitern -> alle drei Paare zeigen 400V.
+  await pruefe('V~: testcase_06 - alle drei Sonden an der 5-poligen Anschlussdose auf unterschiedlichen Außenleitern zeigen überall 400V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(2).click(); // L1 (braun, oben rechts) -> schwarz
+    await kreise.nth(3).click(); // L3 (grau, unten links) -> blau
+    await kreise.nth(4).click(); // L2 (schwarz, unten rechts) -> grün
+
+    const texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '400V').length, 3, 'alle drei Paare zwischen unterschiedlichen Außenleitern -> 400V');
+    await page.close();
+  });
+
+  // testcase_06 Gruppe G2: dieselben Steckdose-Kontakte wie bei den FI/RCD-,
+  // ZI- und ZS-Tests oben (Schwarz auf L links, Blau auf N rechts, Grün auf
+  // PE) - diesmal auf V~, mit ECHTEN Rollen (nicht wie beim 400V-Test oben
+  // drei verschiedene Außenleiter). Uln (L-N) und Ulpe (L-PE) zeigen die
+  // reale Netzspannung 230V, Unpe (N-PE) zeigt 0V (N und PE liegen im
+  // gesunden Stromkreis auf demselben Potential). Öffnet man LS2 (den
+  // ersten LS nach RCD2, versorgt SK2/die Steckdose selbst), fällt die
+  // Spannung komplett weg - alle drei zeigen 0V.
+  await pruefe('V~: testcase_06 - Steckdose SK2 zeigt Uln=230V/Ulpe=230V/Unpe=0V, nach Öffnen von LS2 alle drei 0V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // Steckdose links (L) -> schwarz
+    await kreise.nth(6).click(); // Steckdose rechts (N) -> blau
+    await page.locator('#steckdosen rect[fill="#666666"]').first().click(); // Steckdose PE -> grün
+
+    let texte = await displayTexte(page);
+    const ulnIndex = texte.indexOf('Uln:');
+    const ulpeIndex = texte.indexOf('Ulpe:');
+    const unpeIndex = texte.indexOf('Unpe:');
+    erwarteGleich(texte[ulnIndex + 1], '230V', 'Uln (L-N) zeigt die reale Netzspannung');
+    erwarteGleich(texte[ulpeIndex + 1], '230V', 'Ulpe (L-PE) zeigt ebenfalls 230V');
+    erwarteGleich(texte[unpeIndex + 1], '0V', 'Unpe (N-PE) zeigt 0V, gleiches Potential');
+
+    // LS2 (die zweite der drei 24px-Boxen: RCD2, LS2, LS3) öffnen.
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width') }))
+    );
+    const gruppe2Boxen = boxen.filter((b) => b.w === '24' && b.y === '322').sort((a, b) => parseFloat(a.x) - parseFloat(b.x));
+    const ls2Box = gruppe2Boxen[1];
+    const ls2 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${ls2Box.x}"][y="${ls2Box.y}"]`) });
+    await ls2.click();
+
+    texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '0V').length, 3, 'alle drei Werte fallen auf 0V, sobald LS2 offen ist');
+    await page.close();
+  });
+
+  // testcase_06 Gruppe G2: geräteübergreifende V~-Messung - Blau/Grün bleiben
+  // auf der Steckdose SK2 (N rechts/PE), Schwarz wandert auf den SCHWARZEN
+  // Kontakt der 3-poligen Anschlussdose SK3 (= L, siehe KLEMMEN-Array in
+  // view/steckdosen.js: N/blau bei -90°, L/schwarz bei 30°, PE/grün bei
+  // 150°) - zeigt, dass V~ auch über zwei verschiedene Geräte hinweg
+  // funktioniert, solange die Funktionen (L/N/PE) stimmen. Beide Stromkreise
+  // teilen sich denselben N-Pfad (RCD2.o2), Uln/Ulpe bleiben deshalb bei
+  // 230V. "Zweiter LS nach dem RCD" = LS3 (RCD2 -> LS2 -> LS3) - versorgt
+  // SK3, dessen L-Kontakt jetzt die schwarze Sonde trägt.
+  await pruefe('V~: testcase_06 - Schwarz auf der 3-poligen Anschlussdose SK3 (L), Blau/Grün auf der Steckdose SK2 (N/PE) zeigt Uln=230V/Ulpe=230V/Unpe=0V, nach Öffnen von LS3 alle drei 0V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(8).click(); // SK3 schwarzer Kontakt (L) -> schwarz
+    await kreise.nth(6).click(); // Steckdose rechts (N) -> blau
+    await page.locator('#steckdosen rect[fill="#666666"]').first().click(); // Steckdose PE -> grün
+
+    let texte = await displayTexte(page);
+    const ulnIndex = texte.indexOf('Uln:');
+    const ulpeIndex = texte.indexOf('Ulpe:');
+    const unpeIndex = texte.indexOf('Unpe:');
+    erwarteGleich(texte[ulnIndex + 1], '230V', 'Uln (L-N) zeigt die reale Netzspannung, geräteübergreifend');
+    erwarteGleich(texte[ulpeIndex + 1], '230V', 'Ulpe (L-PE) zeigt ebenfalls 230V');
+    erwarteGleich(texte[unpeIndex + 1], '0V', 'Unpe (N-PE) zeigt 0V, gleiches Potential');
+
+    // LS3 (die dritte der drei 24px-Boxen: RCD2, LS2, LS3) öffnen.
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width') }))
+    );
+    const gruppe2Boxen = boxen.filter((b) => b.w === '24' && b.y === '322').sort((a, b) => parseFloat(a.x) - parseFloat(b.x));
+    const ls3Box = gruppe2Boxen[2];
+    const ls3 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${ls3Box.x}"][y="${ls3Box.y}"]`) });
+    await ls3.click();
+
+    texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '0V').length, 3, 'alle drei Werte fallen auf 0V, sobald LS3 offen ist');
     await page.close();
   });
 

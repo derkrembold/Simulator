@@ -432,6 +432,16 @@ function zeichneDisplay(svg, zustand) {
         'font-size': fontSize, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
       }));
     });
+    // Phasenfolge (nur bei V~, siehe controller/app.js berechnePhasenfolge()) -
+    // oben rechts im Display, direkt unter dem oberen grauen Strich. Nur
+    // gesetzt, wenn Schwarz/Blau/Grün auf drei unterschiedlichen Phasen
+    // liegen und Spannung anliegt - sonst keine Anzeige.
+    if (zustand.phasenfolge) {
+      svg.appendChild(text(zustand.phasenfolge, {
+        x: x + breite - 8, y: linieObenY + 16, 'text-anchor': 'end',
+        'font-size': 14, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
+      }));
+    }
   } else {
     svg.appendChild(text(zustand.hauptwert ?? '---', zustand.hauptwertLinksAligniert
       ? { x: x + 8, y: (linieObenY + linieUntenY) / 2 + 8, 'font-size': 52, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace" }

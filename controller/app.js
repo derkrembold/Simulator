@@ -319,6 +319,34 @@ async function start() {
     return aLebt && bLebt ? (typ === 'LN' ? 230 : 400) : 0;
   }
 
+  // Phasenfolge-Anzeige, Teil von V~ (siehe KONZEPT.md "V~" - kein eigener
+  // Drehknopf-Punkt, reine Erweiterung des bestehenden V~-Displays, User-
+  // Vorgabe). Nur sichtbar, wenn Schwarz/Blau/Grün auf DREI VERSCHIEDENEN
+  // Phasen (L1/L2/L3) liegen UND alle drei noch mit der Einspeisung
+  // verbunden sind (Spannung liegt an) - liegen zwei Sonden auf derselben
+  // Phase, gibt es keine sinnvolle Drehfeldrichtung, daher `null` (keine
+  // Anzeige). "1.2.3." bei den drei zyklischen Rotationen von L1->L2->L3
+  // (Schwarz->Blau->Grün folgt der "aufsteigenden" Reihenfolge), "3.2.1."
+  // bei den restlichen drei (umgekehrten) Zuordnungen - algorithmisch reicht
+  // der Abstand von Schwarz zu Blau (mod 3): +1 = vorwärts, +2 = rückwärts.
+  const PHASENFOLGE_PHASEN = ['L1', 'L2', 'L3'];
+
+  function berechnePhasenfolge() {
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    const gruenAder = messspitzenAderNachFarbe('grün');
+    if (!graph || !schwarzAder || !blauAder || !gruenAder) return null;
+
+    const adern = [schwarzAder, blauAder, gruenAder];
+    if (!adern.every((ader) => PHASENFOLGE_PHASEN.includes(ader.funktion))) return null;
+    if (new Set(adern.map((ader) => ader.funktion)).size !== 3) return null;
+    if (!adern.every((ader) => istSpannungFuehrend(graph, ader.funktion, ader.netz))) return null;
+
+    const index = (ader) => PHASENFOLGE_PHASEN.indexOf(ader.funktion);
+    const vorwaerts = (index(blauAder) - index(schwarzAder) + 3) % 3 === 1;
+    return vorwaerts ? '1.2.3.' : '3.2.1.';
+  }
+
   function berechneRisoSpannung() {
     return berechneSpannungZwischenAdern(messspitzenAderNachFarbe('schwarz'), messspitzenAderNachFarbe('blau'));
   }
@@ -889,6 +917,10 @@ async function start() {
         { label: 'Ulpe', wert: `${berechneSpannungZwischenAdern(schwarzAder, gruenAder)}V` },
         { label: 'Unpe', wert: `${berechneSpannungZwischenAdern(blauAder, gruenAder)}V` }
       ];
+      // Phasenfolge (siehe berechnePhasenfolge() oben) - oben rechts im
+      // Display, unterhalb des oberen grauen Strichs (siehe
+      // view/messgeraet.js zeichneDisplay()). null = keine Anzeige.
+      zustand.phasenfolge = berechnePhasenfolge();
     }
 
     return zustand;

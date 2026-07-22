@@ -732,6 +732,47 @@ die RISOs bisherige Schwarz/Blau-Spannungsberechnung auf ein beliebiges
 Adernpaar verallgemeinert - RISO ruft sie weiterhin nur für Schwarz/Blau auf,
 V~ dreimal für alle drei Paare.
 
+**Phasenfolge-Anzeige (Status: umgesetzt, Teil von V~, kein eigener
+Drehknopf-Punkt).** Zeigt die Drehfeldrichtung an - wichtig bei der
+Drehstromsteckdose (Rechtsdrehfeld-Prüfung). Nur sichtbar, wenn Schwarz,
+Blau UND Grün jeweils auf einer VERSCHIEDENEN Phase (L1/L2/L3) liegen und
+alle drei noch mit der Einspeisung verbunden sind (Spannung liegt an) -
+liegen zwei Sonden auf derselben Phase, gibt es keine sinnvolle
+Drehfeldrichtung, also keine Anzeige (null). Zwei mögliche Werte:
+- **"1.2.3."** bei den drei ZYKLISCHEN Rotationen von L1→L2→L3
+  (Schwarz=L1/Blau=L2/Grün=L3; Schwarz=L2/Blau=L3/Grün=L1; Schwarz=L3/
+  Blau=L1/Grün=L2) - Schwarz→Blau→Grün folgt der "aufsteigenden" Reihenfolge.
+- **"3.2.1."** bei den restlichen drei (umgekehrten) Zuordnungen.
+
+Algorithmisch reicht der Abstand von Schwarz zu Blau (mod 3, mit
+L1=0/L2=1/L3=2): `(index(blau) - index(schwarz) + 3) % 3 === 1` → "1.2.3.",
+sonst "3.2.1." (`berechnePhasenfolge()` in `controller/app.js`) - Grün ist
+durch die beiden anderen bereits eindeutig festgelegt (drei verschiedene
+Phasen, keine vierte Möglichkeit), muss also nicht separat geprüft werden.
+Nutzt ausschließlich bereits bestehende Bausteine (`messspitzenAderNachFarbe()`,
+`istSpannungFuehrend()`) - keine neuen Grundfunktionen nötig.
+
+Darstellung in `view/messgeraet.js` `zeichneDisplay()`: oben rechts im
+Display, direkt unter dem oberen grauen Strich (`x + breite - 8`,
+text-anchor `end`, `y: linieObenY + 16`) - im selben Codepfad wie die
+Uln/Ulpe/Unpe-Zeilen (`zustand.hauptwertZeilen`), aber unabhängig davon
+positioniert (kein zusätzlicher Platzbedarf innerhalb der drei Zeilen).
+
+**Getestet in `test_messgeraet.js`** (10 Tests). Sechs generische Tests (mit
+`testcase_04`, direkt am Schaltkasten): zwei zyklische Fälle liefern "1.2.3."
+(Schwarz=L1/Blau=L2/Grün=L3 UND Schwarz=L2/Blau=L3/Grün=L1), ein umgekehrter
+Fall liefert "3.2.1." (Schwarz=L1/Blau=L3/Grün=L2), zwei Sonden auf derselben
+Phase zeigen keine Anzeige, Grün auf N statt einer Phase zeigt keine Anzeige,
+und die Anzeige verschwindet, sobald der Hauptschalter geöffnet wird (keine
+Spannung mehr). Zusätzlich vier `testcase_05`-Tests, alle über die
+Drehstromsteckdose selbst gemessen (nicht direkt am Schaltkasten, Kontakt-
+Reihenfolge 0=PE/1=L1/2=L2/3=L3/4=N): die restlichen zwei der drei
+zyklischen Rotationen (Blau=L1/Grün=L2/Schwarz=L3 und Grün=L1/Schwarz=L2/
+Blau=L3, beide "1.2.3." und alle drei Paare 400V), eine der drei umgekehrten
+Zuordnungen (Grün=L1/Blau=L2/Schwarz=L3 → "3.2.1.", ebenfalls 400V überall),
+und Hauptschalter offen an der Drehstromsteckdose (alle drei Paare fallen
+auf 0V, keine Phasenfolge-Anzeige mehr).
+
 ### Konfigurierbare Parameter
 
 - **`vorimpedanz`** – feste Basisimpedanz der Trafostation/Einspeisung, die bei jeder

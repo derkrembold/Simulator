@@ -2207,6 +2207,53 @@ der geklickten Schraube weiter und überspringt bereits anderswo belegte
 Farben (z.B. 2 Klicks auf einer Schraube mit bereits vergebenem Blau
 anderswo: Schwarz → Grün, Blau wird übersprungen).
 
+**Phasenfolge-Anzeige (Status: umgesetzt, 2026-07-22, User-Vorgabe) - Teil
+von V~, kein eigener Drehknopf-Punkt/Menüpunkt (explizit vom User verneint:
+"Nein, es wird in das bestehende V~ hineinintegriert").**
+
+- Neue Funktion `berechnePhasenfolge()` in `controller/app.js`, direkt neben
+  `berechneSpannungZwischenAdern()`. Liest Schwarz/Blau/Grün über
+  `messspitzenAderNachFarbe()` (bereits vorhanden), prüft: alle drei auf
+  `PHASENFOLGE_PHASEN = ['L1','L2','L3']`, alle drei Funktionen paarweise
+  verschieden (`new Set(...).size !== 3`), und alle drei `istSpannungFuehrend()`
+  - sonst `null` (keine Anzeige). Sonst: `(index(blau) - index(schwarz) + 3)
+  % 3 === 1` (0-indexiert L1=0/L2=1/L3=2) → `'1.2.3.'`, sonst `'3.2.1.'`.
+  Grün wird nicht explizit im Ergebnis gebraucht (durch die beiden anderen
+  bei drei verschiedenen Phasen bereits eindeutig bestimmt), fließt aber in
+  die Sichtbarkeits-/Spannungsprüfung mit ein.
+- `baueAnzeigeZustand()`s V~-Zweig setzt zusätzlich `zustand.phasenfolge =
+  berechnePhasenfolge()` - kein eigener State/Reset nötig (wie bei
+  `hauptwertZeilen` live bei jedem Render neu berechnet).
+- `view/messgeraet.js` `zeichneDisplay()`: neuer `if (zustand.phasenfolge)`-
+  Block direkt nach der `hauptwertZeilen.forEach()`-Schleife (innerhalb
+  desselben `if (zustand.hauptwertZeilen)`-Zweigs) - zeichnet den Text
+  rechtsbündig (`x + breite - 8`, `text-anchor: end`) bei `y: linieObenY +
+  16`, direkt unter dem oberen grauen Trennstrich (`linieObenY`), unabhängig
+  von der Uln/Ulpe/Unpe-Zeilenposition (kein Platzkonflikt, da die
+  Zeilenwerte mittig statt rechtsbündig stehen).
+- Keine Änderung an `generate_anlage.js`/`anlage.json`/`graph.json`/
+  Schaltkasten nötig - reine Messgerät-Logik über bereits vorhandene
+  Bausteine. `run_tests.js`s SVG-Snapshot-Vergleich (rendert nur den
+  Schaltkasten, nicht das Messgerät) blieb deshalb unverändert.
+
+Getestet in `test_messgeraet.js` (10 Tests). Sechs generische Tests (mit
+testcase_04, direkt am Schaltkasten): zwei zyklische Rotationen liefern
+"1.2.3." (Schwarz=L1/Blau=L2/Grün=L3 UND Schwarz=L2/Blau=L3/Grün=L1); die
+umgekehrte Zuordnung (Schwarz=L1/Blau=L3/Grün=L2) liefert "3.2.1."; zwei
+Sonden auf derselben Phase (L1) zeigen keine Anzeige; Grün auf N statt einer
+Phase zeigt keine Anzeige; und die Anzeige verschwindet, sobald der
+Hauptschalter geöffnet wird (keine Spannung mehr). Zusätzlich vier
+`testcase_05`-Tests (User-Vorgabe, direkt im Anschluss an die
+Grundimplementierung), alle über die Kontakte der Drehstromsteckdose selbst
+gemessen (Kontakt-Reihenfolge 0=PE/1=L1/2=L2/3=L3/4=N, siehe
+`zeichneDrehstromsteckdose()` in `view/steckdosen.js`): die restlichen
+zwei der drei zyklischen Rotationen (Grün=L1/Schwarz=L2/Blau=L3 und
+Blau=L1/Grün=L2/Schwarz=L3, beide "1.2.3." mit 400V auf allen drei Paaren);
+eine der drei umgekehrten Zuordnungen (Grün=L1/Blau=L2/Schwarz=L3 →
+"3.2.1.", ebenfalls 400V überall); und Hauptschalter offen an der
+Drehstromsteckdose (alle drei Paare fallen auf 0V, keine Phasenfolge-Anzeige
+mehr - `istSpannungFuehrend()` liefert für alle drei Phasen `false`).
+
 ### ablauf.js
 - Steuert die Reihenfolge der Phasen
 - Phase 1 → 2 → 3 → 4 → 5

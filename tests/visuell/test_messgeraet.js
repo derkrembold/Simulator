@@ -2496,6 +2496,190 @@ async function main() {
     await page.close();
   });
 
+  // --- Phasenfolge (Teil von V~, siehe KONZEPT.md "V~" - kein eigener
+  // Drehknopf-Punkt, reine Erweiterung des bestehenden V~-Displays). Nur
+  // sichtbar, wenn Schwarz/Blau/Grün auf drei UNTERSCHIEDLICHEN Phasen
+  // (L1/L2/L3) liegen und Spannung anliegt. "1.2.3." bei den drei
+  // zyklischen Rotationen von L1->L2->L3 (Schwarz->Blau->Grün folgt der
+  // "aufsteigenden" Reihenfolge), "3.2.1." bei den restlichen drei
+  // (umgekehrten) Zuordnungen - siehe berechnePhasenfolge() in
+  // controller/app.js. testcase_04: N24/N25/N26 = SK1/SK2/SK3-Reihenklemme
+  // (L1/L2/L3). ---
+
+  function phasenfolgeText(texte) {
+    return texte.find((t) => t === '1.2.3.' || t === '3.2.1.') ?? null;
+  }
+
+  await pruefe('V~: Phasenfolge - Schwarz=L1/Blau=L2/Grün=L3 zeigt "1.2.3."', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // schwarz L1
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').first().click(); // blau L2
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').first().click(); // grün L3
+
+    erwarteGleich(phasenfolgeText(await displayTexte(page)), '1.2.3.', 'zyklische Rotation L1->L2->L3');
+    await page.close();
+  });
+
+  await pruefe('V~: Phasenfolge - Schwarz=L2/Blau=L3/Grün=L1 zeigt ebenfalls "1.2.3." (zyklische Rotation)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').first().click(); // schwarz L2
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').first().click(); // blau L3
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // grün L1
+
+    erwarteGleich(phasenfolgeText(await displayTexte(page)), '1.2.3.', 'zyklische Rotation L2->L3->L1');
+    await page.close();
+  });
+
+  await pruefe('V~: Phasenfolge - Schwarz=L1/Blau=L3/Grün=L2 zeigt "3.2.1." (umgekehrte Reihenfolge)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // schwarz L1
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').first().click(); // blau L3
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').first().click(); // grün L2
+
+    erwarteGleich(phasenfolgeText(await displayTexte(page)), '3.2.1.', 'umgekehrte Reihenfolge L1->L3->L2');
+    await page.close();
+  });
+
+  await pruefe('V~: Phasenfolge - Schwarz und Blau auf derselben Phase (L1) zeigt keine Anzeige', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const l1 = page.locator('#schaltkasten svg circle[data-netz="N24"]').first();
+    await l1.click(); // schwarz
+    await l1.click(); // blau (dieselbe Schraube, 2. Klick)
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').first().click(); // grün L2
+
+    erwarteGleich(phasenfolgeText(await displayTexte(page)), null, 'zwei Sonden auf derselben Phase -> keine sinnvolle Drehfeldrichtung');
+    await page.close();
+  });
+
+  await pruefe('V~: Phasenfolge - Grün auf N statt einer Phase zeigt keine Anzeige', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // schwarz L1
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').first().click(); // blau L2
+    await page.locator('#schaltkasten svg circle[data-netz="N2"]').first().click(); // grün, Hauptschalter.i2 (N)
+
+    erwarteGleich(phasenfolgeText(await displayTexte(page)), null, 'Grün nicht auf einer Phase -> keine Anzeige');
+    await page.close();
+  });
+
+  await pruefe('V~: Phasenfolge - verschwindet, sobald der Hauptschalter geöffnet wird (keine Spannung mehr)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    await page.locator('#schaltkasten svg circle[data-netz="N24"]').first().click(); // schwarz L1
+    await page.locator('#schaltkasten svg circle[data-netz="N25"]').first().click(); // blau L2
+    await page.locator('#schaltkasten svg circle[data-netz="N26"]').first().click(); // grün L3
+    erwarteGleich(phasenfolgeText(await displayTexte(page)), '1.2.3.', 'Spannung liegt an');
+
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y') }))
+    );
+    const hauptschalterBox = boxen.reduce((a, b) => (parseFloat(a.y) > parseFloat(b.y) ? a : b));
+    const hauptschalter = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${hauptschalterBox.x}"][y="${hauptschalterBox.y}"]`) });
+    await hauptschalter.click();
+
+    erwarteGleich(phasenfolgeText(await displayTexte(page)), null, 'Hauptschalter offen -> keine Spannung mehr -> keine Anzeige');
+    await page.close();
+  });
+
+  // testcase_05: Phasenfolge über die Drehstromsteckdose selbst gemessen
+  // (nicht direkt am Schaltkasten) - Grün auf L1, Schwarz auf L2, Blau auf
+  // L3 (Kontakt-Reihenfolge an der Drehstromsteckdose: 0=PE, 1=L1, 2=L2,
+  // 3=L3, 4=N, siehe zeichneDrehstromsteckdose() in view/steckdosen.js).
+  // Alle drei Sonden auf unterschiedlichen Außenleitern -> Uln/Ulpe/Unpe
+  // alle 400V. Schwarz=L2/Blau=L3/Grün=L1 ist eine der drei zyklischen
+  // Rotationen -> Phasenfolge "1.2.3.".
+  await pruefe('V~: testcase_05 - Phasenfolge an der Drehstromsteckdose (Grün=L1, Schwarz=L2, Blau=L3) zeigt 400V überall und "1.2.3."', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(2).click(); // schwarz: L2
+    await kreise.nth(3).click(); // blau: L3
+    await kreise.nth(1).click(); // grün: L1
+
+    const texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '400V').length, 3, 'alle drei Paare zwischen unterschiedlichen Außenleitern -> 400V');
+    erwarteGleich(phasenfolgeText(texte), '1.2.3.', 'Schwarz=L2/Blau=L3/Grün=L1 ist eine zyklische Rotation');
+    await page.close();
+  });
+
+  // testcase_05: dieselbe Drehstromsteckdose, andere zyklische Rotation -
+  // Blau auf L1, Grün auf L2, Schwarz auf L3 (Schwarz=L3/Blau=L1/Grün=L2 ist
+  // die dritte der drei zyklischen Rotationen aus der ursprünglichen
+  // User-Spezifikation, siehe KONZEPT.md "V~" -> "Phasenfolge-Anzeige").
+  await pruefe('V~: testcase_05 - Phasenfolge an der Drehstromsteckdose (Blau=L1, Grün=L2, Schwarz=L3) zeigt 400V überall und "1.2.3."', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(3).click(); // schwarz: L3
+    await kreise.nth(1).click(); // blau: L1
+    await kreise.nth(2).click(); // grün: L2
+
+    const texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '400V').length, 3, 'alle drei Paare zwischen unterschiedlichen Außenleitern -> 400V');
+    erwarteGleich(phasenfolgeText(texte), '1.2.3.', 'Schwarz=L3/Blau=L1/Grün=L2 ist eine zyklische Rotation');
+    await page.close();
+  });
+
+  // testcase_05: dieselbe Drehstromsteckdose, jetzt eine UMGEKEHRTE Zuordnung
+  // - Grün auf L1, Blau auf L2, Schwarz auf L3 (Schwarz=L3/Blau=L2/Grün=L1
+  // ist eine der drei "3.2.1."-Fälle aus der ursprünglichen
+  // User-Spezifikation, siehe KONZEPT.md "V~" -> "Phasenfolge-Anzeige").
+  await pruefe('V~: testcase_05 - Phasenfolge an der Drehstromsteckdose (Grün=L1, Blau=L2, Schwarz=L3) zeigt 400V überall und "3.2.1."', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(3).click(); // schwarz: L3
+    await kreise.nth(2).click(); // blau: L2
+    await kreise.nth(1).click(); // grün: L1
+
+    const texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '400V').length, 3, 'alle drei Paare zwischen unterschiedlichen Außenleitern -> 400V');
+    erwarteGleich(phasenfolgeText(texte), '3.2.1.', 'Schwarz=L3/Blau=L2/Grün=L1 ist eine umgekehrte Zuordnung');
+    await page.close();
+  });
+
+  // testcase_05: dieselbe Drehstromsteckdose-Platzierung (Grün=L1/Schwarz=L2/
+  // Blau=L3, "1.2.3."), diesmal aber den Hauptschalter geöffnet - alle drei
+  // Netze sind dann nicht mehr mit der Einspeisung verbunden
+  // (istSpannungFuehrend() liefert false), Uln/Ulpe/Unpe fallen auf 0V UND
+  // die Phasenfolge-Anzeige verschwindet (keine der beiden Bedingungen in
+  // berechnePhasenfolge() ist mehr erfüllt).
+  await pruefe('V~: testcase_05 - Hauptschalter offen an der Drehstromsteckdose zeigt überall 0V und keine Phasenfolge-Anzeige', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(2).click(); // schwarz: L2
+    await kreise.nth(3).click(); // blau: L3
+    await kreise.nth(1).click(); // grün: L1
+    erwarteGleich(phasenfolgeText(await displayTexte(page)), '1.2.3.', 'Spannung liegt an, Hauptschalter noch geschlossen');
+
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y') }))
+    );
+    const hauptschalterBox = boxen.reduce((a, b) => (parseFloat(a.y) > parseFloat(b.y) ? a : b));
+    const hauptschalter = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${hauptschalterBox.x}"][y="${hauptschalterBox.y}"]`) });
+    await hauptschalter.click();
+
+    const texte = await displayTexte(page);
+    erwarteGleich(texte.filter((t) => t === '0V').length, 3, 'Hauptschalter offen -> keine Verbindung zur Einspeisung mehr -> alle drei Paare 0V');
+    erwarteGleich(phasenfolgeText(texte), null, 'Hauptschalter offen -> keine Phasenfolge-Anzeige');
+    await page.close();
+  });
+
   // testcase_05: geräteübergreifend über DREI verschiedene Endstellen der
   // AFDD-Gruppe G2 UND der Drehstromsteckdose SK1 hinweg (siehe KONZEPT.md
   // "AFDD") - Grün auf PE der Drehstromsteckdose (Index 0, erster grauer

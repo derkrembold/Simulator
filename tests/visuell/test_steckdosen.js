@@ -323,11 +323,16 @@ async function main() {
 
   await pruefe('Steckdosen: testcase_05 - Drehstromsteckdose zeichnet 5 klickbare Kontakte (PE/L1/L2/L3/N) plus 6 dunkelrote Ringe (5 Kontakte + 1 dekorativer Mittelpunkt)', async () => {
     const page = await seiteMitTestcase('testcase_05');
+    // testcase_05 hat seit Gruppe G2 (LS-AFDD, siehe KONZEPT.md "AFDD")
+    // inzwischen 3 Geräte im Steckdosen-View (SK1 = Drehstromsteckdose, SK2/
+    // SK3 = normale Steckdosen) - auf die Drehstromsteckdose scopen (einziges
+    // Gerät mit dunkelroten `#800000`-Kreisen) statt auf die ganze SVG.
     const info = await page.evaluate(() => {
-      const svg = document.querySelector('#steckdosen svg');
+      const marker = document.querySelector('#steckdosen svg circle[fill="#800000"]');
+      const gruppe = marker.closest('g');
       return {
-        grau: svg.querySelectorAll('circle[fill="#666666"]').length,
-        dunkelrot: svg.querySelectorAll('circle[fill="#800000"]').length
+        grau: gruppe.querySelectorAll('circle[fill="#666666"]').length,
+        dunkelrot: gruppe.querySelectorAll('circle[fill="#800000"]').length
       };
     });
     if (info.grau !== 5) throw new Error(`erwarte 5 graue Kontaktkreise, gefunden ${info.grau}`);

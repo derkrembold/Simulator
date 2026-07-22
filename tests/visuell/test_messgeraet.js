@@ -659,6 +659,69 @@ async function main() {
     await page.close();
   });
 
+  // testcase_05 Gruppe G2 (AFDD, siehe KONZEPT.md "AFDD"): RLOW direkt über
+  // das LS3-Kombigerät selbst (letzter/rechter AFDD-LS) - oben links (Eingang
+  // L, Netz N61) und unten links (Ausgang L, Netz N66). Dazwischen liegt kein
+  // weiteres Bauteil, nur die beiden Fehlertabellen-Einträge auf LS3s
+  // eigenen Zubringer-/Abgangsadern (N61=0,18Ω + N66=0,25Ω = 0,43Ω). N66
+  // kommt zweimal im DOM vor (auch als Eingang-Schraube der
+  // Reihenklemme_L_SK3 oben) - nth(1) ist LS3s eigene Ausgang-Schraube
+  // (Gruppen-Reihe, nicht die Reihenklemme).
+  await pruefe('RLOW: testcase_05 - über das LS3-AFDD-Kombigerät selbst (oben links Eingang, unten links Ausgang) summiert dessen eigene Fehlertabelle (0,43Ω), Platzhalter sobald der Hebel offen ist', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await page.locator('#schaltkasten svg circle[data-netz="N66"]').nth(1).click(); // schwarz, LS3 Ausgang L (unten links)
+    await page.locator('#schaltkasten svg circle[data-netz="N61"]').click(); // blau, LS3 Eingang L (oben links)
+    erwarte([await rlowHauptwert(page)], 'R:0,43Ω', 'Fehlertabelle N61 (0,18Ω) + N66 (0,25Ω) auf LS3');
+
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width') }))
+    );
+    const ls3Box = boxen.filter((b) => b.w === '24' && b.y === '322').sort((a, b) => parseFloat(a.x) - parseFloat(b.x))[2]; // RCD2, LS2, LS3 - LS3 ist die dritte/letzte 24px-Box
+    const ls3 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${ls3Box.x}"][y="${ls3Box.y}"]`) });
+
+    await ls3.click(); // LS3s Hebel öffnen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'Platzhalter, sobald LS3s Hebel offen ist');
+    await page.close();
+  });
+
+  // testcase_05 Gruppe G2: RLOW über LS3s N-Ader statt L-Ader - anders als
+  // bei L (je ein Fehlertabellen-Eintrag vor UND nach dem Bauteil, N61+N66
+  // = 0,43Ω, siehe Test oben) trägt hier bewusst nur EINE der beiden
+  // N-Adern einen Wert (N67 = 0,07Ω, Netz zwischen LS3.o2 und
+  // Reihenklemme_N_SK3.i1 - N63, LS3s N-Eingang, bleibt ohne Eintrag). N67
+  // kommt zweimal im DOM vor (auch als Eingang-Schraube der
+  // Reihenklemme_N_SK3 oben) - nth(1) ist LS3s eigene Ausgang-Schraube.
+  await pruefe('RLOW: testcase_05 - über LS3s N-Ader (oben rechts Eingang, unten rechts Ausgang) liefert 0,07Ω (nur ein Fehlertabellen-Eintrag auf der Ausgangsseite)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await page.locator('#schaltkasten svg circle[data-netz="N67"]').nth(1).click(); // schwarz, LS3 Ausgang N (unten rechts)
+    await page.locator('#schaltkasten svg circle[data-netz="N63"]').click(); // blau, LS3 Eingang N (oben rechts)
+    erwarte([await rlowHauptwert(page)], 'R:0,07Ω', 'Fehlertabelle N67 (0,07Ω), N63 ohne eigenen Eintrag');
+    await page.close();
+  });
+
+  // testcase_05 Gruppe G2: dieselbe Messung wie oben, diesmal mit
+  // vertauschter Sonden-Farbreihenfolge (Schwarz auf Eingang/oben, Blau auf
+  // Ausgang/unten statt umgekehrt) - RLOW ist symmetrisch (Reihenfolge der
+  // Sonden spielt keine Rolle), liefert also denselben Wert 0,07Ω. Zusätzlich
+  // die Hebel-Platzhalter-Probe (siehe L-Ader-Test oben): LS3s Hebel öffnen
+  // -> Platzhalter statt Messwert.
+  await pruefe('RLOW: testcase_05 - dieselbe LS3-N-Ader mit vertauschter Sondenreihenfolge (Schwarz oben rechts, Blau unten rechts) liefert ebenfalls 0,07Ω, Platzhalter sobald der Hebel offen ist', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await page.locator('#schaltkasten svg circle[data-netz="N63"]').click(); // schwarz, LS3 Eingang N (oben rechts)
+    await page.locator('#schaltkasten svg circle[data-netz="N67"]').nth(1).click(); // blau, LS3 Ausgang N (unten rechts)
+    erwarte([await rlowHauptwert(page)], 'R:0,07Ω', 'RLOW ist symmetrisch - derselbe Wert wie mit vertauschten Farben');
+
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({ x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width') }))
+    );
+    const ls3Box = boxen.filter((b) => b.w === '24' && b.y === '322').sort((a, b) => parseFloat(a.x) - parseFloat(b.x))[2];
+    const ls3 = page.locator('#schaltkasten svg g[style*="cursor: pointer"]').filter({ has: page.locator(`rect[x="${ls3Box.x}"][y="${ls3Box.y}"]`) });
+
+    await ls3.click(); // LS3s Hebel öffnen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'Platzhalter, sobald LS3s Hebel offen ist');
+    await page.close();
+  });
+
   // testcase_06: N-Kontakt der 5-poligen Anschlussdose (blau, Netz N26) bis
   // zur N-Klemme unten (Ausgang-Schraube, Netz N12) - dazwischen liegt nur
   // die Reihenklemme_N_SK1 mit dem Fehlertabellen-Eintrag N26=0,17Ω (siehe
@@ -1574,7 +1637,9 @@ async function main() {
   // Der 3-polige LS1 muss als EINE Schalter-Box mit genau einem Hebel
   // gezeichnet werden (wie beim 4-poligen RCD/3-poligen Hauptschalter),
   // nicht als drei separate 1-TE-Boxen - Breite nach der "einfach"-Formel
-  // in schaltkasten.js (3 Pole: 3*24 + (3-2)*6 = 78px).
+  // in schaltkasten.js (3 Pole: 3*24 + (3-2)*6 = 78px). Seit Gruppe G2
+  // (RCD2 + LS2/LS3 mit AFDD, siehe KONZEPT.md "AFDD") gibt es insgesamt
+  // 6 Schalter-Boxen statt 3 (RCD1, LS1, RCD2, LS2, LS3, Hauptschalter).
   await pruefe('Schaltkasten: testcase_05 - der 3-polige LS1 ist EINE Schalter-Box mit 78px Breite (keine drei einzelnen)', async () => {
     const page = await neueSeiteMitTestcase('testcase_05');
     const boxen = await page.evaluate(() =>
@@ -1582,9 +1647,32 @@ async function main() {
         x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width')
       }))
     );
-    if (boxen.length !== 3) throw new Error(`erwarte 3 Schalter-Boxen (RCD1, LS1, Hauptschalter), gefunden ${boxen.length}: ${JSON.stringify(boxen)}`);
+    if (boxen.length !== 6) throw new Error(`erwarte 6 Schalter-Boxen (RCD1, LS1, RCD2, LS2, LS3, Hauptschalter), gefunden ${boxen.length}: ${JSON.stringify(boxen)}`);
     const ls1Box = boxen.find((b) => b.w === '78' && b.y === '322');
     if (!ls1Box) throw new Error(`erwarte eine 78px breite Schalter-Box für LS1 in Reihe 2, gefunden: ${JSON.stringify(boxen)}`);
+    await page.close();
+  });
+
+  // "LS mit AFDD"-Kombigerät (siehe KONZEPT.md "AFDD"): baulich wie ein
+  // 2-poliger RCD - dieselbe Schalter-Box-Breite (24px, Basisbreite) wie
+  // RCD2 daneben, nicht die "einfach"-Formel eines normalen LS. Zweizeilige
+  // Aufschrift (LS-Charakteristik+Nennstrom, darunter "AFDD").
+  await pruefe('Schaltkasten: testcase_05 - LS2/LS3 mit AFDD haben dieselbe Schalter-Bauform wie der 2-polige RCD2 (24px) und zweizeilige Aufschrift', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    const boxen = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg rect[height="36"][fill="#f5f5f5"]')].map((r) => ({
+        x: r.getAttribute('x'), y: r.getAttribute('y'), w: r.getAttribute('width')
+      }))
+    );
+    const gruppe2Boxen = boxen.filter((b) => b.y === '322' && parseFloat(b.x) >= 252).sort((a, b) => parseFloat(a.x) - parseFloat(b.x));
+    if (gruppe2Boxen.length !== 3) throw new Error(`erwarte 3 Schalter-Boxen in Gruppe G2 (RCD2, LS2, LS3), gefunden ${gruppe2Boxen.length}: ${JSON.stringify(gruppe2Boxen)}`);
+    for (const box of gruppe2Boxen) {
+      if (box.w !== '24') throw new Error(`erwarte 24px Schalter-Box-Breite (RCD-Bauform) für RCD2/LS2/LS3, gefunden: ${JSON.stringify(box)}`);
+    }
+
+    const labels = await page.evaluate(() => [...document.querySelectorAll('#schaltkasten svg text')].map((t) => t.textContent));
+    if (!labels.includes('B20AFDD')) throw new Error(`erwarte zweizeiliges Label "B20"/"AFDD" für LS2, gefunden: ${JSON.stringify(labels)}`);
+    if (!labels.includes('B16AFDD')) throw new Error(`erwarte zweizeiliges Label "B16"/"AFDD" für LS3, gefunden: ${JSON.stringify(labels)}`);
     await page.close();
   });
 
@@ -1678,6 +1766,40 @@ async function main() {
     erwarte(texte, 'I:___mA', 'kein RCD gefunden - Platzhalter bleibt');
     const ampel = await ampelFarben(page);
     if (ampel[0] !== '#ff6666') throw new Error(`erwarte rote Ampel links, gefunden: ${JSON.stringify(ampel)}`);
+    await page.close();
+  });
+
+  // testcase_05 Gruppe G2 (AFDD, siehe KONZEPT.md "AFDD"): geräteübergreifend
+  // über drei verschiedene Endstellen - Blau auf der Drehstromsteckdose SK1
+  // (N-Kontakt, Index 4 der grauen Kreise), Schwarz auf SK2 (mittlere
+  // Steckdose, linker Kontakt = L1, Index 5), Grün auf SK3s PE (rechte
+  // Steckdose, Index 2 der grauen Rechtecke - anders als bei testcase_06 gibt
+  // es hier ZWEI normale Steckdosen mit PE-Rechtecken, `.first()` würde SK2s
+  // PE statt SK3s treffen). Findet trotzdem RCD2 (die RCD-Suche läuft nur
+  // über den Pfad der schwarzen L-Sonde), übernimmt dessen Auslösewerte aus
+  // bauteile.md (24,0mA/0,9V/21,0ms) und öffnet nach TEST automatisch den
+  // Hebel - Spannung fällt dadurch von 230V auf 0V, der Pfeil-Kasten wird
+  // entsprechend durchgestrichen, Ampel rechts grün.
+  await pruefe('FI/RCD: testcase_05 - Blau auf der Drehstromsteckdose (N), Schwarz auf SK2 (L1), Grün auf SK3 (PE) findet RCD2, übernimmt dessen Auslösewerte', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    for (let i = 0; i < 4; i++) await drehknopfKlick(page); // RLOW -> RISO -> ZI -> ZS -> FI/RCD
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // schwarz: SK2 (mittlere Steckdose), linker Kontakt = L1
+    await kreise.nth(4).click(); // blau: Drehstromsteckdose N
+    await page.locator('#steckdosen rect[fill="#666666"]').nth(2).click(); // grün: SK3 (rechte Steckdose) PE
+
+    erwarte(await displayTexte(page), '230V', 'Stromkreis bereit, RCD2 noch geschlossen');
+    if (await indikatorDurchgestrichen(page)) throw new Error('Pfeil-Kasten sollte vor TEST NICHT durchgestrichen sein (Spannung liegt an)');
+
+    await klick(page, 'TEST');
+    const texte = await displayTexte(page);
+    erwarte(texte, 'I:24,0mA', 'RCD2s Auslösestrom übernommen');
+    erwarte(texte, 'Uci:0,9V', 'RCD2s Berührungsspannung übernommen');
+    erwarte(texte, 't:21,0ms', 'RCD2s Abschaltzeit übernommen');
+    erwarte(texte, '0V', 'RCD2 hat automatisch ausgelöst, Spannung fällt auf 0V');
+    if (!(await indikatorDurchgestrichen(page))) throw new Error('Pfeil-Kasten sollte nach dem automatischen Auslösen durchgestrichen sein');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
     await page.close();
   });
 
@@ -2371,6 +2493,33 @@ async function main() {
 
     const texte = await displayTexte(page);
     erwarteGleich(texte.filter((t) => t === '400V').length, 3, 'alle drei Paare zwischen unterschiedlichen Außenleitern -> 400V');
+    await page.close();
+  });
+
+  // testcase_05: geräteübergreifend über DREI verschiedene Endstellen der
+  // AFDD-Gruppe G2 UND der Drehstromsteckdose SK1 hinweg (siehe KONZEPT.md
+  // "AFDD") - Grün auf PE der Drehstromsteckdose (Index 0, erster grauer
+  // Kontakt im Steckdosen-Grid), Schwarz auf SK2s L1 (mittlere Steckdose,
+  // linker Kontakt, Index 5), Blau auf SK3s N (rechte Steckdose, rechter
+  // Kontakt, Index 8). SK2/SK3 hängen an verschiedenen AFDD-LS (LS2/LS3),
+  // teilen sich aber denselben N-Pfad zur Einspeisung über RCD2 - V~ prüft
+  // keine Rollen (freie Sondenplatzierung), L(schwarz)+N(blau) auf
+  // unterschiedlichen Stromkreisen liefert trotzdem Uln=230V, L+PE ebenso
+  // Ulpe=230V, N+PE (beide auf demselben Potential im gesunden Stromkreis)
+  // Unpe=0V.
+  await pruefe('V~: testcase_05 - Grün auf PE der Drehstromsteckdose, Schwarz auf SK2 (L1), Blau auf SK3 (N) zeigt Uln=230V/Ulpe=230V/Unpe=0V', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    for (let i = 0; i < 5; i++) await drehknopfKlick(page); // -> V~
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // schwarz: SK2 (mittlere Steckdose), linker Kontakt = L1
+    await kreise.nth(8).click(); // blau: SK3 (rechte Steckdose), rechter Kontakt = N
+    await kreise.nth(0).click(); // grün: Drehstromsteckdose PE
+
+    const texte = await displayTexte(page);
+    erwarte(texte, 'Uln:', 'Uln-Label vorhanden');
+    erwarteGleich(texte.filter((t) => t === '230V').length, 2, 'Uln und Ulpe zeigen 230V');
+    erwarteGleich(texte.filter((t) => t === '0V').length, 1, 'Unpe bleibt 0V (N und PE auf demselben Potential)');
     await page.close();
   });
 

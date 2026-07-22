@@ -698,6 +698,71 @@ der schwarzen L-Sonde läuft, Blau/Grün nur auf korrekt platziert geprüft
 werden - und öffnet den RCD2-Hebel sichtbar, `transform`-Attribut vorher
 `null` (geschlossen), danach `rotate(180, ...)` (offen)).
 
+**AFDD ("LS mit AFDD"-Kombigerät, `testcase_05` Gruppe G2, Status:
+umgesetzt):** kein eigenes Bauteil, sondern ein Flag `ls.afdd` auf einem
+normalen 2-poligen LS (`bauteile.md`-Spalte `AFDD` = `ja`, geparst in
+`parseBauteile()`). Baulich wie ein 2-poliger RCD - `view/schaltkasten.js`
+zeichnet dieselbe Schalter-Bauform (`schalterTyp: ls.afdd ? 'rcd' :
+'einfach'`, kein neuer Formel-Zweig) mit zweizeiliger Aufschrift (`geraet()`s
+`label`-Parameter akzeptiert jetzt String ODER Array, ein `<tspan dy="10">`
+pro Zeile). Elektrisch ein normaler 2-poliger LS (L+N geschaltet, generische
+Graph-Kantenbildung über `bauteil.pole` unverändert). Einzige Code-Änderung
+in `generate_anlage.js`: die `phasen`-Herleitung pro Stromkreis zählt bei
+`ls.afdd` nur `i1` als L-Phase (nicht jeden Pol wie bei einem normalen
+mehrpoligen LS, siehe "3-poliger LS" oben) - der N-Pol wird wie beim RCD
+separat behandelt (`lsFunktionen = [...phasen, 'N']` für `ls.eingang`/
+`ausgang`), sonst hätte `[...phasen, 'N', 'PE']` (Endstelle-Pins) ein
+doppeltes N erzeugt. Verdrahtungsunterschied zu `testcase_06`s normalem
+1-poligen LS: RCD2.o1 (L) UND RCD2.o2 (N) verzweigen hier je auf zwei
+separate Ausgangsadern (eine pro AFDD-LS), weil der AFDD-LS N selbst
+schaltet statt ihn durchzureichen.
+
+Rückwärtskompatibilität: alle sechs Testcases neu generiert - einziger Diff
+war `ls.afdd: false` (neues Feld) und die `<tspan>`-Hülle um bestehende
+einzeilige Labels (identischer `textContent`, per SVG-Diff gegen die
+`anlage.svg`-Referenzbilder bestätigt).
+
+**Nachträglich ergänzt (direkt im Anschluss, alles User-Vorgaben, reine
+Daten-/Darstellungsänderungen ohne neuen Code-Pfad):**
+1. `testcase_05`s RCD2 von Typ A auf Typ B umgestellt (`bauteile.md`, Spalte
+   `Typ/Charakteristik`) - Fehlerstrom blieb bei 30mA. Reiner
+   `anlage.json`-Diff (`rcd.typ`), `graph.json` unverändert.
+2. RCD-Beschriftung auf allen Testcases zweizeilig gemacht: Typ+Fehlerstrom
+   (z.B. "A 30mA"), darunter der Nennstrom (`nennstrom_a`, z.B. "40A") -
+   reale RCDs sind immer mit beiden Werten beschriftet. Nutzt denselben
+   Array-Label-Mechanismus wie oben beim AFDD-LS beschrieben (`label:
+   [${rcd.typ} ${rcd.in_ma}mA, ${rcd.nennstrom_a}A]` statt eines einzelnen
+   Strings) - `nennstrom_a` stand schon vorher in jeder `anlage.json`, keine
+   Datenmodell-Änderung nötig. Alle sechs `anlage.svg`-Snapshots neu
+   gerendert (reine Optik, `anlage.json`/`graph.json` unverändert, kein
+   Test hardcodete den alten einzeiligen RCD-Labeltext).
+3. Ein weiterer Fehlertabellen-Eintrag auf `N67` (LS3.o2 →
+   Reihenklemme_N_SK3.i1, `0,07Ω`) - anders als bei der L-Ader (je ein Wert
+   vor UND nach dem Bauteil) bewusst nur auf EINER der beiden N-Adern
+   (`N63`, LS3s N-Eingang, bleibt ohne Eintrag). Reiner `graph.json`-Diff.
+4. Fünf neue Messungs-Testcases für Gruppe G2 (alle User-vorgegeben, per
+   throwaway-Playwright-Skript verifiziert): V~ geräteübergreifend (Grün auf
+   PE der Drehstromsteckdose, Schwarz auf SK2s L1, Blau auf SK3s N ->
+   `Uln:230V`/`Ulpe:230V`/`Unpe:0V`); FI/RCD geräteübergreifend (Blau auf der
+   Drehstromsteckdose-N, Schwarz auf SK2, Grün auf SK3s PE -> findet RCD2,
+   übernimmt dessen Auslösewerte, öffnet den Hebel, Pfeil-Kasten wird
+   durchgestrichen); RLOW direkt über LS3s L-Ader (Eingang oben links,
+   Ausgang unten links -> `0,43Ω` aus LS3s eigener Fehlertabelle,
+   Platzhalter sobald der Hebel offen ist); RLOW über LS3s N-Ader (`0,07Ω`,
+   nur ein Fehlertabellen-Eintrag auf der Ausgangsseite) sowie dieselbe
+   Messung mit vertauschter Sondenfarbreihenfolge (RLOW ist symmetrisch,
+   liefert denselben Wert).
+
+Getestet in `test_generator.js` (4 Tests: LS2/LS3 als 2-polige AFDD-Kombigeräte mit
+weiterhin 1-elementigem `sk.phasen`, `ls.afdd` korrekt gesetzt, L+N auf den
+LS-Ein-/Ausgangsadern, RCD2 mit je zwei Ausgangskanten auf L1 UND N,
+Fehlertabellen-Summe über RCD2→LS2/LS3) und `test_messgeraet.js` (6 Tests: 6 statt 3
+Schalter-Boxen in testcase_05, RCD2/LS2/LS3 mit identischer 24px-Bauform,
+zweizeiliges Label "B20"/"AFDD" bzw. "B16"/"AFDD"; RLOW direkt über LS3 auf
+der L-Ader mit Hebel-Platzhalter-Probe, RLOW über LS3s N-Ader inkl.
+vertauschter Sondenreihenfolge; FI/RCD und V~ jeweils geräteübergreifend über
+Drehstromsteckdose + beide neuen Steckdosen SK2/SK3).
+
 ### messgeraet.js
 - Rendert das Messgerät (beschriftet als "INSTALLATIONSTESTER", Vorbild BENNING IT 130) als eigene SVG-Komponente, genau wie
   `schaltkasten.js` per `document.createElementNS` aus einzelnen DOM-Elementen

@@ -5,7 +5,12 @@
     "N21": 0.19,
     "N25": 0.34,
     "N22": 0.41,
-    "N26": 0.08
+    "N26": 0.08,
+    "N60": 0.22,
+    "N64": 0.31,
+    "N61": 0.18,
+    "N66": 0.25,
+    "N67": 0.07
   },
   "einspeisung": {
     "L1": "N1",
@@ -20,7 +25,13 @@
       "N9",
       "N20",
       "N24",
-      "N27"
+      "N60",
+      "N61",
+      "N64",
+      "N66",
+      "N27",
+      "N68",
+      "N71"
     ],
     "kanten": [
       {
@@ -51,6 +62,42 @@
         "von": "N24",
         "nach": "N27",
         "bauteil": "Reihenklemme_L1_SK1",
+        "geschlossen": true
+      },
+      {
+        "von": "N9",
+        "nach": "N60",
+        "bauteil": "RCD2",
+        "geschlossen": true
+      },
+      {
+        "von": "N9",
+        "nach": "N61",
+        "bauteil": "RCD2",
+        "geschlossen": true
+      },
+      {
+        "von": "N60",
+        "nach": "N64",
+        "bauteil": "LS2",
+        "geschlossen": true
+      },
+      {
+        "von": "N61",
+        "nach": "N66",
+        "bauteil": "LS3",
+        "geschlossen": true
+      },
+      {
+        "von": "N64",
+        "nach": "N68",
+        "bauteil": "Reihenklemme_L_SK2",
+        "geschlossen": true
+      },
+      {
+        "von": "N66",
+        "nach": "N71",
+        "bauteil": "Reihenklemme_L_SK3",
         "geschlossen": true
       }
     ]
@@ -144,7 +191,13 @@
       "N4",
       "N12",
       "N23",
-      "N28"
+      "N62",
+      "N63",
+      "N65",
+      "N67",
+      "N28",
+      "N69",
+      "N72"
     ],
     "kanten": [
       {
@@ -163,6 +216,42 @@
         "von": "N23",
         "nach": "N28",
         "bauteil": "Reihenklemme_N_SK1",
+        "geschlossen": true
+      },
+      {
+        "von": "N12",
+        "nach": "N62",
+        "bauteil": "RCD2",
+        "geschlossen": true
+      },
+      {
+        "von": "N12",
+        "nach": "N63",
+        "bauteil": "RCD2",
+        "geschlossen": true
+      },
+      {
+        "von": "N62",
+        "nach": "N65",
+        "bauteil": "LS2",
+        "geschlossen": true
+      },
+      {
+        "von": "N63",
+        "nach": "N67",
+        "bauteil": "LS3",
+        "geschlossen": true
+      },
+      {
+        "von": "N65",
+        "nach": "N69",
+        "bauteil": "Reihenklemme_N_SK2",
+        "geschlossen": true
+      },
+      {
+        "von": "N67",
+        "nach": "N72",
+        "bauteil": "Reihenklemme_N_SK3",
         "geschlossen": true
       }
     ]

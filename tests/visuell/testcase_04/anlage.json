@@ -220,6 +220,7 @@
                 "in": 16,
                 "polig": 1,
                 "te": 1,
+                "afdd": false,
                 "eingang": {
                   "leitung": {
                     "typ": "NYM-J",
@@ -247,7 +248,6 @@
                   }
                 }
               },
-              "afdd": null,
               "endstelle": "Steckdose",
               "leitung": {
                 "typ": "NYM-J",
@@ -313,6 +313,7 @@
                 "in": 16,
                 "polig": 1,
                 "te": 1,
+                "afdd": false,
                 "eingang": {
                   "leitung": {
                     "typ": "NYM-J",
@@ -340,7 +341,6 @@
                   }
                 }
               },
-              "afdd": null,
               "endstelle": "Steckdose",
               "leitung": {
                 "typ": "NYM-J",
@@ -401,6 +401,7 @@
                 "in": 16,
                 "polig": 1,
                 "te": 1,
+                "afdd": false,
                 "eingang": {
                   "leitung": {
                     "typ": "NYM-J",
@@ -428,7 +429,6 @@
                   }
                 }
               },
-              "afdd": null,
               "endstelle": "Steckdose",
               "leitung": {
                 "typ": "NYM-J",

@@ -1,6 +1,6 @@
 {
   "name": "Unterverteiler Testcase 05",
-  "beschreibung": "3-poliger Hauptschalter, 4-poliger RCD, EIN 3-poliger LS (statt drei einpoliger) für einen einzigen dreiphasigen Stromkreis",
+  "beschreibung": "3-poliger Hauptschalter, Gruppe G1 = 4-poliger RCD + EIN 3-poliger LS (dreiphasiger Stromkreis), Gruppe G2 = 2-poliger RCD + zwei \"LS mit AFDD\"-Kombigeräte (je 2-polig, baulich wie ein 2-poliger RCD) - beide Gruppen auf derselben Hutschiene",
   "netzform": "TN-S",
   "spannung_einspeisung": 400,
   "spannung_stromkreise": 400,
@@ -9,6 +9,18 @@
       "row": 0,
       "col": 0,
       "sk": "SK1",
+      "rotation": 0
+    },
+    {
+      "row": 0,
+      "col": 1,
+      "sk": "SK2",
+      "rotation": 0
+    },
+    {
+      "row": 0,
+      "col": 2,
+      "sk": "SK3",
       "rotation": 0
     }
   ],
@@ -168,6 +180,7 @@
                 "in": 16,
                 "polig": 3,
                 "te": 3,
+                "afdd": false,
                 "eingang": {
                   "leitung": {
                     "typ": "NYM-J",
@@ -219,7 +232,6 @@
                   }
                 }
               },
-              "afdd": null,
               "endstelle": "Drehstromsteckdose",
               "leitung": {
                 "typ": "NYM-J",
@@ -289,6 +301,281 @@
                   "querschnitt_mm2": 2.5,
                   "netz": "N30"
                 }
+              },
+              "messungen": {
+                "zi": false,
+                "zs": true,
+                "rcd": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "G2",
+          "bezeichnung": "Gruppe 2",
+          "phase": "L1",
+          "rcd": {
+            "name": "RCD2",
+            "typ": "B",
+            "polig": 2,
+            "te": 2,
+            "in_ma": 30,
+            "nennstrom_a": 40,
+            "selektiv": false,
+            "abklemmen_bei_iso": false,
+            "max_ls_anzahl": 2,
+            "tA": 21,
+            "iA": 24,
+            "uB": 0.9,
+            "eingang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 10,
+                    "netz": "N9"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 10,
+                    "netz": "N12"
+                  }
+                ]
+              }
+            },
+            "ausgang": {
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N60",
+                    "weitere": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N61"
+                      }
+                    ]
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N62",
+                    "weitere": [
+                      {
+                        "funktion": "N",
+                        "farbe": "blau",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N63"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "stromkreise": [
+            {
+              "nr": 2,
+              "bezeichnung": "SK2",
+              "ziel": "Steckdose Schlafzimmer",
+              "phasen": [
+                "L1"
+              ],
+              "ls": {
+                "name": "LS2",
+                "char": "B",
+                "in": 20,
+                "polig": 2,
+                "te": 2,
+                "afdd": true,
+                "eingang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N60"
+                      },
+                      {
+                        "funktion": "N",
+                        "farbe": "blau",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N62"
+                      }
+                    ]
+                  }
+                },
+                "ausgang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N64"
+                      },
+                      {
+                        "funktion": "N",
+                        "farbe": "blau",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N65"
+                      }
+                    ]
+                  }
+                }
+              },
+              "endstelle": "Steckdose",
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N68"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N69"
+                  },
+                  {
+                    "funktion": "PE",
+                    "farbe": "gn-ge",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N70"
+                  }
+                ]
+              },
+              "reihenklemmen_eingang": {
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N64"
+                  }
+                ],
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N65"
+                },
+                "pe": null
+              },
+              "messungen": {
+                "zi": false,
+                "zs": true,
+                "rcd": true
+              }
+            },
+            {
+              "nr": 3,
+              "bezeichnung": "SK3",
+              "ziel": "Steckdose Kinderzimmer",
+              "phasen": [
+                "L1"
+              ],
+              "ls": {
+                "name": "LS3",
+                "char": "B",
+                "in": 16,
+                "polig": 2,
+                "te": 2,
+                "afdd": true,
+                "eingang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N61"
+                      },
+                      {
+                        "funktion": "N",
+                        "farbe": "blau",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N63"
+                      }
+                    ]
+                  }
+                },
+                "ausgang": {
+                  "leitung": {
+                    "typ": "NYM-J",
+                    "adern": [
+                      {
+                        "funktion": "L1",
+                        "farbe": "schwarz",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N66"
+                      },
+                      {
+                        "funktion": "N",
+                        "farbe": "blau",
+                        "querschnitt_mm2": 2.5,
+                        "netz": "N67"
+                      }
+                    ]
+                  }
+                }
+              },
+              "endstelle": "Steckdose",
+              "leitung": {
+                "typ": "NYM-J",
+                "adern": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N71"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N72"
+                  },
+                  {
+                    "funktion": "PE",
+                    "farbe": "gn-ge",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N73"
+                  }
+                ]
+              },
+              "reihenklemmen_eingang": {
+                "l": [
+                  {
+                    "funktion": "L1",
+                    "farbe": "schwarz",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N66"
+                  }
+                ],
+                "n": {
+                  "funktion": "N",
+                  "farbe": "blau",
+                  "querschnitt_mm2": 2.5,
+                  "netz": "N67"
+                },
+                "pe": null
               },
               "messungen": {
                 "zi": false,

@@ -349,7 +349,13 @@ function parseBauteile(ordner) {
           anzahlLs: bereinige(z['Anzahl LS']) ? parseInt(z['Anzahl LS'], 10) : null,
           tA: bereinige(z.tA) ? parseFloat(z.tA) : null,
           iA: bereinige(z.IA) ? parseFloat(z.IA) : null,
-          uB: bereinige(z.UB) ? parseFloat(z.UB) : null
+          uB: bereinige(z.UB) ? parseFloat(z.UB) : null,
+          // "LS mit AFDD"-Kombigerät (siehe KONZEPT.md "AFDD"): baulich wie
+          // ein 2-poliger RCD (L+N in einem Gehäuse), nur die Aufschrift
+          // unterscheidet sich. Optionale Spalte - fehlt sie in einer
+          // bauteile.md-Datei (ältere Testcases), ist `z.AFDD` einfach
+          // undefined und `bereinige()` liefert null, also `false`.
+          afdd: bereinige(z.AFDD) === 'ja'
         }));
     } else if (abschnitt.startsWith('Stromkreise')) {
       ergebnis.stromkreise = leseMarkdownTabelle(abschnitt).map((z) => {
@@ -465,12 +471,29 @@ function generiereAnlage(ordner) {
       // Bei einem normalen 1-poligen LS ist das schlicht ein Array mit
       // einem Eintrag - unverändertes Verhalten gegenüber vorher.
       const sk = stromkreise.find((s) => s.nr === skNr);
+      // Bei einem normalen LS ist jeder Pol eine eigene L-Phase (siehe oben,
+      // testcase_05s 3-poliger LS1). Ein "LS mit AFDD"-Kombigerät ist zwar
+      // ebenfalls mehrpolig, aber baulich wie ein 2-poliger RCD (L+N in
+      // einem Gehäuse, siehe KONZEPT.md "AFDD") - hier zählt für den
+      // Stromkreis nur die EINE L-Phase, der zweite Pol ist der N-Durchgang
+      // (analog zum eigenen N-Pol eines RCD, der auch nicht in `phasen`
+      // auftaucht, siehe `rcdFunktionen` unten).
       const phasen = [];
-      for (let i = 1; i <= (ls.pole ?? 1); i++) {
-        const pin = `${ls.name}.i${i}`;
+      if (ls.afdd) {
+        const pin = `${ls.name}.i1`;
         const funktion = findeNetz(netze, pin)?.pins.find((p) => p.pin === pin)?.funktion;
         phasen.push(funktion ?? 'L1');
+      } else {
+        for (let i = 1; i <= (ls.pole ?? 1); i++) {
+          const pin = `${ls.name}.i${i}`;
+          const funktion = findeNetz(netze, pin)?.pins.find((p) => p.pin === pin)?.funktion;
+          phasen.push(funktion ?? 'L1');
+        }
       }
+      // Adern-Funktionen für die LS-eigene Leitung (eingang/ausgang) - beim
+      // AFDD-Kombigerät zusätzlich der N-Pol, der bei `phasen` (s.o.) bewusst
+      // NICHT mitgezählt wird.
+      const lsFunktionen = ls.afdd ? [...phasen, 'N'] : phasen;
 
       // Über die Endstelle-Pins gesucht (nicht über die Reihenklemme selbst) - robust
       // gegenüber PE-Klemmen, die eingehende+weiterführende Ader auf demselben `io1`
@@ -523,10 +546,14 @@ function generiereAnlage(ordner) {
           in: ls.nennstrom,
           polig: ls.pole,
           te: TE_TABELLE[`LS-${ls.pole}`],
-          eingang: baueLeitung(netze, ls.name, 'i', phasen),
-          ausgang: baueLeitung(netze, ls.name, 'o', phasen)
+          // "LS mit AFDD"-Kombigerät (siehe KONZEPT.md "AFDD"): reine
+          // Render-Eigenschaft (view/schaltkasten.js zeichnet dann die
+          // RCD-Bauform mit zweizeiliger Aufschrift) - elektrisch verhält
+          // sich das Gerät wie ein normaler 2-poliger LS (L+N geschaltet).
+          afdd: ls.afdd,
+          eingang: baueLeitung(netze, ls.name, 'i', lsFunktionen),
+          ausgang: baueLeitung(netze, ls.name, 'o', lsFunktionen)
         },
-        afdd: null,
         endstelle: sk.endstelle,
         leitung: { typ: leitungKabeltyp ?? 'NYM-J', adern: leitungAdern },
         reihenklemmen_eingang: reihenklemmenEingang,

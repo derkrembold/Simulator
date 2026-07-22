@@ -141,6 +141,7 @@
                 "in": 16,
                 "polig": 3,
                 "te": 3,
+                "afdd": false,
                 "eingang": {
                   "leitung": {
                     "typ": "NYM-J",
@@ -192,7 +193,6 @@
                   }
                 }
               },
-              "afdd": null,
               "endstelle": "5-polige Anschlussdose",
               "leitung": {
                 "typ": "NYM-J",
@@ -349,6 +349,7 @@
                 "in": 16,
                 "polig": 1,
                 "te": 1,
+                "afdd": false,
                 "eingang": {
                   "leitung": {
                     "typ": "NYM-J",
@@ -376,7 +377,6 @@
                   }
                 }
               },
-              "afdd": null,
               "endstelle": "Steckdose",
               "leitung": {
                 "typ": "NYM-J",
@@ -437,6 +437,7 @@
                 "in": 10,
                 "polig": 1,
                 "te": 1,
+                "afdd": false,
                 "eingang": {
                   "leitung": {
                     "typ": "NYM-J",
@@ -464,7 +465,6 @@
                   }
                 }
               },
-              "afdd": null,
               "endstelle": "Lichtauslass",
               "leitung": {
                 "typ": "NYM-J",

@@ -206,12 +206,20 @@ function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: HEADER_H, fill: farben.header }));
 
   // Direkt unter dem Header-Balken statt vertikal mittig in der ganzen Box -
-  // näher an der Typenschild-Position auf echten Geräten.
+  // näher an der Typenschild-Position auf echten Geräten. `label` ist
+  // normalerweise ein einzelner String, kann aber auch ein Array sein
+  // (mehrzeilige Aufschrift, z.B. "B20" + "AFDD" beim LS-AFDD-Kombigerät -
+  // siehe KONZEPT.md "AFDD") - eine Zeile pro Array-Element.
   const text = svgEl('text', {
     x: x + breite / 2, y: y + HEADER_H + 12,
     'text-anchor': 'middle', 'font-size': 9, fill: farben.text ?? '#000000'
   });
-  text.textContent = label;
+  const labelZeilen = Array.isArray(label) ? label : [label];
+  labelZeilen.forEach((zeile, i) => {
+    const tspan = svgEl('tspan', { x: x + breite / 2, dy: i === 0 ? 0 : 10 });
+    tspan.textContent = zeile;
+    text.appendChild(tspan);
+  });
   svg.appendChild(text);
 
   if (schalterTyp) {
@@ -331,9 +339,12 @@ export const SchaltkastenView = {
       let gx = 0;
       for (const gruppe of hutschiene.gruppen) {
         if (gruppe.rcd) {
+          // Zweizeiliges Label: Typ+Fehlerstrom (z.B. "A 30mA"), darunter der
+          // Nennstrom (z.B. "40A") - reale RCDs sind immer mit beiden Werten
+          // beschriftet, siehe KONZEPT.md "AFDD" für den Array-Label-Mechanismus.
           gx += geraet(g, {
             x: gx, y: rowY, teAnzahl: gruppe.rcd.te, farben: FARBEN.rcd,
-            label: `${gruppe.rcd.typ} ${gruppe.rcd.in_ma}mA`,
+            label: [`${gruppe.rcd.typ} ${gruppe.rcd.in_ma}mA`, `${gruppe.rcd.nennstrom_a}A`],
             adernEingang: gruppe.rcd.eingang.leitung.adern,
             adernAusgang: gruppe.rcd.ausgang.leitung.adern,
             onSchraubeKlick, schalterTyp: 'rcd', bauteilName: gruppe.rcd.name, onSchalterKlick, schalterHandles
@@ -341,12 +352,16 @@ export const SchaltkastenView = {
         }
         for (const sk of gruppe.stromkreise) {
           const ls = sk.ls;
+          // "LS mit AFDD"-Kombigerät (siehe KONZEPT.md "AFDD"): baulich wie
+          // ein 2-poliger RCD (schalterTyp 'rcd' statt 'einfach'), nur die
+          // Aufschrift unterscheidet sich (zweizeilig: LS-Charakteristik +
+          // Nennstrom, darunter "AFDD").
           gx += geraet(g, {
             x: gx, y: rowY, teAnzahl: ls.te, farben: FARBEN.ls,
-            label: `${ls.char}${ls.in}`,
+            label: ls.afdd ? [`${ls.char}${ls.in}`, 'AFDD'] : `${ls.char}${ls.in}`,
             adernEingang: ls.eingang.leitung.adern,
             adernAusgang: ls.ausgang.leitung.adern,
-            onSchraubeKlick, schalterTyp: 'einfach', bauteilName: ls.name, onSchalterKlick, schalterHandles
+            onSchraubeKlick, schalterTyp: ls.afdd ? 'rcd' : 'einfach', bauteilName: ls.name, onSchalterKlick, schalterHandles
           });
         }
       }

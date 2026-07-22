@@ -3,13 +3,21 @@
 Variante von testcase_04: derselbe 3-polige Hauptschalter und 4-polige RCD
 auf drei Phasen, aber statt drei einpoliger LS (je einem einphasigen
 Stromkreis) EIN 3-poliger LS für einen einzigen dreiphasigen Stromkreis
-(z.B. Drehstrommotor/Festanschluss). Drei physische Zeilen (Hutschienen):
+(z.B. Drehstrommotor/Festanschluss). Zusätzlich **Gruppe G2**: ein 2-poliger
+RCD (RCD2) mit zwei "LS mit AFDD"-Kombigeräten (LS2/LS3, siehe KONZEPT.md
+"AFDD") daneben, auf derselben Hutschiene wie G1 - baulich analog zu
+testcase_06s Gruppe G2 (RCD2 + zwei 1-polige LS), nur dass LS2/LS3 hier
+Kombigeräte sind: baulich wie ein 2-poliger RCD (L+N in einem Gehäuse), aber
+elektrisch ein normaler 2-poliger LS (schaltet L UND N). Drei physische
+Zeilen (Hutschienen):
 - **H1** = Hauptschalter (3-polig, L1+L2+L3) + L1-/L2-/L3-/N-/PE-Klemme (unterste Zeile)
-- **H2** = Hutschiene mit Gruppe 1 (RCD, 4-polig, + EIN 3-poliger LS1)
-- **H3** = Reihenklemmen für SK1 (oberste Zeile) - drei separate, normale
-  L-Reihenklemmen (L1/L2/L3), aber EINE gemeinsame N- und PE-Reihenklemme,
-  da SK1 nur ein einziger (dreiphasiger) Stromkreis ist, kein neues
-  Mehrphasen-Bauteil.
+- **H2** = Hutschiene mit Gruppe G1 (RCD1, 4-polig, + EIN 3-poliger LS1) UND
+  Gruppe G2 (RCD2, 2-polig, + LS2/LS3, je 2-polig mit AFDD)
+- **H3** = Reihenklemmen für SK1/SK2/SK3 (oberste Zeile) - SK1: drei separate,
+  normale L-Reihenklemmen (L1/L2/L3), aber EINE gemeinsame N- und
+  PE-Reihenklemme, da SK1 nur ein einziger (dreiphasiger) Stromkreis ist,
+  kein neues Mehrphasen-Bauteil. SK2/SK3: je eine normale L-/N-/PE-Reihenklemme
+  (einphasig, wie testcase_01/06).
 
 Jede Tabelle zeigt nur ihre eigenen (Home-)Pins – keine Gastzeilen aus anderen
 Tabellen. Ein Netz, das über eine Tabellengrenze hinweg weiterläuft, taucht als
@@ -63,54 +71,102 @@ jedes Netzes (Einheit im Zeilennamen, Werte reine Zahlen).
 
 ## Tabelle 2: H2
 
-|          Pin          |   N9    |  N10  |  N11  |  N12  |   N20   |  N21  |  N22  |  N23  |   N24   |  N25  |  N26  |
-|:---------------------:|:-------:|:-----:|:-----:|:-----:|:-------:|:-----:|:-----:|:-----:|:-------:|:-----:|:-----:|
-|      **Quelle**       |   H1    |  H1   |  H1   |  H1   |   H2    |  H2   |  H2   |  H2   |   H2    |  H2   |  H2   |
-|       **Farbe**       | schwarz | braun | grau  | blau  | schwarz | braun | grau  | blau  | schwarz | braun | grau  |
-| **Querschnitt (mm²)** |   10    |  10   |  10   |  10   |   2.5   |  2.5  |  2.5  |  2.5  |   2.5   |  2.5  |  2.5  |
-|     **Kabeltyp**      |  NYM-J  | NYM-J | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J |
-|        RCD1.i1        |   L1    |       |       |       |         |       |       |       |         |       |       |
-|        RCD1.i2        |         |  L2   |       |       |         |       |       |       |         |       |       |
-|        RCD1.i3        |         |       |  L3   |       |         |       |       |       |         |       |       |
-|        RCD1.i4        |         |       |       |   N   |         |       |       |       |         |       |       |
-|        RCD1.o1        |         |       |       |       |   L1    |       |       |       |         |       |       |
-|        RCD1.o2        |         |       |       |       |         |  L2   |       |       |         |       |       |
-|        RCD1.o3        |         |       |       |       |         |       |  L3   |       |         |       |       |
-|        RCD1.o4        |         |       |       |       |         |       |       |   N   |         |       |       |
-|        LS1.i1         |         |       |       |       |   L1    |       |       |       |         |       |       |
-|        LS1.i2         |         |       |       |       |         |  L2   |       |       |         |       |       |
-|        LS1.i3         |         |       |       |       |         |       |  L3   |       |         |       |       |
-|        LS1.o1         |         |       |       |       |         |       |       |       |   L1    |       |       |
-|        LS1.o2         |         |       |       |       |         |       |       |       |         |  L2   |       |
-|        LS1.o3         |         |       |       |       |         |       |       |       |         |       |  L3   |
+Neu: **Gruppe G2** (RCD2, 2-polig, + LS2/LS3, je 2-polig mit AFDD) sitzt auf
+derselben Hutschiene H2 - zapft denselben L1-Ausgang des Hauptschalters (N9)
+und dasselbe ungeschaltete N (N12) an wie RCD1 (mehrere Bauteile am selben
+Ausgangspin, siehe testcase_01 Annahme 2, hier analog testcase_06 Annahme
+13). RCD2.o1 (L) UND RCD2.o2 (N) speisen je LS2 UND LS3 über zwei separate
+Ausgangsadern (N60/N61 bzw. N62/N63) - anders als bei einem normalen
+1-poligen LS (testcase_06) braucht hier auch der N-Pol eine eigene Ader pro
+Gerät, weil LS2/LS3 als AFDD-Kombigerät N selbst mitschalten (siehe
+KONZEPT.md "AFDD").
+
+|          Pin          |   N9    |  N10  |  N11  |  N12  |   N20   |  N21  |  N22  |  N23  |   N24   |  N25  |  N26  |   N60   |   N61   |  N62  |  N63  |   N64   |  N65  |   N66   |  N67  |
+|:---------------------:|:-------:|:-----:|:-----:|:-----:|:-------:|:-----:|:-----:|:-----:|:-------:|:-----:|:-----:|:-------:|:-------:|:-----:|:-----:|:-------:|:-----:|:-------:|:-----:|
+|      **Quelle**       |   H1    |  H1   |  H1   |  H1   |   H2    |  H2   |  H2   |  H2   |   H2    |  H2   |  H2   |   H2    |   H2    |  H2   |  H2   |   H2    |  H2   |   H2    |  H2   |
+|       **Farbe**       | schwarz | braun | grau  | blau  | schwarz | braun | grau  | blau  | schwarz | braun | grau  | schwarz | schwarz | blau  | blau  | schwarz | blau  | schwarz | blau  |
+| **Querschnitt (mm²)** |   10    |  10   |  10   |  10   |   2.5   |  2.5  |  2.5  |  2.5  |   2.5   |  2.5  |  2.5  |   2.5   |   2.5   |  2.5  |  2.5  |   2.5   |  2.5  |   2.5   |  2.5  |
+|     **Kabeltyp**      |  NYM-J  | NYM-J | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J |  NYM-J  |  NYM-J  | NYM-J | NYM-J |  NYM-J  | NYM-J |  NYM-J  | NYM-J |
+|        RCD1.i1        |   L1    |       |       |       |         |       |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD1.i2        |         |  L2   |       |       |         |       |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD1.i3        |         |       |  L3   |       |         |       |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD1.i4        |         |       |       |   N   |         |       |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD1.o1        |         |       |       |       |   L1    |       |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD1.o2        |         |       |       |       |         |  L2   |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD1.o3        |         |       |       |       |         |       |  L3   |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD1.o4        |         |       |       |       |         |       |       |   N   |         |       |       |         |         |       |       |         |         |       |       |
+|        LS1.i1         |         |       |       |       |   L1    |       |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        LS1.i2         |         |       |       |       |         |  L2   |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        LS1.i3         |         |       |       |       |         |       |  L3   |       |         |       |       |         |         |       |       |         |         |       |       |
+|        LS1.o1         |         |       |       |       |         |       |       |       |   L1    |       |       |         |         |       |       |         |         |       |       |
+|        LS1.o2         |         |       |       |       |         |       |       |       |         |  L2   |       |         |         |       |       |         |         |       |       |
+|        LS1.o3         |         |       |       |       |         |       |       |       |         |       |  L3   |         |         |       |       |         |         |       |       |
+|        RCD2.i1        |   L1    |       |       |       |         |       |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD2.i2        |         |       |       |   N   |         |       |       |       |         |       |       |         |         |       |       |         |         |       |       |
+|        RCD2.o1        |         |       |       |       |         |       |       |       |         |       |       |    L1   |    L1   |       |       |         |         |       |       |
+|        RCD2.o2        |         |       |       |       |         |       |       |       |         |       |       |         |         |   N   |   N   |         |         |       |       |
+|        LS2.i1         |         |       |       |       |         |       |       |       |         |       |       |    L1   |         |       |       |         |         |       |       |
+|        LS2.i2         |         |       |       |       |         |       |       |       |         |       |       |         |         |   N   |       |         |         |       |       |
+|        LS2.o1         |         |       |       |       |         |       |       |       |         |       |       |         |         |       |       |    L1   |       |         |       |
+|        LS2.o2         |         |       |       |       |         |       |       |       |         |       |       |         |         |       |       |         |   N   |         |       |
+|        LS3.i1         |         |       |       |       |         |       |       |       |         |       |       |         |    L1   |       |       |         |       |         |       |
+|        LS3.i2         |         |       |       |       |         |       |       |       |         |       |       |         |         |       |   N   |         |       |         |       |
+|        LS3.o1         |         |       |       |       |         |       |       |       |         |       |       |         |         |       |       |         |       |    L1   |       |
+|        LS3.o2         |         |       |       |       |         |       |       |       |         |       |       |         |         |       |       |         |       |         |   N   |
 
 ---
 
 ## Tabelle 3: H3
 
-|           Pin            |  N30  |  N23  |   N24   |  N25  |  N26  |   N27   |  N28  |  N29  |  N31  |  N34  |  N51  |
-|:-------------------------:|:-----:|:-----:|:-------:|:-----:|:-----:|:-------:|:-----:|:-----:|:-----:|:-----:|:-----:|
-|        **Quelle**        |  H1   |  H2   |   H2    |  H2   |  H2   |   H3    |  H3   |  H3   |  H3   |  H3   |  H3   |
-|        **Farbe**         | gn-ge | blau  | schwarz | braun | grau  | schwarz | blau  | gn-ge | braun | grau  | blank |
-|  **Querschnitt (mm²)**   |  2.5  |  2.5  |   2.5   |  2.5  |  2.5  |   2.5   |  2.5  |  2.5  |  2.5  |  2.5  |  16   |
-|      **Kabeltyp**        | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J | NYM-J | NYM-J |   –   |
-|  Reihenklemme_L1_SK1.i1   |       |       |   L1    |       |       |         |       |       |       |       |       |
-|  Reihenklemme_L1_SK1.o1   |       |       |         |       |       |   L1    |       |       |       |       |       |
-|  Reihenklemme_L2_SK1.i1   |       |       |         |  L2   |       |         |       |       |       |       |       |
-|  Reihenklemme_L2_SK1.o1   |       |       |         |       |       |         |       |       |  L2   |       |       |
-|  Reihenklemme_L3_SK1.i1   |       |       |         |       |  L3   |         |       |       |       |       |       |
-|  Reihenklemme_L3_SK1.o1   |       |       |         |       |       |         |       |       |       |  L3   |       |
-|  Reihenklemme_N_SK1.i1    |       |   N   |         |       |       |         |       |       |       |       |       |
-|  Reihenklemme_N_SK1.o1    |       |       |         |       |       |         |   N   |       |       |       |       |
-| Reihenklemme_PE_SK1.io1   |  PE   |       |         |       |       |         |       |       |       |       |       |
-| Reihenklemme_PE_SK1.io2   |       |       |         |       |       |         |       |  PE   |       |       |       |
-| Reihenklemme_PE_SK1.io3   |       |       |         |       |       |         |       |       |       |       |  PE   |
-|     Endstelle_SK1.i1      |       |       |         |       |       |   L1    |       |       |       |       |       |
-|     Endstelle_SK1.i2      |       |       |         |       |       |         |       |       |  L2   |       |       |
-|     Endstelle_SK1.i3      |       |       |         |       |       |         |       |       |       |  L3   |       |
-|     Endstelle_SK1.i4      |       |       |         |       |       |         |   N   |       |       |       |       |
-|     Endstelle_SK1.i5      |       |       |         |       |       |         |       |  PE   |       |       |       |
-|            H3             |       |       |         |       |       |         |       |       |       |       |  PE   |
+SK2/SK3 (Gruppe G2) sind normale einphasige Stromkreise - je eine L-, eine
+N- und eine PE-Reihenklemme, analog testcase_01/06. Anders als bei einem
+normalen 1-poligen LS hat hier auch die N-Reihenklemme eine eigene
+Zubringerader von der LS-AFDD-Ausgangsseite (N65/N67, nicht direkt von
+RCD2.o2), weil LS2/LS3 den N-Pol selbst schalten. Beide bekommen ihr PE
+**nicht** über eine eigene Zubringerader, sondern ausschließlich über den
+lokalen Hutschienen-Bond (N51) - analog testcase_01/06 Annahme 4.
+
+|           Pin            |  N30  |  N23  |   N24   |  N25  |  N26  |   N27   |  N28  |  N29  |  N31  |  N34  |   N64   |  N65  |   N66   |  N67  |   N68   |  N69  |  N70  |   N71   |  N72  |  N73  |  N51  |
+|:-------------------------:|:-----:|:-----:|:-------:|:-----:|:-----:|:-------:|:-----:|:-----:|:-----:|:-----:|:-------:|:-----:|:-------:|:-----:|:-------:|:-----:|:-----:|:-------:|:-----:|:-----:|:-----:|
+|        **Quelle**        |  H1   |  H2   |   H2    |  H2   |  H2   |   H3    |  H3   |  H3   |  H3   |  H3   |   H2    |  H2   |   H2    |  H2   |   H3    |  H3   |  H3   |   H3    |  H3   |  H3   |  H3   |
+|        **Farbe**         | gn-ge | blau  | schwarz | braun | grau  | schwarz | blau  | gn-ge | braun | grau  | schwarz | blau  | schwarz | blau  | schwarz | blau  | gn-ge | schwarz | blau  | gn-ge | blank |
+|  **Querschnitt (mm²)**   |  2.5  |  2.5  |   2.5   |  2.5  |  2.5  |   2.5   |  2.5  |  2.5  |  2.5  |  2.5  |   2.5   |  2.5  |   2.5   |  2.5  |   2.5   |  2.5  |  2.5  |   2.5   |  2.5  |  2.5  |  16   |
+|      **Kabeltyp**        | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J | NYM-J | NYM-J |  NYM-J  | NYM-J |  NYM-J  | NYM-J |  NYM-J  | NYM-J | NYM-J |  NYM-J  | NYM-J | NYM-J |   –   |
+|  Reihenklemme_L1_SK1.i1   |       |       |   L1    |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+|  Reihenklemme_L1_SK1.o1   |       |       |         |       |       |   L1    |       |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+|  Reihenklemme_L2_SK1.i1   |       |       |         |  L2   |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+|  Reihenklemme_L2_SK1.o1   |       |       |         |       |       |         |       |       |  L2   |       |         |       |         |       |         |       |       |         |       |       |       |
+|  Reihenklemme_L3_SK1.i1   |       |       |         |       |  L3   |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+|  Reihenklemme_L3_SK1.o1   |       |       |         |       |       |         |       |       |       |  L3   |         |       |         |       |         |       |       |         |       |       |       |
+|  Reihenklemme_N_SK1.i1    |       |   N   |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+|  Reihenklemme_N_SK1.o1    |       |       |         |       |       |         |   N   |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+| Reihenklemme_PE_SK1.io1   |  PE   |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+| Reihenklemme_PE_SK1.io2   |       |       |         |       |       |         |       |  PE   |       |       |         |       |         |       |         |       |       |         |       |       |       |
+| Reihenklemme_PE_SK1.io3   |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |  PE   |
+|     Endstelle_SK1.i1      |       |       |         |       |       |   L1    |       |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+|     Endstelle_SK1.i2      |       |       |         |       |       |         |       |       |  L2   |       |         |       |         |       |         |       |       |         |       |       |       |
+|     Endstelle_SK1.i3      |       |       |         |       |       |         |       |       |       |  L3   |         |       |         |       |         |       |       |         |       |       |       |
+|     Endstelle_SK1.i4      |       |       |         |       |       |         |   N   |       |       |       |         |       |         |       |         |       |       |         |       |       |       |
+|     Endstelle_SK1.i5      |       |       |         |       |       |         |       |  PE   |       |       |         |       |         |       |         |       |       |         |       |       |       |
+|   Reihenklemme_L_SK2.i1   |       |       |         |       |       |         |       |       |       |       |   L1    |       |         |       |         |       |       |         |       |       |       |
+|   Reihenklemme_L_SK2.o1   |       |       |         |       |       |         |       |       |       |       |         |       |         |       |    L1   |       |       |         |       |       |       |
+|   Reihenklemme_N_SK2.i1   |       |       |         |       |       |         |       |       |       |       |         |   N   |         |       |         |       |       |         |       |       |       |
+|   Reihenklemme_N_SK2.o1   |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |   N   |       |         |       |       |       |
+|  Reihenklemme_PE_SK2.io2  |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |  PE   |         |       |       |       |
+|  Reihenklemme_PE_SK2.io3  |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |  PE   |
+|     Endstelle_SK2.i1      |       |       |         |       |       |         |       |       |       |       |         |       |         |       |    L1   |       |       |         |       |       |       |
+|     Endstelle_SK2.i2      |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |   N   |       |         |       |       |       |
+|     Endstelle_SK2.i3      |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |  PE   |         |       |       |       |
+|   Reihenklemme_L_SK3.i1   |       |       |         |       |       |         |       |       |       |       |         |       |    L1   |       |         |       |       |         |       |       |       |
+|   Reihenklemme_L_SK3.o1   |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |    L1   |       |       |       |
+|   Reihenklemme_N_SK3.i1   |       |       |         |       |       |         |       |       |       |       |         |       |         |   N   |         |       |       |         |       |       |       |
+|   Reihenklemme_N_SK3.o1   |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |   N   |       |       |
+|  Reihenklemme_PE_SK3.io2  |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |  PE   |       |
+|  Reihenklemme_PE_SK3.io3  |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |  PE   |
+|     Endstelle_SK3.i1      |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |    L1   |       |       |       |
+|     Endstelle_SK3.i2      |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |   N   |       |       |
+|     Endstelle_SK3.i3      |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |  PE   |       |
+|            H3             |       |       |         |       |       |         |       |       |       |       |         |       |         |       |         |       |       |         |       |       |  PE   |
 
 ---
 
@@ -118,7 +174,14 @@ jedes Netzes (Einheit im Zeilennamen, Werte reine Zahlen).
 
 Dieselben Beispiel-Fehlerwiderstände wie in testcase_04, auf denselben
 Netzen - dort saßen sie auf L1 (RCD1.o1/LS2-Vorgänger.o1 usw.), hier auf
-denselben physischen Adern, jetzt Teil des einen 3-poligen LS1.
+denselben physischen Adern, jetzt Teil des einen 3-poligen LS1. Zusätzlich
+zwei Fehlerwiderstände auf Gruppe G2 (SK2/SK3), je einer vor und einer nach
+dem LS-AFDD-Kombigerät, analog zu testcase_04s Muster. Außerdem ein
+Fehlerwiderstand auf LS3s N-Ausgangsader (N67, Netz zwischen LS3.o2 und
+Reihenklemme_N_SK3.i1) - anders als bei den L-Adern (je ein Wert vor UND
+nach dem Bauteil) hier bewusst nur EIN Wert auf einer der beiden N-Adern
+(Eingang N63 bleibt ohne Eintrag), sodass RLOW zwischen LS3s N-Eingang und
+N-Ausgang exakt 0,07Ω ergibt:
 
 | Netz | Widerstand (Ω) |
 | ---- | --------------- |
@@ -128,6 +191,11 @@ denselben physischen Adern, jetzt Teil des einen 3-poligen LS1.
 | N25  | 0,34            |
 | N22  | 0,41            |
 | N26  | 0,08            |
+| N60  | 0,22            |
+| N64  | 0,31            |
+| N61  | 0,18            |
+| N66  | 0,25            |
+| N67  | 0,07            |
 
 ---
 
@@ -165,3 +233,25 @@ denselben physischen Adern, jetzt Teil des einen 3-poligen LS1.
     `Festanschluss` ohne Platzierungstabelle gewählt worden (die
     Drehstromsteckdosen-Vorlage existierte noch nicht), nach deren
     Fertigstellung wurde auf `Drehstromsteckdose` umgestellt.
+12. **Gruppe G2 (RCD2 + LS2/LS3) zapft dieselben Ausgangsnetze wie RCD1 an**
+    (`N9` für L1, `N12` für N) - zwei Gruppen am selben Ausgangspin, analog
+    testcase_06 Annahme 13.
+13. **RCD2 ist 2-polig** (L1+N, Standardfall) und speist LS2 UND LS3 über je
+    zwei separate Ausgangsadern, sowohl auf L (`N60`/`N61`) als auch auf N
+    (`N62`/`N63`) - anders als testcase_06 (dort teilen sich die
+    nachgeschalteten 1-poligen LS eine gemeinsame N-Ausgangsader von RCD2,
+    weil ein normaler LS N gar nicht schaltet).
+14. **LS2/LS3 sind "LS mit AFDD"-Kombigeräte** (siehe KONZEPT.md "AFDD"): je
+    2-polig (`i1`/`o1` = L, `i2`/`o2` = N), baulich wie ein 2-poliger RCD
+    (eigene TE-Breite/Schalter-Bauform in `view/schaltkasten.js`, Aufschrift
+    zweizeilig "B20"/"AFDD" bzw. "B16"/"AFDD"), elektrisch aber ein normaler
+    2-poliger LS ohne Sonderverhalten (kein `abklemmen_bei_iso` o.ä. - RISO-
+    Implikationen von AFDD/RCD Typ B sind bewusst zurückgestellt, siehe
+    KONZEPT.md "Geplant für später").
+15. **SK2/SK3 sind normale einphasige Stromkreise** (je eine Steckdose als
+    Endstelle) mit eigener L-/N-Reihenklemme UND eigener Zubringerader für
+    beide (da LS2/LS3 den N-Pol selbst schalten, siehe Annahme 13/14) - PE
+    weiterhin nur über den lokalen Hutschienen-Bond (`N51`), analog
+    testcase_01/06 Annahme 4.
+16. **Messungen (zi/zs/rcd) für SK2/SK3 = nein/ja/ja** - analog testcase_06
+    SK2/SK3 (RCD2 auf dem Pfad, `zs` als repräsentative Messung gewählt).

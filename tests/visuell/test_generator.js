@@ -384,6 +384,64 @@ pruefe('anlage.json: testcase_05 - EIN Stromkreis mit drei Phasen, ls.polig=3, d
   gleich(sk.leitung.adern.map((a) => a.funktion), ['L1', 'L2', 'L3', 'N', 'PE'], 'Endstelle-Adern');
 });
 
+// --- "LS mit AFDD"-Kombigerät (testcase_05 Gruppe G2, siehe KONZEPT.md
+// "AFDD") - baulich wie ein 2-poliger RCD (eigene TE-Breite/Schalter-Bauform
+// in view/schaltkasten.js), elektrisch aber ein normaler 2-poliger LS (L+N
+// geschaltet). Anders als ein normaler mehrpoliger LS (testcase_05s LS1: 3
+// Pole = 3 L-Phasen) zählt hier nur EIN Pol als L-Phase, der zweite ist der
+// N-Durchgang - `sk.phasen` muss also weiterhin ein 1-elementiges Array
+// bleiben (Annahme 14 in netzplan.md). ---
+
+pruefe('anlage.json: testcase_05 - LS2/LS3 (Gruppe G2) sind 2-polige AFDD-Kombigeräte, sk.phasen bleibt 1-elementig', () => {
+  const anlage = generiereAnlage(TESTCASE_05);
+  const gruppe2 = anlage.hutschienen[0].gruppen[1];
+  gleich(gruppe2.id, 'G2', 'zweite Gruppe ist G2');
+  gleich(gruppe2.rcd.polig, 2, 'RCD2 ist 2-polig');
+  gleich(gruppe2.stromkreise.length, 2, 'Gruppe G2 hat zwei Stromkreise (SK2/SK3)');
+
+  const [sk2, sk3] = gruppe2.stromkreise;
+  gleich(sk2.phasen, ['L1'], 'SK2 phasen bleibt 1-elementig trotz 2-poligem LS');
+  gleich(sk2.ls.polig, 2, 'LS2 polig');
+  gleich(sk2.ls.te, 2, 'LS2 TE-Breite');
+  if (sk2.ls.afdd !== true) throw new Error(`erwarte sk2.ls.afdd === true, gefunden: ${sk2.ls.afdd}`);
+  gleich(sk2.ls.eingang.leitung.adern.map((a) => a.funktion), ['L1', 'N'], 'LS2 Eingangsadern (L+N)');
+  gleich(sk2.ls.ausgang.leitung.adern.map((a) => a.funktion), ['L1', 'N'], 'LS2 Ausgangsadern (L+N)');
+  gleich(sk2.leitung.adern.map((a) => a.funktion), ['L1', 'N', 'PE'], 'SK2 Endstelle-Adern (normal einphasig)');
+
+  if (sk3.ls.afdd !== true) throw new Error(`erwarte sk3.ls.afdd === true, gefunden: ${sk3.ls.afdd}`);
+  gleich(sk3.phasen, ['L1'], 'SK3 phasen bleibt 1-elementig');
+});
+
+pruefe('anlage.json: testcase_05 - LS1 (Gruppe G1, normaler 3-poliger LS) hat afdd === false', () => {
+  const anlage = generiereAnlage(TESTCASE_05);
+  const sk1 = anlage.hutschienen[0].gruppen[0].stromkreise[0];
+  if (sk1.ls.afdd !== false) throw new Error(`erwarte sk1.ls.afdd === false, gefunden: ${sk1.ls.afdd}`);
+});
+
+pruefe('Graph: testcase_05 - RCD2 speist LS2 UND LS3 über je zwei separate Ausgangskanten, sowohl auf L1 als auch auf N', () => {
+  const graph = generiereGraph(TESTCASE_05);
+  gleich(graph.L1.kanten.filter((k) => k.bauteil === 'RCD2').length, 2, 'RCD2 hat zwei L1-Ausgangskanten (zu LS2 und LS3)');
+  gleich(graph.N.kanten.filter((k) => k.bauteil === 'RCD2').length, 2, 'RCD2 hat zwei N-Ausgangskanten (zu LS2 und LS3) - anders als ein normaler LS, der N nicht schaltet (siehe testcase_06)');
+  const kanteLs2L = graph.L1.kanten.find((k) => k.bauteil === 'LS2');
+  const kanteLs2N = graph.N.kanten.find((k) => k.bauteil === 'LS2');
+  if (!kanteLs2L || !kanteLs2N) throw new Error('erwarte je eine L1- und eine N-Kante für LS2 (AFDD-Kombigerät schaltet beide Pole)');
+});
+
+pruefe('Graph: testcase_05 - Fehlertabellen-Summe über RCD2->LS2/LS3 (Gruppe G2)', () => {
+  const graph = generiereGraph(TESTCASE_05);
+  const faelle = [
+    ['L1', 'N9', 'N64', 0.53], // N60 (0,22) + N64 (0,31)
+    ['L1', 'N9', 'N66', 0.43]  // N61 (0,18) + N66 (0,25)
+  ];
+  for (const [funktion, von, nach, erwartet] of faelle) {
+    const pfad = findePfad(graph, funktion, von, nach);
+    const widerstand = berechneWiderstand(graph, pfad);
+    if (Math.abs(widerstand - erwartet) > 1e-9) {
+      throw new Error(`${funktion} ${von}->${nach}: erwarte ${erwartet}Ω, bekommen: ${widerstand}`);
+    }
+  }
+});
+
 pruefe('anlage.json: testcase_01/02/03/04 - reihenklemmen_eingang.l ist weiterhin ein 1-elementiges Array (Rückwärtskompatibilität)', () => {
   for (const testcase of [TESTCASE_01, TESTCASE_02, TESTCASE_03, TESTCASE_04]) {
     const anlage = generiereAnlage(testcase);

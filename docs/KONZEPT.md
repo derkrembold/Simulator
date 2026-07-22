@@ -1160,6 +1160,11 @@ hat entweder das eine oder die drei anderen, nie beides.
 **RCD-Typen:** A, F, B, B+
 > Typ B und B+: `abklemmen_bei_iso: true`
 
+**Beschriftung:** zweizeilig - Typ+Fehlerstrom (z.B. "A 30mA"), darunter der
+Nennstrom (z.B. "40A", aus `nennstrom_a`) - reale RCDs sind immer mit beiden
+Werten beschriftet. Nutzt denselben Array-Label-Mechanismus wie das
+AFDD-Kombigerät (siehe "AFDD" unten, `geraet()`s `label`-Parameter).
+
 **LS:**
 ```json
 {
@@ -1167,6 +1172,7 @@ hat entweder das eine oder die drei anderen, nie beides.
   "in": 16,
   "polig": 1,
   "te": 1,
+  "afdd": false,
   "eingang": { "leitung": { ... } },
   "ausgang": { "leitung": { ... } }
 }
@@ -1174,15 +1180,22 @@ hat entweder das eine oder die drei anderen, nie beides.
 
 **LS-Charakteristiken:** B, C, D, K, Z
 
-**AFDD (optional, pro Stromkreis):**
-```json
-{
-  "vorhanden": true,
-  "abklemmen_bei_iso": true,
-  "eingang": { "leitung": { ... } },
-  "ausgang": { "leitung": { ... } }
-}
-```
+**AFDD ("LS mit AFDD"-Kombigerät, testcase_05 Gruppe G2):** kein eigenes
+Bauteil mit eigenen i/o-Pins, sondern ein Flag `ls.afdd: true` auf einem
+2-poligen LS (`bauteile.md`-Spalte `AFDD` = `ja`). Baulich wie ein 2-poliger
+RCD - `view/schaltkasten.js` zeichnet dieselbe Schalter-Bauform
+(`schalterTyp: 'rcd'` statt `'einfach'`, gleiche TE-Breite) mit zweizeiliger
+Aufschrift (LS-Charakteristik+Nennstrom, darunter "AFDD"). Elektrisch ein
+normaler 2-poliger LS (`i1`/`o1` = L, `i2`/`o2` = N, siehe
+`kantenFuerFunktion()` in `generate_anlage.js` - generisch über `pole`, kein
+AFDD-Sonderfall nötig). Das Stromkreis-Feld `sk.phasen` bleibt trotz des
+2-poligen Gehäuses ein 1-elementiges Array (nur die L-Phase zählt, der
+N-Pol wird wie beim RCD gesondert behandelt, siehe `generiereAnlage()`).
+
+> Noch **nicht** umgesetzt: eigenes RISO-Verhalten (AFDD-Elektronik müsste
+> vor der Isolationswiderstandsmessung abgeklemmt werden, analog RCD Typ B/B+
+> `abklemmen_bei_iso`) - bewusst zurückgestellt, siehe "Geplant für später"
+> unten.
 
 **Stromkreis:**
 ```json
@@ -1192,7 +1205,6 @@ hat entweder das eine oder die drei anderen, nie beides.
   "ziel": "Steckdosen Wohnzimmer",
   "phasen": ["L1"],
   "ls": { ... },
-  "afdd": null,
   "endstelle": "Steckdose",
   "leitung": { "typ": "NYM-J", "adern": [ { "funktion": "L1", ... }, { "funktion": "N", ... }, { "funktion": "PE", ... } ] },
   "reihenklemmen_eingang": {
@@ -1715,6 +1727,107 @@ schwarz=L2) liefert `Z:0,42Ω`, identisch zum direkt am Schaltkasten
 gemessenen Wert; V~ mit drei Sonden auf drei unterschiedlichen Außenleitern
 (braun=L1, grau=L3, schwarz=L2) zeigt überall 400V.
 
+### AFDD
+
+**Status: umgesetzt** (Gruppe G2 in `testcase_05`, "LS mit AFDD"-Kombigerät).
+Ein AFDD (Arc Fault Detection Device, Brandschutzschalter) wird in der
+Praxis meist als Kombigerät mit einem LS verbaut - baulich wie ein
+2-poliger RCD (L+N in einem Gehäuse, weil die AFDD-Elektronik einen
+N-Anschluss braucht), elektrisch aber ein normaler 2-poliger LS (schaltet
+L UND N). Bewusst **kein** eigenes Bauteil mit eigenen `i`/`o`-Pins (wie
+ursprünglich hier als Platzhalter skizziert), sondern nur ein Flag
+`ls.afdd: true` auf einem ganz normalen, generischen 2-poligen LS -
+`bauteile.md` bekommt dafür eine neue Spalte `AFDD` (`ja`/`–`), geparst in
+`parseBauteile()` als `bauteil.afdd`.
+
+**Darstellung:** `view/schaltkasten.js` unterscheidet beim Zeichnen eines LS
+nur noch `ls.afdd ? 'rcd' : 'einfach'` als `schalterTyp` - der 2-polige
+AFDD-LS bekommt dadurch exakt dieselbe Schalter-Bauform (`schalterBreite()`)
+wie ein 2-poliger RCD, ohne neuen Formel-Zweig. Die Aufschrift wird
+zweizeilig: `geraet()`s `label`-Parameter akzeptiert jetzt wahlweise einen
+String oder ein Array (eine Zeile pro Element, per `<tspan dy="10">`
+untereinander) - beim AFDD-LS `[${ls.char}${ls.in}, 'AFDD']` (z.B. "B20" /
+"AFDD"). Später (auf User-Wunsch) auch für die RCD-Beschriftung selbst
+übernommen (Typ+Fehlerstrom / Nennstrom, siehe "Felder pro Komponente" ->
+"RCD" oben) - bei allen anderen Bauteilen (normaler LS, Hauptschalter)
+weiterhin ein normaler einzeiliger String (unveränderte Optik, siehe
+Rückwärtskompatibilität unten).
+
+**Verdrahtung:** anders als ein normaler 1-poliger LS hinter einem 2-poligen
+RCD (siehe `testcase_06`s Gruppe G2, wo der RCD-N-Ausgang direkt und
+ungeschaltet bis zur Reihenklemme durchläuft) braucht der AFDD-LS eine
+**eigene** N-Zubringerader vom RCD, weil er N selbst schaltet - RCD2.o1 (L)
+UND RCD2.o2 (N) verzweigen deshalb je auf zwei separate Ausgangsadern (eine
+pro AFDD-LS), nicht nur RCD2.o1 wie bei einem normalen LS.
+
+In `generate_anlage.js` war die einzige nötige Änderung die
+`phasen`-Herleitung pro Stromkreis: bisher lief sie generisch über
+`ls.pole` (ein Array-Eintrag pro Pol, korrekt bei einem normalen
+mehrpoligen LS wie testcase_05s 3-poligem LS1, wo jeder Pol eine eigene
+L-Phase ist). Bei einem AFDD-LS wäre der zweite Pol aber N, nicht L2/L3 -
+ungefiltert übernommen hätte das `phasen` auf `['L1', 'N']` verlängert und
+nachgelagerten Code (`[...phasen, 'N', 'PE']` für die Endstelle-Pins)
+kaputt gemacht (doppeltes N). Fix: bei `ls.afdd` zählt nur `i1` als Phase
+(analog zum RCD, dessen eigener N-Pol ebenfalls nicht in der
+Gruppen-Phasenliste auftaucht, siehe `rcdFunktionen` weiter oben) - `sk.ls`s
+eigene Ein-/Ausgangsadern bekommen den N-Pol separat dazugehängt
+(`lsFunktionen = [...phasen, 'N']`). Die Graph-Kantenbildung
+(`kantenFuerFunktion()`) brauchte dagegen **keine** Änderung - sie läuft
+bereits generisch über `bauteil.pole` und findet L- bzw. N-Kanten unabhängig
+davon, was an welchem Pin verdrahtet ist.
+
+**Rückwärtskompatibilität:** alle sechs Testcases wurden mit
+`generate_anlage.js` neu generiert - der einzige Unterschied war das neue
+Feld `ls.afdd` (`false` bei allen bestehenden LS) und die `<tspan>`-Hülle um
+bereits bestehende einzeilige Labels (identischer `textContent`, geprüft per
+SVG-Diff gegen die alten `anlage.svg`-Referenzbilder), keine
+Verhaltensänderung.
+
+**Noch offen:** eigenes RISO-Verhalten (AFDD-Elektronik müsste vor der
+Isolationswiderstandsmessung abgeklemmt werden, wie bei RCD Typ B/B+ -
+`abklemmen_bei_iso`) - bewusst zurückgestellt, siehe "Geplant für später"
+unten (zusammen mit RCD Typ B, da beide dieselbe RISO-Fragestellung
+aufwerfen).
+
+**Nachträglich ergänzt (direkt im Anschluss, alles User-Vorgaben):**
+1. `testcase_05`s RCD2 von Typ A auf Typ B umgestellt (`bauteile.md`),
+   Fehlerstrom blieb bei 30mA - reiner `anlage.json`-Diff (`rcd.typ`).
+2. RCD-Beschriftung projektweit zweizeilig gemacht: Typ+Fehlerstrom oben,
+   Nennstrom unten (z.B. "A 30mA"/"40A", aus `nennstrom_a`) - nutzt denselben
+   Array-Label-Mechanismus wie oben beim AFDD-LS, siehe "Felder pro
+   Komponente" -> "RCD".
+3. Fünf neue Messungs-Testcases für Gruppe G2, alle vom User Schritt für
+   Schritt vorgegeben und per throwaway-Playwright-Skript verifiziert:
+   - **V~ geräteübergreifend:** Grün auf PE der Drehstromsteckdose (SK1),
+     Schwarz auf SK2s L1 (mittlere Steckdose, linker Kontakt), Blau auf SK3s
+     N (rechte Steckdose, rechter Kontakt) - `Uln:230V`/`Ulpe:230V`/
+     `Unpe:0V`.
+   - **FI/RCD geräteübergreifend:** Blau auf der Drehstromsteckdose (N),
+     Schwarz auf SK2 (L1), Grün auf SK3 (PE) - findet RCD2, übernimmt dessen
+     Auslösewerte (`I:24,0mA`/`Uci:0,9V`/`t:21,0ms`), öffnet nach TEST
+     automatisch den Hebel, Spannung fällt auf 0V, Pfeil-Kasten wird
+     durchgestrichen, Ampel grün.
+   - **RLOW direkt über das LS3-Kombigerät selbst** (nicht über eine
+     Endstelle): oben links (Eingang L, `N61`) zu unten links (Ausgang L,
+     `N66`) summiert LS3s eigene Fehlertabelle zu `0,43Ω`
+     (`0,18Ω`+`0,25Ω`), Platzhalter `---Ω` sobald LS3s Hebel offen ist.
+   - **RLOW über LS3s N-Ader:** ein zusätzlicher Fehlertabellen-Eintrag auf
+     `N67` (LS3.o2 → Reihenklemme_N_SK3.i1, `0,07Ω` - `N63`, LS3s
+     N-Eingang, bewusst ohne eigenen Eintrag, anders als bei der L-Ader mit
+     zwei Einträgen) liefert `0,07Ω` zwischen LS3s N-Eingang/-Ausgang -
+     zusätzlich verifiziert mit vertauschter Sondenfarbreihenfolge (RLOW ist
+     symmetrisch, liefert denselben Wert).
+
+**Getestet in:** `test_generator.js` (4 Tests: LS2/LS3 sind 2-polige AFDD-Kombigeräte
+mit `sk.phasen` weiterhin 1-elementig, `ls.afdd === true`/`false` korrekt
+gesetzt, LS-Eingangs-/Ausgangsadern tragen L+N, RCD2 verzweigt auf L1 UND N
+je zu zwei separaten Kanten, Fehlertabellen-Summe über RCD2→LS2/LS3) und
+`test_messgeraet.js` (6 Tests: 6 statt 3 Schalter-Boxen in `testcase_05`, RCD2/LS2/LS3
+haben identische 24px-Schalter-Bauform, zweizeiliges Label "B20"/"AFDD" bzw.
+"B16"/"AFDD"; RLOW direkt über LS3 auf der L-Ader mit Hebel-Platzhalter-Probe,
+RLOW über LS3s N-Ader inkl. vertauschter Sondenreihenfolge; FI/RCD und V~
+jeweils geräteübergreifend über Drehstromsteckdose + beide neuen Steckdosen).
+
 ### Schrauben lösen
 
 Der Bediener soll Schrauben auch **lösen** können (Mechanismus/Werkzeug noch
@@ -1822,14 +1935,14 @@ tests/visuell/
   testcase_02/   ← 2 RCDs auf einer Hutschiene
   testcase_03/   ← 3 RCDs auf 2 Hutschienen (Gruppe 1 allein, Gruppe 2+3 zusammen)
   testcase_04/   ← 3-poliger Hauptschalter (L1+L2+L3, kein N), 4-poliger RCD auf allen 3 Phasen
-  testcase_05/   ← 3-poliger LS (EINE Komponente statt drei einpoliger) hinter 4-poligem RCD, Drehstromsteckdose als Endstelle
+  testcase_05/   ← Gruppe G1: 3-poliger LS (EINE Komponente statt drei einpoliger) hinter 4-poligem RCD, Drehstromsteckdose als Endstelle; Gruppe G2: 2-poliger RCD + 2x "LS mit AFDD"-Kombigerät (beide auf derselben Hutschiene)
   testcase_06/   ← Gruppe G1: 3-poliger LS OHNE RCD, 5-polige Anschlussdose; Gruppe G2: 2-poliger RCD + 2x 1-poliger LS (beide auf derselben Hutschiene)
   ...
 ```
 
 **Geplant für später (noch nicht umgesetzt):**
-- Gruppe mit AFDD
-- RCD Typ B
+- RCD Typ B (und dessen RISO-Implikationen, siehe auch die noch offene
+  AFDD-RISO-Frage unter "AFDD" oben)
 
 ---
 
@@ -1873,8 +1986,7 @@ Offen:
    PE-Teilgraph existiert.
 3. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
    "Schrauben lösen" oben).
-4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: AFDD, RCD
-   Typ B).
+4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: RCD Typ B).
 5. **Prüfprotokoll: Verknüpfung mit echten Messwerten** - aktuell rein
    ein-/ankreuzbar, ohne Bezug zu den im Messgerät tatsächlich ermittelten
    Werten (siehe "Prüfprotokoll (View-Objekt)" oben). Spätere Ausbaustufe:

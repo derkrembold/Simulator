@@ -1438,10 +1438,10 @@ Schaltkasten-Netz N23 gemessenen Wert.
 
 ### schraubendreher.js
 
-**Status: Aufnehmen + Lösen umgesetzt, rein visuell** (siehe KONZEPT.md
-"Schrauben lösen", User-Vorgabe 2026-07-23, iterativer Einstieg: zuerst nur
-Darstellung, dann Aufnehmen/Lösen - Wiedereindrehen und die tatsächliche
-Kanten-Kappung im Verbindungsgraphen folgen als eigene, spätere Schritte).
+**Status: vollständig umgesetzt** (siehe KONZEPT.md "Schrauben lösen",
+User-Vorgabe 2026-07-23, iterativer Einstieg: Darstellung, dann
+Aufnehmen/Lösen/Wiedereindrehen, dann Einschränkungen, zuletzt die
+tatsächliche Kanten-Kappung im Verbindungsgraphen).
 
 Fünftes View-Objekt, `SchraubendreherView.render(container, anzeigeHoehe, {
 onKlick })` - `onKlick` (optional) macht die komplette Zeichnung klickbar
@@ -1570,13 +1570,73 @@ bekommen" war nie im Code angekommen - der Messspitzen-Zweig in
 (geloesteSchrauben.has(kreis)) return;` ganz am Anfang dieses Zweigs, vor
 dem Farbzyklus-Handling (`naechsteMessspitzenFarbe()`).
 
-**Noch nicht umgesetzt (letzter iterativer Schritt, vollständig spezifiziert
-in der Projekt-Memory "Schrauben lösen Idee"):** die tatsächliche
-Kanten-Kappung im Verbindungsgraphen selbst (bisher rein visuell,
-`graph.*.kanten` bleiben unverändert - Lösen öffnet noch keine Kante,
-Wiedereindrehen schließt noch keine).
+**Kanten-Kappung im Verbindungsgraphen (Status: umgesetzt, letzter
+iterativer Schritt):** neue Hilfsfunktion `findeSchraubenKante(ader, kreis)`
+(`controller/app.js`, direkt nach `schalterUmschalten()`) liest
+`kreis.dataset.bauteil` und sucht die passende Kante über
+`graph[ader.funktion]?.kanten.find((k) => k.bauteil === bauteilName)` -
+liefert `null` für PE (kein PE-Teilgraph, `GRAPH_FUNKTIONEN` deckt nur
+`L1/L2/L3/N` ab) oder falls die Schraube keinen Bauteilnamen trägt. Beide
+Zweige in `onSchraubeKlick()` toggeln jetzt zusätzlich `kante.geschlossen`
+(`false` beim Lösen, `true` beim Wiedereindrehen) und rufen danach
+`renderMessgeraet()` auf, damit eine laufende Messung (z.B. RLOW) sofort den
+neuen Zustand widerspiegelt - exakt derselbe Mechanismus wie bei
+`schalterUmschalten()`, nur auf Ebene einer einzelnen Kante statt aller
+Kanten eines Bauteils.
 
-Getestet in `test_schraubendreher.js` (16 Tests, neue eigene Testdatei, ins
+Design-Entscheidung (mit dem User geklärt, bevor umgesetzt wurde, siehe
+KONZEPT.md "Schrauben lösen"): Eingang und Ausgang eines Bauteils sind zwei
+verschiedene Graph-Knoten, verbunden durch genau EINE Kante
+(`kantenFuerFunktion()`, `generate_anlage.js` - es gibt keine separate Kante
+für den Draht ZWISCHEN zwei benachbarten Bauteilen, diese Konnektivität
+ergibt sich implizit daraus, dass beide Pins denselben Netz-Knoten teilen).
+Deshalb genügt eine einzige Kante pro Bauteil+Pol: das Kappen liefert schon
+von selbst das elektrisch korrekte asymmetrische Verhalten (Eingangsknoten
+bleibt über die Kante des vorgeschalteten Bauteils erreichbar, Ausgangsknoten
+wird unerreichbar) - keine gesonderte Modellierung für Eingangs- vs.
+Ausgangs-Schraube nötig.
+
+**Behobener Bug (User-gemeldet, testcase_06):** `schalterUmschalten()`
+(Schalter-Hebel-Klick) und das Schraubendreher-Werkzeug schrieben beide
+ungeprüft in dieselbe `kante.geschlossen`-Eigenschaft - ein Schalter-Klick
+auf RCD1 nach dem Lösen von dessen Eingangsschraube schloss die gekappte
+Kante wieder, obwohl der weiße Kreis sichtbar stehen blieb. Fix: neues
+`const geloesteKanten = new Set()` (Kanten-Objekte, nicht Schrauben-
+Elemente). `schalterUmschalten()` merkt sich den gewünschten Zustand
+zusätzlich in `kante._schalterSoll` und schreibt `kante.geschlossen` nur,
+wenn die Kante NICHT in `geloesteKanten` steht:
+```js
+kante._schalterSoll = geschlossen;
+if (!geloesteKanten.has(kante)) kante.geschlossen = geschlossen;
+```
+Lösen fügt die Kante zu `geloesteKanten` hinzu; Wiedereindrehen entfernt sie
+wieder und stellt NICHT blind `geschlossen: true` her, sondern
+`kante.geschlossen = kante._schalterSoll ?? true` - damit ein
+zwischenzeitlich geöffneter Schalter beim Wiedereindrehen korrekt
+berücksichtigt wird. 1 neuer Regressionstest in `test_schraubendreher.js`
+(löst RCD1-Eingangsschraube, klickt danach dessen Schalter-Hebel auf/zu,
+prüft dass die Messung weiterhin unterbrochen bleibt; dreht danach wieder
+ein und prüft die korrekte Wiederherstellung). Neuer Test-Helper
+`findeSchalterHandleNaheBauteil()` (identifiziert den Schalter-Hebel eines
+Bauteils über die horizontale Nähe zu dessen `data-bauteil`-Schraube, da
+der Hebel selbst kein solches Attribut trägt).
+
+**Voraussetzung dafür - `data-bauteil`-Attribut (`view/schaltkasten.js`):**
+`schraube()` bekam einen neuen optionalen 6. Parameter `bauteilName`, setzt
+bei vorhandenem `ader` + `bauteilName` das Attribut `data-bauteil`. `geraet()`
+reicht ihren bereits im Scope vorhandenen `bauteilName` an ihre zwei
+`schraube()`-Aufrufe durch. `klemme()` hatte bislang GAR keinen
+Bauteilnamen im Scope - bekam einen neuen `bauteilName`-Parameter, alle 7
+Aufrufstellen in `SchaltkastenView.render()` rekonstruieren den korrekten
+Namen nach den `bauteile.md`-Konventionen: `Reihenklemme_L${suffix}_${sk.bezeichnung}`
+(Suffix nur bei mehr als einer L-Ader), `Reihenklemme_N_${sk.bezeichnung}`,
+`Reihenklemme_PE_${sk.bezeichnung}`, `L1-Klemme`/`L2-Klemme`/`L3-Klemme`,
+`L-Klemme`, `N-Klemme`, `PE-Klemme`. Alle 6 `anlage.svg`-Referenz-Snapshots
+in `tests/visuell/testcase_0N/` mussten wegen des neuen Attributs neu
+generiert werden (reine Rendering-Ebene, keine `anlage.json`/`graph.json`-
+Änderung nötig).
+
+Getestet in `test_schraubendreher.js` (21 Tests, neue eigene Testdatei, ins
 `npm test`-Skript aufgenommen). Vier Darstellungs-Tests (Default-Anlage):
 genau ein Schraubendreher-SVG wird gerendert; seine Höhe stimmt exakt mit
 der Messgerät-Höhe überein; er sitzt rechts neben dem Messgerät ohne
@@ -1600,7 +1660,14 @@ schafft bei erreichtem Maximum wieder Platz für eine neue Schraube. Ein
 Regressionstest für den oben beschriebenen
 Positionierungs-Bug: löst eine Schraube, macht danach eine
 Messgerät-Interaktion (ON/OFF + Messspitze setzen), löst eine
-weitere Schraube - die Position muss beide Male exakt gleich bleiben.
+weitere Schraube - die Position muss beide Male exakt gleich bleiben. Vier
+weitere Tests für die Kanten-Kappung (testcase_01, Messspitzen auf
+`N1`/`N13` liefern `R:0,60Ω`, siehe bestehender RLOW-Test "Messspitzen auf
+demselben L1-Pfad"): Lösen der `RCD1`-Schraube auf diesem Pfad bricht die
+Messung tatsächlich auf den Platzhalter `R:---Ω` herunter; Wiedereindrehen
+stellt `R:0,60Ω` wieder her; Lösen einer PE-Klemme-Schraube stürzt nicht ab
+(kein PE-Teilgraph); Lösen einer UNBETEILIGTEN Schraube (`LS2`, anderer
+Stromkreis) lässt eine laufende Messung unverändert (Isolation).
 
 ### timer.js
 - Sichtbarer 45-Minuten Timer
@@ -2227,9 +2294,18 @@ generiert/promotet, Diff bestätigt isoliert auf genau diese drei neuen
 Felder pro RCD (`anlage.svg` unverändert, da nirgends gerendert).
 
 Neu in `app.js`:
-- `berechneFircdSpannung()` - Code identisch zu `berechneZsSpannung()`
-  (bewusst als eigene Funktion dupliziert statt wiederverwendet, da FI/RCD
-  konzeptionell eigenständig weiterentwickelt werden dürfte).
+- `berechneFircdSpannung()` - ursprünglich Code-identisch zu
+  `berechneZsSpannung()` kopiert (bewusst als eigene Funktion dupliziert
+  statt wiederverwendet, da FI/RCD konzeptionell eigenständig
+  weiterentwickelt werden dürfte). **Behobener Bug (User-gemeldet,
+  testcase_06):** dieser Ein-Pfad-Check (nur Schwarz/L) war für FI/RCD
+  falsch übernommen - eine Schraube am N-Eingang eines RCD zu lösen ließ die
+  Anzeige fälschlich bei 230V stehen. Fix: an `berechneZiSpannung()`
+  angelehnt statt an `berechneZsSpannung()` - prüft jetzt `schwarzLebt &&
+  blauLebt` (beide Pfade zur Einspeisung), da ein FI/RCD-Prüfgerät sich
+  selbst aus L UND N speist und den Fehlerstrom darüber injiziert (ZS
+  dagegen misst die L-PE-Schleife SELBST, die als Vorbedingung nicht schon
+  intakt sein darf - dieser Unterschied gilt für FI/RCD nicht).
 - `alleRcds()` - sammelt alle `rcd`-Objekte der Anlage über alle
   Hutschienen/Gruppen hinweg ein (frisch bei jedem Aufruf, keine
   Zwischenspeicherung nötig bei dieser Anlagengröße) - für die Zuordnung
@@ -2316,6 +2392,27 @@ alle drei Felder auf dem Platzhalter, Ampel rot, und eine anschließende
 Messspitzen-Änderung setzt die Ampel zurück auf grau; bei durchgestrichenem
 Pfeil-Kasten (RCD1 offen) bleibt TEST komplett wirkungslos, Ampel bleibt
 grau statt auf Rot zu springen.
+
+**Regressionstest für den `berechneFircdSpannung()`-Bugfix oben (User-
+Vorgabe, testcase_06):** ein neuer Test in `test_messgeraet.js` ("FI/RCD:
+testcase_06 - Steckdose SK2, alle vier RCD2-Schrauben unterbrechen/stellen
+die Live-Spannungsanzeige über den Schraubendreher wieder her") sitzt direkt
+hinter dem bereits bestehenden testcase_06/SK2-Test (Sonden Schwarz/Blau auf
+der Steckdose SK2, Grün auf der PE-Klemme) und geht über ALLE VIER Schrauben
+von RCD2 (Eingang L, Eingang N, Ausgang L, Ausgang N, gefunden über
+`circle[data-bauteil="RCD2"]`) nacheinander: Schraubendreher aufnehmen,
+Schraube lösen (`0V`, Pfeil-Kasten durchgestrichen), Schraubendreher erneut
+aufnehmen, wiedereindrehen (`230V`, Pfeil-Kasten wieder undurchgestrichen) -
+bevor die nächste Schraube drankommt. Bewusst NICHT mit Sonden auf RCD2s
+EIGENEM Eingang getestet (das ursprünglich vom User geschilderte Szenario) -
+dort hat keine der vier RCD2-Schrauben einen Effekt, da der Eingangsknoten
+immer über die Kante des VORGESCHALTETEN Bauteils erreichbar bleibt (siehe
+"Schrauben lösen"), bestätigt per throwaway-Playwright-Skript, aber nicht
+als permanenter Test übernommen, da es keinen Bug zeigt, nur das erwartete
+Design. Die Sonden sitzen hier stattdessen STROMABWÄRTS an der Steckdose
+SK2 - dort unterbricht jede der vier Schrauben den Pfad tatsächlich, da
+Eingang und Ausgang je Pol dieselbe Kante kappen (zusammen decken die vier
+Schrauben also RCD2s beide Kanten ab, L1 UND N).
 
 **V~ - umgesetzt, reine Spannungsmessung ohne TEST-Taste und ohne
 Platzierungsvorgabe.**

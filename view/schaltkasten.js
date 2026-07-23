@@ -67,7 +67,7 @@ function zeichneHutschiene(svg, reihenIndex) {
   }));
 }
 
-function schraube(svg, x, y, ader, onKlick) {
+function schraube(svg, x, y, ader, onKlick, bauteilName) {
   const attrs = { cx: x, cy: y, r: 4, fill: '#888888' };
   if (ader) {
     attrs['data-querschnitt'] = ader.querschnitt_mm2;
@@ -83,6 +83,15 @@ function schraube(svg, x, y, ader, onKlick) {
     // Netz-IDs stehen kommagetrennt hier, ebenfalls fürs gezielte Ansteuern
     // in Tests/Debugging.
     if (ader.weitere?.length) attrs['data-netz-weitere'] = ader.weitere.map((w) => w.netz).join(',');
+    // Bauteilname, zu dem diese Schraube gehört (z.B. "RCD1", "LS2",
+    // "Reihenklemme_L1_SK1") - identisch zum `kante.bauteil`-Feld im
+    // Verbindungsgraphen (siehe generate_anlage.js kantenFuerFunktion()).
+    // Gebraucht vom Schraubendreher-Werkzeug (siehe KONZEPT.md "Schrauben
+    // lösen"), um beim Lösen/Wiedereindrehen genau DIE Kante zu finden, die
+    // zu dieser physischen Schraube gehört - eine Ader/Netz-ID allein reicht
+    // dafür nicht, da mehrere Bauteile denselben Ausgangspin/dieselbe Ader
+    // teilen können (siehe testcase_01 Annahme 2).
+    if (bauteilName) attrs['data-bauteil'] = bauteilName;
   }
   const kreis = svgEl('circle', attrs);
   if (ader) {
@@ -234,20 +243,20 @@ function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang
 
   for (let i = 0; i < teAnzahl; i++) {
     const cx = x + i * TE_PX + TE_PX / 2;
-    schraube(svg, cx, y + 10, adernEingang?.[i], onSchraubeKlick);
-    schraube(svg, cx, y + GERAET_H - 10, adernAusgang?.[i], onSchraubeKlick);
+    schraube(svg, cx, y + 10, adernEingang?.[i], onSchraubeKlick, bauteilName);
+    schraube(svg, cx, y + GERAET_H - 10, adernAusgang?.[i], onSchraubeKlick, bauteilName);
   }
   return breite;
 }
 
-function klemme(svg, { x, y, breite, hoehe, farben, aderEingang, aderAusgang, onSchraubeKlick }) {
+function klemme(svg, { x, y, breite, hoehe, farben, aderEingang, aderAusgang, onSchraubeKlick, bauteilName }) {
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: hoehe, fill: farben.gehaeuse, stroke: '#555555', 'stroke-width': 1 }));
   if (farben.header) {
     svg.appendChild(svgEl('rect', { x, y, width: breite, height: 10, fill: farben.header }));
   }
   const cx = x + breite / 2;
-  schraube(svg, cx, y + 8, aderEingang, onSchraubeKlick);
-  schraube(svg, cx, y + hoehe - 8, aderAusgang, onSchraubeKlick);
+  schraube(svg, cx, y + 8, aderEingang, onSchraubeKlick, bauteilName);
+  schraube(svg, cx, y + hoehe - 8, aderAusgang, onSchraubeKlick, bauteilName);
 }
 
 function findeAder(adern, funktion) {
@@ -319,13 +328,18 @@ export const SchaltkastenView = {
           // Eine Reihenklemme pro L-Phase (bei einem mehrpoligen LS also
           // mehrere nebeneinander - bewusst normale, einzelne Reihenklemmen
           // statt eines neuen Mehrphasen-Bauteils, siehe KONZEPT.md).
+          // Bauteilnamen exakt nach der bauteile.md-Konvention rekonstruiert
+          // (siehe generate_anlage.js: Suffix nur bei mehr als einer Phase) -
+          // gebraucht vom Schraubendreher-Werkzeug, um die richtige Kante im
+          // Verbindungsgraphen zu finden.
           lAusgangListe.forEach((lAusgang, i) => {
-            klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, aderEingang: lEingangListe[i], aderAusgang: lAusgang, onSchraubeKlick });
+            const suffix = lAusgangListe.length > 1 ? lAusgang.funktion.replace('L', '') : '';
+            klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_l }, aderEingang: lEingangListe[i], aderAusgang: lAusgang, onSchraubeKlick, bauteilName: `Reihenklemme_L${suffix}_${sk.bezeichnung}` });
             x += RK_BREITE;
           });
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_n }, aderEingang: nEingang, aderAusgang: nAusgang, onSchraubeKlick });
+          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_n }, aderEingang: nEingang, aderAusgang: nAusgang, onSchraubeKlick, bauteilName: `Reihenklemme_N_${sk.bezeichnung}` });
           x += RK_BREITE;
-          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_pe }, aderEingang: peEingang, aderAusgang: peAusgang, onSchraubeKlick });
+          klemme(g, { x, y: reihe1Y, breite: RK_BREITE, hoehe: RK_HOEHE, farben: { gehaeuse: FARBEN.reihenklemme_pe }, aderEingang: peEingang, aderAusgang: peAusgang, onSchraubeKlick, bauteilName: `Reihenklemme_PE_${sk.bezeichnung}` });
           x += RK_BREITE;
         }
       }
@@ -381,11 +395,13 @@ export const SchaltkastenView = {
     });
     for (const feld of ['l1_klemme', 'l2_klemme', 'l3_klemme']) {
       if (anlage[feld]) {
+        // Bauteilname exakt nach bauteile.md-Konvention (z.B. "L1-Klemme").
+        const bauteilName = `${feld.replace('_klemme', '').toUpperCase()}-Klemme`;
         klemme(g, {
           x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.l_klemme,
           aderEingang: anlage[feld].eingang.leitung.adern[0],
           aderAusgang: anlage[feld].ausgang.leitung.adern[0],
-          onSchraubeKlick
+          onSchraubeKlick, bauteilName
         });
         hx += KLEMME_BREITE;
       }
@@ -395,7 +411,7 @@ export const SchaltkastenView = {
         x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.l_klemme,
         aderEingang: anlage.l_klemme.eingang.leitung.adern[0],
         aderAusgang: anlage.l_klemme.ausgang.leitung.adern[0],
-        onSchraubeKlick
+        onSchraubeKlick, bauteilName: 'L-Klemme'
       });
       hx += KLEMME_BREITE;
     }
@@ -404,7 +420,7 @@ export const SchaltkastenView = {
         x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.n_klemme,
         aderEingang: anlage.n_klemme.eingang.leitung.adern[0],
         aderAusgang: anlage.n_klemme.ausgang.leitung.adern[0],
-        onSchraubeKlick
+        onSchraubeKlick, bauteilName: 'N-Klemme'
       });
       hx += KLEMME_BREITE;
     }
@@ -413,7 +429,7 @@ export const SchaltkastenView = {
         x: hx, y: letzteKlemmeY, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.pe_klemme,
         aderEingang: anlage.pe_klemme.eingang.leitung.adern[0],
         aderAusgang: anlage.pe_klemme.ausgang.leitung.adern[0],
-        onSchraubeKlick
+        onSchraubeKlick, bauteilName: 'PE-Klemme'
       });
       hx += KLEMME_BREITE;
     }

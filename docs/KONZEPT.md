@@ -673,12 +673,18 @@ Eigenschaften des RCD-Geräts sind, nicht des Pfades - keine Berechnung
 nötig, nur eine Zuordnung.
 
 Dieselbe Platzierungsvorgabe wie bei ZS (Schwarz auf L1/L2/L3, Grün auf PE,
-Blau auf N) und dieselbe Live-Spannungsanzeige unter dem PE-Kreis - prüft nur
-den EINEN L-Pfad zur Einspeisung (PE/N-Pfad bewusst nicht geprüft, wie bei
-ZS), 230V wenn geschlossen, sonst 0V. Der Pfeil-Kasten unten links folgt
-derselben Logik: undurchgestrichen, solange der L-Pfad bereit ist, sonst
-durchgestrichen - **liegt er durchgestrichen, bleibt TEST komplett
-wirkungslos**, wie bei ZS.
+Blau auf N), aber ANDERS als bei ZS an ZI angelehnt: geprüft werden BEIDE
+Pfade zur Einspeisung (L UND N), PE bleibt weiterhin außen vor. 230V, wenn
+beide Pfade geschlossen sind, sonst 0V. Grund für den Unterschied zu ZS: ein
+FI/RCD-Prüfgerät speist sich selbst aus L UND N und injiziert darüber den
+Fehlerstrom, braucht also beide Pfade als Vorbedingung - ZS dagegen misst
+die L-PE-Schleife SELBST, die darf als Vorbedingung nicht schon intakt sein
+müssen (**behobener Bug, User-gemeldet, testcase_06:** ursprünglich wurde
+nur der L-Pfad geprüft, wie bei ZS kopiert - eine Schraube am N-Eingang
+eines RCD zu lösen änderte die Anzeige dadurch fälschlich nicht). Der
+Pfeil-Kasten unten links folgt derselben Logik: undurchgestrichen, solange
+beide Pfade bereit sind, sonst durchgestrichen - **liegt er durchgestrichen,
+bleibt TEST komplett wirkungslos**, wie bei ZS/ZI.
 
 **Anders als bei ZI/ZS wird kein Widerstand summiert**, sondern das erste
 RCD auf dem Weg von der Sonde zur Einspeisung gesucht (nächstgelegenes zur
@@ -1875,9 +1881,9 @@ Der Bediener soll Schrauben auch **lösen** können. Wirkung im Graphen:
 dieselbe Art von Kante wie beim Schalter, nur auf Ebene einer einzelnen Ader
 statt eines ganzen Bauteils – eine gelöste Schraube kappt genau eine Kante.
 
-**Werkzeug: Schraubendreher (Status: Aufnehmen + Lösen umgesetzt, rein
-visuell - Wiedereindrehen und die tatsächliche Kanten-Kappung im
-Verbindungsgraphen folgen als eigene, spätere Schritte).** Fünftes
+**Werkzeug: Schraubendreher (Status: vollständig umgesetzt - Darstellung,
+Aufnehmen/Lösen/Wiedereindrehen, Einschränkungen UND die tatsächliche
+Kanten-Kappung im Verbindungsgraphen, siehe unten).** Fünftes
 View-Objekt (`view/schraubendreher.js`), sitzt RECHTS neben dem Messgerät
 (für Rechtshänder, explizite User-Vorgabe). `#schraubendreher` wird per JS
 ABSOLUT positioniert, direkt an der rechten Kante der tatsächlich
@@ -1958,15 +1964,53 @@ unsinnig (kein Kontakt mehr). Fix: der Messspitzen-Zweig in
 bricht ohne Wirkung ab, bevor er den Farbzyklus (schwarz/blau/grün)
 weiterschaltet.
 
-**Noch nicht umgesetzt (letzter iterativer Schritt, User-Vorgabe):** die
-tatsächliche Kanten-Kappung im Verbindungsgraphen (genau eine Kante wird
-beim Lösen geöffnet, beim Wiedereindrehen wieder geschlossen - analog zu
-einem Schalter, aber auf Ader- statt Bauteil-Ebene). Bisher rein visuell,
-`graph.*.kanten` bleiben unverändert. Ob das Eingangs- ODER
-Ausgangs-Screw-Klick auf ein Bauteil dieselbe Kante kappt, ist noch offen
-(zu klären, bevor dieser Schritt umgesetzt wird) - die Frage, ob
-Steckdosen-Kontakte überhaupt beteiligt sein sollen, ist mit den obigen
-Einschränkungen bereits beantwortet (nein, vorerst nur Schaltkasten).
+**Kanten-Kappung im Verbindungsgraphen (Status: umgesetzt, letzter
+iterativer Schritt):** Lösen öffnet jetzt tatsächlich genau eine Kante
+(`kante.geschlossen = false`), Wiedereindrehen schließt sie wieder
+(`kante.geschlossen = true`) - exakt derselbe Mechanismus wie bei
+`schalterUmschalten()`, nur auf Ebene einer einzelnen Kante statt aller
+Kanten eines Bauteils. Design-Entscheidung (mit dem User geklärt, bevor
+umgesetzt wurde): Eingangs- und Ausgangs-Schraube eines Bauteils sind KEINE
+zwei separaten Kanten, sondern zwei verschiedene Knoten desselben Graphen,
+verbunden durch genau EINE Kante (`kantenFuerFunktion()` in
+`generate_anlage.js` legt pro Bauteil+Pol nur diese eine Kante an - es gibt
+keine separate Kante für den Draht ZWISCHEN zwei benachbarten Bauteilen,
+diese Konnektivität ergibt sich implizit daraus, dass beide Pins denselben
+Netz-Knoten teilen). Das Kappen dieser einen Kante liefert deshalb schon von
+selbst das elektrisch korrekte asymmetrische Verhalten: der Eingangsknoten
+bleibt über die Kante des VORGESCHALTETEN Bauteils erreichbar, der
+Ausgangsknoten wird unerreichbar, weil der einzige Weg dorthin über die nun
+offene Kante führt - keine feinere Modellierung pro Eingang/Ausgang nötig.
+
+**Behobener Bug (User-gemeldet, testcase_06):** eine per Schraubendreher
+gekappte Kante wurde wieder fälschlich geschlossen, sobald derselbe
+Bauteil-Schalter (z.B. RCD1) geöffnet und wieder geschlossen wurde - der
+weiße Kreis blieb sichtbar stehen, aber die Messung zeigte trotzdem wieder
+Spannung. Ursache: sowohl `schalterUmschalten()` (Schalter-Hebel) als auch
+das Schraubendreher-Werkzeug schrieben ungeprüft in dieselbe
+`kante.geschlossen`-Eigenschaft - ein Schalter-Klick überschrieb den
+Zustand der gelösten Schraube einfach wieder. Fix: ein neues
+`geloesteKanten`-Set verhindert, dass `schalterUmschalten()` eine gerade
+gelöste Kante schließt; der zuletzt vom Schalter gewünschte Zustand wird
+zusätzlich in `kante._schalterSoll` gemerkt und erst beim tatsächlichen
+Wiedereindrehen der Schraube angewendet (statt Wiedereindrehen blind auf
+`geschlossen: true` zu setzen, was einen zwischenzeitlich geöffneten
+Schalter ignoriert hätte).
+
+Zuordnung Schraube → Kante: jede Schraube trägt jetzt zusätzlich
+`data-bauteil` (gesetzt in `schraube()`, `view/schaltkasten.js`, durchgereicht
+von `geraet()` und `klemme()` - letztere brauchte dafür einen neuen
+`bauteilName`-Parameter, alle 7 Aufrufstellen von `klemme()` rekonstruieren
+den passenden Bauteilnamen aus `bauteile.md`-Konventionen, z. B.
+`Reihenklemme_L1_SK1`, `L-Klemme`, `PE-Klemme`). `findeSchraubenKante(ader,
+kreis)` (`controller/app.js`) liest `kreis.dataset.bauteil` und sucht die
+passende Kante in `graph[ader.funktion].kanten`. PE-Schrauben haben keine
+Entsprechung im Verbindungsgraphen (`GRAPH_FUNKTIONEN` in
+`generate_anlage.js` deckt nur `L1/L2/L3/N` ab) - `findeSchraubenKante()`
+liefert dafür sauber `null` (optional chaining), Lösen/Wiedereindrehen
+bleibt dort rein visuell ohne Absturz. Nach jeder Kanten-Änderung wird
+`renderMessgeraet()` aufgerufen, damit eine laufende Messung (z. B. RLOW)
+sofort reagiert - genau wie bei `schalterUmschalten()`.
 
 ### Fehlertabelle (Fehler-Widerstände)
 
@@ -2117,12 +2161,8 @@ Offen:
    Vorimpedanz (`berechneRlowMesswert()`-Workarounds, siehe
    "RLOW-Berechnung" oben) - entfallen ebenfalls ersatzlos, sobald der
    PE-Teilgraph existiert.
-3. **Schrauben lösen** - Werkzeug (Schraubendreher) und Mechanismus jetzt
-   festgelegt, erster Schritt (Darstellung neben dem Messgerät) umgesetzt,
-   Interaktivität (Aufnehmen/Lösen/Wiedereindrehen, Kanten kappen) noch offen
-   (siehe "Schrauben lösen" oben).
-4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: RCD Typ B).
-5. **Prüfprotokoll: Verknüpfung mit echten Messwerten** - aktuell rein
+3. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: RCD Typ B).
+4. **Prüfprotokoll: Verknüpfung mit echten Messwerten** - aktuell rein
    ein-/ankreuzbar, ohne Bezug zu den im Messgerät tatsächlich ermittelten
    Werten (siehe "Prüfprotokoll (View-Objekt)" oben). Spätere Ausbaustufe:
    automatisches Übernehmen der TEST-Ergebnisse in die passende Zeile/Spalte

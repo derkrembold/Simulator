@@ -1,9 +1,8 @@
 // Tests für das Schraubendreher-Werkzeug (view/schraubendreher.js,
 // onSchraubeKlick() in controller/app.js). Darstellung neben dem Messgerät,
-// plus Aufnehmen/Lösen (Wiedereindrehen und die tatsächliche Kanten-Kappung
-// im Verbindungsgraphen folgen als eigene, spätere Schritte, siehe
-// KONZEPT.md "Schrauben lösen"). Aufruf:
-// node tests/visuell/test_schraubendreher.js
+// Aufnehmen/Lösen/Wiedereindrehen, Einschränkungen, UND die tatsächliche
+// Kanten-Kappung im Verbindungsgraphen (siehe KONZEPT.md "Schrauben lösen").
+// Aufruf: node tests/visuell/test_schraubendreher.js
 
 const http = require('http');
 const fs = require('fs');
@@ -71,6 +70,32 @@ async function main() {
     await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/testcase_01/anlage.json`);
     await page.waitForSelector('#schraubendreher svg');
     return page;
+  }
+
+  function rlowHauptwert(page) {
+    return page.evaluate(() =>
+      [...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent.startsWith('R:'))?.textContent
+    );
+  }
+
+  // Findet den Schalter-Hebel (`<g style="cursor:pointer">`, siehe
+  // zeichneSchalter() in schaltkasten.js) eines bestimmten Bauteils - es
+  // gibt kein direktes `data-bauteil`-Attribut auf dem Hebel selbst, daher
+  // über die horizontale Nähe zur (bereits per data-bauteil auffindbaren)
+  // Schraube desselben Geräts identifiziert (Hebel sitzt immer mittig über
+  // dessen eigenen Schrauben).
+  async function findeSchalterHandleNaheBauteil(page, bauteilName) {
+    const kreisBox = await page.locator(`#schaltkasten svg circle[data-bauteil="${bauteilName}"]`).first().boundingBox();
+    const handles = page.locator('#schaltkasten svg g[style*="cursor: pointer"]');
+    const anzahl = await handles.count();
+    let bestIndex = -1, bestDist = Infinity;
+    for (let i = 0; i < anzahl; i++) {
+      const box = await handles.nth(i).boundingBox();
+      if (!box) continue;
+      const dist = Math.abs((box.x + box.width / 2) - (kreisBox.x + kreisBox.width / 2));
+      if (dist < bestDist) { bestDist = dist; bestIndex = i; }
+    }
+    return handles.nth(bestIndex);
   }
 
   await pruefe('Schraubendreher: wird neben dem Messgerät gerendert', async () => {
@@ -322,6 +347,126 @@ async function main() {
       [...document.querySelectorAll('#schaltkasten svg circle[fill="#ffffff"][stroke="#000000"]')].length
     );
     if (weisseKreise !== 2) throw new Error(`erwarte genau zwei weiße Kreise (Schraube 2 + neu gelöste Schraube 3), gefunden ${weisseKreise}`);
+    await page.close();
+  });
+
+  // --- Kanten-Kappung im Verbindungsgraphen (letzter Schritt, User-Vorgabe:
+  // eine einzige Kante pro Bauteil+Pol - unabhängig davon, ob die Eingangs-
+  // oder die Ausgangsschraube gelöst wird, siehe KONZEPT.md "Schrauben
+  // lösen"). testcase_01: N1 (Leistungsschalter.i1) -> N13
+  // (Reihenklemme_L_SK1.o1) summiert die Fehlertabelle zu 0,60Ω (0,1+0,2+0,3Ω,
+  // siehe bestehender RLOW-Test "Messspitzen auf demselben L1-Pfad"). ---
+
+  await pruefe('Schraubendreher: Lösen einer Schraube kappt tatsächlich die zugehörige Kante - RLOW zeigt danach den Platzhalter', async () => {
+    const page = await neueSeiteMitTestcase();
+    await page.getByText('ON/OFF', { exact: true }).click();
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click(); // schwarz
+    await page.locator('#schaltkasten svg circle[data-netz="N13"]').click(); // blau
+    const vorher = await rlowHauptwert(page);
+    if (vorher !== 'R:0,60Ω') throw new Error(`RLOW vor dem Lösen: erwarte "R:0,60Ω", gefunden "${vorher}"`);
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"]').first().click(); // RCD1 lösen (liegt auf dem gemessenen Pfad)
+
+    const nachher = await rlowHauptwert(page);
+    if (nachher !== 'R:---Ω') throw new Error(`RCD1 gelöst -> erwarte Platzhalter "R:---Ω", gefunden "${nachher}"`);
+    await page.close();
+  });
+
+  await pruefe('Schraubendreher: Wiedereindrehen schließt die Kante wieder - RLOW-Wert kehrt zurück', async () => {
+    const page = await neueSeiteMitTestcase();
+    await page.getByText('ON/OFF', { exact: true }).click();
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
+    await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd1Schraube = page.locator('#schaltkasten svg circle[data-bauteil="RCD1"]').first();
+    await rcd1Schraube.click(); // lösen
+    const geloest = await rlowHauptwert(page);
+    if (geloest !== 'R:---Ω') throw new Error(`RCD1 gelöst: erwarte "R:---Ω", gefunden "${geloest}"`);
+
+    await page.locator('#schraubendreher svg').click();
+    await rcd1Schraube.click(); // wiedereindrehen
+
+    const wiederhergestellt = await rlowHauptwert(page);
+    if (wiederhergestellt !== 'R:0,60Ω') throw new Error(`RCD1 wiedereingedreht -> erwarte "R:0,60Ω", gefunden "${wiederhergestellt}"`);
+    await page.close();
+  });
+
+  await pruefe('Schraubendreher: eine PE-Schraube lösen stürzt nicht ab (PE ist noch nicht Teil des Verbindungsgraphen)', async () => {
+    const page = await neueSeiteMitTestcase();
+    const fehler = [];
+    page.on('pageerror', (err) => fehler.push(err.message));
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click();
+
+    const weisserKreis = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg circle[fill="#ffffff"][stroke="#000000"]')].length
+    );
+    if (weisserKreis !== 1) throw new Error(`erwarte weiterhin einen weißen Kreis (rein visuell, ohne Graph-Wirkung), gefunden ${weisserKreis}`);
+    if (fehler.length > 0) throw new Error(`erwarte keine JS-Fehler, gefunden: ${fehler.join('; ')}`);
+    await page.close();
+  });
+
+  await pruefe('Schraubendreher: Lösen einer UNBETEILIGTEN Schraube (anderer Stromkreis) beeinflusst eine laufende Messung nicht', async () => {
+    const page = await neueSeiteMitTestcase();
+    await page.getByText('ON/OFF', { exact: true }).click();
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
+    await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
+    const vorher = await rlowHauptwert(page);
+    if (vorher !== 'R:0,60Ω') throw new Error(`RLOW vor dem Lösen: erwarte "R:0,60Ω", gefunden "${vorher}"`);
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS2"]').first().click(); // LS2 gehört zu SK2, nicht zum gemessenen SK1-Pfad
+
+    const nachher = await rlowHauptwert(page);
+    if (nachher !== 'R:0,60Ω') throw new Error(`unbeteiligtes Bauteil gelöst -> erwarte unverändert "R:0,60Ω", gefunden "${nachher}"`);
+    await page.close();
+  });
+
+  // Regressionstest für einen User-gemeldeten Bug (testcase_06): eine per
+  // Schraubendreher gekappte Kante wurde von schalterUmschalten() wieder
+  // fälschlich geschlossen, sobald derselbe Bauteil-Schalter (hier RCD1)
+  // geöffnet und wieder geschlossen wurde - obwohl die Schraube weiterhin
+  // sichtbar gelöst war (weißer Kreis blieb stehen). Ursache: beide
+  // Mechanismen schrieben ungeprüft in dieselbe `kante.geschlossen`-
+  // Eigenschaft. Fix: `geloesteKanten`-Set verhindert, dass
+  // schalterUmschalten() eine gelöste Kante wieder schließt; der zuletzt
+  // gewünschte Schalter-Zustand wird in `kante._schalterSoll` gemerkt und
+  // erst beim tatsächlichen Wiedereindrehen angewendet.
+  await pruefe('Schraubendreher: BUGFIX - eine gelöste Kante bleibt offen, auch wenn der zugehörige Schalter danach auf/zu geklickt wird', async () => {
+    const page = await neueSeiteMitTestcase();
+    await page.getByText('ON/OFF', { exact: true }).click();
+    await page.locator('#schaltkasten svg circle[data-netz="N1"]').click();
+    await page.locator('#schaltkasten svg circle[data-netz="N13"]').click();
+    const vorher = await rlowHauptwert(page);
+    if (vorher !== 'R:0,60Ω') throw new Error(`RLOW vor dem Lösen: erwarte "R:0,60Ω", gefunden "${vorher}"`);
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd1Schraube = page.locator('#schaltkasten svg circle[data-bauteil="RCD1"]').first();
+    await rcd1Schraube.click(); // lösen
+    const geloest = await rlowHauptwert(page);
+    if (geloest !== 'R:---Ω') throw new Error(`RCD1 gelöst: erwarte "R:---Ω", gefunden "${geloest}"`);
+
+    const rcd1Handle = await findeSchalterHandleNaheBauteil(page, 'RCD1');
+    await rcd1Handle.click(); // RCD1-Schalter öffnen
+    await rcd1Handle.click(); // RCD1-Schalter wieder schließen
+
+    const nachSchalterToggle = await rlowHauptwert(page);
+    if (nachSchalterToggle !== 'R:---Ω') {
+      throw new Error(`gelöste Schraube muss trotz Schalter auf/zu weiterhin offen bleiben: erwarte "R:---Ω", gefunden "${nachSchalterToggle}"`);
+    }
+    const weisserKreisNochDa = await page.evaluate(() =>
+      [...document.querySelectorAll('#schaltkasten svg circle[fill="#ffffff"][stroke="#000000"]')].length
+    );
+    if (weisserKreisNochDa !== 1) throw new Error(`weißer Kreis muss weiterhin sichtbar sein, gefunden ${weisserKreisNochDa}`);
+
+    // Wiedereindrehen bei geschlossenem Schalter muss wieder korrekt herstellen.
+    await page.locator('#schraubendreher svg').click();
+    await rcd1Schraube.click();
+    const wiederhergestellt = await rlowHauptwert(page);
+    if (wiederhergestellt !== 'R:0,60Ω') throw new Error(`Wiedereindrehen bei geschlossenem Schalter: erwarte "R:0,60Ω", gefunden "${wiederhergestellt}"`);
     await page.close();
   });
 

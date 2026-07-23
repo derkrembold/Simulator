@@ -71,15 +71,24 @@ async function start() {
   // Ruheposition neben dem Messgerät). `geloesteSchrauben` merkt sich pro
   // Schrauben-Element das weiße Overlay - verhindert doppeltes Lösen
   // derselben Schraube und wird zum Wiedereindrehen (Umschalten) gebraucht.
-  // Rein visuell in diesem Schritt - noch KEINE Wirkung auf den
-  // Verbindungsgraphen (kommt als eigener, späterer Schritt). Maximal
-  // SCHRAUBENDREHER_MAX_GELOEST gleichzeitig gelöste Schrauben (User-Vorgabe,
-  // Zwischenschritt vor der Kanten-Kappung: "ich will nicht, dass der User
-  // alle Schrauben erst mal aufdreht") - Wiedereindrehen ist davon nicht
-  // betroffen (reduziert `geloesteSchrauben.size` ja gerade).
+  // Maximal SCHRAUBENDREHER_MAX_GELOEST gleichzeitig gelöste Schrauben
+  // (User-Vorgabe, Zwischenschritt vor der Kanten-Kappung: "ich will nicht,
+  // dass der User alle Schrauben erst mal aufdreht") - Wiedereindrehen ist
+  // davon nicht betroffen (reduziert `geloesteSchrauben.size` ja gerade).
   let schraubendreherAufgenommen = false;
   const geloesteSchrauben = new Map();
   const SCHRAUBENDREHER_MAX_GELOEST = 2;
+
+  // Kanten, die aktuell durch den Schraubendreher gekappt sind (Set von
+  // Kanten-Objekten aus `graph`, nicht Schrauben-Elementen - eine Kante kann
+  // über mehrere Schrauben-Klicks hinweg eindeutig identifiziert werden,
+  // siehe findeSchraubenKante()). Nötig, damit schalterUmschalten() unten
+  // eine per Schraubendreher gekappte Kante NICHT wieder schließt, nur weil
+  // derselbe Schalter (z.B. das RCD) auf/zu geklickt wird - Bug-Report
+  // testcase_06: Schraube am RCD-Eingang gelöst (0V, korrekt), RCD-Schalter
+  // auf/zu geklickt → Kante wurde von schalterUmschalten() fälschlich wieder
+  // geschlossen, obwohl die Schraube weiterhin sichtbar gelöst war.
+  const geloesteKanten = new Set();
 
   // Schalter (LS/RCD/Hauptschalter, siehe KONZEPT.md "Schalter"): ein Klick
   // auf den Hebel im Schaltkasten schaltet ALLE Kanten im Verbindungsgraphen
@@ -96,10 +105,36 @@ async function start() {
     // (kein Teilgraph, siehe Anbindung der Fehlertabelle unten).
     for (const funktion of Object.keys(graph).filter((k) => graph[k]?.kanten)) {
       for (const kante of graph[funktion].kanten) {
-        if (kante.bauteil === bauteilName) kante.geschlossen = geschlossen;
+        if (kante.bauteil !== bauteilName) continue;
+        // Der gewünschte Schalter-Zustand wird immer gemerkt (fürs spätere
+        // Wiedereindrehen, siehe unten), aber eine per Schraubendreher
+        // gekappte Kante bleibt offen, bis sie explizit wiedereingedreht
+        // wird - der Schalter allein darf sie nicht wieder schließen.
+        kante._schalterSoll = geschlossen;
+        if (!geloesteKanten.has(kante)) kante.geschlossen = geschlossen;
       }
     }
     renderMessgeraet(); // RLOW misst kontinuierlich, siehe unten
+  }
+
+  // Findet die EINE Kante im Verbindungsgraphen, die zu einer bestimmten
+  // Schraube gehört (Schraubendreher-Werkzeug, siehe KONZEPT.md "Schrauben
+  // lösen") - anders als schalterUmschalten() oben (kappt ALLE Pole eines
+  // Bauteils gleichzeitig) betrifft eine einzelne Schraube immer nur EINEN
+  // Pol/eine Funktion. `kreis.dataset.bauteil` (siehe schaltkasten.js
+  // schraube()) plus `ader.funktion` identifizieren die Kante eindeutig -
+  // eine Ader/Netz-ID allein würde nicht reichen, da mehrere Bauteile
+  // denselben Ausgangspin/dieselbe Ader teilen können (siehe testcase_01
+  // Annahme 2). Liefert `null`, wenn kein Graph existiert, die Schraube
+  // keinen Bauteilnamen trägt (aktuell nur Steckdosen-Kontakte, die das
+  // Werkzeug ohnehin nicht unterstützen), oder die Funktion PE ist (PE ist
+  // noch nicht Teil des Verbindungsgraphen, siehe KONZEPT.md "Nächste
+  // Schritte" - PE-Teilgraph) - der Lösen-/Wiedereindrehen-Kreis bleibt in
+  // diesen Fällen weiterhin rein visuell, ohne Absturz.
+  function findeSchraubenKante(ader, kreis) {
+    const bauteilName = kreis.dataset.bauteil;
+    if (!graph || !bauteilName) return null;
+    return graph[ader.funktion]?.kanten.find((k) => k.bauteil === bauteilName) ?? null;
   }
 
   // Klick auf eine Schraube/einen Kontaktpunkt - identisch für Schaltkasten-
@@ -131,12 +166,23 @@ async function start() {
       // Kreis vorhanden) entfernt das Overlay wieder - Umkehrung von Lösen,
       // Werkzeug kehrt genauso automatisch zurück. Immer erlaubt (reduziert
       // `geloesteSchrauben.size`, kann das Maximum unten also nie verletzen).
+      // Schließt außerdem die zugehörige Kante wieder (siehe
+      // findeSchraubenKante() oben) - Verbindung ist danach wiederhergestellt.
       const bestehendesOverlay = geloesteSchrauben.get(kreis);
       if (bestehendesOverlay) {
         bestehendesOverlay.remove();
         geloesteSchrauben.delete(kreis);
+        const kante = findeSchraubenKante(ader, kreis);
+        if (kante) {
+          geloesteKanten.delete(kante);
+          // Nicht blind auf true setzen - falls der zugehörige Schalter in
+          // der Zwischenzeit geöffnet wurde (siehe schalterUmschalten()
+          // oben), muss die Kante danach offen bleiben, nicht schließen.
+          kante.geschlossen = kante._schalterSoll ?? true;
+        }
         schraubendreherAufgenommen = false;
         renderSchraubendreher();
+        renderMessgeraet(); // RLOW misst kontinuierlich, siehe schalterUmschalten()
         return;
       }
 
@@ -150,7 +196,9 @@ async function start() {
       }
 
       // Weißer Kreis mit schwarzem Rand, dieselbe Größe wie eine
-      // Messspitzen-Markierung.
+      // Messspitzen-Markierung. Öffnet außerdem die zugehörige Kante (siehe
+      // findeSchraubenKante() oben) - genau wie ein offener Schalter, nur
+      // auf Ader- statt Bauteil-Ebene (siehe KONZEPT.md "Schrauben lösen").
       const { cx, cy } = schraubenMitte(kreis);
       const overlay = svgKreis({
         cx, cy, r: 7, fill: '#ffffff', stroke: '#000000', 'stroke-width': 2.5
@@ -158,9 +206,15 @@ async function start() {
       overlay.style.pointerEvents = 'none'; // Schraube bleibt selbst klickbar (fürs Wiedereindrehen)
       kreis.parentNode.appendChild(overlay);
       geloesteSchrauben.set(kreis, overlay);
+      const kante = findeSchraubenKante(ader, kreis);
+      if (kante) {
+        geloesteKanten.add(kante);
+        kante.geschlossen = false;
+      }
 
       schraubendreherAufgenommen = false;
       renderSchraubendreher();
+      renderMessgeraet(); // RLOW misst kontinuierlich, siehe schalterUmschalten()
       return;
     }
 
@@ -567,12 +621,20 @@ async function start() {
     return istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz) ? 230 : 0;
   }
 
-  // Live-Spannungsanzeige für FI/RCD - identisch zu berechneZsSpannung()
-  // (dieselbe Platzierungsvorgabe: Schwarz auf L1/L2/L3, Grün auf PE, Blau
-  // auf N, geprüft wird nur der EINE L-Pfad zur Einspeisung). Eigene
-  // Funktion statt Wiederverwendung, da sie konzeptionell zu FI/RCD gehört
-  // und dort eigenständig weiterentwickelt werden dürfte (z.B. sobald die
-  // eigentliche Auslösewert-Berechnung dazukommt).
+  // Live-Spannungsanzeige für FI/RCD - dieselbe Platzierungsvorgabe wie bei
+  // ZS (Schwarz auf L1/L2/L3, Grün auf PE, Blau auf N), aber ANDERS als
+  // berechneZsSpannung() (die bewusst nur den L-Pfad prüft, siehe dort) an
+  // berechneZiSpannung() angelehnt: ein FI/RCD-Prüfgerät speist sich selbst
+  // aus L UND N und injiziert darüber den Fehlerstrom - beide Pfade zur
+  // Einspeisung müssen also stehen, bevor überhaupt ein Test möglich ist.
+  // ZS dagegen misst die L-PE-Schleife SELBST, die darf als Vorbedingung
+  // nicht schon intakt sein müssen - dieser Unterschied gilt für FI/RCD
+  // nicht (User-gemeldeter Bug, testcase_06: N-Eingangsschraube eines RCD
+  // gelöst, Anzeige blieb trotzdem bei 230V stehen, weil nur Schwarz
+  // geprüft wurde). Eigene Funktion statt Wiederverwendung, da sie
+  // konzeptionell zu FI/RCD gehört und dort eigenständig weiterentwickelt
+  // werden dürfte (z.B. sobald die eigentliche Auslösewert-Berechnung
+  // dazukommt).
   function berechneFircdSpannung() {
     const schwarzAder = messspitzenAderNachFarbe('schwarz');
     const gruenAder = messspitzenAderNachFarbe('grün');
@@ -580,7 +642,9 @@ async function start() {
     if (!graph || !schwarzAder || !gruenAder || !blauAder) return 0;
     if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return 0;
     if (gruenAder.funktion !== 'PE' || blauAder.funktion !== 'N') return 0;
-    return istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz) ? 230 : 0;
+    const schwarzLebt = istSpannungFuehrend(graph, schwarzAder.funktion, schwarzAder.netz);
+    const blauLebt = istSpannungFuehrend(graph, blauAder.funktion, blauAder.netz);
+    return schwarzLebt && blauLebt ? 230 : 0;
   }
 
   // Alle RCD-Bauteile der Anlage (über alle Hutschienen/Gruppen hinweg) -

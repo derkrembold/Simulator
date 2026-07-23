@@ -1827,6 +1827,53 @@ async function main() {
     await page.close();
   });
 
+  // Kanten-Kappung (Schraubendreher, siehe KONZEPT.md "Schrauben lösen") an
+  // ALLEN VIER Schrauben von RCD2 (Eingang L/N + Ausgang L/N) - anders als
+  // der Bugfix-Test "berechneFircdSpannung()" oben (Sonden auf RCD2s EIGENEM
+  // Eingang, siehe dort) sitzen die Sonden hier STROMABWÄRTS von RCD2 (an
+  // der Steckdose SK2), deshalb unterbricht JEDE der vier Schrauben den
+  // Pfad wirklich - Eingang und Ausgang je Pol kappen dieselbe Kante (siehe
+  // KONZEPT.md), decken hier also zusammen beide RCD2-Kanten (L1 UND N) ab.
+  // User-Vorgabe: Reihenfolge Eingang-L, Eingang-N, Ausgang-L, Ausgang-N,
+  // jede Schraube einzeln lösen+prüfen+wiedereindrehen+prüfen, bevor die
+  // nächste drankommt.
+  await pruefe('FI/RCD: testcase_06 - Steckdose SK2, alle vier RCD2-Schrauben unterbrechen/stellen die Live-Spannungsanzeige über den Schraubendreher wieder her', async () => {
+    const page = await neueSeiteMitTestcase('testcase_06');
+    for (let i = 0; i < 4; i++) await drehknopfKlick(page); // RLOW -> RISO -> ZI -> ZS -> FI/RCD
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // Steckdose links (L) -> schwarz
+    await kreise.nth(6).click(); // Steckdose rechts (N) -> blau
+    await page.locator('#steckdosen rect[fill="#666666"]').first().click(); // Steckdose PE -> grün
+
+    erwarte(await displayTexte(page), '230V', 'Spannung liegt an, bevor irgendeine Schraube gelöst wurde');
+    if (await indikatorDurchgestrichen(page)) {
+      throw new Error('Pfeil-Kasten sollte bei anliegender Spannung NICHT durchgestrichen sein');
+    }
+
+    const rcd2SchraubenAnzahl = await page.locator('#schaltkasten svg circle[data-bauteil="RCD2"]').count();
+    if (rcd2SchraubenAnzahl !== 4) throw new Error(`erwarte genau 4 RCD2-Schrauben (Eingang+Ausgang, L+N), gefunden ${rcd2SchraubenAnzahl}`);
+
+    for (let i = 0; i < rcd2SchraubenAnzahl; i++) {
+      const schraube = page.locator('#schaltkasten svg circle[data-bauteil="RCD2"]').nth(i);
+
+      await page.locator('#schraubendreher svg').click();
+      await schraube.click(); // lösen
+      erwarte(await displayTexte(page), '0V', `RCD2-Schraube ${i} gelöst -> Spannung fällt auf 0V`);
+      if (!(await indikatorDurchgestrichen(page))) {
+        throw new Error(`Pfeil-Kasten sollte durchgestrichen sein, sobald RCD2-Schraube ${i} gelöst ist`);
+      }
+
+      await page.locator('#schraubendreher svg').click();
+      await schraube.click(); // wiedereindrehen
+      erwarte(await displayTexte(page), '230V', `RCD2-Schraube ${i} wiedereingedreht -> Spannung kehrt zurück`);
+      if (await indikatorDurchgestrichen(page)) {
+        throw new Error(`Pfeil-Kasten sollte nach dem Wiedereindrehen von RCD2-Schraube ${i} NICHT mehr durchgestrichen sein`);
+      }
+    }
+    await page.close();
+  });
+
   // testcase_06 Gruppe G2: dieselbe geräteübergreifende Sondenplatzierung
   // wie beim V~-Test oben (Schwarz auf dem schwarzen L-Kontakt der
   // 3-poligen Anschlussdose SK3, Blau/Grün auf der Steckdose SK2), diesmal

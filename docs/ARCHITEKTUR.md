@@ -1436,6 +1436,172 @@ wie in der Vorlage) und die korrekte Ader-Zuordnung ab; zusätzlich in
 gemessen liefert `Z:0,34Ω`/`Isc:608,8A`, identisch zum direkt am
 Schaltkasten-Netz N23 gemessenen Wert.
 
+### schraubendreher.js
+
+**Status: Aufnehmen + Lösen umgesetzt, rein visuell** (siehe KONZEPT.md
+"Schrauben lösen", User-Vorgabe 2026-07-23, iterativer Einstieg: zuerst nur
+Darstellung, dann Aufnehmen/Lösen - Wiedereindrehen und die tatsächliche
+Kanten-Kappung im Verbindungsgraphen folgen als eigene, spätere Schritte).
+
+Fünftes View-Objekt, `SchraubendreherView.render(container, anzeigeHoehe, {
+onKlick })` - `onKlick` (optional) macht die komplette Zeichnung klickbar
+(eine `<g>` mit `cursor:pointer` + Click-Listener um alle Pfad-/Rechteck-
+Elemente, analog zur TEST-Taste in `messgeraet.js`) - ohne wird nur
+gezeichnet (z.B. für reine Darstellungs-Tests). Die Zeichnung selbst nutzt
+dieselbe Geometrie wie die Steckdosen-Vorlagen (ein `<path>` +
+sechs `<rect>`, per `svgEl()`), 1:1 aus einer User-Vorlage übernommen
+(`C:\Users\rembo\Documents\Classes\Pics\schraubendreher-1.svg`, Inkscape-
+Export). Statt jede Pfad-/Rechteck-Koordinate einzeln in ein neues
+Koordinatensystem umzurechnen, wird die komplette Gruppe mit derselben
+`transform="translate(-93.890768,-37.049365)"` wie in der Vorlage
+übernommen - die viewBox bleibt `0 0 19.380453 143.24223` (Original-
+Einheiten der Vorlage), nur `width`/`height` des äußeren `<svg>` skalieren
+auf die Zielgröße herunter (dieselbe Technik wie beim Messgerät selbst,
+siehe `ANZEIGE_BREITE`/`ANZEIGE_HOEHE` oben).
+
+**Platzierung (`index.html`), RECHTS neben dem Messgerät (für Rechtshänder,
+User-Vorgabe - ursprünglich links platziert, auf User-Wunsch korrigiert):**
+neuer Wrapper `#messgeraet-zeile` (`position: relative`) enthält zwei
+Geschwister-Divs `#messgeraet` und `#schraubendreher`. `#messgeraet` behält
+seine ursprüngliche eigene Zentrierung (`display: flex; justify-content:
+center`, Breite = Schaltkasten-Breite, unverändert gegenüber vor der
+Schraubendreher-Einführung) - der Wrapper selbst beeinflusst diese
+Zentrierung nicht, liefert nur den Positionierungs-Anker für den
+Schraubendreher. **Wichtige Design-Entscheidung:** ein erster Versuch
+positionierte beide Elemente gemeinsam über Flexbox (`display: flex;
+justify-content: center` auf dem Wrapper) - das zentrierte zwar die
+KOMBINATION aus Schraubendreher+Messgerät, verschob aber das Messgerät
+selbst aus seiner ursprünglichen Position (User-Feedback: "versuche das
+Messgerät in der Mitte des Schaltschrankes zu lassen, wie es vorher war").
+Lösung: `#schraubendreher` wird stattdessen per JS ABSOLUT positioniert,
+direkt an der rechten Kante der TATSÄCHLICH gerenderten Messgerät-SVG
+(`messgeraetSvgRect.right - zeileRect.left + 16px` als `left`, `top`
+analog) - das Messgerät bleibt dadurch exakt an derselben Stelle wie vorher,
+der Schraubendreher hängt sich unabhängig davon rechts daran.
+
+**Höhen-Angleichung ohne Duplikation:** die Zielhöhe wird nicht als eigene
+Konstante geführt, sondern nach dem ersten `renderMessgeraet()`-Aufruf aus
+der TATSÄCHLICH gerenderten Messgerät-SVG gelesen
+(`messgeraetSvg.getAttribute('height')`) und an `SchraubendreherView.render()`
+durchgereicht - bleibt dadurch automatisch korrekt, falls sich die
+Messgerät-Größe künftig ändert (dieselbe "nicht duplizieren"-Konvention wie
+bei der Schaltkasten-Breite, siehe Kommentar in `app.js`).
+
+**Aufnehmen + Lösen + Wiedereindrehen (Status: umgesetzt,
+`controller/app.js`):** neuer Zustand `schraubendreherAufgenommen`
+(boolean) + `geloesteSchrauben` (Map kreis-Element -> weißes
+Overlay-Kreis-Element). `onSchraubeKlick()` prüft `schraubendreherAufgenommen`
+VOR der bestehenden Messspitzen-/Popup-Logik (höchste Priorität, unabhängig
+vom An/Aus-Zustand des Messgeräts):
+- Schraube mit bereits gesetzter Messspitze → `return` ohne Wirkung,
+  Werkzeug bleibt aufgenommen (User kann direkt eine andere Schraube
+  probieren - explizite User-Entscheidung gegen ein automatisches
+  Zurückspringen bei einem blockierten Klick).
+- Schraube bereits gelöst (`geloesteSchrauben.get(kreis)` liefert ein
+  Overlay-Element) → **Wiedereindrehen**: `overlay.remove()` +
+  `geloesteSchrauben.delete(kreis)`, dann wie unten automatisch zurück.
+- sonst → **Lösen**: `svgKreis({cx, cy, r:7, fill:'#ffffff',
+  stroke:'#000000', 'stroke-width':2.5})` (dieselbe Größe wie eine
+  Messspitzen-Markierung, siehe `MESSSPITZEN_FARBWERTE`-Overlay oben) wird
+  an derselben Position wie der Schrauben-Kreis eingefügt
+  (`schraubenMitte(kreis)`, bereits bestehende Hilfsfunktion),
+  `pointer-events: none` (damit die Schraube selbst weiter klickbar bleibt -
+  sowohl fürs Wiedereindrehen als auch für normale Klicks danach),
+  `geloesteSchrauben.set(kreis, overlay)`.
+
+Beide Zweige (Lösen/Wiedereindrehen) enden gleich: `schraubendreherAufgenommen
+= false`, `renderSchraubendreher()` (Werkzeug erscheint wieder in der
+Ruheposition) - ein einziger Klick-Mechanismus, der je nach Zustand der
+angeklickten Schraube umschaltet (kein separater Wiedereindrehen-Codepfad
+nötig).
+
+`renderSchraubendreher()` (`controller/app.js`, ersetzt den früheren
+einmaligen `SchraubendreherView.render()`-Aufruf): rendert das Werkzeug nur,
+wenn NICHT aufgenommen (`container.innerHTML = ''` sonst) - reicht
+`onKlick: () => { schraubendreherAufgenommen = true; renderSchraubendreher();
+}` durch. Positionierung (`positioniereSchraubendreher()`) bleibt logisch
+dieselbe wie beim ersten Rendern, da sie nur von der - unveränderlichen -
+Position der Messgerät-SVG abhängt.
+
+**Einschränkungen (Status: umgesetzt, Zwischenschritt vor der Kanten-Kappung,
+explizite User-Vorgabe):** vor dem Messspitzen-Check am Anfang von
+`onSchraubeKlick()`s Schraubendreher-Zweig steht jetzt
+`if (kreis.closest('#steckdosen')) return;` - Steckdosen-View-Kontakte
+(Steckdose/Anschlussdose/Drehstromsteckdose/5-polige Anschlussdose)
+unterstützen das Werkzeug damit generell nicht, unabhängig vom konkreten
+Endstellen-Typ (eine einzige DOM-Ancestor-Prüfung deckt alle vier ab, keine
+Fallunterscheidung pro Typ nötig). Zusätzlich eine neue Konstante
+`SCHRAUBENDREHER_MAX_GELOEST = 2` - der Lösen-Zweig prüft
+`geloesteSchrauben.size >= SCHRAUBENDREHER_MAX_GELOEST` und legt bei
+erreichtem Maximum das Werkzeug zurück (`schraubendreherAufgenommen = false;
+renderSchraubendreher();`), statt es (wie bei Messspitze/Steckdosen-Sperre)
+aufgenommen zu belassen - Folgekorrektur nach User-Feedback: das
+"geht-gerade-nicht"-Gefühl bei erreichtem Maximum soll sich anders anfühlen
+als eine einzelne blockierte Schraube. Der Wiedereindrehen-Zweig bleibt von
+der Obergrenze unberührt (reduziert `geloesteSchrauben.size` ja gerade) und
+schafft dadurch wieder Platz.
+
+**Behobener Bug (User-gemeldet, testcase_06, siehe Projekt-Memory "Schrauben
+lösen Idee"):** `positioniereSchraubendreher()` griff ursprünglich auf eine
+beim Start EINMALIG gecachte `const messgeraetSvg`-Referenz zu. Problem:
+`MessgeraetView.render()` leert `#messgeraet` bei JEDEM Re-Render (ON/OFF,
+Drehknopf, jede Messspitzen-Änderung über `onSchraubeKlick()`, ...) komplett
+und hängt ein BRANDNEUES `<svg>`-Element ein - die gecachte Referenz zeigte
+danach auf ein aus dem DOM entferntes Element. `getBoundingClientRect()`
+liefert auf einem losgelösten Element nur Nullen, wodurch die berechnete
+Position (`rect.right - zeileRect.left + 16`) auf einen kleinen/negativen
+Wert kollabierte - der Schraubendreher erschien irgendwo links im
+Schaltschrank statt rechts vom Messgerät, sobald zwischen zwei
+Lösen-Vorgängen eine Messgerät-Interaktion lag. Fix: `positioniereSchraubendreher()`
+liest `messgeraetContainer.querySelector('svg')` jetzt bei JEDEM Aufruf
+frisch aus dem DOM - nur `messgeraetSvgHoehe` (ein reiner Zahlenwert, ändert
+sich nie) bleibt weiter als Konstante gecacht. **Allgemeine Lektion für
+dieses Projekt:** jeder View hier arbeitet mit `container.innerHTML = ''` +
+komplett neu aufgebautem SVG statt In-Place-Updates (siehe `schaltkasten.js`,
+`messgeraet.js`, `steckdosen.js`) - ein Element-Verweis auf ein solches SVG
+darf deshalb NIE über einen Re-Render hinweg gecacht werden, nur Zahlenwerte
+(Breite/Höhe/Attribute) sind unproblematisch.
+
+**Behobener Bug (User-gemeldet, 2026-07-23):** die ursprünglich
+spezifizierte Sperre "eine gelöste Schraube kann keine Messspitze mehr
+bekommen" war nie im Code angekommen - der Messspitzen-Zweig in
+`onSchraubeKlick()` (der `if (messgeraetZustand.an) {...}`-Block) prüfte
+`geloesteSchrauben` gar nicht. Fix: neue Prüfung `if
+(geloesteSchrauben.has(kreis)) return;` ganz am Anfang dieses Zweigs, vor
+dem Farbzyklus-Handling (`naechsteMessspitzenFarbe()`).
+
+**Noch nicht umgesetzt (letzter iterativer Schritt, vollständig spezifiziert
+in der Projekt-Memory "Schrauben lösen Idee"):** die tatsächliche
+Kanten-Kappung im Verbindungsgraphen selbst (bisher rein visuell,
+`graph.*.kanten` bleiben unverändert - Lösen öffnet noch keine Kante,
+Wiedereindrehen schließt noch keine).
+
+Getestet in `test_schraubendreher.js` (16 Tests, neue eigene Testdatei, ins
+`npm test`-Skript aufgenommen). Vier Darstellungs-Tests (Default-Anlage):
+genau ein Schraubendreher-SVG wird gerendert; seine Höhe stimmt exakt mit
+der Messgerät-Höhe überein; er sitzt rechts neben dem Messgerät ohne
+Überlappung; das Messgerät bleibt trotz Schraubendreher exakt mittig unter
+dem Schaltkasten zentriert. Elf Interaktions-Tests (testcase_01, da die
+Default-Anlage `beispiel_eg.json` handgepflegt ohne Netzplan-Ursprung ist
+und deshalb nirgends ein `data-netz`-Attribut trägt): Klick nimmt das
+Werkzeug auf (verschwindet); Klick auf eine Schraube löst sie (weißer
+Kreis erscheint, Werkzeug kehrt zurück); auf einer gelösten Schraube kann
+keine Messspitze gesetzt werden, eine ANDERE Schraube bleibt normal
+nutzbar; Klick auf eine Schraube MIT Messspitze bleibt wirkungslos,
+Werkzeug bleibt aufgenommen; Klick auf eine bereits gelöste Schraube dreht
+sie wieder ein (weißer Kreis verschwindet, Werkzeug kehrt zurück); eine
+wiedereingedrehte Schraube ist wieder ganz normal nutzbar (Popup); bereits
+gesetzte Messspitzen bleiben unberührt, wenn das Werkzeug eine ANDERE
+Schraube löst; an Steckdosen-Kontakten kann kein weißer Punkt gesetzt
+werden; maximal zwei Schrauben gleichzeitig gelöst, ein dritter Versuch
+bleibt ohne weiteren weißen Kreis UND legt das Werkzeug zurück; normale
+Klicks (Popup) funktionieren danach wieder wie gewohnt; Wiedereindrehen
+schafft bei erreichtem Maximum wieder Platz für eine neue Schraube. Ein
+Regressionstest für den oben beschriebenen
+Positionierungs-Bug: löst eine Schraube, macht danach eine
+Messgerät-Interaktion (ON/OFF + Messspitze setzen), löst eine
+weitere Schraube - die Position muss beide Male exakt gleich bleiben.
+
 ### timer.js
 - Sichtbarer 45-Minuten Timer
 - Stufe 3: Sprachansagen zu definierten Zeitpunkten

@@ -7,12 +7,19 @@
     body { font-family: sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
     #schaltkasten { background: #fff; }
     #steckdosen { margin-bottom: 20px; }
-    #messgeraet { margin-top: 20px; display: flex; justify-content: center; }
+    /* Messgerät bleibt exakt wie vorher mittig unter dem Schaltkasten
+       zentriert (Breite wird in controller/app.js gesetzt). Schraubendreher
+       (siehe view/schraubendreher.js) wird per JS absolut rechts daneben
+       positioniert (für Rechtshänder) - #messgeraet-zeile liefert dafür nur
+       den Positionierungs-Anker (position: relative), ohne selbst die
+       Zentrierung zu beeinflussen. */
+    #messgeraet-zeile { position: relative; margin-top: 20px; }
+    #messgeraet { display: flex; justify-content: center; }
     #protokoll { margin-top: 20px; }
     /* Schnelles Mehrfachklicken (Messspitzen-Zyklus, Drehknopf, ▲/▼/◄►) löst
        sonst die native Doppelklick-Textauswahl des Browsers aus, die zufällig
        Text irgendwo in der SVG markiert (z.B. "INSTALLATIONSTESTER" blau markiert). */
-    #schaltkasten, #messgeraet {
+    #schaltkasten, #messgeraet-zeile {
       user-select: none;
       -webkit-user-select: none;
       -moz-user-select: none;
@@ -34,7 +41,10 @@
 <body>
   <div id="steckdosen"></div>
   <div id="schaltkasten"></div>
-  <div id="messgeraet"></div>
+  <div id="messgeraet-zeile">
+    <div id="messgeraet"></div>
+    <div id="schraubendreher"></div>
+  </div>
   <div id="protokoll"></div>
   <script type="module" src="controller/app.js"></script>
 </body>

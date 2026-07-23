@@ -1871,10 +1871,102 @@ jeweils geräteübergreifend über Drehstromsteckdose + beide neuen Steckdosen).
 
 ### Schrauben lösen
 
-Der Bediener soll Schrauben auch **lösen** können (Mechanismus/Werkzeug noch
-nicht entschieden). Wirkung im Graphen: dieselbe Art von Kante wie beim
-Schalter, nur auf Ebene einer einzelnen Ader statt eines ganzen Bauteils –
-eine gelöste Schraube kappt genau eine Kante.
+Der Bediener soll Schrauben auch **lösen** können. Wirkung im Graphen:
+dieselbe Art von Kante wie beim Schalter, nur auf Ebene einer einzelnen Ader
+statt eines ganzen Bauteils – eine gelöste Schraube kappt genau eine Kante.
+
+**Werkzeug: Schraubendreher (Status: Aufnehmen + Lösen umgesetzt, rein
+visuell - Wiedereindrehen und die tatsächliche Kanten-Kappung im
+Verbindungsgraphen folgen als eigene, spätere Schritte).** Fünftes
+View-Objekt (`view/schraubendreher.js`), sitzt RECHTS neben dem Messgerät
+(für Rechtshänder, explizite User-Vorgabe). `#schraubendreher` wird per JS
+ABSOLUT positioniert, direkt an der rechten Kante der tatsächlich
+gerenderten Messgerät-SVG (`messgeraetSvgRect.right - zeileRect.left +
+16px`) - NICHT über Flexbox-Zentrierung der beiden zusammen, weil das
+Messgerät sonst nicht mehr exakt an derselben Stelle wie vorher unter dem
+Schaltkasten zentriert wäre (erster Implementierungsversuch nutzte Flexbox
+und wurde deshalb korrigiert). `#messgeraet` behält seine ursprüngliche
+eigene Zentrierung (`display:flex;justify-content:center`, Breite =
+Schaltkasten-Breite) unverändert bei - der umgebende `#messgeraet-zeile`
+liefert nur den Positionierungs-Anker (`position: relative`) für den
+Schraubendreher. Geometrie 1:1 aus einer User-Vorlage übernommen (ein Pfad +
+sechs Rechtecke, per Inkscape exportiert) - die Höhe wird bewusst nicht als
+Konstante dupliziert, sondern zur Laufzeit aus der tatsächlich gerenderten
+Messgerät-SVG-Höhe gelesen, damit beide immer exakt gleich hoch bleiben,
+auch wenn sich die Messgerät-Größe künftig ändert.
+
+**Aufnehmen + Lösen + Wiedereindrehen (Status: umgesetzt):** Klick auf den
+Schraubendreher setzt `schraubendreherAufgenommen = true`
+(`controller/app.js`) - das Werkzeug verschwindet aus der Ruheposition
+(`renderSchraubendreher()` rendert dann bewusst nichts). `onSchraubeKlick()`
+prüft diesen Zustand VOR der bestehenden Messspitzen-/Popup-Logik, bei
+aufgenommenem Werkzeug:
+- Schraube mit bereits gesetzter Messspitze → wirkungslos, Werkzeug bleibt
+  aufgenommen (User kann direkt eine andere Schraube probieren, ohne erneut
+  aufzunehmen - explizite User-Entscheidung).
+- Schraube bereits gelöst (weißer Kreis vorhanden) → **Wiedereindrehen**:
+  Overlay wird entfernt (`geloesteSchrauben.delete(kreis)`), Werkzeug kehrt
+  automatisch zurück.
+- sonst → **Lösen**: weißer Kreis mit schwarzem Rand (`fill:#ffffff,
+  stroke:#000000`, `r:7` - dieselbe Größe wie eine Messspitzen-Markierung)
+  wird angelegt, Werkzeug kehrt automatisch zurück.
+
+Beides zusammen ergibt ein Umschalt-Werkzeug: derselbe Klick-Mechanismus
+toggelt je nach Zustand der angeklickten Schraube. Der weiße Kreis bekommt
+`pointer-events: none`, damit die darunterliegende Schraube weiterhin
+klickbar bleibt (sowohl fürs Wiedereindrehen als auch für normale
+Popup-/Messspitzen-Klicks, sobald wieder eingedreht). Rein visuell in
+diesem Schritt - **noch keine Wirkung auf den Verbindungsgraphen**, das
+kommt als eigener, letzter Schritt (siehe unten).
+
+**Einschränkungen (Status: umgesetzt, Zwischenschritt vor der Kanten-Kappung,
+explizite User-Vorgabe):**
+- **Steckdosen-Kontakte unterstützen das Werkzeug (noch) nicht** - Klick auf
+  eine Schraube der Steckdosen-View (Steckdose/Anschlussdose/
+  Drehstromsteckdose/5-polige Anschlussdose, siehe `view/steckdosen.js`)
+  bleibt wirkungslos (`kreis.closest('#steckdosen')`-Prüfung), Werkzeug
+  bleibt aufgenommen. Nur Schaltkasten-Schrauben können gelöst werden.
+- **Maximal `SCHRAUBENDREHER_MAX_GELOEST` (= 2) Schrauben gleichzeitig
+  gelöst** - User-Wortlaut: "Ich will nicht, dass der User alle Schrauben
+  erst mal aufdreht." Ein Lösen-Versuch über dem Maximum bleibt ohne
+  weiteren weißen Kreis, UND das Werkzeug wird zurückgelegt (nicht
+  aufgenommen belassen wie bei Messspitzen-/Steckdosen-Blockaden -
+  Folgekorrektur nach User-Feedback: "besser, wenn der Schraubenzieher
+  wieder hingelegt wird, wenn bereits zwei Punkte gesetzt sind", da sich
+  ein "geht gerade nicht mehr" anders anfühlen soll als ein "diese eine
+  Schraube geht nicht"). Wiedereindrehen ist von der Obergrenze nicht
+  betroffen (reduziert die Anzahl gelöster Schrauben ja gerade) und schafft
+  dadurch wieder Platz für eine neue.
+
+**Behobener Bug (User-gemeldet, testcase_06):** der Schraubendreher landete
+nach einer Messgerät-Interaktion (ON/OFF, Messspitze setzen) an einer
+falschen Position (links im Schaltschrank statt rechts vom Messgerät).
+Ursache: `positioniereSchraubendreher()` nutzte eine beim Start einmalig
+gecachte SVG-Referenz - `MessgeraetView.render()` leert den Container aber
+bei jedem Re-Render komplett und hängt ein neues `<svg>`-Element ein, die
+gecachte Referenz zeigte danach ins Leere (`getBoundingClientRect()` liefert
+auf einem losgelösten Element nur Nullen). Fix: die Messgerät-SVG wird bei
+jedem Positionieren frisch aus dem DOM gelesen, nicht gecacht (nur die
+- über die Zeit konstante - Höhe darf weiter gecacht werden).
+
+**Behobener Bug (User-gemeldet, 2026-07-23):** die ursprünglich in der
+Spezifikation vorgesehene Sperre "eine gelöste Schraube kann keine
+Messspitze mehr bekommen" (siehe oben) war nie tatsächlich umgesetzt worden
+- eine Messspitze ließ sich trotz weißem Kreis normal setzen, elektrisch
+unsinnig (kein Kontakt mehr). Fix: der Messspitzen-Zweig in
+`onSchraubeKlick()` prüft jetzt zuerst `geloesteSchrauben.has(kreis)` und
+bricht ohne Wirkung ab, bevor er den Farbzyklus (schwarz/blau/grün)
+weiterschaltet.
+
+**Noch nicht umgesetzt (letzter iterativer Schritt, User-Vorgabe):** die
+tatsächliche Kanten-Kappung im Verbindungsgraphen (genau eine Kante wird
+beim Lösen geöffnet, beim Wiedereindrehen wieder geschlossen - analog zu
+einem Schalter, aber auf Ader- statt Bauteil-Ebene). Bisher rein visuell,
+`graph.*.kanten` bleiben unverändert. Ob das Eingangs- ODER
+Ausgangs-Screw-Klick auf ein Bauteil dieselbe Kante kappt, ist noch offen
+(zu klären, bevor dieser Schritt umgesetzt wird) - die Frage, ob
+Steckdosen-Kontakte überhaupt beteiligt sein sollen, ist mit den obigen
+Einschränkungen bereits beantwortet (nein, vorerst nur Schaltkasten).
 
 ### Fehlertabelle (Fehler-Widerstände)
 
@@ -2025,8 +2117,10 @@ Offen:
    Vorimpedanz (`berechneRlowMesswert()`-Workarounds, siehe
    "RLOW-Berechnung" oben) - entfallen ebenfalls ersatzlos, sobald der
    PE-Teilgraph existiert.
-3. **Schrauben lösen** - Mechanismus/Werkzeug noch nicht entschieden (siehe
-   "Schrauben lösen" oben).
+3. **Schrauben lösen** - Werkzeug (Schraubendreher) und Mechanismus jetzt
+   festgelegt, erster Schritt (Darstellung neben dem Messgerät) umgesetzt,
+   Interaktivität (Aufnehmen/Lösen/Wiedereindrehen, Kanten kappen) noch offen
+   (siehe "Schrauben lösen" oben).
 4. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: RCD Typ B).
 5. **Prüfprotokoll: Verknüpfung mit echten Messwerten** - aktuell rein
    ein-/ankreuzbar, ohne Bezug zu den im Messgerät tatsächlich ermittelten

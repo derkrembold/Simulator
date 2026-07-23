@@ -3,6 +3,7 @@ import { SchaltkastenView } from '../view/schaltkasten.js';
 import { MessgeraetView } from '../view/messgeraet.js';
 import { ProtokollView } from '../view/protokoll.js';
 import { SteckdosenView } from '../view/steckdosen.js';
+import { SchraubendreherView } from '../view/schraubendreher.js';
 import { Popup } from '../view/popup.js';
 import { findePfad, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
@@ -64,6 +65,22 @@ async function start() {
   const messspitzenAder = new Map();
   const messspitzenOverlay = new Map();
 
+  // Schraubendreher-Werkzeug (siehe KONZEPT.md "Schrauben lösen" / Projekt-
+  // Memory "Schrauben lösen Idee"): `schraubendreherAufgenommen` ist true,
+  // solange das Werkzeug "in der Hand" ist (Icon verschwindet aus der
+  // Ruheposition neben dem Messgerät). `geloesteSchrauben` merkt sich pro
+  // Schrauben-Element das weiße Overlay - verhindert doppeltes Lösen
+  // derselben Schraube und wird zum Wiedereindrehen (Umschalten) gebraucht.
+  // Rein visuell in diesem Schritt - noch KEINE Wirkung auf den
+  // Verbindungsgraphen (kommt als eigener, späterer Schritt). Maximal
+  // SCHRAUBENDREHER_MAX_GELOEST gleichzeitig gelöste Schrauben (User-Vorgabe,
+  // Zwischenschritt vor der Kanten-Kappung: "ich will nicht, dass der User
+  // alle Schrauben erst mal aufdreht") - Wiedereindrehen ist davon nicht
+  // betroffen (reduziert `geloesteSchrauben.size` ja gerade).
+  let schraubendreherAufgenommen = false;
+  const geloesteSchrauben = new Map();
+  const SCHRAUBENDREHER_MAX_GELOEST = 2;
+
   // Schalter (LS/RCD/Hauptschalter, siehe KONZEPT.md "Schalter"): ein Klick
   // auf den Hebel im Schaltkasten schaltet ALLE Kanten im Verbindungsgraphen
   // um, die zu diesem Bauteil gehören (bei mehrpoligen Bauteilen mehrere
@@ -90,12 +107,77 @@ async function start() {
   // nichts Schaltkasten-Spezifisches referenziert, nur `kreis`/`ader` aus dem
   // jeweiligen Aufruf.
   function onSchraubeKlick(ader, x, y, kreis) {
+    // Schraubendreher-Werkzeug hat Vorrang vor Messspitzen UND Popup - hat
+    // nichts mit dem An/Aus-Zustand des Messgeräts zu tun (bleibt davon
+    // unberührt, siehe Projekt-Memory "Schrauben lösen Idee"). Bei einer
+    // Schraube mit Messspitze ODER einem Steckdosen-Kontakt bleibt das
+    // Werkzeug aufgenommen (User kann direkt eine andere Schraube probieren,
+    // ohne erneut aufzunehmen) - ist das Maximum gelöster Schrauben bereits
+    // erreicht, wird das Werkzeug dagegen zurückgelegt (User-Feedback,
+    // Handling-Problem 2026-07-23: "besser, wenn der Schraubenzieher wieder
+    // hingelegt wird, wenn bereits zwei Punkte gesetzt sind" - der Grund
+    // ("keine weitere Schraube geht mehr") ist ein anderer als bei den
+    // beiden erstgenannten Fällen und soll sich deshalb auch anders anfühlen).
+    if (schraubendreherAufgenommen) {
+      // Steckdosen-Kontakte (Steckdose/Anschlussdose/Drehstromsteckdose/
+      // 5-polige Anschlussdose, siehe view/steckdosen.js) unterstützen das
+      // Werkzeug (noch) nicht - nur Schaltkasten-Schrauben (User-Vorgabe,
+      // Zwischenschritt vor der Kanten-Kappung).
+      if (kreis.closest('#steckdosen')) return;
+
+      if (messspitzenFarbe.has(kreis)) return;
+
+      // Wiedereindrehen: Klick auf eine bereits gelöste Schraube (weißer
+      // Kreis vorhanden) entfernt das Overlay wieder - Umkehrung von Lösen,
+      // Werkzeug kehrt genauso automatisch zurück. Immer erlaubt (reduziert
+      // `geloesteSchrauben.size`, kann das Maximum unten also nie verletzen).
+      const bestehendesOverlay = geloesteSchrauben.get(kreis);
+      if (bestehendesOverlay) {
+        bestehendesOverlay.remove();
+        geloesteSchrauben.delete(kreis);
+        schraubendreherAufgenommen = false;
+        renderSchraubendreher();
+        return;
+      }
+
+      // Maximum gleichzeitig gelöster Schrauben erreicht: Werkzeug wird
+      // zurückgelegt statt aufgenommen zu bleiben (anders als bei den beiden
+      // Fällen oben - siehe Kommentar am Anfang der Funktion).
+      if (geloesteSchrauben.size >= SCHRAUBENDREHER_MAX_GELOEST) {
+        schraubendreherAufgenommen = false;
+        renderSchraubendreher();
+        return;
+      }
+
+      // Weißer Kreis mit schwarzem Rand, dieselbe Größe wie eine
+      // Messspitzen-Markierung.
+      const { cx, cy } = schraubenMitte(kreis);
+      const overlay = svgKreis({
+        cx, cy, r: 7, fill: '#ffffff', stroke: '#000000', 'stroke-width': 2.5
+      });
+      overlay.style.pointerEvents = 'none'; // Schraube bleibt selbst klickbar (fürs Wiedereindrehen)
+      kreis.parentNode.appendChild(overlay);
+      geloesteSchrauben.set(kreis, overlay);
+
+      schraubendreherAufgenommen = false;
+      renderSchraubendreher();
+      return;
+    }
+
     // Solange das Messgerät an ist (Messmodus), ersetzen Messspitzen die
     // Popups: kein Querschnitt/Farbe-Tooltip mehr, stattdessen legt jeder
     // Klick auf eine Schraube eine farbige Messspitze an (oder nimmt sie
     // wieder ab) - genau wie beim echten Gerät blendet man Popups aus,
     // sobald man tatsächlich misst.
     if (messgeraetZustand.an) {
+      // Eine gelöste Schraube (weißer Kreis, siehe Schraubendreher-Zweig
+      // oben) hat keinen elektrischen Kontakt mehr - eine Messspitze dort
+      // wäre elektrotechnisch unsinnig, Klick bleibt wirkungslos (User-
+      // gemeldeter Bug, 2026-07-23: die ursprünglich spezifizierte Sperre
+      // "gelöste Schraube kann keine Messspitze bekommen" war nie
+      // umgesetzt worden).
+      if (geloesteSchrauben.has(kreis)) return;
+
       const belegteFarben = new Set(messspitzenFarbe.values());
       belegteFarben.delete(messspitzenFarbe.get(kreis)); // eigene aktuelle Farbe zählt nicht als "belegt"
       const naechsteFarbe = naechsteMessspitzenFarbe(messspitzenFarbe.get(kreis) ?? null, belegteFarben);
@@ -620,7 +702,9 @@ async function start() {
 
   // Box wird auf die tatsächlich gerenderte Schaltkasten-Breite gesetzt, damit
   // das (schmalere) Messgerät mittig darunter erscheint, ohne die Breite hier
-  // zu duplizieren.
+  // zu duplizieren - unverändert gegenüber vorher (der Schraubendreher hängt
+  // sich per JS rechts daneben, ohne diese Zentrierung zu beeinflussen,
+  // siehe ganz unten).
   const messgeraetContainer = document.getElementById('messgeraet');
   messgeraetContainer.style.width = `${schaltkastenSvg.getAttribute('width')}px`;
 
@@ -1075,6 +1159,65 @@ async function start() {
   }
 
   renderMessgeraet();
+
+  // Schraubendreher (siehe view/schraubendreher.js) - erster Schritt, nur
+  // Darstellung, noch keine Interaktivität (siehe KONZEPT.md "Schrauben
+  // lösen" / Projekt-Memory "Schrauben lösen Idee"). Höhe wird aus der
+  // TATSÄCHLICH gerenderten Messgerät-Höhe gelesen (nicht dupliziert), damit
+  // beide immer exakt gleich hoch sind. Rechts neben dem Messgerät (für
+  // Rechtshänder, User-Vorgabe) - per JS ABSOLUT positioniert, direkt an der
+  // rechten Kante der tatsächlichen Messgerät-SVG (nicht am rechten Rand der
+  // #messgeraet-Box, die deutlich breiter ist, um das Messgerät unter dem
+  // Schaltkasten zu zentrieren - siehe oben). Dadurch bleibt das Messgerät
+  // exakt so zentriert wie vorher, unbeeinflusst vom Schraubendreher.
+  const schraubendreherContainer = document.getElementById('schraubendreher');
+  const messgeraetZeileContainer = document.getElementById('messgeraet-zeile');
+  // Höhe bleibt über die Zeit konstant (unabhängig vom Messgerät-Zustand),
+  // einmaliges Auslesen genügt - anders als bei der Positionierung unten
+  // (siehe positioniereSchraubendreher()), die JEDES Mal frisch aus dem DOM
+  // lesen muss.
+  const messgeraetSvgHoehe = messgeraetContainer.querySelector('svg').getAttribute('height');
+
+  // Rechts neben der tatsächlichen Messgerät-SVG positioniert (nicht am
+  // rechten Rand der - deutlich breiteren - #messgeraet-Box, die nur zur
+  // Zentrierung unter dem Schaltkasten dient) - Position hängt nur vom
+  // (ortsfesten) Messgerät ab, ändert sich also über die Zeit nicht. WICHTIG:
+  // die SVG dafür muss bei JEDEM Aufruf frisch aus dem DOM gelesen werden
+  // (nicht der `messgeraetSvg`-Verweis von ganz oben) - `MessgeraetView.render()`
+  // leert den Container bei JEDEM Re-Render (ON/OFF, Drehknopf, Messspitzen-
+  // Änderung, ...) und hängt ein KOMPLETT NEUES `<svg>`-Element ein. Ein
+  // gecachter Verweis auf das alte, damit aus dem DOM entfernte Element
+  // liefert `getBoundingClientRect()` nur noch Nullen - Bug, der den
+  // Schraubendreher irgendwo links im Schaltschrank statt rechts vom
+  // Messgerät erscheinen ließ (User-Meldung, siehe Projekt-Memory
+  // "Schrauben lösen Idee").
+  function positioniereSchraubendreher() {
+    const messgeraetSvgRect = messgeraetContainer.querySelector('svg').getBoundingClientRect();
+    const zeileRect = messgeraetZeileContainer.getBoundingClientRect();
+    schraubendreherContainer.style.position = 'absolute';
+    schraubendreherContainer.style.left = `${messgeraetSvgRect.right - zeileRect.left + 16}px`;
+    schraubendreherContainer.style.top = `${messgeraetSvgRect.top - zeileRect.top}px`;
+  }
+
+  // Solange aufgenommen (siehe onSchraubeKlick() oben), bleibt die
+  // Ruheposition leer - kein zweites Icon, keine "Werkzeug ablegen"-Klickfläche,
+  // exakt wie spezifiziert (kehrt nur automatisch nach einem Schrauben-Klick
+  // zurück, siehe onSchraubeKlick()).
+  function renderSchraubendreher() {
+    if (schraubendreherAufgenommen) {
+      schraubendreherContainer.innerHTML = '';
+      return;
+    }
+    SchraubendreherView.render(schraubendreherContainer, messgeraetSvgHoehe, {
+      onKlick: () => {
+        schraubendreherAufgenommen = true;
+        renderSchraubendreher();
+      }
+    });
+    positioniereSchraubendreher();
+  }
+
+  renderSchraubendreher();
 }
 
 start();

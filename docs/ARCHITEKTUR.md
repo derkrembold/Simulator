@@ -604,6 +604,137 @@ Sektion umgestellt.
 einziger Diff war die neue Array-Form von `reihenklemmen_eingang.l`, keine
 Verhaltensänderung (per Diff und vollem `npm test`-Lauf bestätigt).
 
+**Behobener Bug (User-gemeldet, 2026-07-24): RCD1s rechte Schrauben (L2/L3/N)
+in `testcase_05` nicht anklickbar.** Ein vorgeschaltetes RCD bekommt seine
+Eingangs-/Ausgangsadern über `rcdFunktionen` in der Gruppen-Konstruktion
+(`baueLeitung(netze, rcd.name, 'i'/'o', rcdFunktionen)`), zusammengesetzt aus
+`vorkommendePhasen`:
+```js
+const vorkommendePhasen = PHASEN_REIHENFOLGE.filter((p) =>
+  stromkreiseDerGruppe.some((sk) => sk.phasen[0] === p)  // Bug: nur Index 0
+);
+```
+Korrekt für testcase_04 (drei SEPARATE einphasige Stromkreise auf einem
+4-poligen RCD, jeder `sk.phasen` ein 1-elementiges Array), falsch für
+testcase_05s Gruppe G1 (EIN dreiphasiger 3-poliger LS1, `sk.phasen = ['L1',
+'L2', 'L3']` als ganzes Array in einem einzigen Stromkreis - `sk.phasen[0]`
+liefert immer nur `'L1'`, egal wie viele Phasen der Stromkreis tatsächlich
+hat). `rcdFunktionen` wurde dadurch nur `['L1', 'N']` statt `['L1', 'L2',
+'L3', 'N']`, RCD1 bekam entsprechend nur eine Eingangs-/Ausgangsader.
+Sichtbare Folge: `geraet()` zeichnet pro `teAnzahl`-Spalte eine Schraube mit
+`adernEingang?.[i]`/`adernAusgang?.[i]` (siehe oben) - bei RCD1 (4 TE) und
+nur einem Ader-Array-Element blieben Spalte 2-4 (L2/L3/N) mit `ader ===
+undefined`. `schraube()` (`view/schaltkasten.js`) hängt ohne `ader` KEINEN
+Klick-Handler an (`if (ader) { kreis.style.cursor = 'pointer'; ... }`) - die
+Kreise wurden weiterhin gezeichnet (grau, `fill:#888888`), waren aber tot.
+Der Verbindungsgraph selbst (`kantenFuerFunktion()`, unabhängig von
+`rcdFunktionen`, läuft direkt über `GRAPH_FUNKTIONEN`/`bauteil.pole`) war
+nicht betroffen - reiner Rendering-/Bedienbarkeits-Bug, RLOW/RISO/ZI/ZS über
+diese Adern hätten schon vorher korrekt funktioniert, wenn man sie
+programmatisch angesprochen hätte, nur der Mausklick fehlte. Fix:
+`sk.phasen.includes(p)` statt `sk.phasen[0] === p`. `testcase_05` und
+`testcase_06` neu generiert und promotet (`testcase_06`s einziger Diff: das
+im Code ungenutzte `gruppe.phase`-Feld, dort hat G1 kein RCD, keine
+sichtbare Auswirkung); `testcase_05`s `anlage.svg` neu gerendert (6 neue
+klickbare Schrauben-Kreise, `data-netz`/`cursor:pointer` +6 je Snapshot). 2
+neue Regressionstests: `test_generator.js` prüft
+`rcd.eingang.leitung.adern.map(a => a.funktion)` direkt auf `['L1', 'L2',
+'L3', 'N']`; `test_messgeraet.js` platziert Messspitzen live auf RCD1s
+L3-Spalte (vorher unklickbar) und bestätigt `R:0,41Ω` (Fehlertabelle-Eintrag
+N22).
+
+**Ausführlicher End-zu-End-Test für den kompletten L2-Pfad (User-Vorgabe,
+direkt im Anschluss):** ein weiterer Test in `test_messgeraet.js` deckt
+denselben Pfad ab, den der Bugfix betraf, diesmal über den GESAMTEN Weg
+statt nur eine Ader-Spalte - Schwarz auf der Drehstromsteckdose (L2), Blau
+auf Hauptschalter-Eingang L2 (`N7`, direkt hinter der Einspeisung).
+Fehlertabelle-Summe über RCD1-Ausgang L2 (`N21`, 0,19Ω) + LS1-Ausgang L2
+(`N25`, 0,34Ω) = `0,53Ω`. Danach wird JEDER Schalter auf diesem Pfad einzeln
+geöffnet und wieder geschlossen (Hauptschalter → RCD1 → LS1/B16) - Messwert
+muss dabei jedes Mal exakt auf `R:---Ω` fallen und wieder auf `R:0,53Ω`
+zurückkehren. Zuletzt dieselbe Probe mit dem Schraubendreher an RCD1s
+L2-Eingangsschraube (`N10`) statt einem Schalter-Klick - lösen/
+wiedereindrehen verhält sich identisch (kappt/schließt dieselbe Kante, siehe
+"Schrauben lösen" oben). Neuer Test-Helper `findeSchalterHandleNaheBauteil()`
+in `test_messgeraet.js` (identisch zum gleichnamigen Helfer in
+`test_schraubendreher.js` - findet einen Schalter-Hebel über die Nähe zu
+einer `data-bauteil`-Schraube desselben Geräts, da der Hebel selbst kein
+solches Attribut trägt). Direkt im Anschluss derselbe Test nochmal mit L3
+statt L2 (User-Vorgabe) - andere Fehlertabellen-Werte (RCD1-Ausgang L3
+`N22`=0,41Ω + LS1-Ausgang L3 `N26`=0,08Ω = `0,49Ω`, statt `0,53Ω` bei L2),
+sonst identischer Ablauf (Hauptschalter → RCD1 → LS1 → Schraubendreher an
+RCD1s L3-Eingang `N11`).
+
+**Noch ein Test, diesmal mit N statt L2/L3 (User-Vorgabe, direkt im
+Anschluss):** Schwarz auf der Drehstromsteckdose (N), Blau auf N-Klemme
+unten (Ausgang, `N12`) - `R:0,00Ω` (KEINE Fehlertabellen-Einträge auf dem
+N-Pfad von SK1, anders als bei L2/L3). Diesmal AUSDRÜCKLICH NUR RCD1
+getestet, kein Hauptschalter/LS1 - beide schalten die N-Ader gar nicht
+(Hauptschalter ist 3-polig ohne eigenen N-Pol, LS1 ist ein normaler LS ohne
+N-Schaltung, nur ein AFDD-Kombigerät würde N selbst schalten) - RCD1 ist
+also der EINZIGE Schalter auf diesem Pfad. Zusätzlich wird diesmal RCD1s
+AUSGANGS- statt Eingangsschraube gelöst (`N23` statt `N12`) - Eingang und
+Ausgang kappen dieselbe Kante, Ergebnis identisch.
+
+**BUGFIX im Test-Helper selbst (User-gemeldet über einen scheinbar
+funktionierenden, aber tatsächlich falsch testenden Fall, 2026-07-24):**
+`findeSchalterHandleNaheBauteil()` verglich ursprünglich nur die
+HORIZONTALE Distanz (`Math.abs(cx1 - cx2)`), nicht die volle 2D-Position.
+In testcase_05 hat das für `bauteilName: 'RCD1'` fälschlich den
+Hauptschalter-Hebel (letzte Reihe) gefunden statt RCD1s eigenem (erste
+Hutschienen-Reihe) - beide Geräte stehen jeweils als erstes in ihrer Reihe
+und haben deshalb einen ähnlichen X-Mittelpunkt, die Y-Koordinate (andere
+Reihe) wurde komplett ignoriert. Besonders tückisch: die bereits
+bestehenden L2/L3-Pfad-Tests UND der ältere Schraubendreher/Schalter-
+Konflikt-Test in `test_schraubendreher.js` (testcase_01) waren davon
+EBENFALLS betroffen, liefen aber trotzdem grün durch, weil der
+fälschlicherweise angeklickte Hauptschalter/Leistungsschalter in beiden
+Fällen ZUFÄLLIG auch auf dem gemessenen Pfad liegt (weiter stromaufwärts als
+das eigentlich gemeinte Bauteil) - das Öffnen des falschen Schalters
+unterbricht die Messung also ebenso, ohne dass der Test das eigentlich
+adressierte Bauteil (RCD1) je berührt hätte. Erst der neue N-Pfad-Test
+unten (bewusst OHNE Hauptschalter auf dem Pfad, siehe dort) deckte die
+Verwechslung auf, weil dort kein "zufällig auch richtiger" Ersatz-Schalter
+mehr vorhanden war. Fix: volle Euklidische Distanz (`Math.hypot(dx, dy)`)
+statt nur `Math.abs(dx)` - der Zeilenabstand im Schaltkasten ist immer
+deutlich größer als jede zufällige X-Koinzidenz zwischen Geräten
+verschiedener Reihen, macht die Zuordnung damit robust. In BEIDEN
+Testdateien (`test_messgeraet.js` und `test_schraubendreher.js`) behoben;
+alle vorher betroffenen Tests liefen mit dem korrigierten Helfer erneut
+durch (jetzt tatsächlich gegen das richtige Bauteil, nicht nur zufällig
+richtig). **Lektion:** ein Testhelfer, der ein UI-Element über räumliche
+Nähe statt über ein robustes Attribut identifiziert, kann in einer
+komplexeren Anlage (mehr Zeilen, mehr Geräte) das falsche Element treffen,
+OHNE dass ein Test das bemerkt, solange das falsch getroffene Element
+zufällig einen ähnlich beobachtbaren Effekt hat - eine grüne Testsuite
+beweist hier nicht automatisch, dass der Test das Richtige geprüft hat.
+
+**Noch ein Test, diesmal Gruppe G2 statt G1 (User-Vorgabe, direkt im
+Anschluss, mit dem korrigierten Helper):** Schwarz auf der MITTLEREN
+Steckdose (SK2, hinter RCD2 + LS2/AFDD statt RCD1 + LS1), Blau auf
+L1-Klemme unten (Ausgang, `N6` - dieselbe Netz-ID wie Hauptschalter-Eingang
+L1, siehe "3-poliger LS" oben). Pfad: `N6` → `N9` (Hauptschalter) → `N60`
+(RCD2-Ausgang L1, LS2-Zweig) → `N64` (LS2-Ausgang L1) → `N68`
+(SK2-Endstelle) = `0,53Ω` (zufällig derselbe Zahlenwert wie beim L2-Test
+oben, andere Fehlertabellen-Kombination, kein Zusammenhang). Diesmal
+AUSDRÜCKLICH NUR RCD2 und LS2 (AFDD) getestet, kein Hauptschalter (User-
+Vorgabe "alle Hebel müssen geschlossen sein"). Technische Besonderheit:
+RCD2 hat wegen der geteilten Ausgangsschraube (RCD2.o1 speist LS2 UND LS3
+gemeinsam, siehe KONZEPT.md "AFDD") ZWEI L1-Kanten im Graphen - zum
+Zeitpunkt dieses Tests matchte `findeSchraubenKante()` (Singular, noch VOR
+dem weiter unten dokumentierten Bugfix) rein über `data-bauteil`+Funktion
+und fand für JEDE der beiden RCD2-L1-Schrauben (Eingang UND Ausgang)
+dieselbe ERSTE Kante im Array - verifiziert, dass das zufällig genau die
+LS2-relevante ist (passend zur gemessenen Steckdose). Genau dieses
+`.find()`-Verhalten stellte sich beim direkt anschließenden SK3-Test als
+Bug heraus (siehe "Behobener Bug ... geteilte Schraube" weiter unten) - die
+hier beschriebenen Schraubentests für SK2 blieben nach dem Fix unverändert
+korrekt, da eine `.filter()`-Antwort mit nur einem zufällig richtigen
+Treffer sich nach außen identisch verhält wie die alte `.find()`-Antwort.
+Schraubendreher-Teil deckt beide RCD2-Schrauben ab: erst unten (Ausgang,
+`N60`) lösen, nach Wiedereindrehen dann oben (Eingang, `N9`) lösen - beide
+kappen dieselbe Kante, Ergebnis identisch.
+
 **3-poliger LS ohne RCD (`testcase_06`, Status: umgesetzt) - Bugfix in
 `generate_anlage.js`:** eine Gruppe kann komplett ohne RCD-Mitglied sein
 (z.B. ein LS direkt hinter der Hauptsicherung). Die Gruppen-Konstruktion
@@ -1571,18 +1702,18 @@ bekommen" war nie im Code angekommen - der Messspitzen-Zweig in
 dem Farbzyklus-Handling (`naechsteMessspitzenFarbe()`).
 
 **Kanten-Kappung im Verbindungsgraphen (Status: umgesetzt, letzter
-iterativer Schritt):** neue Hilfsfunktion `findeSchraubenKante(ader, kreis)`
-(`controller/app.js`, direkt nach `schalterUmschalten()`) liest
-`kreis.dataset.bauteil` und sucht die passende Kante über
-`graph[ader.funktion]?.kanten.find((k) => k.bauteil === bauteilName)` -
-liefert `null` für PE (kein PE-Teilgraph, `GRAPH_FUNKTIONEN` deckt nur
-`L1/L2/L3/N` ab) oder falls die Schraube keinen Bauteilnamen trägt. Beide
-Zweige in `onSchraubeKlick()` toggeln jetzt zusätzlich `kante.geschlossen`
-(`false` beim Lösen, `true` beim Wiedereindrehen) und rufen danach
-`renderMessgeraet()` auf, damit eine laufende Messung (z.B. RLOW) sofort den
-neuen Zustand widerspiegelt - exakt derselbe Mechanismus wie bei
-`schalterUmschalten()`, nur auf Ebene einer einzelnen Kante statt aller
-Kanten eines Bauteils.
+iterativer Schritt):** neue Hilfsfunktion `findeSchraubenKanten(ader, kreis)`
+(`controller/app.js`, direkt nach `schalterUmschalten()`, ursprünglich
+Singular `findeSchraubenKante()` - siehe Bugfix unten für die Umbenennung)
+liest `kreis.dataset.bauteil` und sucht die passenden Kanten über
+`graph[ader.funktion]?.kanten.filter(...)` - liefert ein leeres Array für PE
+(kein PE-Teilgraph, `GRAPH_FUNKTIONEN` deckt nur `L1/L2/L3/N` ab) oder falls
+die Schraube keinen Bauteilnamen trägt. Beide Zweige in `onSchraubeKlick()`
+iterieren über das Array und toggeln jeweils `kante.geschlossen` (`false`
+beim Lösen, `true` beim Wiedereindrehen), rufen danach `renderMessgeraet()`
+auf, damit eine laufende Messung (z.B. RLOW) sofort den neuen Zustand
+widerspiegelt - exakt derselbe Mechanismus wie bei `schalterUmschalten()`,
+nur auf Ebene einzelner Kanten statt aller Kanten eines Bauteils.
 
 Design-Entscheidung (mit dem User geklärt, bevor umgesetzt wurde, siehe
 KONZEPT.md "Schrauben lösen"): Eingang und Ausgang eines Bauteils sind zwei
@@ -1618,8 +1749,50 @@ berücksichtigt wird. 1 neuer Regressionstest in `test_schraubendreher.js`
 prüft dass die Messung weiterhin unterbrochen bleibt; dreht danach wieder
 ein und prüft die korrekte Wiederherstellung). Neuer Test-Helper
 `findeSchalterHandleNaheBauteil()` (identifiziert den Schalter-Hebel eines
-Bauteils über die horizontale Nähe zu dessen `data-bauteil`-Schraube, da
-der Hebel selbst kein solches Attribut trägt).
+Bauteils über die Nähe zu dessen `data-bauteil`-Schraube, da der Hebel
+selbst kein solches Attribut trägt - siehe eigener Bugfix weiter unten:
+diese Nähe-Suche musste später von horizontaler auf volle 2D-Distanz
+umgestellt werden).
+
+**Behobener Bug (User-gemeldet, testcase_05): eine geteilte Schraube kappte
+nur EINE der darunterliegenden Adern.** Manche Bauteile speisen ZWEI
+nachgeschaltete Geräte über eine gemeinsame physische Ausgangsschraube
+(`ader.weitere`, z.B. RCD2s N-Ausgang in testcase_05, der gleichzeitig
+zwei AFDD-LS speist - siehe "AFDD" oben). `findeSchraubenKante()` (Singular,
+`.find()`) matchte ursprünglich rein über `k.bauteil === bauteilName`, ohne
+`von`/`nach` zu prüfen - bei mehreren Kanten desselben Bauteils+Pols traf
+das IMMER nur die erste gefundene, unabhängig davon, welche Ader tatsächlich
+unter der geklickten Schraube liegt. Ein Test, der zufällig den ERSTEN
+Zweig maß (SK2), zeigte deshalb scheinbar korrektes Verhalten; ein Test mit
+dem ZWEITEN Zweig (SK3, `ader.weitere`) deckte den Bug auf - Schraube löste
+sich sichtbar, der SK3-Zweig blieb aber elektrisch verbunden. User-Frage,
+die den Kern traf: *"wenn ich eine Schraube aufmache, wird nur ein Kabel
+gelöst, und nicht beide?"* - elektrisch unsinnig, eine echte geteilte
+Klemme lässt beim Aufdrehen beide Adern gleichzeitig los. Fix: umbenannt zu
+`findeSchraubenKanten()` (Plural), sammelt zuerst alle Netz-IDs der
+geklickten Schraube (`[ader.netz, ...(ader.weitere ?? []).map(w => w.netz)]`)
+und liefert per `.filter()` ALLE Kanten des Bauteils, deren `von` ODER
+`nach` in dieser Menge liegt:
+```js
+function findeSchraubenKanten(ader, kreis) {
+  const bauteilName = kreis.dataset.bauteil;
+  if (!graph || !bauteilName) return [];
+  const netzeDieserSchraube = [ader.netz, ...(ader.weitere ?? []).map((w) => w.netz)];
+  const kanten = graph[ader.funktion]?.kanten ?? [];
+  return kanten.filter((k) =>
+    k.bauteil === bauteilName && (netzeDieserSchraube.includes(k.von) || netzeDieserSchraube.includes(k.nach))
+  );
+}
+```
+Beide Zweige in `onSchraubeKlick()` iterieren jetzt über das Array statt
+eine einzelne Kante zu behandeln (`geloesteKanten.add/delete` und
+`kante.geschlossen` je Kante). Bei einer normalen, ungeteilten Schraube
+liefert das Array weiterhin genau ein Element - keine Verhaltensänderung
+für den Regelfall. 2 neue Tests in `test_messgeraet.js`: der eigentliche
+SK3-Testfall (analog zum bestehenden SK2-Test, aber mit dem N-Pol statt
+L1, deckt den Bug auf und bestätigt den Fix), plus ein dedizierter
+Beleg-Test, der dieselbe eine Schraube EINMAL löst und danach nacheinander
+SK2 UND SK3 auf getrennten Seiten misst - beide müssen unterbrochen sein.
 
 **Voraussetzung dafür - `data-bauteil`-Attribut (`view/schaltkasten.js`):**
 `schraube()` bekam einen neuen optionalen 6. Parameter `bauteilName`, setzt

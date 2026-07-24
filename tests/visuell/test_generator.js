@@ -418,6 +418,26 @@ pruefe('anlage.json: testcase_05 - LS1 (Gruppe G1, normaler 3-poliger LS) hat af
   if (sk1.ls.afdd !== false) throw new Error(`erwarte sk1.ls.afdd === false, gefunden: ${sk1.ls.afdd}`);
 });
 
+// Regressionstest für einen User-gemeldeten Bug (2026-07-24): RCD1 (4-polig,
+// Gruppe G1) bekam nur EINE Eingangs-/Ausgangsader (L1) statt vier
+// (L1/L2/L3/N) - `vorkommendePhasen` prüfte nur `sk.phasen[0]`, verpasste
+// dadurch L2/L3 bei Gruppe G1s einzigem Stromkreis (3-poliger LS1 mit
+// `phasen: ['L1','L2','L3']`, alle drei stecken in EINEM `sk.phasen`-Array,
+// nicht in drei separaten Stromkreisen wie bei testcase_04). Sichtbare
+// Auswirkung: `geraet()` in schaltkasten.js zeichnete RCD1s rechte drei
+// Schrauben-Spalten (L2/L3/N) ohne zugehörige Ader - `schraube()` hängt ohne
+// `ader` keinen Klick-Handler an, die Schrauben waren also nicht anklickbar
+// (keine Messspitze setzbar). Fix: `vorkommendePhasen` prüft jetzt
+// `sk.phasen.includes(p)` statt `sk.phasen[0] === p`.
+pruefe('anlage.json: testcase_05 - RCD1 (Gruppe G1, 4-polig) bekommt alle vier Eingangs-/Ausgangsadern (L1/L2/L3/N), nicht nur L1', () => {
+  const anlage = generiereAnlage(TESTCASE_05);
+  const rcd1 = anlage.hutschienen[0].gruppen[0].rcd;
+  gleich(rcd1.name, 'RCD1', 'erste Gruppe hat RCD1');
+  gleich(rcd1.polig, 4, 'RCD1 ist 4-polig');
+  gleich(rcd1.eingang.leitung.adern.map((a) => a.funktion), ['L1', 'L2', 'L3', 'N'], 'RCD1 Eingangsadern');
+  gleich(rcd1.ausgang.leitung.adern.map((a) => a.funktion), ['L1', 'L2', 'L3', 'N'], 'RCD1 Ausgangsadern');
+});
+
 pruefe('Graph: testcase_05 - RCD2 speist LS2 UND LS3 über je zwei separate Ausgangskanten, sowohl auf L1 als auch auf N', () => {
   const graph = generiereGraph(TESTCASE_05);
   gleich(graph.L1.kanten.filter((k) => k.bauteil === 'RCD2').length, 2, 'RCD2 hat zwei L1-Ausgangskanten (zu LS2 und LS3)');

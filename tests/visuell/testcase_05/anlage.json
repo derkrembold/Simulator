@@ -123,7 +123,7 @@
         {
           "id": "G1",
           "bezeichnung": "Gruppe 1",
-          "phase": "L1",
+          "phase": "L1/L2/L3",
           "rcd": {
             "name": "RCD1",
             "typ": "A",
@@ -146,6 +146,24 @@
                     "farbe": "schwarz",
                     "querschnitt_mm2": 10,
                     "netz": "N9"
+                  },
+                  {
+                    "funktion": "L2",
+                    "farbe": "braun",
+                    "querschnitt_mm2": 10,
+                    "netz": "N10"
+                  },
+                  {
+                    "funktion": "L3",
+                    "farbe": "grau",
+                    "querschnitt_mm2": 10,
+                    "netz": "N11"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 10,
+                    "netz": "N12"
                   }
                 ]
               }
@@ -159,6 +177,24 @@
                     "farbe": "schwarz",
                     "querschnitt_mm2": 2.5,
                     "netz": "N20"
+                  },
+                  {
+                    "funktion": "L2",
+                    "farbe": "braun",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N21"
+                  },
+                  {
+                    "funktion": "L3",
+                    "farbe": "grau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N22"
+                  },
+                  {
+                    "funktion": "N",
+                    "farbe": "blau",
+                    "querschnitt_mm2": 2.5,
+                    "netz": "N23"
                   }
                 ]
               }

@@ -123,7 +123,7 @@
         {
           "id": "G1",
           "bezeichnung": "Gruppe 1",
-          "phase": "L1",
+          "phase": "L1/L2/L3",
           "rcd": null,
           "stromkreise": [
             {

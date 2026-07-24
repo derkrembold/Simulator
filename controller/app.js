@@ -82,7 +82,7 @@ async function start() {
   // Kanten, die aktuell durch den Schraubendreher gekappt sind (Set von
   // Kanten-Objekten aus `graph`, nicht Schrauben-Elementen - eine Kante kann
   // über mehrere Schrauben-Klicks hinweg eindeutig identifiziert werden,
-  // siehe findeSchraubenKante()). Nötig, damit schalterUmschalten() unten
+  // siehe findeSchraubenKanten()). Nötig, damit schalterUmschalten() unten
   // eine per Schraubendreher gekappte Kante NICHT wieder schließt, nur weil
   // derselbe Schalter (z.B. das RCD) auf/zu geklickt wird - Bug-Report
   // testcase_06: Schraube am RCD-Eingang gelöst (0V, korrekt), RCD-Schalter
@@ -117,24 +117,39 @@ async function start() {
     renderMessgeraet(); // RLOW misst kontinuierlich, siehe unten
   }
 
-  // Findet die EINE Kante im Verbindungsgraphen, die zu einer bestimmten
-  // Schraube gehört (Schraubendreher-Werkzeug, siehe KONZEPT.md "Schrauben
+  // Findet ALLE Kanten im Verbindungsgraphen, die zu einer bestimmten
+  // Schraube gehören (Schraubendreher-Werkzeug, siehe KONZEPT.md "Schrauben
   // lösen") - anders als schalterUmschalten() oben (kappt ALLE Pole eines
   // Bauteils gleichzeitig) betrifft eine einzelne Schraube immer nur EINEN
-  // Pol/eine Funktion. `kreis.dataset.bauteil` (siehe schaltkasten.js
-  // schraube()) plus `ader.funktion` identifizieren die Kante eindeutig -
+  // Pol/eine Funktion, aber ggf. MEHRERE Kanten: eine physische Schraube
+  // kann mehrere Adern gleichzeitig tragen (siehe schaltkasten.js
+  // schraube() `data-netz-weitere` - z.B. RCD2.o1, das gleichzeitig LS2 UND
+  // LS3 speist, siehe testcase_01 Annahme 2/testcase_05 AFDD). Alle
+  // Netz-IDs dieser einen Schraube (Haupt-Ader `ader.netz` + `ader.weitere`)
+  // werden gegen `von`/`nach` aller Kanten dieses Bauteils geprüft - beim
+  // echten Aufdrehen einer Klemme lösen sich schließlich auch ALLE
+  // darunterliegenden Adern gleichzeitig, nicht nur eine (**behobener Bug,
+  // User-gemeldet, testcase_05**: eine geteilte RCD-Ausgangsschraube löste
+  // bisher nur die ERSTE der beiden Adern, `.find()` statt `.filter()` -
+  // die andere blieb elektrisch verbunden, obwohl die Schraube optisch
+  // komplett gelöst aussah). `kreis.dataset.bauteil` (siehe schaltkasten.js
+  // schraube()) plus `ader.funktion` identifizieren das Bauteil/den Pol -
   // eine Ader/Netz-ID allein würde nicht reichen, da mehrere Bauteile
-  // denselben Ausgangspin/dieselbe Ader teilen können (siehe testcase_01
-  // Annahme 2). Liefert `null`, wenn kein Graph existiert, die Schraube
-  // keinen Bauteilnamen trägt (aktuell nur Steckdosen-Kontakte, die das
-  // Werkzeug ohnehin nicht unterstützen), oder die Funktion PE ist (PE ist
-  // noch nicht Teil des Verbindungsgraphen, siehe KONZEPT.md "Nächste
-  // Schritte" - PE-Teilgraph) - der Lösen-/Wiedereindrehen-Kreis bleibt in
-  // diesen Fällen weiterhin rein visuell, ohne Absturz.
-  function findeSchraubenKante(ader, kreis) {
+  // denselben Ausgangspin/dieselbe Ader teilen können. Liefert ein leeres
+  // Array, wenn kein Graph existiert, die Schraube keinen Bauteilnamen
+  // trägt (aktuell nur Steckdosen-Kontakte, die das Werkzeug ohnehin nicht
+  // unterstützen), oder die Funktion PE ist (PE ist noch nicht Teil des
+  // Verbindungsgraphen, siehe KONZEPT.md "Nächste Schritte" -
+  // PE-Teilgraph) - der Lösen-/Wiedereindrehen-Kreis bleibt in diesen
+  // Fällen weiterhin rein visuell, ohne Absturz.
+  function findeSchraubenKanten(ader, kreis) {
     const bauteilName = kreis.dataset.bauteil;
-    if (!graph || !bauteilName) return null;
-    return graph[ader.funktion]?.kanten.find((k) => k.bauteil === bauteilName) ?? null;
+    if (!graph || !bauteilName) return [];
+    const netzeDieserSchraube = [ader.netz, ...(ader.weitere ?? []).map((w) => w.netz)];
+    const kanten = graph[ader.funktion]?.kanten ?? [];
+    return kanten.filter((k) =>
+      k.bauteil === bauteilName && (netzeDieserSchraube.includes(k.von) || netzeDieserSchraube.includes(k.nach))
+    );
   }
 
   // Klick auf eine Schraube/einen Kontaktpunkt - identisch für Schaltkasten-
@@ -166,14 +181,13 @@ async function start() {
       // Kreis vorhanden) entfernt das Overlay wieder - Umkehrung von Lösen,
       // Werkzeug kehrt genauso automatisch zurück. Immer erlaubt (reduziert
       // `geloesteSchrauben.size`, kann das Maximum unten also nie verletzen).
-      // Schließt außerdem die zugehörige Kante wieder (siehe
-      // findeSchraubenKante() oben) - Verbindung ist danach wiederhergestellt.
+      // Schließt außerdem ALLE zugehörigen Kanten wieder (siehe
+      // findeSchraubenKanten() oben) - Verbindung ist danach wiederhergestellt.
       const bestehendesOverlay = geloesteSchrauben.get(kreis);
       if (bestehendesOverlay) {
         bestehendesOverlay.remove();
         geloesteSchrauben.delete(kreis);
-        const kante = findeSchraubenKante(ader, kreis);
-        if (kante) {
+        for (const kante of findeSchraubenKanten(ader, kreis)) {
           geloesteKanten.delete(kante);
           // Nicht blind auf true setzen - falls der zugehörige Schalter in
           // der Zwischenzeit geöffnet wurde (siehe schalterUmschalten()
@@ -196,9 +210,10 @@ async function start() {
       }
 
       // Weißer Kreis mit schwarzem Rand, dieselbe Größe wie eine
-      // Messspitzen-Markierung. Öffnet außerdem die zugehörige Kante (siehe
-      // findeSchraubenKante() oben) - genau wie ein offener Schalter, nur
-      // auf Ader- statt Bauteil-Ebene (siehe KONZEPT.md "Schrauben lösen").
+      // Messspitzen-Markierung. Öffnet außerdem ALLE zugehörigen Kanten
+      // (siehe findeSchraubenKanten() oben) - genau wie ein offener
+      // Schalter, nur auf Ader- statt Bauteil-Ebene (siehe KONZEPT.md
+      // "Schrauben lösen").
       const { cx, cy } = schraubenMitte(kreis);
       const overlay = svgKreis({
         cx, cy, r: 7, fill: '#ffffff', stroke: '#000000', 'stroke-width': 2.5
@@ -206,8 +221,7 @@ async function start() {
       overlay.style.pointerEvents = 'none'; // Schraube bleibt selbst klickbar (fürs Wiedereindrehen)
       kreis.parentNode.appendChild(overlay);
       geloesteSchrauben.set(kreis, overlay);
-      const kante = findeSchraubenKante(ader, kreis);
-      if (kante) {
+      for (const kante of findeSchraubenKanten(ader, kreis)) {
         geloesteKanten.add(kante);
         kante.geschlossen = false;
       }

@@ -1639,6 +1639,31 @@ einzige Unterschied war die neue Array-Form von `reihenklemmen_eingang.l`
 (vorher ein einzelnes Objekt, jetzt ein 1-elementiges Array), keine
 Verhaltensänderung (bestätigt per Diff und per vollem Testlauf).
 
+**Behobener Bug (User-gemeldet, 2026-07-24): RCD1s rechte Schrauben (L2/L3/N)
+in `testcase_05` waren nicht anklickbar.** Ein vorgeschaltetes RCD bekommt
+seine eigenen Eingangs-/Ausgangsadern über `rcdFunktionen` (`generate_anlage.js`,
+`baueLeitung(netze, rcd.name, 'i'/'o', rcdFunktionen)`), zusammengesetzt aus
+`vorkommendePhasen` - allen L-Phasen, die IRGENDEIN Stromkreis der Gruppe
+tatsächlich nutzt (plus `N`). Der Fehler: `vorkommendePhasen` prüfte nur
+`sk.phasen[0]` (das erste Element), nicht das ganze Array - korrekt für
+testcase_04s Szenario (drei SEPARATE einphasige Stromkreise, ein 4-poliges
+RCD, jeder mit `phasen: ['L1']`/`['L2']`/`['L3']`), aber falsch für
+testcase_05s Gruppe G1 (EIN dreiphasiger 3-poliger LS1 mit `phasen: ['L1',
+'L2', 'L3']` als ganzes Array in einem einzigen Stromkreis) - `sk.phasen[0]`
+liefert dort immer nur `'L1'`, L2/L3 blieben unentdeckt. Sichtbare Folge:
+RCD1 bekam nur eine Eingangs-/Ausgangsader (L1) statt vier, `geraet()`
+(`view/schaltkasten.js`) zeichnete die drei rechten Schrauben-Spalten
+(L2/L3/N) dadurch ohne zugehörige Ader - `schraube()` hängt ohne `ader`
+keinen Klick-Handler an (siehe "Schrauben lösen" oben, dieselbe Funktion),
+die Schrauben blieben also klicklos stehen. Der zugrundeliegende
+Verbindungsgraph selbst war davon nicht betroffen (`kantenFuerFunktion()`
+läuft unabhängig über `GRAPH_FUNKTIONEN`/`bauteil.pole`, nicht über
+`rcdFunktionen`) - reiner Rendering-/Bedienbarkeits-Bug, keine falschen
+Messwerte. Fix: `sk.phasen.includes(p)` statt `sk.phasen[0] === p`. Nur
+`testcase_05`/`testcase_06` betroffen (einzige Testcases mit einem
+mehrpoligen LS als einzigem Gruppenmitglied) - `testcase_06`s Änderung war
+rein kosmetisch (das unbenutzte `gruppe.phase`-Feld, G1 dort hat kein RCD).
+
 **3-poliger LS ohne RCD (`testcase_06`, Status: umgesetzt):** ein 3-poliger
 LS muss nicht zwingend hinter einem RCD sitzen – manchmal hängt er direkt
 hinter der Hauptsicherung. Dabei kam ein Bug in `generate_anlage.js` zutage:
@@ -1997,20 +2022,43 @@ Wiedereindrehen der Schraube angewendet (statt Wiedereindrehen blind auf
 `geschlossen: true` zu setzen, was einen zwischenzeitlich geöffneten
 Schalter ignoriert hätte).
 
-Zuordnung Schraube → Kante: jede Schraube trägt jetzt zusätzlich
+Zuordnung Schraube → Kante(n): jede Schraube trägt jetzt zusätzlich
 `data-bauteil` (gesetzt in `schraube()`, `view/schaltkasten.js`, durchgereicht
 von `geraet()` und `klemme()` - letztere brauchte dafür einen neuen
 `bauteilName`-Parameter, alle 7 Aufrufstellen von `klemme()` rekonstruieren
 den passenden Bauteilnamen aus `bauteile.md`-Konventionen, z. B.
-`Reihenklemme_L1_SK1`, `L-Klemme`, `PE-Klemme`). `findeSchraubenKante(ader,
+`Reihenklemme_L1_SK1`, `L-Klemme`, `PE-Klemme`). `findeSchraubenKanten(ader,
 kreis)` (`controller/app.js`) liest `kreis.dataset.bauteil` und sucht die
-passende Kante in `graph[ader.funktion].kanten`. PE-Schrauben haben keine
+passenden Kanten in `graph[ader.funktion].kanten`. PE-Schrauben haben keine
 Entsprechung im Verbindungsgraphen (`GRAPH_FUNKTIONEN` in
-`generate_anlage.js` deckt nur `L1/L2/L3/N` ab) - `findeSchraubenKante()`
-liefert dafür sauber `null` (optional chaining), Lösen/Wiedereindrehen
-bleibt dort rein visuell ohne Absturz. Nach jeder Kanten-Änderung wird
+`generate_anlage.js` deckt nur `L1/L2/L3/N` ab) - `findeSchraubenKanten()`
+liefert dafür sauber ein leeres Array, Lösen/Wiedereindrehen bleibt dort
+rein visuell ohne Absturz. Nach jeder Kanten-Änderung wird
 `renderMessgeraet()` aufgerufen, damit eine laufende Messung (z. B. RLOW)
 sofort reagiert - genau wie bei `schalterUmschalten()`.
+
+**Behobener Bug (User-gemeldet, testcase_05): eine geteilte Schraube kappte
+nur EINE der darunterliegenden Adern statt alle.** Manche physischen
+Schrauben tragen mehr als eine Ader gleichzeitig (`ader.weitere`, siehe
+"Pfadverfolgung und Fehlersimulation" - z. B. RCD2s N-Ausgang in
+testcase_05, der gleichzeitig zwei AFDD-LS speist). `findeSchraubenKanten()`
+hieß ursprünglich `findeSchraubenKante()` (Singular) und nutzte `.find()`,
+das rein über `k.bauteil === bauteilName` matchte, ohne `von`/`nach` zu
+prüfen - bei mehreren Kanten desselben Bauteils+Pols (genau der
+geteilte-Schraube-Fall) traf das immer nur die ERSTE gefundene, unabhängig
+davon, welche der beiden Adern tatsächlich unter der geklickten Schraube
+liegt. Elektrisch falsch: beim echten Aufdrehen einer Klemme mit zwei Adern
+darunter lösen sich BEIDE gleichzeitig, nicht nur eine (User-Frage, die den
+Kern traf: *"wenn ich eine Schraube aufmache, wird nur ein Kabel gelöst,
+und nicht beide?"*). Fix: `findeSchraubenKanten()` sammelt zuerst alle
+Netz-IDs der geklickten Schraube (`ader.netz` + alle `ader.weitere[].netz`)
+und liefert per `.filter()` ALLE Kanten des Bauteils, deren `von` ODER
+`nach` in dieser Menge liegt - Lösen/Wiedereindrehen in `onSchraubeKlick()`
+iteriert jetzt über das gesamte Array statt eine einzelne Kante zu
+behandeln. Betrifft nur Bauteile mit tatsächlich geteilten Ausgangsschrauben
+(aktuell RCD2 in testcase_05/testcase_06) - bei einer normalen,
+ungeteilten Schraube liefert das Array weiterhin genau ein Element, keine
+Verhaltensänderung.
 
 ### Fehlertabelle (Fehler-Widerstände)
 

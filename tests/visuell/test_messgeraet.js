@@ -139,6 +139,39 @@ async function main() {
     );
   }
 
+  // Findet den Schalter-Hebel (`<g style="cursor:pointer">`, siehe
+  // zeichneSchalter() in schaltkasten.js) eines bestimmten Bauteils - es gibt
+  // kein direktes `data-bauteil`-Attribut auf dem Hebel selbst, daher über
+  // die Nähe (2D-Distanz) zur (bereits per data-bauteil auffindbaren)
+  // Schraube desselben Geräts identifiziert (Hebel sitzt immer mittig über
+  // dessen eigenen Schrauben). BUGFIX (2026-07-24, User-gemeldet über einen
+  // fehlgeschlagenen "RCD1 unterbricht den Pfad"-Test): eine erste Version
+  // verglich nur die HORIZONTALE Distanz - in testcase_05 fand das
+  // fälschlich den Hauptschalter-Hebel (letzte Reihe) statt RCD1s eigenem
+  // (erste Hutschienen-Reihe), weil beide Geräte jeweils als erstes in ihrer
+  // Reihe stehen und zufällig einen ähnlichen X-Mittelpunkt haben - die
+  // Y-Koordinate (andere Reihe) wurde komplett ignoriert. Volle Euklidische
+  // Distanz (x UND y) behebt das zuverlässig, da der Zeilenabstand im
+  // Schaltkasten immer deutlich größer ist als jede zufällige
+  // X-Koinzidenz zwischen Geräten verschiedener Reihen.
+  async function findeSchalterHandleNaheBauteil(page, bauteilName) {
+    const kreisBox = await page.locator(`#schaltkasten svg circle[data-bauteil="${bauteilName}"]`).first().boundingBox();
+    const kreisCx = kreisBox.x + kreisBox.width / 2;
+    const kreisCy = kreisBox.y + kreisBox.height / 2;
+    const handles = page.locator('#schaltkasten svg g[style*="cursor: pointer"]');
+    const anzahl = await handles.count();
+    let bestIndex = -1, bestDist = Infinity;
+    for (let i = 0; i < anzahl; i++) {
+      const box = await handles.nth(i).boundingBox();
+      if (!box) continue;
+      const cx = box.x + box.width / 2;
+      const cy = box.y + box.height / 2;
+      const dist = Math.hypot(cx - kreisCx, cy - kreisCy);
+      if (dist < bestDist) { bestDist = dist; bestIndex = i; }
+    }
+    return handles.nth(bestIndex);
+  }
+
   await pruefe('Drehknopf: voller Zyklus kommt zurück zu RLOW', async () => {
     const page = await neueSeite();
     const titelProFunktion = ['R ISO', 'Zl', 'Zs', 'RCD I', 'TRMS Spannung', 'Durchgang'];
@@ -720,6 +753,291 @@ async function main() {
     await ls3.click(); // LS3s Hebel öffnen
     erwarte([await rlowHauptwert(page)], 'R:---Ω', 'Platzhalter, sobald LS3s Hebel offen ist');
     await page.close();
+  });
+
+  // Regressionstest für einen User-gemeldeten Bug (2026-07-24): RCD1
+  // (Gruppe G1, 4-polig) bekam beim Generieren nur EINE Eingangs-/
+  // Ausgangsader (L1) statt vier - die drei rechten Schrauben-Spalten
+  // (L2/L3/N) wurden deshalb ohne zugehörige Ader gezeichnet und waren nicht
+  // anklickbar (User: "kann nur die linken Schrauben anklicken, oben und
+  // unten"). Ursache: `vorkommendePhasen` in generate_anlage.js prüfte nur
+  // `sk.phasen[0]`, verpasste dadurch L2/L3 bei Gruppe G1s einzigem
+  // Stromkreis (3-poliger LS1, alle drei Phasen in EINEM `sk.phasen`-Array
+  // statt in drei separaten Stromkreisen wie bei testcase_04). Fix:
+  // `sk.phasen.includes(p)` statt `sk.phasen[0] === p` - siehe
+  // test_generator.js für den zugehörigen Daten-Test. Hier: Messspitzen
+  // direkt auf RCD1s L3-Spalte (die vorher betroffene, jetzt drittklickbare
+  // Spalte, Eingang oben/Ausgang unten) - Fehlertabelle-Eintrag N22=0,41Ω
+  // (nur auf der Ausgangsseite, wie bei den LS3-N-Ader-Tests oben).
+  await pruefe('RLOW: testcase_05 - BUGFIX: RCD1s L3-Schrauben (Eingang oben, Ausgang unten, dritte Spalte von links) sind jetzt anklickbar und liefern 0,41Ω', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N11"]').click(); // schwarz, RCD1 Eingang L3
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N22"]').click(); // blau, RCD1 Ausgang L3
+    erwarte([await rlowHauptwert(page)], 'R:0,41Ω', 'Fehlertabelle N22 auf RCD1s L3-Ausgangsader');
+    await page.close();
+  });
+
+  // Ausführlicher End-zu-End-Test (User-Vorgabe, 2026-07-24): RLOW von der
+  // Drehstromsteckdose (L2, Endstelle) bis zum Hauptschalter-Eingang L2
+  // (N7, direkt hinter der Einspeisung) - deckt den KOMPLETTEN L2-Pfad durch
+  // Gruppe G1 ab (Hauptschalter -> RCD1 -> LS1(B16) -> Reihenklemme -> SK1).
+  // Fehlertabelle-Summe: N21 (RCD1-Ausgang L2, 0,19Ω) + N25 (LS1-Ausgang L2,
+  // 0,34Ω) = 0,53Ω. Danach nacheinander JEDEN Schalter auf dem Pfad öffnen
+  // und wieder schließen (Hauptschalter, RCD1, LS1) - Messwert muss dabei
+  // jedes Mal auf den Platzhalter fallen und exakt wieder auf 0,53Ω
+  // zurückkehren. Zuletzt dieselbe Probe mit dem Schraubendreher: RCD1s
+  // L2-Eingangsschraube (N10) lösen/wiedereindrehen muss sich identisch
+  // verhalten wie ein Schalter-Klick (kappt dieselbe Kante, siehe KONZEPT.md
+  // "Schrauben lösen").
+  await pruefe('RLOW: testcase_05 - kompletter L2-Pfad (Drehstromsteckdose bis Hauptschalter-Eingang) - Hauptschalter/RCD1/LS1 unterbrechen ihn jeweils einzeln, Schraubendreher an RCD1s L2-Eingang ebenso', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(2).click(); // schwarz: Drehstromsteckdose L2
+    await page.locator('#schaltkasten svg circle[data-bauteil="Hauptschalter"][data-netz="N7"]').click(); // blau: Hauptschalter Eingang L2
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'Fehlertabelle N21 (0,19Ω) + N25 (0,34Ω) auf dem L2-Pfad');
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'Hauptschalter offen -> Platzhalter');
+    await hsHandle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'Hauptschalter wieder zu -> Wert zurück');
+
+    const rcd1Handle = await findeSchalterHandleNaheBauteil(page, 'RCD1');
+    await rcd1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD1 offen -> Platzhalter');
+    await rcd1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'RCD1 wieder zu -> Wert zurück');
+
+    const ls1Handle = await findeSchalterHandleNaheBauteil(page, 'LS1');
+    await ls1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'LS1 (B16) offen -> Platzhalter');
+    await ls1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'LS1 wieder zu -> Wert zurück');
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd1L2Eingang = page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N10"]');
+    await rcd1L2Eingang.click(); // lösen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD1s L2-Eingangsschraube gelöst -> Platzhalter');
+
+    await page.locator('#schraubendreher svg').click();
+    await rcd1L2Eingang.click(); // wiedereindrehen
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'RCD1s L2-Eingangsschraube wiedereingedreht -> Wert zurück');
+    await page.close();
+  });
+
+  // Derselbe Test wie oben, jetzt mit L3 statt L2 (User-Vorgabe, direkt im
+  // Anschluss) - andere Fehlertabellen-Werte (RCD1-Ausgang L3 N22=0,41Ω +
+  // LS1-Ausgang L3 N26=0,08Ω = 0,49Ω, statt 0,53Ω bei L2), sonst identischer
+  // Ablauf.
+  await pruefe('RLOW: testcase_05 - kompletter L3-Pfad (Drehstromsteckdose bis Hauptschalter-Eingang) - Hauptschalter/RCD1/LS1 unterbrechen ihn jeweils einzeln, Schraubendreher an RCD1s L3-Eingang ebenso', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(3).click(); // schwarz: Drehstromsteckdose L3
+    await page.locator('#schaltkasten svg circle[data-bauteil="Hauptschalter"][data-netz="N8"]').click(); // blau: Hauptschalter Eingang L3
+    erwarte([await rlowHauptwert(page)], 'R:0,49Ω', 'Fehlertabelle N22 (0,41Ω) + N26 (0,08Ω) auf dem L3-Pfad');
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'Hauptschalter offen -> Platzhalter');
+    await hsHandle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,49Ω', 'Hauptschalter wieder zu -> Wert zurück');
+
+    const rcd1Handle = await findeSchalterHandleNaheBauteil(page, 'RCD1');
+    await rcd1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD1 offen -> Platzhalter');
+    await rcd1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,49Ω', 'RCD1 wieder zu -> Wert zurück');
+
+    const ls1Handle = await findeSchalterHandleNaheBauteil(page, 'LS1');
+    await ls1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'LS1 (B16) offen -> Platzhalter');
+    await ls1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,49Ω', 'LS1 wieder zu -> Wert zurück');
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd1L3Eingang = page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N11"]');
+    await rcd1L3Eingang.click(); // lösen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD1s L3-Eingangsschraube gelöst -> Platzhalter');
+
+    await page.locator('#schraubendreher svg').click();
+    await rcd1L3Eingang.click(); // wiedereindrehen
+    erwarte([await rlowHauptwert(page)], 'R:0,49Ω', 'RCD1s L3-Eingangsschraube wiedereingedreht -> Wert zurück');
+    await page.close();
+  });
+
+  // Derselbe Test nochmal mit N statt L2/L3 (User-Vorgabe, direkt im
+  // Anschluss) - aber diesmal NUR mit RCD1, ohne Hauptschalter/LS1: der
+  // Hauptschalter ist 3-polig (schaltet nur L1/L2/L3, keine eigene N-Ader),
+  // LS1 ist ein normaler 3-poliger LS ohne eigenen N-Pol (nur ein
+  // AFDD-Kombigerät würde N selbst schalten, siehe KONZEPT.md "AFDD") - N
+  // läuft von der N-Klemme UNGESCHALTET direkt bis zu RCD1, das damit der
+  // EINZIGE Schalter auf diesem Pfad ist. Keine Fehlertabellen-Einträge auf
+  // dem N-Pfad von SK1 (anders als bei L2/L3) -> `R:0,00Ω` statt eines
+  // Nicht-Null-Werts. Zusätzlich: diesmal wird RCD1s AUSGANGS- statt
+  // Eingangsschraube gelöst (N23, statt N12 am Eingang) - Eingang und
+  // Ausgang kappen dieselbe Kante (siehe KONZEPT.md "Schrauben lösen"),
+  // Ergebnis muss also identisch sein.
+  await pruefe('RLOW: testcase_05 - kompletter N-Pfad (Drehstromsteckdose bis N-Klemme unten) - NUR RCD1 unterbricht ihn (Hauptschalter/LS1 schalten N nicht), Schraubendreher an RCD1s N-AUSGANG', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(4).click(); // schwarz: Drehstromsteckdose N
+    await page.locator('#schaltkasten svg circle[data-bauteil="N-Klemme"][data-netz="N12"]').click(); // blau: N-Klemme unten (Ausgang)
+    erwarte([await rlowHauptwert(page)], 'R:0,00Ω', 'keine Fehlertabellen-Einträge auf dem N-Pfad von SK1');
+
+    const rcd1Handle = await findeSchalterHandleNaheBauteil(page, 'RCD1');
+    await rcd1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD1 offen -> Platzhalter (einziger Schalter auf dem N-Pfad)');
+    await rcd1Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,00Ω', 'RCD1 wieder zu -> Wert zurück');
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd1NAusgang = page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N23"]');
+    await rcd1NAusgang.click(); // lösen (diesmal AUSGANG statt Eingang)
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD1s N-Ausgangsschraube gelöst -> Platzhalter');
+
+    await page.locator('#schraubendreher svg').click();
+    await rcd1NAusgang.click(); // wiedereindrehen
+    erwarte([await rlowHauptwert(page)], 'R:0,00Ω', 'RCD1s N-Ausgangsschraube wiedereingedreht -> Wert zurück');
+    await page.close();
+  });
+
+  // Derselbe Grundaufbau wie die drei Tests oben, aber diesmal Gruppe G2
+  // statt G1 (User-Vorgabe, direkt im Anschluss): Sonden auf der MITTLEREN
+  // Steckdose (SK2, hinter RCD2 + LS2/AFDD) statt der Drehstromsteckdose -
+  // Schwarz auf SK2s L-Kontakt (Funktion L1, da LS2 einpolig auf L1 hängt),
+  // Blau auf L1-Klemme unten (Ausgang, N6 - dieselbe Netz-ID wie
+  // Hauptschalter-Eingang L1, siehe unten). Pfad: N6 -> N9 (Hauptschalter)
+  // -> N60 (RCD2-Ausgang L1, LS2-Zweig) -> N64 (LS2-Ausgang L1) -> N68
+  // (SK2-Endstelle) = 0,53Ω (identisch zum L2-Testwert oben, reiner Zufall
+  // unterschiedlicher Fehlertabellen-Kombination, kein Bug). Diesmal
+  // AUSDRÜCKLICH NUR RCD2 und LS2 (AFDD) geprüft, NICHT der Hauptschalter
+  // (User-Vorgabe "alle Hebel müssen geschlossen sein") - RCD2 hat wegen der
+  // geteilten Ausgangsschraube (RCD2.o1 speist LS2 UND LS3, siehe
+  // KONZEPT.md "AFDD") zwei L1-Kanten; `findeSchraubenKanten()` (Plural,
+  // kappt seit dem Bugfix unten ALLE zu einer Schraube gehörenden Kanten,
+  // nicht nur die erste) findet für JEDE der zwei RCD2-L1-Schrauben
+  // (Eingang UND Ausgang) beide Kanten - hier egal, da nur SK2 gemessen
+  // wird. Schraubendreher-Teil deckt beide RCD2-Schrauben ab: erst unten
+  // (Ausgang), nach Wiedereindrehen dann oben (Eingang) - beide kappen
+  // dieselbe(n) Kante(n), Ergebnis identisch.
+  await pruefe('RLOW: testcase_05 - Gruppe G2 (mittlere Steckdose SK2, hinter RCD2+LS2/AFDD) - NUR RCD2 und LS2 unterbrechen den Pfad, Schraubendreher an RCD2 unten UND oben', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // schwarz: SK2 (mittlere Steckdose) L-Kontakt (L1)
+    await page.locator('#schaltkasten svg circle[data-bauteil="L1-Klemme"][data-netz="N6"]').click(); // blau: L1-Klemme unten (Ausgang)
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'Pfad L1-Klemme -> Hauptschalter -> RCD2 -> LS2 -> SK2');
+
+    const rcd2Handle = await findeSchalterHandleNaheBauteil(page, 'RCD2');
+    await rcd2Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD2 offen -> Platzhalter');
+    await rcd2Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'RCD2 wieder zu -> Wert zurück');
+
+    const ls2Handle = await findeSchalterHandleNaheBauteil(page, 'LS2');
+    await ls2Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'LS2 (AFDD) offen -> Platzhalter');
+    await ls2Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'LS2 wieder zu -> Wert zurück -> alle Hebel wieder geschlossen');
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd2Ausgang = page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N60"]'); // unten
+    await rcd2Ausgang.click(); // lösen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD2-unten (Ausgang) gelöst -> Platzhalter');
+
+    await page.locator('#schraubendreher svg').click();
+    await rcd2Ausgang.click(); // wiedereindrehen -> alle Hebel/Schrauben wieder geschlossen
+    erwarte([await rlowHauptwert(page)], 'R:0,53Ω', 'RCD2-unten wiedereingedreht -> Wert zurück');
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd2Eingang = page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N9"]'); // oben
+    await rcd2Eingang.click(); // lösen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD2-oben (Eingang) gelöst -> Platzhalter (dieselbe Kante wie unten)');
+    await page.close();
+  });
+
+  // Derselbe Grundaufbau, jetzt SK3 statt SK2 (User-Vorgabe, direkt im
+  // Anschluss) - N-Ader statt L1, gemessen von SK3s N-Kontakt bis N-Klemme
+  // unten (N12). Pfad: N12 -> N63 (RCD2-Ausgang N, LS3-Zweig) -> N67
+  // (LS3-Ausgang N) -> N72 (SK3-Endstelle) = 0,07Ω. NUR RCD2+LS3 (AFDD)
+  // getestet, kein Hauptschalter (N wird von ihm nicht geschaltet).
+  //
+  // Deckte einen ECHTEN Bug auf (User-gemeldet, 2026-07-24): RCD2s
+  // N-Ausgang ist eine GETEILTE Schraube (versorgt SK2 UND SK3 gemeinsam
+  // unter einem physischen Punkt, siehe KONZEPT.md "AFDD" - `ader.weitere`).
+  // `findeSchraubenKante()` (jetzt `findeSchraubenKanten()`, Plural) fand
+  // ursprünglich nur die ERSTE der beiden Kanten (`.find()` statt
+  // `.filter()`) - beim SK2-Test oben zufällig die richtige (SK2 ist der
+  // erste/primäre Zweig), bei SK3 (der "weitere"-Zweig) aber die FALSCHE:
+  // die Schraube löste optisch sichtbar, kappte elektrisch aber nur SK2s
+  // Ader, SK3s blieb verbunden - Messwert blieb fälschlich bei `R:0,07Ω`
+  // stehen statt auf den Platzhalter zu fallen. User-Nachfrage brachte es
+  // auf den Punkt: "wenn ich eine Schraube aufmache, wird nur ein Kabel
+  // gelöst, und nicht beide?" - elektrisch unsinnig, eine geteilte
+  // Anschlussklemme lässt beim Aufdrehen IMMER alle darunterliegenden Adern
+  // gleichzeitig los. Fix: `findeSchraubenKanten()` sammelt jetzt alle
+  // Netz-IDs der geklickten Schraube (Haupt-Ader + `weitere`) und liefert
+  // ALLE Kanten, die eine davon auf `von` ODER `nach` tragen (`.filter()`
+  // statt `.find()`) - beide Zweige werden jetzt gemeinsam gekappt/
+  // geschlossen, unabhängig davon, ob die Eingangs- oder Ausgangsschraube
+  // geklickt wird.
+  await pruefe('RLOW: testcase_05 - BUGFIX: Gruppe G2 (SK3 statt SK2), RCD2s geteilte N-Ausgangsschraube kappt jetzt BEIDE Zweige (SK2 UND SK3) gemeinsam', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(8).click(); // schwarz: SK3 N-Kontakt
+    await page.locator('#schaltkasten svg circle[data-bauteil="N-Klemme"][data-netz="N12"]').click(); // blau: N-Klemme unten
+    erwarte([await rlowHauptwert(page)], 'R:0,07Ω', 'Pfad N-Klemme -> RCD2 -> LS3 -> SK3');
+
+    const rcd2Handle = await findeSchalterHandleNaheBauteil(page, 'RCD2');
+    await rcd2Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD2 offen -> Platzhalter');
+    await rcd2Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,07Ω', 'RCD2 wieder zu -> Wert zurück');
+
+    const ls3Handle = await findeSchalterHandleNaheBauteil(page, 'LS3');
+    await ls3Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'LS3 (AFDD) offen -> Platzhalter');
+    await ls3Handle.click();
+    erwarte([await rlowHauptwert(page)], 'R:0,07Ω', 'LS3 wieder zu -> Wert zurück -> alle Hebel wieder geschlossen');
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd2Ausgang = page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N62"]'); // unten - N62 ist SK2s Zweig, N63 (SK3) ist "weitere"
+    await rcd2Ausgang.click(); // lösen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD2-unten (Ausgang, geteilte Schraube) gelöst -> Platzhalter, obwohl N62 (nicht N63) die "Haupt"-Ader ist');
+
+    await page.locator('#schraubendreher svg').click();
+    await rcd2Ausgang.click(); // wiedereindrehen
+    erwarte([await rlowHauptwert(page)], 'R:0,07Ω', 'RCD2-unten wiedereingedreht -> Wert zurück (beide Zweige wieder geschlossen)');
+
+    await page.locator('#schraubendreher svg').click();
+    const rcd2Eingang = page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N12"]'); // oben
+    await rcd2Eingang.click(); // lösen
+    erwarte([await rlowHauptwert(page)], 'R:---Ω', 'RCD2-oben (Eingang) gelöst -> Platzhalter (dieselbe geteilte Kanten-Gruppe wie unten)');
+    await page.close();
+  });
+
+  // Dedizierter Regressionstest: dieselbe EINE Schraube (RCD2s N-Ausgang,
+  // N62) muss BEIDE Zweige (SK2 UND SK3) GLEICHZEITIG kappen, nicht nur den
+  // gerade gemessenen - direkter Beleg für den Bugfix oben, unabhängig von
+  // welchem der beiden Pfade aus gemessen wird. Löst die Schraube EINMAL,
+  // misst danach nacheinander SK2 UND SK3 (auf frischen Seiten, da die
+  // App-Instanz pro `neueSeiteMitTestcase()`-Aufruf neu startet) - beide
+  // müssen auf dem Platzhalter stehen.
+  await pruefe('RLOW: testcase_05 - BUGFIX-Beleg: RCD2s N-Ausgangsschraube lösen unterbricht SK2 UND SK3 gleichzeitig (dieselbe physische Schraube)', async () => {
+    const seiteSk2 = await neueSeiteMitTestcase('testcase_05');
+    await seiteSk2.locator('#schraubendreher svg').click();
+    await seiteSk2.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N62"]').click(); // lösen
+    await seiteSk2.locator('#steckdosen circle[fill="#666666"]').nth(6).click(); // schwarz: SK2 N
+    await seiteSk2.locator('#schaltkasten svg circle[data-bauteil="N-Klemme"][data-netz="N12"]').click(); // blau
+    erwarte([await rlowHauptwert(seiteSk2)], 'R:---Ω', 'SK2-Zweig unterbrochen (die "Haupt"-Ader der Schraube)');
+    await seiteSk2.close();
+
+    const seiteSk3 = await neueSeiteMitTestcase('testcase_05');
+    await seiteSk3.locator('#schraubendreher svg').click();
+    await seiteSk3.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N62"]').click(); // dieselbe Schraube lösen
+    await seiteSk3.locator('#steckdosen circle[fill="#666666"]').nth(8).click(); // schwarz: SK3 N
+    await seiteSk3.locator('#schaltkasten svg circle[data-bauteil="N-Klemme"][data-netz="N12"]').click(); // blau
+    erwarte([await rlowHauptwert(seiteSk3)], 'R:---Ω', 'SK3-Zweig (die "weitere"-Ader derselben Schraube) ebenfalls unterbrochen');
+    await seiteSk3.close();
   });
 
   // testcase_06: N-Kontakt der 5-poligen Anschlussdose (blau, Netz N26) bis

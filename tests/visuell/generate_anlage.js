@@ -565,10 +565,17 @@ function generiereAnlage(ordner) {
 
     // Ein RCD kann mehrere Stromkreise auf unterschiedlichen Phasen versorgen
     // (z.B. 4-poliger RCD mit L1/L2/L3+N, siehe testcase_04) - alle tatsächlich
-    // vorkommenden Phasen einsammeln statt nur die der ersten Gruppe.
+    // vorkommenden Phasen einsammeln statt nur die der ersten Gruppe. Muss
+    // ALLE Einträge in `sk.phasen` prüfen, nicht nur `sk.phasen[0]` - sonst
+    // fehlen bei einem einzelnen mehrpoligen Stromkreis (z.B. testcase_05s
+    // 3-poliger LS1 mit `phasen: ['L1','L2','L3']`) die Phasen L2/L3, das
+    // vorgeschaltete RCD bekäme dann nur eine Ader (L1) statt vier -
+    // User-gemeldeter Bug: die rechten Schrauben (L2/L3/N) des RCD ließen
+    // sich nicht anklicken, da `geraet()` sie ohne zugehörige Ader zeichnet
+    // (`schraube()` hängt ohne `ader` keinen Klick-Handler an).
     const PHASEN_REIHENFOLGE = ['L1', 'L2', 'L3'];
     const vorkommendePhasen = PHASEN_REIHENFOLGE.filter((p) =>
-      stromkreiseDerGruppe.some((sk) => sk.phasen[0] === p)
+      stromkreiseDerGruppe.some((sk) => sk.phasen.includes(p))
     );
     const rcdFunktionen = [...(vorkommendePhasen.length ? vorkommendePhasen : [gruppenPhase]), 'N'];
 

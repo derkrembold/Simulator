@@ -81,18 +81,30 @@ async function main() {
   // Findet den Schalter-Hebel (`<g style="cursor:pointer">`, siehe
   // zeichneSchalter() in schaltkasten.js) eines bestimmten Bauteils - es
   // gibt kein direktes `data-bauteil`-Attribut auf dem Hebel selbst, daher
-  // über die horizontale Nähe zur (bereits per data-bauteil auffindbaren)
+  // über die Nähe (2D-Distanz) zur (bereits per data-bauteil auffindbaren)
   // Schraube desselben Geräts identifiziert (Hebel sitzt immer mittig über
-  // dessen eigenen Schrauben).
+  // dessen eigenen Schrauben). BUGFIX (2026-07-24): eine erste Version
+  // verglich nur die HORIZONTALE Distanz - in testcase_05 hat das
+  // Hauptschalters Hebel (letzte Reihe) fälschlich für RCD1 (erste
+  // Hutschienen-Reihe) gefunden, weil beide zufällig einen ähnlichen
+  // X-Mittelpunkt haben (beide sind das jeweils erste Gerät ihrer Reihe) -
+  // die Y-Koordinate (andere Reihe) wurde komplett ignoriert. Volle
+  // Euklidische Distanz (x UND y) behebt das zuverlässig, da der
+  // Zeilenabstand im Schaltkasten immer deutlich größer ist als jede
+  // zufällige X-Koinzidenz zwischen Geräten verschiedener Reihen.
   async function findeSchalterHandleNaheBauteil(page, bauteilName) {
     const kreisBox = await page.locator(`#schaltkasten svg circle[data-bauteil="${bauteilName}"]`).first().boundingBox();
+    const kreisCx = kreisBox.x + kreisBox.width / 2;
+    const kreisCy = kreisBox.y + kreisBox.height / 2;
     const handles = page.locator('#schaltkasten svg g[style*="cursor: pointer"]');
     const anzahl = await handles.count();
     let bestIndex = -1, bestDist = Infinity;
     for (let i = 0; i < anzahl; i++) {
       const box = await handles.nth(i).boundingBox();
       if (!box) continue;
-      const dist = Math.abs((box.x + box.width / 2) - (kreisBox.x + kreisBox.width / 2));
+      const cx = box.x + box.width / 2;
+      const cy = box.y + box.height / 2;
+      const dist = Math.hypot(cx - kreisCx, cy - kreisCy);
       if (dist < bestDist) { bestDist = dist; bestIndex = i; }
     }
     return handles.nth(bestIndex);

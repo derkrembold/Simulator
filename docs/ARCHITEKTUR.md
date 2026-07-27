@@ -2202,15 +2202,207 @@ Neu in `messgeraet.js`: `zeichneDisplay()` rendert `zustand.spannungUnterPe`
 unter dem halb gefüllten PE-Kreis (`x+177, kreisY+19`, Schriftgröße 9,
 zentriert) - passt noch knapp vor die untere Display-Kante.
 
-Grenzen des Prototyps (bewusst akzeptiert, siehe KONZEPT.md): mit dem
-heutigen Graph-Modell sind L1/L2/L3/N vollständig getrennte Teilgraphen ohne
-Querverbindung, es gibt noch keinen Mechanismus, der künstlich einen
-Isolationsfehler ZWISCHEN ZWEI FUNKTIONEN einspeist (z.B. L1 gegen N). Der
-"Pfad gefunden"-Zweig in `risoTestKlick()` ist für diesen Fall deshalb heute
-praktisch nie erreichbar - der Code ist aber bereits dafür strukturiert,
-sobald ein Fehlerfall-Mechanismus dafür existiert. Für Schwarz/Blau auf
-DERSELBEN Funktion (Durchgangsprüfung, siehe `gleicheFunktion` oben) ist der
-"Pfad gefunden"-Zweig dagegen der Normalfall, genau wie bei RLOW.
+Grenzen des Prototyps (teilweise durch die AFDD-/RCD-Typ-B-Elektronik-
+Leckage unten aufgelöst): mit dem heutigen Graph-Modell sind L1/L2/L3/N
+vollständig getrennte Teilgraphen ohne Querverbindung - der "Pfad
+gefunden"-Zweig in `risoTestKlick()` ist für Schwarz/Blau auf
+UNTERSCHIEDLICHEN Funktionen deshalb strukturell nie erreichbar (es gibt
+und soll auch keine Kante zwischen L und N geben, das wäre ein echter
+Kurzschluss). Für "gibt es hier eine Elektronik-Leckage statt eines echten
+Kurzschlusses" wurde deshalb bewusst KEIN Pfad-zwischen-den-Adern-
+Mechanismus gebaut, sondern die unabhängige Bauteil-Suche auf beiden Beinen
+(siehe unten) - ein generischer "künstlicher Isolationsfehler ZWISCHEN zwei
+beliebigen Funktionen"-Mechanismus (z.B. für einen echten Kabelschaden
+L-N) existiert weiterhin nicht. Für Schwarz/Blau auf DERSELBEN Funktion
+(Durchgangsprüfung, siehe `gleicheFunktion` oben) ist der "Pfad
+gefunden"-Zweig dagegen weiterhin der Normalfall, genau wie bei RLOW.
+
+**AFDD-/RCD-Typ-B-Elektronik-Leckage (Schritt 1, User-Vorgabe, 2026-07-27,
+über drei Iterationen inkl. zwei Bugfixes zur finalen Form gebracht):**
+finale Funktion in `model/pfad.js`, `findeErreichbareKanten(graph,
+funktion, startNetz, ausgeschlosseneKanten = new Set())` - BFS, die die
+GESAMTE von `startNetz` aus über bestehende Verkabelung erreichbare
+Zusammenhangskomponente sammelt (alle berührten Kanten, keine Zielsuche zu
+einem bestimmten Knoten). Ignoriert `geschlossen` (Schalterzustand)
+komplett, respektiert aber `ausgeschlosseneKanten` (typischerweise
+`geloesteKanten` aus `app.js`). Kein Node-seitiges Gegenstück in
+`generate_anlage.js` nötig (anders als bei `findePfad()`), da nur die
+Browser-Laufzeit das braucht.
+
+**Iteration 1 (ursprüngliche, fehlerhafte Version):** hieß zunächst
+`findeStrukturPfad(graph, funktion, startNetz, zielNetz)` - eine Ziel-Suche
+ANALOG zu `findePfadZurEinspeisung()`, mit `zielNetz = graph.einspeisung[funktion]`.
+**Behobener Bug (User-Repro):** "ich setze zwei Schrauben am Hauptschalter
+raus, L1 und L2 - am RCD geht die Spannung auf 0V (funktioniert), aber die
+RISO-Messung geht nicht auf 13MΩ, sondern auf `>999MΩ`." Ursache: eine
+Zielsuche BIS ZUR EINSPEISUNG schlägt fehl, sobald IRGENDEINE Kante VOR dem
+gesuchten Gerät unterbrochen ist - selbst wenn das Gerät selbst mit der
+Sonde noch verbunden bleibt (RCD2 an seinem eigenen Ausgang gemessen, der
+Hauptschalter aber davor per Schraube physisch getrennt). Elektrotechnisch
+falsch: ob ein Gerät mit der Sonde verbunden ist, hängt NICHT davon ab, ob
+die Sonde noch bis zur Einspeisung durchgängig ist. Fix: Umbenennung zu
+`findeErreichbareKanten()`, keine Zielsuche mehr, sondern die volle
+erreichbare Komponente (siehe oben).
+
+**Iteration 2 (Konsequenz aus Fix 1, kein weiterer Bug, aber ein bestätigtes
+Verhalten):** da die Suche nicht mehr auf "Weg zur Einspeisung" begrenzt
+ist, "sieht" eine Messung auf Gruppe G1 (RCD1, Typ A, selbst keine Leckage)
+jetzt auch RCD2 (Typ B, Gruppe G2), solange der Hauptschalter nur per Hebel
+aus ist - beide RCDs teilen sich denselben Hauptschalter-Ausgangsknoten
+(`N9` für L1). Rückfrage an den User ergab Bestätigung: "auch wenn ich Typ
+A bin, aber es gibt Verbindung bei der Versorgung zu Typ B, dann soll RISO
+auch Typ B sehen" - elektrotechnisch korrekt (Leckage-Elektronik wirkt auf
+jeden noch leitend verbundenen Leiter, unabhängig von Stromkreis-Grenzen -
+genau der reale Grund für "Typ-B-RCDs/AFDDs für JEDE Isolationsmessung in
+der GESAMTEN Anlage abklemmen"). Kein Codefix nötig, nur Testanpassung
+(ein ursprünglicher "Negativ-Test" beruhte auf der falschen Annahme, dass
+Stromkreis-Zugehörigkeit isoliert - durch zwei neue Tests ersetzt, siehe
+unten).
+
+**Iteration 3 (unabhängiger zweiter Bug, User-Frage brachte es auf den
+Punkt): eine per Schraubendreher gelöste Schraube ist KEIN Schalter.**
+"wenn jemand eine Schraube rausgedreht hat, ist das wie wenn ein Schalter
+umgedreht wurde?" - Antwort: nein, ein offener Schalter lässt den Draht
+bestehen (leitet nur gerade nicht), eine gelöste Schraube trennt ihn
+wirklich. Da `findeErreichbareKanten()` `geschlossen` bewusst ignoriert
+(nötig für Iteration 1s Fix), hätte sie ohne Gegenmaßnahme auch eine ECHT
+physisch getrennte Ader ignoriert und ein RCD Typ B/AFDD dahinter weiterhin
+fälschlich "gefunden". Fix: `ausgeschlosseneKanten`-Parameter (siehe
+Funktionssignatur oben) - `findeBauteileAufPfad()` reicht dafür
+`geloesteKanten` durch (dasselbe Set, das schon die Kanten-Kappung selbst
+nutzt, siehe "Schrauben lösen" oben, keine zweite Zustandsquelle nötig).
+
+**Iteration 4 (User-Frage, 2026-07-27): der eigene Hebel eines gefundenen
+Geräts blieb wirkungslos.** "wenn ich das RCD Typ B Schalter umlege, dann
+ist doch die Leitung zu beiden AFDD gekappt - ich hätte 13MΩ erwartet" -
+`geschlossen` war bis dahin überall komplett ignoriert (auch für den
+Hebel des GEFUNDENEN Geräts selbst), Test bestätigte: RCD2s eigenen Hebel
+öffnen änderte am `10MΩ`-Ergebnis nichts. User-Präzisierung: "Das
+Verhalten sollte so sein wie bei den Schrauben." Ein naiver Versuch
+(`geschlossen` genau wie `ausgeschlosseneKanten` behandeln) ging zu weit -
+lieferte an RCD2s eigenem Eingang fälschlich `>999MΩ` statt `13MΩ`, da
+RCD2s EIGENE Kante dann selbst nicht mehr erkannt wurde, obwohl die Sonde
+sie direkt berührt. **Fix, verfeinert:** `findeErreichbareKanten()`
+unterscheidet jetzt `aktuell === startNetz` (Sonde sitzt DIREKT an einer
+der beiden Kanten-Endpunkte - immer erkannt, unabhängig von `geschlossen`)
+von jeder WEITER ENTFERNTEN Kante (nur erkannt/durchquerbar, wenn
+`geschlossen === true` - verhält sich sonst exakt wie eine gelöste
+Schraube). Verifiziert: Sonden an RCD2s eigenem Eingang, RCD2s eigener
+Hebel offen -> `13MΩ` (RCD2 bleibt sichtbar); dieselbe Messung von der
+LS2-Steckdose aus -> `101MΩ` (RCD2 jetzt auch von der Ausgangsseite weg).
+
+**Bekannte, bewusst zurückgestellte Vereinfachung (User-Entscheidung,
+2026-07-27):** dass eine geöffnete Kante für alles DAHINTER genauso
+komplett verschwindet wie eine physisch gelöste Schraube, ist eine
+Vereinfachung - real bleibt die interne Leckage-Elektronik eines RCD Typ
+B/AFDD immer im Gerät verdrahtet, unabhängig vom Schaltzustand des eigenen
+Hebels (User: "im RCD ist die Elektronik ja noch dran"). Eine genauere
+Modellierung müsste zwischen der leitungsseitigen und der lastseitigen
+Anbindung der Elektronik im Gerät unterscheiden, statt den Hebelzustand
+pauschal wie eine physische Trennung zu behandeln - aktuell so gelassen,
+hier als Ansatzpunkt vermerkt, falls das später genauer werden soll.
+
+Neu in `app.js`:
+- `alleAfddLs()` - sammelt alle "LS mit AFDD"-Kombigeräte der Anlage
+  (`sk.ls.afdd === true`) über alle Hutschienen/Gruppen/Stromkreise hinweg,
+  analog zu `alleRcds()`.
+- `findeBauteileAufPfad(funktion, ader, bauteilNamen)` - sammelt für jede
+  Netz-ID einer Ader (`alleNetzeVonAder()`) alle `findeErreichbareKanten()`
+  und filtert deren Bauteilnamen gegen `bauteilNamen`. Deutlich einfacher
+  als die ursprüngliche Version (keine Pfad-Umkehrung, kein
+  `kanteZwischenNetzen()` nötig, da `findeErreichbareKanten()` direkt die
+  Kanten liefert, nicht nur eine Knotenfolge).
+- `RISO_AFDD_WIDERSTAND_MOHM = 101`, `RISO_RCD_TYP_B_WIDERSTAND_MOHM = 13` -
+  feste Konstanten (siehe KONZEPT.md "Konfigurierbare Parameter"), keine
+  Netzplan-/`bauteile.md`-Felder, da generelle physikalische Eigenschaften
+  der Gerätetypen, nicht pro-Bauteil einstellbar.
+- `berechneRisoElektronikWiderstand(schwarzEffektiv, blauEffektiv)` - Kern
+  der neuen Logik. Sammelt zuerst alle RCD-Typ-B/B+-Namen (`alleRcds()`
+  gefiltert auf `r.typ === 'B' || r.typ === 'B+'`) und alle AFDD-LS-Namen
+  (`alleAfddLs()`) als Kandidatenmenge. Ruft `findeBauteileAufPfad()` für
+  Schwarz UND Blau getrennt auf (je in der eigenen Funktion), bildet die
+  Schnittmenge der gefundenen Bauteilnamen (`Array.filter` gegen ein Set) -
+  nur ein Bauteil, das auf BEIDEN Beinen auftaucht, sitzt tatsächlich mit
+  einem Pol auf jedem Bein (die Schnittmenge läuft bewusst über den
+  Bauteil**namen**, nicht nur den Typ: zwei getrennte AFDD-Geräte auf zwei
+  verschiedenen Beinen zählen NICHT, ein einzelnes mehrpoliges RCD Typ B
+  mit Kanten in mehreren Funktionen dagegen automatisch schon). Liegt die
+  Schnittmenge leer, liefert die Funktion `null` (normales `>999MΩ` bleibt
+  bestehen). **Schritt 2 (Kombination, 2026-07-27, Parallelwiderstand):**
+  für jedes Bauteil in der Schnittmenge wird sein eigener Wert bestimmt
+  (`RISO_RCD_TYP_B_WIDERSTAND_MOHM` oder `RISO_AFDD_WIDERSTAND_MOHM`, je
+  nach Set-Zugehörigkeit), dann gilt `Math.round(1 / Σ(1/Rᵢ)) * 1_000_000` -
+  die Leckage-Widerstände mehrerer Geräte liegen elektrisch PARALLEL
+  zwischen L und N, ihre Leitwerte addieren sich (Parallelwiderstands-Formel,
+  User-Vorgabe als elektrotechnisch realistischer als die zunächst
+  umgesetzte Abschlags-Heuristik). Bei genau einem Gerät entspricht das
+  exakt dem bisherigen Einzelfall (`1/(1/R) = R`). Bei zwei Geräten:
+  1/(1/13 + 1/101) ≈ 11,52MΩ, gerundet **12MΩ**. In testcase_05s Gruppe G2
+  liegen bei JEDER unveränderten Messung sogar DREI Geräte gleichzeitig in
+  der Schnittmenge (RCD2 + LS2 + LS3, da RCD2s eigener Ausgang (`N60`/`N61`)
+  und LS2/LS3s eigene Eingänge strukturell denselben Netz-Knoten teilen):
+  1/(1/13 + 1/101 + 1/101) ≈ 10,34MΩ, gerundet **10MΩ**. Die isolierten
+  Einzelfälle mussten deshalb künstlich hergestellt werden (siehe Tests
+  unten).
+- `risoTestKlick()` erweitert: der bisherige `pfad ? berechneWiderstand(...)
+  : Infinity`-Einzeiler wurde zu einer dreiteiligen Fallunterscheidung -
+  `pfad` gefunden (unverändert, Fehlertabelle-Summe), sonst bei
+  UNTERSCHIEDLICHER Funktion (`!gleicheFunktion`, echte Isolationsmessung)
+  wird zuerst `berechneRisoElektronikWiderstand()` versucht, erst wenn das
+  `null` liefert bleibt es beim `Infinity`-Sentinel; bei GLEICHER Funktion
+  (Durchgangsprüfung) bleibt es unverändert direkt bei `Infinity` ohne die
+  Elektronik-Prüfung, da eine Leckage zwischen L und N für eine
+  Ein-Leiter-Durchgangsprüfung konzeptionell nicht zutrifft.
+- `baueAnzeigeZustand()`s RISO-Zweig: die Ω/MΩ-Anzeigeschwelle wurde
+  ergänzt - `risoMesswert >= 1_000_000` wird jetzt als
+  `` `R:${Math.round(risoMesswert / 1_000_000)}MΩ` `` dargestellt statt als
+  sehr große Ω-Zahl (`R:13000000,00Ω` wäre technisch korrekt, aber am
+  echten Gerät unrealistisch - reale Fehlertabellen-Werte liegen immer im
+  Ω-Bruchteile-Bereich, die neuen Elektronik-Werte immer im MΩ-Bereich, die
+  beiden Darstellungen überschneiden sich also nie in der Praxis). OHNE
+  Nachkommastellen (**behobener Bug, User-gemeldet**: `R:13,00MΩ` sprengte
+  die Display-Breite - die Elektronik-Werte sind ohnehin immer ganze
+  MΩ-Zahlen, `Math.round()` statt `toFixed(2)` verliert deshalb keine
+  Präzision). Der `Infinity`-Sentinel (`R:>999MΩ`) bleibt unverändert.
+
+Getestet in `test_messgeraet.js` (10 Tests insgesamt zu diesem Feature,
+testcase_05, Schritt 1+2 zusammen): RCD2 (Typ B) ALLEIN liefert `R:13MΩ`
+(LS2 UND LS3 zuvor per Schraubendreher an ihren eigenen Eingängen
+abgeklemmt, sonst wären sie über den geteilten Netz-Knoten immer mit in
+der Schnittmenge), Ampel rot (13MΩ liegt unter dem Default-Grenzwert
+50MΩ); LS2 (AFDD) ALLEIN liefert `R:101MΩ` (RCD2 zuvor an seiner eigenen,
+geteilten Ausgangsschraube abgeklemmt - kappt automatisch sowohl den
+LS2- als auch den LS3-Zweig gleichzeitig, siehe "Schrauben lösen" - deckt
+den in Schritt 1 noch offen gebliebenen isolierten AFDD-Einzelfall ab);
+Kombinationsfall bei unveränderter Verdrahtung (Sonden auf SK2, drei
+Geräte RCD2+LS2+LS3) liefert `R:10MΩ`; Gruppe G1 (RCD1 Typ A) sieht
+RCD2+LS2+LS3 trotzdem über die geteilte Hauptschalter-Sammelschiene
+(`R:10MΩ`, Kombinationswert - ersetzt den ursprünglich falschen
+"Negativ-Test" aus Schritt 1); dieselbe Sammelschienen-Messung nach RCD1s
+eigener (physisch gelöster) Eingangsschraube fällt korrekt auf `R:>999MΩ`
+zurück (echte Isolation); Regressionstest für den Schraubendreher-Bugfix
+(Sonden auf SK2, erst `R:10MΩ`, dann LS2s eigene L1-Ausgangsschraube gelöst
+- Ergebnis fällt korrekt zurück auf `R:>999MΩ`); Regressionstest für den
+ursprünglichen Hauptschalter-Schrauben-Bug (L1+L2-Eingangsschrauben gelöst
+statt Hebel, Sonden direkt an RCD2s Ausgang - `R:10MΩ`, Kombinationswert,
+bleibt korrekt erhalten, obwohl der Weg zur Einspeisung unterbrochen ist);
+zwei Regressionstests für den RCD2-eigener-Hebel-Bugfix (siehe "Iteration
+4" unten) - Sonden an RCD2s eigenem Eingang, RCD2s eigener Hebel offen ->
+`R:13MΩ` (RCD2 selbst bleibt sichtbar, LS2/LS3 nicht mehr); dieselbe
+Messung von der LS2-Steckdose (SK2) aus, RCD2s Hebel offen -> `R:101MΩ`
+(RCD2 verschwindet jetzt auch von der Ausgangsseite, nur noch LS2 allein);
+ein ausführlicher End-zu-End-Test über RCD1 (Typ A, Gruppe G1) - Sonden an
+RCD1s eigenem AUSGANG (wichtig: nicht am Eingang, sonst würde das spätere
+Lösen von RCD1s eigener Schraube die Sicht auf RCD2 nicht blockieren, da
+dessen Kante unabhängig vom selben Sammelschienen-Knoten ausgeht) zeigen
+zunächst `R:10MΩ` (RCD1 selbst leckt nicht, aber seine geschlossene Kante
+gibt Sicht auf RCD2+LS2+LS3), Ampel rot; RCD1s eigene Schraube gelöst ->
+`R:>999MΩ` (Sammelschiene nicht mehr erreichbar), Ampel grün; Schraube
+wieder rein, LS2s eigene Schraube gelöst -> `R:12MΩ` (nur noch RCD2+LS3);
+zusätzlich LS3s eigene Schraube gelöst -> `R:13MΩ` (nur noch RCD2 allein);
+Grenzwert per ▼ von 50MΩ auf 10MΩ gesenkt, Messwert bleibt `R:13MΩ`, aber
+die Ampel kippt von rot auf grün (13MΩ liegt jetzt über dem gesenkten
+Grenzwert).
 
 Getestet in `test_messgeraet.js` (17 Tests): Spannung liegt an → 230V
 angezeigt, TEST wirkungslos; Schwarz/Blau vertauscht (Rollen-Symmetrie, siehe

@@ -5,7 +5,7 @@ import { ProtokollView } from '../view/protokoll.js';
 import { SteckdosenView } from '../view/steckdosen.js';
 import { SchraubendreherView } from '../view/schraubendreher.js';
 import { Popup } from '../view/popup.js';
-import { findePfad, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
+import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
 // Messspitzen (Messmodus, siehe unten): pro Schrauben-Kreis genau eine Farbe,
 // jede Farbe insgesamt nur an einer Schraube gleichzeitig (3 Messspitzen wie
@@ -553,8 +553,19 @@ async function start() {
     // berechneWiderstand() summiert die Fehlertabelle - die ist immer in Ω
     // angegeben (wie bei RLOW), nie in MΩ. `risoMesswert` ist deshalb IMMER
     // ein Ω-Wert, wenn endlich; nur der Infinity-Sentinel wird als „>999MΩ"
-    // dargestellt (siehe baueAnzeigeZustand() unten).
-    risoMesswert = pfad ? berechneWiderstand(graph, pfad) : Infinity;
+    // dargestellt (siehe baueAnzeigeZustand() unten). Bei einer ECHTEN
+    // Isolationsmessung (unterschiedliche Funktionen) gibt es nie einen
+    // Pfad zwischen Schwarz und Blau (kein Kanten zwischen L- und
+    // N-Teilgraph, siehe berechneRisoElektronikWiderstand() oben) - statt
+    // blind auf Infinity zu gehen, wird dort zuerst geprüft, ob ein AFDD/RCD
+    // Typ B einen künstlich schlechten Wert liefert.
+    if (pfad) {
+      risoMesswert = berechneWiderstand(graph, pfad);
+    } else if (!gleicheFunktion) {
+      risoMesswert = berechneRisoElektronikWiderstand(schwarzEffektiv, blauEffektiv) ?? Infinity;
+    } else {
+      risoMesswert = Infinity;
+    }
     // Ampel: Grenzwert ist in MΩ eingestellt, risoMesswert aber in Ω - für
     // den Vergleich deshalb den Grenzwert in Ω umrechnen (*1_000_000), statt
     // den Messwert zu dividieren (Rundungsfehler bei sehr kleinen Werten).
@@ -675,6 +686,23 @@ async function start() {
     return ergebnis;
   }
 
+  // Alle "LS mit AFDD"-Kombigeräte der Anlage (siehe KONZEPT.md "AFDD"),
+  // analog zu alleRcds() - gebraucht für die RISO-Elektronik-Erkennung
+  // unten (ein AFDD/RCD Typ B liefert bei einer echten Isolationsmessung
+  // einen künstlich schlechten statt einen unendlichen Wert, siehe
+  // berechneRisoElektronikWiderstand()).
+  function alleAfddLs() {
+    const ergebnis = [];
+    for (const hutschiene of anlage.hutschienen ?? []) {
+      for (const gruppe of hutschiene.gruppen ?? []) {
+        for (const sk of gruppe.stromkreise ?? []) {
+          if (sk.ls.afdd) ergebnis.push(sk.ls);
+        }
+      }
+    }
+    return ergebnis;
+  }
+
   // Kante zwischen zwei (im Pfad benachbarten) Netz-IDs - findePfad() liefert
   // nur die Knotenfolge, nicht die dazwischenliegenden Kanten, die brauchen
   // wir hier aber, um pro Kantenschritt das jeweilige Bauteil zu kennen.
@@ -700,6 +728,80 @@ async function start() {
       if (rcd) return rcd;
     }
     return null;
+  }
+
+  // Sucht ALLE Bauteile, deren Name in `bauteilNamen` enthalten ist, die
+  // strukturell mit einer Ader verbunden sind - gebraucht von
+  // berechneRisoElektronikWiderstand() unten, da ein AFDD/RCD Typ B
+  // irgendwo in der Verkabelung der Sonde hängen darf, nicht nur direkt an
+  // der Messspitze (User-Vorgabe). Bewusst KEINE Suche "bis zur
+  // Einspeisung" (anders als findeErstesRcdAufPfad() oben, das für FI/RCD
+  // gebraucht wird) - ob ein Gerät mit der Sonde verbunden ist, hängt NICHT
+  // davon ab, ob die Sonde noch bis zur Einspeisung durchgängig ist
+  // (**behobener Bug, User-Repro**: Hauptschalter-Schrauben L1+L2 gelöst,
+  // Sonden an RCD2s eigenem Ausgang - RCD2 blieb elektrisch trotzdem mit
+  // den Sonden verbunden, eine frühere Version fand es aber nicht mehr,
+  // weil sie fälschlich einen Pfad BIS ZUR EINSPEISUNG verlangte). Nutzt
+  // deshalb `findeErreichbareKanten()` (`model/pfad.js`) - sammelt die
+  // GESAMTE von der Sonde aus erreichbare Zusammenhangskomponente,
+  // ignoriert Schalterzustände, respektiert aber `geloesteKanten` (eine
+  // per Schraubendreher gelöste Schraube ist kein Schalter, sondern eine
+  // echte physische Trennung - User-Frage: "ist eine gelöste Schraube wie
+  // ein umgelegter Schalter?" - nein, siehe findeErreichbareKanten()).
+  function findeBauteileAufPfad(funktion, ader, bauteilNamen) {
+    const gefunden = new Set();
+    for (const netz of alleNetzeVonAder(ader)) {
+      for (const kante of findeErreichbareKanten(graph, funktion, netz, geloesteKanten)) {
+        if (bauteilNamen.has(kante.bauteil)) gefunden.add(kante.bauteil);
+      }
+    }
+    return gefunden;
+  }
+
+  // Feste Werte für die Elektronik-Leckage von AFDD/RCD-Typ-B-Geräten bei
+  // RISO (siehe KONZEPT.md "Konfigurierbare Parameter") - analog zu
+  // ZI_VORIMPEDANZ ein fester Konstantenwert, kein Netzplan-/bauteile.md-
+  // Feld, da es sich um eine generelle physikalische Eigenschaft des
+  // Gerätetyps handelt, nicht um eine pro-Bauteil einstellbare Größe.
+  const RISO_AFDD_WIDERSTAND_MOHM = 101;
+  const RISO_RCD_TYP_B_WIDERSTAND_MOHM = 13;
+
+  // User-Vorgabe: ein AFDD oder ein RCD Typ B, das TATSÄCHLICH zwischen den
+  // beiden gemessenen Adern hängt (ein Pol am Schwarz-Bein, der andere Pol
+  // am Blau-Bein - irgendwo auf dem jeweiligen Pfad zur Einspeisung, nicht
+  // zwingend direkt an der Messspitze), liefert bei RISO einen künstlich
+  // schlechten Widerstand statt `>999MΩ` - reale Elektronik dieser Geräte
+  // "leckt" zwischen L und N, auch ohne echten Isolationsfehler. Da es im
+  // Verbindungsgraphen KEINE Kante zwischen L- und N-Teilgraph gibt (siehe
+  // KONZEPT.md "Pfadverfolgung"), wird nicht nach einem Pfad ZWISCHEN den
+  // Adern gesucht (den gibt es nicht), sondern unabhängig auf jedem Bein
+  // (Schwarz→Einspeisung, Blau→Einspeisung) nach passenden Bauteilen
+  // gesucht - nur Bauteile, die auf BEIDEN Beinen auftauchen (Schnittmenge
+  // über den Bauteilnamen, nicht nur den Typ - zwei getrennte AFDD-Geräte,
+  // je eines pro Bein, zählen NICHT, siehe KONZEPT.md), sitzen tatsächlich
+  // mit je einem Pol auf jedem Bein. Liefert `null`, wenn kein passendes
+  // Bauteil gefunden wurde (normales `>999MΩ` bleibt dann bestehen).
+  //
+  // Kombinationsregel (User-Vorgabe, 2026-07-27): hängen MEHRERE Geräte
+  // gleichzeitig in der Schnittmenge, liegen ihre Leckage-Widerstände
+  // elektrisch PARALLEL zwischen L und N - Parallelwiderstands-Formel
+  // (Leitwerte addieren): R = 1 / (1/R₁ + 1/R₂ + ... + 1/Rₙ), gerundet auf
+  // ganze MΩ. Bei genau einem Gerät entspricht das exakt dessen eigenem
+  // Wert.
+  function berechneRisoElektronikWiderstand(schwarzEffektiv, blauEffektiv) {
+    const rcdTypBNamen = new Set(alleRcds().filter((r) => r.typ === 'B' || r.typ === 'B+').map((r) => r.name));
+    const afddNamen = new Set(alleAfddLs().map((ls) => ls.name));
+    const kandidaten = new Set([...rcdTypBNamen, ...afddNamen]);
+    if (kandidaten.size === 0) return null;
+
+    const schwarzBauteile = findeBauteileAufPfad(schwarzEffektiv.funktion, schwarzEffektiv, kandidaten);
+    const blauBauteile = findeBauteileAufPfad(blauEffektiv.funktion, blauEffektiv, kandidaten);
+    const schnittmenge = [...schwarzBauteile].filter((name) => blauBauteile.has(name));
+    if (schnittmenge.length === 0) return null;
+
+    const eigenerWertMOhm = (name) => (rcdTypBNamen.has(name) ? RISO_RCD_TYP_B_WIDERSTAND_MOHM : RISO_AFDD_WIDERSTAND_MOHM);
+    const leitwertSummeProMOhm = schnittmenge.reduce((summe, name) => summe + 1 / eigenerWertMOhm(name), 0);
+    return Math.round(1 / leitwertSummeProMOhm) * 1_000_000;
   }
 
   // FI/RCD-Messwert, ausgelöst über die TEST-Taste - wie ZS nicht
@@ -906,14 +1008,22 @@ async function start() {
       zustand.spannungUnterPe = `${berechneRisoSpannung()}V`;
       // R-Wert nur nach TEST-Klick (siehe risoTestKlick()) - Platzhalter aus
       // zustandFuerFunktion() bleibt stehen, solange risoMesswert null ist.
-      // Einheit: risoMesswert ist (wenn endlich) immer ein Ω-Wert aus der
-      // Fehlertabelle (siehe risoTestKlick()) - nur der Infinity-Sentinel
-      // wird als „>999MΩ" dargestellt (kein echter MΩ-Wert, sondern ein
-      // fester "außerhalb der Skala"-Text).
+      // Einheit: risoMesswert ist (wenn endlich) immer ein Ω-Wert - entweder
+      // eine winzige Fehlertabelle-Summe (Bruchteile bis wenige Ω, wie bei
+      // RLOW) ODER die neue AFDD-/RCD-Typ-B-Elektronik-Leckage (siehe
+      // berechneRisoElektronikWiderstand() - immer im MΩ-Bereich, real
+      // niemals ein Fehlertabelle-Wert in dieser Größenordnung). Ab 1MΩ wird
+      // deshalb als MΩ dargestellt statt als sehr große Ω-Zahl - OHNE
+      // Nachkommastellen (User-gemeldet: `R:13,00MΩ` sprengt die
+      // Display-Breite, die Elektronik-Werte sind ohnehin immer ganze
+      // MΩ-Zahlen, keine Präzision geht verloren). Der Infinity-Sentinel
+      // bleibt weiterhin der feste „>999MΩ"-Text.
       if (risoMesswert !== null) {
         zustand.hauptwert = risoMesswert === Infinity
           ? 'R:>999MΩ'
-          : `R:${risoMesswert.toFixed(2).replace('.', ',')}Ω`;
+          : risoMesswert >= 1_000_000
+            ? `R:${Math.round(risoMesswert / 1_000_000)}MΩ`
+            : `R:${risoMesswert.toFixed(2).replace('.', ',')}Ω`;
       }
       // Ampel (siehe risoTestKlick()) - links rot bei "durchgefallen", rechts
       // grün bei "bestanden", sonst beide aus/grau (kein TEST-Klick seit dem

@@ -820,6 +820,17 @@ auf 0V, keine Phasenfolge-Anzeige mehr).
   stammt weiterhin aus `view/messgeraet.js` (`rcdFehlerstrom`/`rcdTyp` bei
   FI/RCD in `DREHKNOPF_POSITIONEN`, nur für den Anfangszustand vor dem ersten
   ▲/▼-Klick).
+- **AFDD-/RCD-Typ-B-Elektronik-Leckage (RISO)** – künstlich schlechter
+  Widerstand statt `>999MΩ`, wenn ein AFDD oder RCD Typ B/B+ zwischen den
+  gemessenen Adern hängt (siehe "RISO-Berechnung" weiter unten für den
+  Erkennungsmechanismus). Feste, generelle physikalische Eigenschaften der
+  Gerätetypen, kein Netzplan-/`bauteile.md`-Feld (analog zu
+  `ZI_VORIMPEDANZ`): `RISO_AFDD_WIDERSTAND_MOHM = 101`,
+  `RISO_RCD_TYP_B_WIDERSTAND_MOHM = 13` (`controller/app.js`). Liegen
+  mehrere Geräte gleichzeitig auf demselben Pfad, liegen ihre
+  Leckage-Widerstände elektrisch parallel zwischen L und N -
+  Parallelwiderstands-Formel (Leitwerte addieren, dann Kehrwert):
+  `R = 1 / (1/R₁ + 1/R₂ + ... + 1/Rₙ)`, gerundet auf ganze MΩ.
 
 ---
 
@@ -1239,10 +1250,12 @@ AFDD-Sonderfall nötig). Das Stromkreis-Feld `sk.phasen` bleibt trotz des
 2-poligen Gehäuses ein 1-elementiges Array (nur die L-Phase zählt, der
 N-Pol wird wie beim RCD gesondert behandelt, siehe `generiereAnlage()`).
 
-> Noch **nicht** umgesetzt: eigenes RISO-Verhalten (AFDD-Elektronik müsste
-> vor der Isolationswiderstandsmessung abgeklemmt werden, analog RCD Typ B/B+
-> `abklemmen_bei_iso`) - bewusst zurückgestellt, siehe "Geplant für später"
-> unten.
+> **RISO-Verhalten: Schritt 1 umgesetzt** (siehe "RISO-Berechnung" unten) -
+> ein AFDD liefert bei RISO einen künstlich schlechten Widerstand
+> (101MΩ) statt `>999MΩ`, wenn es tatsächlich zwischen den beiden
+> gemessenen Adern hängt. Noch offen: die Kombination mit einem
+> gleichzeitig vorhandenen RCD Typ B (kleinerer Wert minus Abschlag) -
+> aktueller Platzhalter wendet in diesem Fall nur den RCD-Typ-B-Wert an.
 
 **Stromkreis:**
 ```json
@@ -1855,11 +1868,16 @@ bereits bestehende einzeilige Labels (identischer `textContent`, geprüft per
 SVG-Diff gegen die alten `anlage.svg`-Referenzbilder), keine
 Verhaltensänderung.
 
-**Noch offen:** eigenes RISO-Verhalten (AFDD-Elektronik müsste vor der
-Isolationswiderstandsmessung abgeklemmt werden, wie bei RCD Typ B/B+ -
-`abklemmen_bei_iso`) - bewusst zurückgestellt, siehe "Geplant für später"
-unten (zusammen mit RCD Typ B, da beide dieselbe RISO-Fragestellung
-aufwerfen).
+**RISO-Verhalten: vollständig umgesetzt** (2026-07-27, siehe
+"RISO-Berechnung" unten) - AFDD und RCD Typ B liefern jeweils einzeln einen
+künstlich schlechten Widerstand statt `>999MΩ`, wenn sie tatsächlich
+zwischen den beiden gemessenen Adern hängen; liegen beide gleichzeitig auf
+demselben Pfad, gilt der kleinere Wert abzüglich eines Abschlags. Die
+ursprünglich erwogene `abklemmen_bei_iso`-Simulation (Gerät müsste vor der
+Messung "abgeklemmt" werden) wurde NICHT diesen Weg gegangen - stattdessen
+liefert das Gerät bei NICHT abgeklemmtem Zustand direkt einen
+realistischen Elektronik-Wert. `abklemmen_bei_iso` bleibt weiterhin ein
+reines Datenfeld ohne Code-Wirkung.
 
 **Nachträglich ergänzt (direkt im Anschluss, alles User-Vorgaben):**
 1. `testcase_05`s RCD2 von Typ A auf Typ B umgestellt (`bauteile.md`),
@@ -2126,6 +2144,160 @@ kontinuierlich angezeigt (ohne TEST-Taste, wie RLOW sonst auch). Ebenfalls
 die Details - Live-Spannungsprüfung über `istSpannungFuehrend()`, TEST-Klick
 sucht denselben Pfad wie RLOW).
 
+**AFDD-/RCD-Typ-B-Elektronik-Leckage (Schritt 1, User-Vorgabe, 2026-07-27):**
+ein AFDD oder ein RCD Typ B/B+, das TATSÄCHLICH zwischen den beiden
+gemessenen Adern hängt (ein Pol am Schwarz-Bein, der andere Pol am
+Blau-Bein - irgendwo auf dem jeweiligen Pfad zur Einspeisung, nicht
+zwingend direkt an der Messspitze), liefert bei einer echten
+Isolationsmessung (Schwarz/Blau auf unterschiedlichen Funktionen, z.B. L-N
+oder L-L) einen festen, künstlich schlechten Widerstand statt `>999MΩ` -
+reale Elektronik dieser Geräte "leckt" geringfügig zwischen ihren Polen,
+auch ohne echten Isolationsfehler in der Verkabelung selbst. Werte (feste,
+globale Konstanten, siehe "Konfigurierbare Parameter" unten): AFDD 101MΩ,
+RCD Typ B/B+ 13MΩ.
+
+Da es im Verbindungsgraphen KEINE Kante zwischen L- und N-Teilgraph gibt
+(jede Funktion ist ein eigener, unverbundener Teilgraph, siehe
+"Pfadverfolgung und Fehlersimulation") und das auch so bleiben soll (die
+beiden Adern DÜRFEN elektrisch nicht verbunden sein, sonst wäre es ein
+echter Kurzschluss statt einer Elektronik-Leckage), wird nicht nach einem
+Pfad ZWISCHEN den beiden Adern gesucht, sondern unabhängig auf jedem Bein
+(Schwarz, Blau) die GESAMTE erreichbare Verkabelung nach passenden
+Bauteilen durchsucht. Nur Bauteile, die auf BEIDEN Beinen auftauchen
+(Schnittmenge über den **Bauteilnamen**, nicht nur den Gerätetyp), sitzen
+tatsächlich mit je einem Pol auf jedem Bein - zwei getrennte AFDD-Geräte,
+je eines pro Bein (z.B. auf L1 und auf L2, unterschiedliche Bauteilnamen),
+zählen NICHT, da keins der beiden Geräte wirklich zwischen den beiden
+Messpunkten hängt. Ein einzelnes mehrpoliges RCD Typ B dagegen erzeugt in
+jeder Funktion, die es führt, eine eigene Kante mit demselben Bauteilnamen
+- taucht deshalb automatisch in der Schnittmenge auf, ohne
+Sonderfallbehandlung.
+
+**Wichtige Design-Entscheidung, über zwei Bugfixes hinweg gefunden (User-
+gemeldet, 2026-07-27):** "erreichbar" bedeutet hier bewusst NICHT "auf dem
+Pfad zur Einspeisung", sondern "irgendwo in der GESAMTEN, von der Sonde aus
+über bestehende Verkabelung erreichbaren Zusammenhangskomponente" - unabhängig
+davon, ob diese Komponente selbst noch mit der Einspeisung verbunden ist
+UND unabhängig von Stromkreis-/Gruppen-Grenzen. Das ist elektrotechnisch
+korrekt: die Leckage-Elektronik eines RCD Typ B/AFDD (typischerweise
+Filterkondensatoren/Varistoren zwischen den Polen) wirkt auf jeden Leiter,
+der noch leitend mit ihr verbunden ist - unabhängig davon, ob dieser Leiter
+zum selben Stromkreis gehört oder ob die Verbindung zur Einspeisung selbst
+noch besteht. Zwei konkrete Fälle, die das aufdeckten:
+
+1. **Erreichbarkeit darf nicht an der Einspeisung hängen.** Erste
+   Umsetzung suchte (analog zu `findeErstesRcdAufPfad()`) einen Pfad VON
+   DER EINSPEISUNG ZUR SONDE (`findeStrukturPfad()`, mit offenen Schaltern
+   überspringender Zielsuche) - das schlug fehl, sobald irgendeine Kante
+   VOR dem gesuchten Gerät unterbrochen war, selbst wenn das Gerät selbst
+   mit der Sonde noch verbunden war (User-Repro: Hauptschalter-Schrauben
+   L1+L2 gelöst, Sonden direkt an RCD2s eigenem Ausgang - die Spannung fiel
+   korrekt auf 0V, RISO blieb aber fälschlich bei `>999MΩ` statt `13MΩ`,
+   obwohl RCD2 elektrisch weiterhin mit den Sonden verbunden war). Fix:
+   `findeStrukturPfad()` wurde durch `findeErreichbareKanten(graph,
+   funktion, startNetz, ausgeschlosseneKanten)` ersetzt (`model/pfad.js`) -
+   sammelt per BFS die GESAMTE von `startNetz` aus erreichbare
+   Zusammenhangskomponente (alle Kanten, keine Zielsuche zu einem
+   bestimmten Knoten).
+2. **Stromkreis-/Gruppen-Grenzen spielen keine Rolle.** Als direkte Folge
+   von Fix 1 (Suche nicht mehr auf "Weg zur Einspeisung" begrenzt) "sieht"
+   eine Messung auf Gruppe G1 (RCD1, Typ A, hat selbst keine Leckage)
+   trotzdem RCD2 (Typ B, Gruppe G2), solange der Hauptschalter nur per
+   Hebel aus ist - RCD1 und RCD2 teilen sich denselben
+   Hauptschalter-Ausgangsknoten (`N9` für L1, identischer Netz-Knoten für
+   beide RCD-Eingänge), ein offener Schalter lässt den Draht bestehen und
+   leitet nur gerade nicht. User-Bestätigung: "auch wenn ich Typ A bin,
+   aber es gibt Verbindung bei der Versorgung zu Typ B, dann soll RISO auch
+   Typ B sehen" - genau der reale Grund, warum man in der Praxis
+   Typ-B-RCDs/AFDDs für JEDE Isolationsmessung in der GESAMTEN Anlage
+   abklemmt, nicht nur im gerade geprüften Stromkreis. Eine ECHTE Trennung
+   (z.B. RCD1s eigene Eingangsschraube mit dem Schraubendreher gelöst -
+   physische Unterbrechung statt bloßem Schalter) isoliert Gruppe G1
+   dagegen tatsächlich, `R:>999MΩ` kehrt dann korrekt zurück.
+
+**Weiterhin respektiert: eine per Schraubendreher gelöste Schraube ist KEIN
+Schalter, sondern eine ECHTE physische Trennung** (User-Frage, die den Kern
+traf: "wenn jemand eine Schraube rausgedreht hat, ist das wie wenn ein
+Schalter umgedreht wurde?" - Antwort: nein, ein offener Schalter lässt den
+Draht bestehen, eine gelöste Schraube trennt ihn wirklich).
+`findeErreichbareKanten()` bekam dafür einen optionalen Parameter
+`ausgeschlosseneKanten` (Set von Kanten-Objekten, Default leeres Set) -
+diese Kanten werden immer übersprungen, unabhängig von der Sondenposition.
+`findeBauteileAufPfad()` (`app.js`) reicht dafür `geloesteKanten` durch
+(dasselbe Set, das schon die Kanten-Kappung selbst nutzt, siehe "Schrauben
+lösen").
+
+**Der eigene Hebel eines Geräts trennt dessen Ausgang tatsächlich vom
+Eingang (User-Frage, 2026-07-27):** "wenn ich das RCD Typ B Schalter
+umlege, dann ist doch die Leitung zu beiden AFDD gekappt - ich hätte 13MΩ
+erwartet" - `geschlossen` wurde bis dahin überall komplett ignoriert, auch
+für den Hebel des GEFUNDENEN Geräts selbst, wodurch dessen eigener Hebel
+wirkungslos blieb. Präzisierung (User: "Das Verhalten sollte so sein wie
+bei den Schrauben. Die Schrauben sind ja auch sowas wie Schalter."):
+`findeErreichbareKanten()` unterscheidet jetzt zwischen einer Kante, an
+der die Sonde DIREKT sitzt (immer erkannt, auch bei offenem Hebel - die
+Sonde berührt das Bauteil ja physisch), und einer WEITER ENTFERNTEN Kante,
+die nur transitiv über einen fremden offenen Hebel erreichbar wäre (blockt
+komplett, wie eine gelöste Schraube). Beispiel testcase_05: Sonden an
+RCD2s eigenem Eingang, RCD2s eigener Hebel offen -> RCD2 bleibt sichtbar
+(`13MΩ`, LS2/LS3 dahinter nicht mehr erreichbar); dieselbe Messung von der
+LS2-Steckdose (SK2) aus -> RCD2 verschwindet jetzt AUCH von der
+Ausgangsseite, nur noch LS2 allein (`101MΩ`).
+
+**Bekannte Vereinfachung, bewusst zurückgestellt (User, 2026-07-27):**
+dass ein geöffneter Hebel für alles dahinter genauso komplett verschwindet
+wie eine physisch gelöste Schraube, ist eine Vereinfachung - real bleibt
+die interne Leckage-Elektronik eines RCD Typ B/AFDD immer im Gerät
+verdrahtet, unabhängig vom Schaltzustand des eigenen Hebels ("im RCD ist
+die Elektronik ja noch dran"). Eine genauere Modellierung müsste
+zwischen der leitungsseitigen und der lastseitigen Anbindung der
+Elektronik im Gerät unterscheiden, statt den Hebelzustand pauschal wie
+eine physische Trennung zu behandeln. User-Entscheidung: für den
+Prüfungssimulator aktuell so lassen, hier als Ansatzpunkt für eine
+genauere Lösung vermerkt, falls das später gewünscht wird.
+
+**Ausführlicher End-zu-End-Testcase dazu (User-Vorgabe, komplett
+spezifiziert vor Freigabe, 2026-07-27):** testcase_05, Sonden an RCD1s
+(Typ A) eigenem AUSGANG (nicht Eingang - siehe oben, warum das für den
+Effekt entscheidend ist). RCD1 selbst leckt nicht, aber solange seine
+eigene Kante geschlossen ist, liegt dahinter die Sammelschiene mit
+RCD2+LS2+LS3 (`10MΩ`, Ampel rot). RCD1s eigene Schraube gelöst -> `>999MΩ`
+(einziger Weg zur Sammelschiene weg), Ampel grün. Schraube wieder rein,
+dann LS2s eigene Schraube gelöst -> nur noch RCD2+LS3 (`12MΩ`). Zusätzlich
+LS3s eigene Schraube gelöst -> nur noch RCD2 allein (`13MΩ`). Grenzwert
+per ▼ von 50MΩ auf 10MΩ gesenkt: Messwert bleibt `13MΩ`, aber die Ampel
+kippt von rot auf grün, da 13MΩ jetzt über dem neuen Grenzwert liegt -
+bestätigt, dass die Grenzwert-Ampel-Logik auch im neu eingeführten
+MΩ-Wertebereich korrekt funktioniert.
+
+Anzeige: `risoMesswert` ist normalerweise ein winziger Ω-Wert aus der
+Fehlertabelle (Bruchteile bis wenige Ω, wie bei RLOW) - die neuen
+Elektronik-Werte liegen dagegen immer im MΩ-Bereich (Millionen Ω). Ab 1MΩ
+wird deshalb als MΩ dargestellt (`R:13MΩ`, OHNE Nachkommastellen - eine
+erste Version mit zwei Nachkommastellen sprengte die Display-Breite,
+behobener Bug, siehe ARCHITEKTUR.md) statt als sehr große Ω-Zahl; der
+`Infinity`-Sentinel bleibt weiterhin der feste `R:>999MΩ`-Text.
+
+**Schritt 2 umgesetzt (Kombination, 2026-07-27, Parallelwiderstand):**
+liegen MEHRERE Geräte gleichzeitig in der Schnittmenge (RCD Typ B
+und/oder AFDD, in beliebiger Anzahl), liegen ihre Leckage-Widerstände
+elektrisch PARALLEL zwischen L und N - genau wie bei parallel geschalteten
+Widerständen addieren sich die Leitwerte: `R = 1 / (1/R₁ + 1/R₂ + ... +
+1/Rₙ)`, gerundet auf ganze MΩ (elektrotechnisch realistischer als eine
+Abschlags-Heuristik, User-Vorgabe nach kurzer Rücksprache). Bei genau zwei
+Geräten (z.B. RCD Typ B + AFDD): 1/(1/13 + 1/101) ≈ 11,52MΩ, gerundet
+**12MΩ**. testcase_05s Gruppe G2 (RCD2 = Typ B, speist LS2 UND LS3 = je
+AFDD über eine geteilte Schraube) liegen bei jeder unveränderten Messung
+sogar DREI Geräte gleichzeitig in der Schnittmenge, da RCD2s eigener
+Ausgang und LS2/LS3s eigene Eingänge denselben Netz-Knoten teilen:
+1/(1/13 + 1/101 + 1/101) ≈ 10,34MΩ, gerundet **10MΩ**. Ohne gezieltes
+Abklemmen der jeweils anderen Geräte (Schraubendreher) liegt in
+testcase_05s Gruppe G2 IMMER dieser Drei-Geräte-Kombinationsfall vor - die
+isolierten Einzelfälle (nur RCD Typ B, nur AFDD) mussten deshalb künstlich
+hergestellt werden, indem die jeweils anderen Geräte per Schraubendreher
+abgeklemmt werden, bevor gemessen wird. Das deckte endlich auch den in
+Schritt 1 offen gebliebenen isolierten AFDD-Einzelfall ab (101MΩ).
+
 ### ZI-/ZS-Berechnung (dritter/vierter Anwendungsfall)
 
 **Status: prototypisch umgesetzt** (siehe "Berechnung der Messwerte" oben).
@@ -2165,10 +2337,6 @@ tests/visuell/
   ...
 ```
 
-**Geplant für später (noch nicht umgesetzt):**
-- RCD Typ B (und dessen RISO-Implikationen, siehe auch die noch offene
-  AFDD-RISO-Frage unter "AFDD" oben)
-
 ---
 
 ## Nächste Schritte
@@ -2186,12 +2354,13 @@ Auslösewerte I/Uci/t vom ersten RCD auf dem Pfad zur Einspeisung, und
 Rollenprüfung, live berechnete Uln/Ulpe/Unpe, keine TEST-Taste nötig).
 Offen:
 
-1. **Isolationsfehler-Mechanismus für RISO** - heute sind L1/L2/L3/N
-   vollständig getrennte Teilgraphen, ein TEST-Klick ohne anliegende
-   Spannung liefert deshalb praktisch immer `>999MΩ`. Für echte
-   Fehlerszenarien bräuchte es einen Weg, zwei Funktionen künstlich über
-   einen simulierten Isolationsfehler zu verbinden - der Code
-   (`risoTestKlick()`) ist strukturell schon darauf vorbereitet.
+1. **Generischer Isolationsfehler-Mechanismus für RISO** - L1/L2/L3/N sind
+   weiterhin vollständig getrennte Teilgraphen ohne Querverbindung; ein
+   TEST-Klick ohne anliegende Spannung liefert deshalb `>999MΩ`, außer ein
+   AFDD/RCD Typ B liegt tatsächlich auf dem Pfad (siehe "RISO-Berechnung"
+   oben - dieser spezielle Fall ist bereits umgesetzt). Ein GENERISCHER
+   künstlicher Isolationsfehler zwischen zwei beliebigen Funktionen (z.B.
+   ein echter Kabelschaden L-N) existiert weiterhin nicht.
 2. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
    Hutschienen-Bond Zyklen bilden kann (Parallelwiderstand statt einfacher
    Pfad-Summe) - ein eigenständiges, größeres Vorhaben. Bis dahin gelten zwei
@@ -2209,14 +2378,15 @@ Offen:
    Vorimpedanz (`berechneRlowMesswert()`-Workarounds, siehe
    "RLOW-Berechnung" oben) - entfallen ebenfalls ersatzlos, sobald der
    PE-Teilgraph existiert.
-3. Weitere Testcase-Szenarien (siehe "Geplant für später" oben: RCD Typ B).
-4. **Prüfprotokoll: Verknüpfung mit echten Messwerten** - aktuell rein
+3. **Prüfprotokoll: Verknüpfung mit echten Messwerten** - aktuell rein
    ein-/ankreuzbar, ohne Bezug zu den im Messgerät tatsächlich ermittelten
    Werten (siehe "Prüfprotokoll (View-Objekt)" oben). Spätere Ausbaustufe:
    automatisches Übernehmen der TEST-Ergebnisse in die passende Zeile/Spalte
    der Stromkreisverteiler-Tabelle, plus Validierung (z.B. Fehlerquelle #14 -
-   Zi/Zs-Verwechslung - direkt im Protokoll markieren).
-6. **3-Phasen-Reihenklemme als eigener Bauteil-Typ** - beim 3-poligen LS
+   Zi/Zs-Verwechslung - direkt im Protokoll markieren). Siehe auch die
+   separat vorgemerkte Idee zu einem automatisierten, browserbasierten
+   Prüfprozess (Entwickler-/Bediener-Skills).
+4. **3-Phasen-Reihenklemme als eigener Bauteil-Typ** - beim 3-poligen LS
    (siehe "3-poliger LS" oben) wurde bewusst **nicht** diese Richtung
    gewählt, sondern drei separate, normale einphasige Reihenklemmen
    gruppiert. Für später vorgemerkt: eine eigens verbreiterte

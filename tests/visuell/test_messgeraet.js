@@ -1445,6 +1445,364 @@ async function main() {
     await page.close();
   });
 
+  // --- RISO: AFDD-/RCD-Typ-B-Elektronik-Leckage (Schritt 1+2, User-Vorgabe,
+  // 2026-07-27) - siehe KONZEPT.md "Konfigurierbare Parameter". Ein RCD Typ B
+  // oder ein AFDD, das TATSÄCHLICH zwischen den beiden gemessenen Adern hängt
+  // (ein Pol am Schwarz-Bein, der andere Pol am Blau-Bein - irgendwo in der
+  // jeweiligen erreichbaren Verkabelung, nicht zwingend direkt an der
+  // Messspitze), liefert einen künstlich schlechten Widerstand statt
+  // `>999MΩ` (reale Elektronik "leckt" zwischen L und N, auch ohne echten
+  // Isolationsfehler). Im Verbindungsgraphen gibt es KEINE Kante zwischen
+  // L- und N-Teilgraph - `berechneRisoElektronikWiderstand()` sucht deshalb
+  // unabhängig auf jedem Bein (Schwarz, Blau) die GESAMTE erreichbare
+  // Verkabelung nach passenden Bauteilen ab und bildet die Schnittmenge über
+  // den Bauteilnamen (nicht nur den Typ), über `findeErreichbareKanten()`
+  // (`model/pfad.js`) statt der schalterzustands-respektierenden
+  // `findePfad()` - RISO setzt gerade einen spannungsfreien, also meist
+  // ausgeschalteten Stromkreis voraus. Schritt 2 (Kombination, User-Vorgabe
+  // 2026-07-27): liegen MEHRERE Geräte gleichzeitig in der Schnittmenge,
+  // liegen ihre Leckage-Widerstände elektrisch PARALLEL zwischen L und N -
+  // Parallelwiderstands-Formel (Leitwerte addieren, dann Kehrwert):
+  // R = 1 / (1/R₁ + 1/R₂ + ... + 1/Rₙ), gerundet auf ganze MΩ. testcase_05s
+  // Gruppe G2 (RCD2 = Typ B, speist LS2/LS3 = AFDD) ist das Testbett dafür -
+  // da RCD2s eigener Ausgang UND LS2/LS3s eigene Eingänge dieselben
+  // Netz-Knoten teilen (`N60`/`N61`), liegen bei JEDER unveränderten Messung
+  // in Gruppe G2 automatisch ALLE DREI Geräte gleichzeitig in der
+  // Schnittmenge (Kombinationsfall: 1/(1/13+1/101+1/101) ≈ 10,34MΩ, gerundet
+  // 10MΩ) - ein isolierter Einzelfall lässt sich nur künstlich herstellen,
+  // indem man mit dem Schraubendreher gezielt die jeweils anderen Geräte
+  // abklemmt (siehe die beiden folgenden Tests).
+  await pruefe('RISO: testcase_05 - RCD2 (Typ B) ALLEIN liefert 13MΩ, wenn LS2+LS3 (AFDD) zuvor per Schraubendreher abgeklemmt wurden', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei, RISO kann überhaupt erst messen
+
+    // LS2 UND LS3 jeweils an ihrer eigenen Eingangsschraube abklemmen -
+    // beide hängen sonst am selben Netz-Knoten wie RCD2s Ausgang und würden
+    // die Schnittmenge sonst immer zum Kombinationsfall machen.
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS2"][data-netz="N60"]').click();
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS3"][data-netz="N61"]').click();
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N60"]').click(); // schwarz: RCD2-Ausgang L1
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N62"]').click(); // blau: RCD2-Ausgang N
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    erwarte(await displayTexte(page), '0V', 'Hauptschalter offen -> spannungsfrei');
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:13MΩ', 'RCD2 (Typ B) allein liefert seinen hinterlegten Elektronik-Widerstand, LS2/LS3 sind abgeklemmt');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '13MΩ liegt unter dem Default-Grenzwert (50MΩ) -> Ampel rot');
+    await page.close();
+  });
+
+  // AFDD ALLEIN (ohne vorgeschaltetes RCD Typ B) - der in Schritt 1 noch
+  // offene Fall, jetzt über den Schraubendreher künstlich herstellbar: RCD2s
+  // eigene Ausgangsschraube abklemmen (kappt wegen der geteilten Schraube -
+  // siehe "Schrauben lösen" - automatisch BEIDE Zweige N60 UND N61
+  // gleichzeitig), dann direkt an LS2s eigenem Eingang messen - LS2 bleibt
+  // mit der Sonde verbunden, RCD2 ist aber nicht mehr auffindbar.
+  await pruefe('RISO: testcase_05 - LS2 (AFDD) ALLEIN liefert 101MΩ, wenn RCD2 (Typ B) zuvor per Schraubendreher abgeklemmt wurde', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N60"]').click(); // RCD2-Ausgang lösen (kappt N60 UND N61)
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS2"][data-netz="N60"]').click(); // schwarz: LS2-Eingang L1
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS2"][data-netz="N62"]').click(); // blau: LS2-Eingang N
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:101MΩ', 'LS2 (AFDD) allein liefert seinen hinterlegten Elektronik-Widerstand, RCD2 ist abgeklemmt');
+    await page.close();
+  });
+
+  // Kombinationsfall (Schritt 2, Parallelwiderstand): unveränderte
+  // Verdrahtung, Sonden auf SK2 (mittlere Steckdose, hinter LS2) - über die
+  // geteilte Schraube an N9/N60/N61 sind RCD2 (Typ B, 13MΩ), LS2 UND LS3
+  // (je AFDD, 101MΩ) gleichzeitig in der Schnittmenge (drei Geräte, nicht
+  // nur zwei - siehe Kommentar oben). 1/(1/13+1/101+1/101) ≈ 10,34MΩ,
+  // gerundet 10MΩ.
+  await pruefe('RISO: testcase_05 - Kombination RCD2 (Typ B) + LS2 + LS3 (beide AFDD) auf demselben Pfad liefert 10MΩ (Parallelwiderstand)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // schwarz: SK2 L
+    await kreise.nth(6).click(); // blau: SK2 N
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:10MΩ', 'RCD2 (13MΩ) + LS2 + LS3 (je 101MΩ) alle drei erreichbar -> 1/(1/13+1/101+1/101) ≈ 10MΩ');
+    await page.close();
+  });
+
+  // Elektrotechnisch realistische Erweiterung (User-Vorgabe, direkt im
+  // Anschluss an Schritt 1): RCD1 (Gruppe G1) ist Typ A, hat also selbst
+  // KEINE Elektronik-Leckage - RCD1 und RCD2 (Typ B, Gruppe G2) teilen sich
+  // aber denselben Hauptschalter-Ausgang (`N9` für L1, identischer
+  // Netz-Knoten für beide RCD-Eingänge, siehe `RCD1 Eingang L1`/`RCD2
+  // Eingang L1` in anlage.json). Solange der Hauptschalter nur per Hebel
+  // aus ist (Draht bleibt bestehen, leitet nur gerade nicht), bleibt diese
+  // Sammelschiene elektrisch durchgängig - RCD2s (UND wegen der geteilten
+  // Verkabelung auch LS2/LS3s) Leckage-Elektronik "sieht" deshalb auch eine
+  // Messung auf Gruppe G1s eigenem Zweig, obwohl RCD1 selbst nicht
+  // betroffen ist - Ergebnis ist deshalb der KOMBINATIONSWERT (12MΩ), nicht
+  // 13MΩ allein. Genau der reale Grund, warum man in der Praxis
+  // Typ-B-RCDs/AFDDs für JEDE Isolationsmessung in der GESAMTEN Anlage
+  // abklemmt, nicht nur im gerade geprüften Stromkreis (User: "auch wenn
+  // ich Typ A bin, aber es gibt Verbindung bei der Versorgung zu Typ B,
+  // dann soll RISO auch Typ B sehen").
+  await pruefe('RISO: testcase_05 - Gruppe G1 (RCD1 Typ A) sieht trotzdem RCD2+LS2+LS3 über die geteilte Hauptschalter-Sammelschiene (10MΩ)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei (Draht bleibt bestehen)
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS1"][data-netz="N24"]').click(); // schwarz: LS1-Ausgang L1
+    await page.locator('#schaltkasten svg circle[data-bauteil="N-Klemme"][data-netz="N12"]').click(); // blau: N-Klemme unten
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:10MΩ', 'RCD2+LS2+LS3 bleiben über die geteilte Sammelschiene erreichbar, obwohl RCD1 selbst Typ A ist');
+    await page.close();
+  });
+
+  // Echte Negativ-Probe: erst dieselbe geteilte Sammelschiene wie oben
+  // (12MΩ), dann RCD1s EIGENE L1-Eingangsschraube gelöst - das trennt
+  // Gruppe G1 PHYSISCH von der Sammelschiene (anders als der Hebel oben,
+  // der die Ader intakt lässt), RCD2/LS2/LS3 werden dadurch für diese
+  // Messung tatsächlich unerreichbar.
+  await pruefe('RISO: testcase_05 - erst über die Sammelschiene 10MΩ, nach RCD1s eigener Eingangsschraube (physische Trennung) wieder >999MΩ', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS1"][data-netz="N24"]').click(); // schwarz: LS1-Ausgang L1
+    await page.locator('#schaltkasten svg circle[data-bauteil="N-Klemme"][data-netz="N12"]').click(); // blau: N-Klemme unten
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:10MΩ', 'vor der Isolation: RCD2+LS2+LS3 über die Sammelschiene erreichbar');
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N9"]').click(); // RCD1 L1-Eingang lösen
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'Gruppe G1 physisch von der Sammelschiene getrennt -> nichts mehr erreichbar');
+    await page.close();
+  });
+
+  // Regressionstest für einen User-gemeldeten Bug (2026-07-27, direkt im
+  // Anschluss an Schritt 1): eine per Schraubendreher gelöste Schraube ist
+  // KEIN Schalter - anders als ein offener Schalter (Draht bleibt vorhanden,
+  // leitet nur gerade nicht) trennt sie die Ader ECHT physisch. Die
+  // Erreichbarkeits-Suche (siehe oben) ignoriert zwar bewusst offene
+  // SCHALTER, muss eine per Schraubendreher gelöste Schraube aber weiterhin
+  // respektieren - sonst würde ein RCD Typ B/AFDD fälschlich noch "gefunden",
+  // obwohl die Ader zwischen Sonde und Gerät bereits unterbrochen ist. Sonden
+  // auf SK2 (mittlere Steckdose, hinter RCD2+LS2), Hauptschalter offen: erst
+  // korrekt `R:10MΩ` (Kombination, RCD2+LS2+LS3 alle erreichbar), dann LS2s
+  // eigene L1-Ausgangsschraube (N64) mit dem Schraubendreher gelöst - der
+  // L1-Zweig ist danach physisch unterbrochen, Ergebnis muss auf `R:>999MΩ`
+  // zurückfallen.
+  await pruefe('RISO: testcase_05 - BUGFIX: eine per Schraubendreher gelöste Schraube unterbricht die Elektronik-Erkennung (ist kein bloßer Schalter)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // schwarz: SK2 L
+    await kreise.nth(6).click(); // blau: SK2 N
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:10MΩ', 'vor dem Lösen: RCD2 (Typ B) + LS2 + LS3 (AFDD) alle erreichbar -> Kombinationswert');
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS2"][data-netz="N64"]').click(); // LS2 L1-Ausgang lösen
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'L1-Bein physisch unterbrochen -> weder RCD2 noch LS2 mehr erreichbar');
+    await page.close();
+  });
+
+  // Regressionstest für den ursprünglich vom User gemeldeten Bug (2026-07-27,
+  // direkt im Anschluss an obigen Fix): "ich setze zwei Schrauben am
+  // Hauptschalter raus, L1 und L2 - die Spannung am RCD geht auf 0V (das
+  // funktioniert), aber die RISO-Messung geht nicht auf 13MΩ, sondern auf
+  // >999Ω." Eine erste Fix-Version suchte einen Pfad BIS ZUR EINSPEISUNG
+  // (analog findeErstesRcdAufPfad()) - das schlug fehl, sobald irgendeine
+  // Kante VOR dem gesuchten Bauteil fehlte, selbst wenn das Bauteil selbst
+  // mit der Sonde noch verbunden war. Korrigiert: `findeErreichbareKanten()`
+  // sucht die GESAMTE von der Sonde aus erreichbare Komponente, ohne
+  // Einspeisung als Ziel - RCD2 (und wegen der geteilten Verkabelung auch
+  // LS2/LS3) bleiben mit der Sonde an RCD2s eigenem Ausgang verbunden, auch
+  // wenn der Weg VON DORT zur Einspeisung (über den Hauptschalter)
+  // unterbrochen ist. Ergebnis ist deshalb der Kombinationswert (10MΩ, drei
+  // Geräte: RCD2+LS2+LS3).
+  await pruefe('RISO: testcase_05 - BUGFIX: Hauptschalter-Schrauben L1+L2 gelöst (statt Hebel) - RCD2+LS2+LS3 bleiben trotzdem über RCD2s eigenen Ausgang erreichbar (10MΩ)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="Hauptschalter"][data-netz="N6"]').click(); // L1-Eingang lösen
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="Hauptschalter"][data-netz="N7"]').click(); // L2-Eingang lösen
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N60"]').click(); // schwarz: RCD2-Ausgang L1
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N62"]').click(); // blau: RCD2-Ausgang N
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    erwarte(await displayTexte(page), '0V', 'Hauptschalter-Schrauben gelöst -> spannungsfrei (funktionierte schon vorher)');
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:10MΩ', 'RCD2+LS2+LS3 bleiben trotz unterbrochenem Weg zur Einspeisung mit der Sonde verbunden -> Kombinationswert');
+    await page.close();
+  });
+
+  // Zweiter Regressionstest (User-Frage, direkt im Anschluss, 2026-07-27):
+  // "wenn ich das RCD Typ B Schalter umlege, dann ist doch die Leitung zu
+  // beiden AFDD gekappt - ich hätte 13MΩ erwartet." VORHER blieb der Hebel
+  // (wie jeder Schalter) für die Elektronik-Erkennung komplett wirkungslos
+  // - RCD2s eigener Hebel öffnen änderte am Ergebnis (10MΩ) gar nichts.
+  // Das widerspricht aber der Erwartung, dass der Hebel EINES Geräts
+  // dessen eigenen Ausgang (und damit LS2/LS3 dahinter) tatsächlich vom
+  // Eingang trennt. Fix in `findeErreichbareKanten()` (`model/pfad.js`):
+  // eine Kante, an der die Sonde DIREKT sitzt, wird immer erkannt (auch
+  // bei offenem Hebel - RCD2 selbst bleibt an seinem eigenen Eingang
+  // sichtbar), aber jede WEITER ENTFERNTE Kante hinter einem offenen Hebel
+  // verhält sich wie eine gelöste Schraube (komplett blockiert). Sonden an
+  // RCD2s eigenem Eingang, Hauptschalter per Hebel offen: erst `R:10MΩ`
+  // (alle drei Geräte erreichbar), dann RCD2s EIGENER Hebel geöffnet ->
+  // `R:13MΩ` (nur noch RCD2 selbst, LS2/LS3 hinter dem offenen Hebel nicht
+  // mehr erreichbar).
+  await pruefe('RISO: testcase_05 - BUGFIX: RCD2s eigener Hebel offen trennt LS2/LS3 tatsächlich ab, gemessen an RCD2s eigenem Eingang (13MΩ)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N9"]').click(); // schwarz: RCD2-Eingang L1
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD2"][data-netz="N12"]').click(); // blau: RCD2-Eingang N
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:10MΩ', 'vor dem Öffnen von RCD2s eigenem Hebel: alle drei Geräte erreichbar');
+
+    const rcd2Handle = await findeSchalterHandleNaheBauteil(page, 'RCD2');
+    await rcd2Handle.click(); // RCD2s eigenen Hebel öffnen
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:13MΩ', 'RCD2 selbst bleibt an seinem eigenen Eingang sichtbar, LS2/LS3 hinter dem offenen Hebel nicht mehr');
+    await page.close();
+  });
+
+  // Gegenprobe von der anderen Seite (direkt im Anschluss): dieselbe
+  // Sondenplatzierung wie beim natürlichen Kombinationstest (SK2, hinter
+  // LS2), aber diesmal wird VOR der Messung RCD2s eigener Hebel geöffnet -
+  // von hier aus wird RCD2 (anders als von seinem eigenen Eingang aus)
+  // NICHT mehr erkannt, da die Sonde RCD2 nur transitiv über die
+  // (jetzt offene) Kante erreichen würde, nicht direkt an einem seiner
+  // eigenen Anschlüsse sitzt. Übrig bleibt nur LS2 selbst.
+  await pruefe('RISO: testcase_05 - dieselbe Messung von der LS2-Steckdose aus: RCD2s offener Hebel lässt nur noch LS2 allein übrig (101MΩ)', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei
+
+    const rcd2Handle = await findeSchalterHandleNaheBauteil(page, 'RCD2');
+    await rcd2Handle.click(); // RCD2s eigenen Hebel öffnen
+
+    const kreise = page.locator('#steckdosen circle[fill="#666666"]');
+    await kreise.nth(5).click(); // schwarz: SK2 L
+    await kreise.nth(6).click(); // blau: SK2 N
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:101MΩ', 'RCD2 hinter seinem eigenen offenen Hebel nicht mehr erreichbar, nur noch LS2 allein');
+    await page.close();
+  });
+
+  // Ausführlicher End-zu-End-Testcase (User-Vorgabe, komplett spezifiziert
+  // vor Freigabe "ja bitte", 2026-07-27): Sonden auf RCD1 (Typ A, Gruppe
+  // G1) - WICHTIG an dessen eigenem AUSGANG (N20/N23), nicht am Eingang
+  // (N9/N12, dem geteilten Sammelschienen-Knoten selbst) - sonst würde das
+  // spätere Lösen von RCD1s eigener Schraube die Sicht auf RCD2 (eigene,
+  // unabhängige Kante zum selben Knoten) gar nicht blockieren. RCD1 selbst
+  // hat keine Leckage (Typ A), aber solange seine eigene Kante geschlossen
+  // ist, liegt dahinter die Sammelschiene mit RCD2+LS2+LS3 (3 Geräte
+  // parallel: 1/(1/13+1/101+1/101)≈10,3 -> 10MΩ). Schrittweise: (1) RCD1s
+  // eigene Schraube lösen kappt seine einzige Kante zur Sammelschiene
+  // komplett -> `>999MΩ`; (2) Schraube wieder rein, dann LS2s eigene
+  // Schraube lösen -> nur noch RCD2+LS3 (1/(1/13+1/101)≈11,5 -> 12MΩ); (3)
+  // zusätzlich LS3s eigene Schraube lösen -> nur noch RCD2 allein (13MΩ);
+  // (4) Grenzwert per ▼ von 50MΩ auf 10MΩ gesenkt, Messwert bleibt 13MΩ,
+  // aber die Ampel kippt von rot auf grün (13MΩ liegt jetzt ÜBER dem neuen,
+  // gesenkten Grenzwert).
+  await pruefe('RISO: testcase_05 - End-zu-End über RCD1 (Typ A): Sammelschiene sichtbar, schrittweises Abklemmen reduziert die Schnittmenge, Grenzwert-Senkung kippt die Ampel', async () => {
+    const page = await neueSeiteMitTestcase('testcase_05');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter öffnen -> spannungsfrei
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N20"]').click(); // schwarz: RCD1-Ausgang L1
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N23"]').click(); // blau: RCD1-Ausgang N
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:10MΩ', 'RCD1 leckt selbst nicht, aber seine geschlossene Kante gibt Sicht auf die Sammelschiene -> RCD2+LS2+LS3');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '10MΩ < 50MΩ Default-Grenzwert -> rot');
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N9"]').click(); // RCD1 L1-Eingang lösen (kappt RCD1s eigene Kante komplett)
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'RCD1s eigene Kante weg -> Sammelschiene von der Sonde aus nicht mehr erreichbar');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '>999MΩ -> grün');
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N9"]').click(); // Schraube wieder rein
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS2"][data-netz="N60"]').click(); // LS2 (erstes AFDD) L1-Eingang lösen
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:12MΩ', 'LS2 fehlt jetzt in der Schnittmenge -> nur noch RCD2+LS3');
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS3"][data-netz="N61"]').click(); // LS3 (zweites AFDD) L1-Eingang lösen
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:13MΩ', 'auch LS3 fehlt jetzt -> nur noch RCD2 allein');
+
+    await klick(page, '◄►'); // Titel -> Prüfspannung
+    await klick(page, '◄►'); // Prüfspannung -> Grenzwert
+    for (let i = 0; i < 4; i++) await klick(page, '▼'); // Grenzwert 50 -> 10MΩ
+    erwarte(await displayTexte(page), '10MΩ', 'Grenzwert auf 10MΩ gesenkt');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:13MΩ', 'Messwert unverändert gegenüber dem gesenkten Grenzwert');
+    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '13MΩ liegt jetzt über dem neuen 10MΩ-Grenzwert -> Ampel kippt auf grün');
+    await page.close();
+  });
+
   // --- ZI: Schleifenimpedanz (Vorimpedanz + Fehlertabelle L-Seite + N-Seite) ---
   // Anders als RLOW/RISO liegen Schwarz (L1/L2/L3) und Blau (N) auf
   // unterschiedlichen Teilgraphen OHNE gemeinsamen Pfad - ZI sucht deshalb

@@ -2975,3 +2975,134 @@ validator.prufeZiZsSpalte(stromkreis, eingetrageneMessung);
 - **localStorage** – Fortschritt und Protokoll speichern
 - **Web Speech API** – Sprachansagen in Stufe 3
 - **Service Worker** – Offline-Fähigkeit
+
+---
+
+## Entwickler-Skills
+
+Wiederverwendbare Node-Skripte unter `tools/`, die das throwaway-
+Playwright-Verifikationsmuster (Sonden setzen, Drehknopf drehen, TEST
+drücken, Wert auslesen - vor jedem permanenten Test manuell gebaut, siehe
+`tests/visuell/test_messgeraet.js`s Kopfkommentar) für wiederkehrende
+Entwickler-Fragen formalisieren, statt sie jedes Mal neu zu schreiben
+(siehe project_skills_pruefprozess-Memory für den ursprünglichen Plan:
+Entwickler-Skills hier in ARCHITEKTUR.md, Bediener-Skills in einem
+separaten Prozess-Dokument, danach ein automatisierter Prüfprozess -
+Reihenfolge nach RISO/RCD-Typ-B abgestimmt).
+
+**Wichtige Klarstellung (User-Rückfrage, 2026-07-28): "Entwickler-Skill" in
+diesem Sinne ist NICHT automatisch ein echter Claude Code Skill.** Das
+Wort wurde in der ursprünglichen Planung als Projekt-eigener Begriff für
+"wiederverwendbares Node-Skript unter `tools/`, hier dokumentiert"
+geprägt - ein tatsächlicher Claude-Code-Skill (`.claude/skills/<name>/
+SKILL.md`, gibt der KI Anweisungen, wann/wie etwas zu tun ist) ist ein
+separates, zusätzliches Konstrukt. Es gibt jetzt EINEN echten Skill dafür:
+`.claude/skills/entwickler-werkzeuge/SKILL.md` - ein dünner Index/Verweis
+auf diesen Abschnitt hier (keine Doku-Kopie, um Auseinanderdriften zu
+vermeiden), damit die KI in einer neuen Session automatisch erinnert wird,
+dass diese Werkzeuge existieren, statt sich zufällig an dieses Dokument
+erinnern zu müssen. Bei jedem neuen Werkzeug unter `tools/`: ausführliche
+Doku HIER ergänzen, den Index-Skill nur um einen kurzen Verweis erweitern.
+
+### `tools/pfad_zur_einspeisung.js` (2026-07-28)
+
+**Zweck:** gibt für eine beliebige Schraube im Schaltkasten den
+Verdrahtungspfad zurück zur Einspeisung aus - ersetzt das manuelle
+Nachschlagen von Netz-IDs in `anlage.json`/`graph.json`, das diese ganze
+Session über nötig war, bevor ein throwaway-Skript für einen neuen
+Testcase gebaut werden konnte.
+
+**Aufruf:** `node tools/pfad_zur_einspeisung.js <testcase> <bauteil> <netz>`
+(z.B. `node tools/pfad_zur_einspeisung.js testcase_04 LS3 N26`). `bauteil`
+dient nur der Validierung/DOM-Suche, die Pfadberechnung selbst braucht nur
+`netz` (die Funktion wird automatisch ermittelt, indem alle vier
+Funktions-Teilgraphen nach dem Netz durchsucht werden - Netz-IDs sind
+projektweit eindeutig, nie pro Funktion wiederverwendet).
+
+**Ausgabe:** eine Tabelle mit vier Spalten - Eingang, Ausgang, Bauteil,
+Verzweigung (User-Vorgabe, 2026-07-28, ersetzt eine frühere Version mit
+einer einzelnen "Verdrahtung/Verbindung"-Spalte mit Pfeil). Eingang/Ausgang
+sind IMMER die tatsächlichen i-/o-Pin-Netze der jeweiligen Kante selbst
+(`kante.von` = Eingang, `kante.nach` = Ausgang, siehe `kantenFuerFunktion()`
+in `generate_anlage.js`) - NICHT die Gehrichtung des Pfads (der zwar immer
+vom Ausgang zum Eingang jedes Bauteils läuft, Richtung Einspeisung, aber
+die Spaltenbedeutung bleibt dieselbe wie überall sonst im Projekt, z.B.
+"RCD2 Eingang"/"RCD2 Ausgang"). Daraus ergibt sich eine Kettenstruktur: der
+Eingang einer Zeile ist immer derselbe Wert wie der Ausgang der Zeile
+darunter (beide teilen sich denselben Netz-Knoten). Verzweigung zeigt Namen
+anderer Bauteile, die an demselben Knoten hängen, aber nicht Teil des
+Pfads sind - z.B. `RCD2` an `N9`, wenn testcase_05s Gruppe G1 über die
+geteilte Hauptschalter-Sammelschiene läuft. Ein Bauteil mit MEHR ALS EINER
+Kante im selben Funktions-Teilgraphen (geteilte Schraube, z.B. RCD2 mit
+`weitere` zu LS2 UND LS3) wird durchnummeriert (`RCD2 (1)`, `RCD2 (2)`) -
+sonst wäre bei gleichzeitigem Auftreten als Bauteil UND als Verzweigung
+nicht klar, ob dieselbe oder eine andere Kante gemeint ist
+(User-Beobachtung). Für die Browser-Seite (`ermittleDomKanten()`)
+entscheidet die y-Position der beiden Schrauben-Kreise, welcher Eingang
+bzw. Ausgang ist (Eingang wird immer OBEN gezeichnet, Ausgang unten, siehe
+`view/schaltkasten.js` `geraet()`) - nicht die zufällige DOM-Abfrage-
+Reihenfolge, damit beide Seiten exakt dieselbe Spaltenbedeutung tragen.
+
+**Kern-Idee (User-Vorschlag): der Aufruf ist gleichzeitig ein
+Konsistenz-Test.** Die Tabelle wird ZWEIMAL unabhängig berechnet - einmal
+direkt aus dem eingecheckten `graph.json` (reine Verdrahtungsdaten, kein
+Browser nötig), einmal aus den tatsächlich gerenderten Schrauben-Kreisen
+im Schaltkasten (`chromium.launch()` headless, siehe
+project_skills_pruefprozess-Memory: "erst headless, headful später als
+Option") - dort werden die Kanten UNABHÄNGIG aus
+`data-bauteil`/`data-farbe`/`data-netz`/`data-netz-weitere`-Attributen
+rekonstruiert (siehe `view/schaltkasten.js` `schraube()`), NICHT aus
+`graph.json` gelesen. Zwei Kreise mit demselben Bauteilnamen UND derselben
+Farbe (= derselbe Pol) bilden ein Eingangs-/Ausgangspaar; das Kreuzprodukt
+ihrer Netz-Mengen (inkl. `weitere`) ergibt die Kante(n), analog zu
+`kantenFuerFunktion()` in `generate_anlage.js`, nur datenquellen-
+unabhängig nachgebaut. Stimmen beide Tabellen überein, wird nur EINE
+ausgegeben (Exit-Code 0); weichen sie ab, werden BEIDE mit klar markierter
+Abweichung ausgegeben und das Skript bricht mit Exit-Code 1 ab (User:
+"Skill soll sofort das Problem hervorheben, wo die Unterschiede sind. Und
+dann abbrechen.").
+
+**Bugfix beim Bauen selbst gefunden (bevor der Skill als fertig galt):**
+die erste Version von `ermittleDomKanten()` gruppierte Kreise zwar korrekt
+nach `(bauteil, farbe)` für die Kanten-Rekonstruktion selbst, aber
+`nummeriereKanten()` bekam anschließend ALLE vier Funktions-Teilgraphen
+gemischt übergeben statt nur die gerade abgefragte - ein 4-poliges Bauteil
+wie RCD1 (eigene Kante pro Pol) wurde dadurch fälschlich als "Bauteil mit
+mehreren Kanten" gezählt (`RCD1 (3)` statt `RCD1`), was eine falsche
+ABWEICHUNG-Meldung auslöste, obwohl Graph und Browser inhaltlich
+übereinstimmten. Fix: jede DOM-Kante trägt jetzt zusätzlich ihre Funktion
+(aus der Farbe abgeleitet, `FARBE_ZU_FUNKTION`, invertiertes
+`KABELFARBEN` aus `generate_anlage.js`) und wird vor dem Vergleich auf die
+angefragte Funktion gefiltert - **Lektion:** der Skill fing genau die Art
+Bug ab, die er verhindern soll, nur eine Ebene höher (im Skill selbst,
+nicht in der App) - ein guter Beleg für den Wert der Gegenprobe.
+
+Verifiziert an drei Fällen: testcase_04 LS3 (lineare Kette, keine
+Verzweigung), testcase_05 LS1 (Verzweigung an der geteilten
+Hauptschalter-Sammelschiene N9, `RCD2 (1), RCD2 (2)`), testcase_05 LS3
+(Pfad über RCD2s `weitere`-Zweig selbst, `RCD1, RCD2 (1)` als
+Verzweigung an N9).
+
+**Zweite Aufrufform für Endstellen (User-Vorgabe, direkt im Anschluss,
+2026-07-28): `node tools/pfad_zur_einspeisung.js <testcase> --endstelle <SK> <funktion>`**
+(z.B. `node tools/pfad_zur_einspeisung.js testcase_05 --endstelle SK1 L1`
+für die Drehstromsteckdose an SK1). Eine Endstelle (Drehstromsteckdose,
+Anschlussdose/Lichtauslass, Schuko-Steckdose, 5-polige Anschlussdose - alle
+in `view/steckdosen.js`) hat KEINE eigene Schraube im Schaltkasten und
+trägt im DOM auch keine `data-bauteil`/`data-netz`-Attribute (siehe
+`view/steckdosen.js` `klickbar()` - nur ein Klick-Handler, keine
+Kennzeichnungs-Attribute wie bei einer Schaltkasten-Schraube) - eine Sonde
+dort lässt sich also nicht wie im Normalfall identifizieren. Die Netz-ID
+wird stattdessen direkt aus `anlage.json`s `stromkreis.leitung.adern`
+aufgelöst (`ermittleEndstelleNetz()`, spiegelt `findeStromkreis()`/
+`findeAder()` aus `view/steckdosen.js` 1:1 - derselbe Weg, den
+`SteckdosenView.render()` selbst nutzt, keine zweite Datenquelle). Die
+Tabelle bekommt eine zusätzliche erste Zeile (Eingang = die aufgelöste
+Netz-ID, Ausgang = `(Kontakt)` - nichts liegt weiter stromabwärts als die
+Endstelle selbst, passt zur Ketten-Eigenschaft der übrigen Zeilen -,
+Bauteil = `<endstelle> <SK-Bezeichnung>`, z.B. `Drehstromsteckdose SK1`),
+die für BEIDE Tabellen (Graph und Browser) identisch angehängt wird, bevor
+verglichen wird - beeinflusst die Abweichungserkennung deshalb nicht.
+Verifiziert an allen drei Endstellen-Typen: Drehstromsteckdose (testcase_05
+SK1 L1, zeigt korrekt die RCD2-Verzweigung bei N9), Schuko-Steckdose
+(testcase_05 SK2 L1), Anschlussdose/Lichtauslass (testcase_01 SK2 L1).

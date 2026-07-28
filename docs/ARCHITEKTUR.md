@@ -2365,7 +2365,7 @@ Neu in `app.js`:
   MΩ-Zahlen, `Math.round()` statt `toFixed(2)` verliert deshalb keine
   Präzision). Der `Infinity`-Sentinel (`R:>999MΩ`) bleibt unverändert.
 
-Getestet in `test_messgeraet.js` (10 Tests insgesamt zu diesem Feature,
+Getestet in `test_messgeraet.js` (12 Tests insgesamt zu diesem Feature,
 testcase_05, Schritt 1+2 zusammen): RCD2 (Typ B) ALLEIN liefert `R:13MΩ`
 (LS2 UND LS3 zuvor per Schraubendreher an ihren eigenen Eingängen
 abgeklemmt, sonst wären sie über den geteilten Netz-Knoten immer mit in
@@ -2402,7 +2402,24 @@ wieder rein, LS2s eigene Schraube gelöst -> `R:12MΩ` (nur noch RCD2+LS3);
 zusätzlich LS3s eigene Schraube gelöst -> `R:13MΩ` (nur noch RCD2 allein);
 Grenzwert per ▼ von 50MΩ auf 10MΩ gesenkt, Messwert bleibt `R:13MΩ`, aber
 die Ampel kippt von rot auf grün (13MΩ liegt jetzt über dem gesenkten
-Grenzwert).
+Grenzwert); testcase_04s RCD1 (4-polig, auf User-Wunsch 2026-07-28 von Typ
+A auf Typ B umgestellt, siehe KONZEPT.md "Konfigurierbare Parameter") an
+seinem eigenen Eingang zwischen L2 und L3 gemessen -> `R:13MΩ` (isolierter
+Einzelfall ohne Kombination, da testcase_04 keine AFDD-Geräte enthält),
+Ampel rot - erster Test dieses Features an einem 4-poligen statt nur
+2-poligen RCD; ein zweiter, ausführlicherer End-zu-End-Test an demselben
+RCD1, diesmal mit Sonden an den Ausgängen von LS1 (L1) und LS3 (L3) - RCD1
+wird nur TRANSITIV über zwei unabhängige LS-Zweige gefunden (anders als
+testcase_05s RCD2 mit geteilter Ausgangsschraube): Hauptschalter aus ->
+`13MΩ`; LS1s EIGENER Hebel offen blockiert den Zweig -> `>999MΩ`
+(bestätigt, dass der eigener-Hebel-Fix generisch für JEDES Bauteil mit
+Hebel gilt); Hebel wieder zu -> `13MΩ`, Ampel rot; LS3s EIGENE
+Eingangsschraube gelöst (nicht die Ausgangsschraube - dort sitzt schon die
+Messspitze, ein Schraubendreher-Klick auf eine belegte Schraube ist
+wirkungslos) -> `>999MΩ`; Schraube rein, Hauptschalter wieder zu -> 400V;
+Hauptschalters EIGENE Ausgangsschraube für L3 gelöst (stromaufwärts von
+RCD1, nicht RCD1 selbst) -> 0V, aber RCD1 bleibt trotzdem gefunden
+(`13MΩ`), da keine Pfadsuche bis zur Einspeisung nötig ist.
 
 Getestet in `test_messgeraet.js` (17 Tests): Spannung liegt an → 230V
 angezeigt, TEST wirkungslos; Schwarz/Blau vertauscht (Rollen-Symmetrie, siehe

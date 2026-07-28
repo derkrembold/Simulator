@@ -132,7 +132,7 @@
           "phase": "L1/L2/L3",
           "rcd": {
             "name": "RCD1",
-            "typ": "A",
+            "typ": "B",
             "polig": 4,
             "te": 4,
             "in_ma": 30,

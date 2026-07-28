@@ -2270,6 +2270,34 @@ kippt von rot auf grün, da 13MΩ jetzt über dem neuen Grenzwert liegt -
 bestätigt, dass die Grenzwert-Ampel-Logik auch im neu eingeführten
 MΩ-Wertebereich korrekt funktioniert.
 
+**testcase_04s RCD1 auf Typ B umgestellt (User-Vorgabe, 2026-07-28):**
+reiner Datenwert-Diff (`bauteile.md`, `Typ`-Spalte A -> B, Fehlerstrom
+unverändert 30mA), `anlage.json` neu generiert/promotet, `anlage.svg` neu
+gerendert (RCD-Label zeigt den Typ direkt: "A 30mA" -> "B 30mA"). Erster
+Test dieses Features an einem 4-poligen statt nur 2-poligen RCD: Sonden an
+RCD1s eigenem Eingang zwischen L2 und L3, Hauptschalter aus -> `13MΩ`,
+Ampel rot - der isolierte Einzelfall ohne Kombination, da testcase_04
+keine AFDD-Geräte enthält (die gibt es bisher nur in testcase_05 Gruppe
+G2).
+
+**Zweiter, ausführlicherer Testcase dazu (User-Vorgabe, komplett
+spezifiziert, 2026-07-28):** Sonden diesmal an den Ausgängen von LS1 (L1,
+erster LS) und LS3 (L3, letzter LS auf der Hutschiene) statt direkt an
+RCD1 - RCD1 wird also nur TRANSITIV über zwei unabhängige LS-Zweige
+gefunden (anders als testcase_05s RCD2 mit geteilter Ausgangsschraube zu
+zwei AFDDs). Bestätigt mehrere Aspekte gleichzeitig: LS1s eigener Hebel
+blockiert die Suche auf seinem Zweig genauso wie beim RCD2-eigener-Hebel-
+Fix (generisch, nicht RCD/AFDD-spezifisch); LS3s eigene (Eingangs-)Schraube
+physisch gelöst blockiert ebenfalls; Hauptschalters eigene Ausgangsschraube
+für L3 (stromaufwärts von RCD1, NICHT RCD1 selbst) gelöst ändert dagegen
+NICHTS an der RCD1-Erkennung (`13MΩ` bleibt), obwohl die Spannung auf 0V
+fällt - bestätigt erneut die "keine Pfadsuche bis zur Einspeisung
+nötig"-Architektur. **Wichtige Falle beim Umsetzen:** ein
+Schraubendreher-Klick auf eine Schraube, an der bereits eine Messspitze
+sitzt, ist bewusst wirkungslos (`onSchraubeKlick()`) - die Schraube muss
+am ANDEREN Ende des Bauteils gelöst werden (z.B. LS3s Eingang statt
+Ausgang), auch wenn beide dieselbe Kante kappen.
+
 Anzeige: `risoMesswert` ist normalerweise ein winziger Ω-Wert aus der
 Fehlertabelle (Bruchteile bis wenige Ω, wie bei RLOW) - die neuen
 Elektronik-Werte liegen dagegen immer im MΩ-Bereich (Millionen Ω). Ab 1MΩ

@@ -1247,6 +1247,106 @@ async function main() {
     await page.close();
   });
 
+  // testcase_04s RCD1 (4-polig) wurde auf Typ B umgestellt (User-Vorgabe,
+  // 2026-07-28, direkt im Anschluss) - erster RISO-Elektronik-Leckage-Test
+  // an einem 4-poligen statt nur 2-poligen RCD, UND ohne jegliche AFDD in
+  // der Nähe (testcase_04 hat keine), also der reine isolierte
+  // RCD-Typ-B-Einzelfall (13MΩ, keine Kombination). Sonden an RCD1s
+  // eigenem Eingang L2 (N10, schwarz) und L3 (N11, blau) - zwei
+  // verschiedene Phasen, damit RISO überhaupt eine Isolationsmessung
+  // erkennt (siehe "400V zwischen zwei verschiedenen Phasen" oben).
+  await pruefe('RISO: testcase_04 - RCD1 (jetzt Typ B) liefert 13MΩ zwischen L2 und L3 an seinem eigenen Eingang, Ampel rot', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N10"]').click(); // schwarz: RCD1 Eingang L2
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N11"]').click(); // blau: RCD1 Eingang L3
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    erwarte(await displayTexte(page), '400V', 'Hauptschalter an -> 400V zwischen L2 und L3');
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter aus -> spannungsfrei
+
+    erwarte(await displayTexte(page), '0V', 'Hauptschalter aus -> 0V');
+
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:13MΩ', 'RCD1 (Typ B) allein in der Schnittmenge, keine AFDD in testcase_04 -> eigener Wert ohne Kombination');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '13MΩ liegt unter dem Default-Grenzwert (50MΩ) -> Ampel rot');
+    await page.close();
+  });
+
+  // Zweiter ausführlicher End-zu-End-Testcase an testcase_04s RCD1 (Typ B,
+  // User-Vorgabe, komplett spezifiziert, 2026-07-28): anders als der Test
+  // oben (Sonden direkt an RCD1s eigenem Eingang) hängen die Sonden hier
+  // an den Ausgängen von LS1 (erster LS, L1) UND LS3 (letzter LS auf der
+  // Hutschiene, L3) - RCD1 wird also nur TRANSITIV über je einen eigenen,
+  // unabhängigen LS-Zweig gefunden (anders als testcase_05s RCD2, das über
+  // eine GETEILTE Schraube zwei AFDDs speist). Deckt ab: (1) TEST bei
+  // anliegender Spannung bleibt wirkungslos; (2) Hauptschalter aus -> RCD1
+  // gefunden (13MΩ); (3) LS1s EIGENER Hebel offen blockiert die Suche
+  // dahinter (>999MΩ) - bestätigt, dass der RCD2-eigener-Hebel-Fix (siehe
+  // oben) generisch für JEDES Bauteil mit eigenem Hebel gilt, nicht nur
+  // für RCD/AFDD selbst; (4) Hebel wieder zu -> zurück auf 13MΩ, Ampel rot;
+  // (5) LS3s EIGENE Schraube gelöst -> RCD1 über diesen Zweig nicht mehr
+  // erreichbar (>999MΩ) - WICHTIG: nicht die Ausgangsschraube (dort sitzt
+  // schon die blaue Messspitze, ein Schraubendreher-Klick auf eine Schraube
+  // mit gesetzter Messspitze ist bewusst wirkungslos, `onSchraubeKlick()`),
+  // sondern LS3s Eingangsschraube (andere Schraube, exakt dieselbe Kante);
+  // (6) Schraube wieder rein, Hauptschalter wieder zu -> 400V; (7) NICHT
+  // RCD1s eigene, sondern Hauptschalters eigene Ausgangsschraube für L3
+  // gelöst (etwas STROMAUFWÄRTS von RCD1, nicht RCD1 selbst) -> 0V, aber
+  // RCD1 bleibt trotzdem gefunden (13MΩ), da keine Pfadsuche bis zur
+  // Einspeisung nötig ist (siehe "Iteration 2" oben, ARCHITEKTUR.md).
+  await pruefe('RISO: testcase_04 - RCD1 (Typ B) über LS1/LS3-Ausgänge gefunden, eigener LS-Hebel und LS-Schraube blockieren, Hauptschalter-Ausgangsschraube (stromaufwärts von RCD1) blockiert NICHT', async () => {
+    const page = await neueSeiteMitTestcase('testcase_04');
+    await drehknopfKlick(page); // RLOW -> RISO
+
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS1"][data-netz="N24"]').click(); // schwarz: LS1-Ausgang L1
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS3"][data-netz="N26"]').click(); // blau: LS3-Ausgang L3
+    await page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first().click(); // grün
+
+    erwarte(await displayTexte(page), '400V', 'Hauptschalter zu -> 400V zwischen L1 und L3');
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:---MΩ', 'TEST bei anliegender Spannung bleibt wirkungslos');
+
+    const hsHandle = await findeSchalterHandleNaheBauteil(page, 'Hauptschalter');
+    await hsHandle.click(); // Hauptschalter auf -> spannungsfrei
+
+    erwarte(await displayTexte(page), '0V', 'Hauptschalter auf -> 0V');
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:13MΩ', 'RCD1 (Typ B) über beide LS-Zweige gefunden');
+
+    const ls1Handle = await findeSchalterHandleNaheBauteil(page, 'LS1');
+    await ls1Handle.click(); // LS1s eigenen Hebel öffnen
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'RCD1 hinter LS1s eigenem offenen Hebel auf diesem Zweig nicht mehr erreichbar');
+
+    await ls1Handle.click(); // LS1s Hebel wieder schließen
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:13MΩ', 'LS1-Hebel wieder zu -> RCD1 wieder über beide Zweige erreichbar');
+    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '13MΩ < 50MΩ Default-Grenzwert -> Ampel rot');
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS3"][data-netz="N22"]').click(); // LS3-EINGANGS-Schraube lösen (Ausgang trägt schon die blaue Messspitze)
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:>999MΩ', 'LS3s eigene Schraube physisch gelöst -> RCD1 auch über diesen Zweig nicht mehr erreichbar');
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="LS3"][data-netz="N22"]').click(); // LS3-Schraube wieder rein
+
+    await hsHandle.click(); // Hauptschalter wieder zu
+    erwarte(await displayTexte(page), '400V', 'Hauptschalter wieder zu -> 400V');
+
+    await page.locator('#schraubendreher svg').click();
+    await page.locator('#schaltkasten svg circle[data-bauteil="Hauptschalter"][data-netz="N11"]').click(); // Hauptschalters eigene Ausgangsschraube für L3 lösen (NICHT RCD1s eigene Schraube)
+
+    erwarte(await displayTexte(page), '0V', 'L3 physisch von der Einspeisung getrennt -> 0V');
+    await klick(page, 'TEST');
+    erwarte(await displayTexte(page), 'R:13MΩ', 'RCD1 bleibt trotzdem gefunden - die Trennung liegt stromaufwärts von RCD1, nicht an RCD1 selbst');
+    await page.close();
+  });
+
   await pruefe('RISO: Grün nicht auf PE -> TEST bleibt wirkungslos', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     await drehknopfKlick(page);

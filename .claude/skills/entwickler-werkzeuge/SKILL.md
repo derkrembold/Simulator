@@ -44,5 +44,39 @@ zwischen Datenmodell und Rendering konsistent ist.
 **Nicht geeignet für:** Fragen zu Schalterzuständen/Messwerten (Hebel/
 Schrauben-Interaktion, RISO/RCD-Auslösewerte etc.) - das Werkzeug ignoriert
 bewusst jeden Schaltzustand und prüft nur die statische Verdrahtung. Dafür
-weiterhin ein throwaway-Playwright-Skript bauen (siehe bestehende Muster in
-`tests/visuell/test_messgeraet.js`).
+`tools/messgeraet_steuerung.js` (siehe unten).
+
+### `tools/messgeraet_steuerung.js`
+
+Node-Modul (kein CLI-Tool, sondern `require()`-bar), das das komplette
+throwaway-Playwright-Interaktionsmuster dieser Session formalisiert:
+Server/Browser starten, Drehknopf auf einen Modus drehen, Werte einstellen/
+lesen, Messspitzen setzen, Bauteil-Hebel/Schrauben bedienen, TEST drücken.
+Vor jedem NEUEN throwaway-Verifikationsskript erst prüfen, ob sich der
+Ablauf komplett aus diesem Modul zusammensetzen lässt, statt Boilerplate
+neu zu schreiben.
+
+```js
+const { starteTestUmgebung, drehknopfAufModus, stelleEin, leseWert,
+  messspitzeSetzen, hebelSchalten, schraubeSchalten, testDruecken
+} = require('./tools/messgeraet_steuerung.js');
+
+const ctx = await starteTestUmgebung('testcase_04');
+await drehknopfAufModus(ctx, 'RISO');
+await stelleEin(ctx, 'grenzwiderstand', 30);
+await messspitzeSetzen(ctx, { bauteil: 'RCD1', netz: 'N10' });
+await messspitzeSetzen(ctx, { bauteil: 'RCD1', netz: 'N11' });
+await messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' });
+await testDruecken(ctx);
+console.log(await leseWert(ctx, 'hauptmesswert'), await leseWert(ctx, 'ampel'));
+await ctx.schliessen();
+```
+
+Welche Felder pro Modus settable/readable sind (inkl. Defaults, feste
+Wertelisten vs. Schrittweiten): siehe ARCHITEKTUR.md "Messgerät:
+Settable/Readable-Referenz" - direkt vor der Tool-Beschreibung selbst.
+
+**Wichtiger Fallstrick:** `schraubeSchalten()` auf eine Schraube mit
+bereits gesetzter Messspitze ist wirkungslos UND lässt das Werkzeug
+"aufgenommen" zurück (App-Verhalten, kein Bug) - immer eine Schraube ohne
+eigene Messspitze wählen.

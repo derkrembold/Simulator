@@ -3106,3 +3106,227 @@ verglichen wird - beeinflusst die Abweichungserkennung deshalb nicht.
 Verifiziert an allen drei Endstellen-Typen: Drehstromsteckdose (testcase_05
 SK1 L1, zeigt korrekt die RCD2-Verzweigung bei N9), Schuko-Steckdose
 (testcase_05 SK2 L1), Anschlussdose/Lichtauslass (testcase_01 SK2 L1).
+
+### Messgerät: Settable/Readable-Referenz (Vorarbeit, 2026-07-29)
+
+Grundlage für das nächste geplante Entwickler-Skill: das etablierte
+throwaway-Playwright-Muster dieses Projekts (Drehknopf drehen, Parameter
+per ◄►/▲/▼ einstellen, TEST drücken, Display auslesen - vor jedem
+permanenten Test in `test_messgeraet.js` manuell gebaut) formalisieren.
+Bevor der Code entsteht, erst diese Referenz erarbeitet (User, iterativ
+über mehrere Rückfragen): welche Werte sind pro Drehknopf-Modus
+**Settable** (über ◄►/▲/▼ einstellbar) und welche **Readable** (vom
+Display ablesbar)? Bewusst PRO MODUS aufgeschlüsselt statt generischer
+Cross-Mode-Bausteine (User: "ich denke die Aufdröselung muss
+drehknopfabhängig passieren") - jeder Modus hat eine unterschiedliche
+Anzahl/Art von Feldern (V~ hat z.B. gar kein Settable, FI/RCD einen
+Hebel-Zustand, den sonst niemand hat), das bildet sich in einem
+verschachtelten Objekt (Modus -> `{settable, readable}`) sauberer ab als
+in einer gleichförmigen Tabelle - siehe Diskussion dazu unten.
+
+**Zwei Modi (RLOW, ZI, ZS) haben einen Titel-Toggle zu einer eigenen
+Unter-Ansicht mit teilweise anderen Feldern** - deshalb hier als eigene
+Einträge geführt (RLOW: Durchgang/R LOW; ZI: normal/ΔU; ZS: normal/ZSRCD),
+nicht als Sonderfall-Anhängsel. Der Toggle selbst ist konzeptionell etwas
+anderes als die übrigen Settable-Felder (er wechselt die GESAMTE
+Ansicht/welche Felder überhaupt gelten, statt nur einen Wert innerhalb
+einer Ansicht) - deshalb unten separat als "Ansicht wechseln" geführt,
+nicht vermischt mit den Werte-Feldern.
+
+**Settable-Felder gibt es in zwei grundsätzlich verschiedenen Arten**
+(wichtig für die spätere `stelleEin()`-Implementierung): eine FESTE
+WERTELISTE (durchklicken durch ein Array, an beiden Enden geklemmt) oder
+ein FREIER ZAHLENWERT MIT SCHRITTWEITE (nur eine untere Klemmgrenze, keine
+Werteliste). Alle konkreten Werte/Defaults stammen direkt aus den
+`const`-Arrays und Startwerten in `controller/app.js`.
+
+**Bewusst NICHT aufgenommen:** die Messpunkt-Kreise (voll/halb/leer unter
+L/PE/N) sind laut `DREHKNOPF_POSITIONEN` (`view/messgeraet.js`) feste
+Vorgaben pro Drehknopf-Position, keine von einer Interaktion abhängige
+Anzeige - für ein Verifikations-Skill ohne Nutzen, deshalb weggelassen
+(User-Zustimmung nach meinem Einwand).
+
+#### RLOW (Durchgang)
+
+- Settable:
+  - Werte: Kalibrierter Widerstand (0,1Ω-Schritte, ab 0Ω geklemmt) - Default: 0,4Ω
+  - Ansicht wechseln: zu R LOW
+- Readable:
+  - Hauptmesswert (R:)
+
+#### RLOW (R LOW)
+
+- Settable:
+  - Werte: Kalibrierter Widerstand (0,1Ω-Schritte, ab 0Ω geklemmt) - Default: 0,4Ω
+  - Ansicht wechseln: zurück zu Durchgang
+- Readable:
+  - Hauptmesswert (R:)
+  - R+
+  - R−
+
+#### RISO
+
+- Settable:
+  - Werte: Prüfspannung (50/100/250/500/1000V - Default: 500V), Grenzwiderstand (10MΩ-Schritte, ab 0MΩ geklemmt - Default: 50MΩ)
+- Readable:
+  - Hauptmesswert (R:)
+  - Spannung unter PE-Kreis
+  - Ampel
+
+#### ZI
+
+- Settable:
+  - Werte: LS-Typ (B/C/D/K/Z/L/U/NV/gG - Default: B), Bemessungsstrom (6/10/13/16/20/25/32/35/40/50/63/80/100/125A - Default: 16A), Abschaltzeit (35ms/70ms/0,1s/0,2s/0,4s/1s/5s - Default: 0,4s)
+  - Ansicht wechseln: zu ΔU
+- Readable:
+  - Hauptmesswert (Z:)
+  - Isc
+  - Lim
+  - Spannung unter PE-Kreis
+  - Ampel (Isc vs. Lim)
+
+#### ZI (ΔU)
+
+- Settable:
+  - Werte: Spannungsfall % (0,5%-Schritte, ab 0% geklemmt - Default: 4,0%), LS-Typ, Bemessungsstrom, Abschaltzeit (wie bei ZI)
+  - Ansicht wechseln: zurück zu ZI
+- Readable:
+  - ΔU (Platzhalter, noch nicht berechnet)
+  - Isc
+  - Z
+  - Zref (Referenzimpedanz, fester Startwert 0,1Ω, NICHT einstellbar - reiner Anzeigewert)
+  - Spannung unter PE-Kreis
+
+#### ZS
+
+- Settable:
+  - Werte: LS-Typ, Bemessungsstrom, Abschaltzeit (wie bei ZI)
+  - Ansicht wechseln: zu ZSRCD
+- Readable:
+  - Hauptmesswert (Z:)
+  - Isc
+  - Lim
+  - Spannung unter PE-Kreis
+  - Ampel (Isc vs. Lim)
+
+#### ZS (ZSRCD)
+
+- Settable:
+  - Werte: Std/Low (Std/Low - Default: Std), LS-Typ, Bemessungsstrom, Abschaltzeit
+  - Ansicht wechseln: zurück zu ZS
+- Readable:
+  - Hauptmesswert (Z:) - identisch zur normalen ZS-Ansicht
+  - Isc
+  - Lim
+  - Spannung unter PE-Kreis
+  - Ampel (Isc vs. Lim)
+
+#### FI/RCD
+
+- Settable:
+  - Werte: Fehlerstrom (10/30/100/300/500mA - Default: 30mA), Typ (AC/A/F/B/B+ - Default: AC)
+- Readable:
+  - I:
+  - Uci:
+  - t:
+  - Spannung unter PE-Kreis
+  - Ampel
+  - Hebel-Zustand (öffnet automatisch nach TEST)
+
+#### V~
+
+- Readable:
+  - Uln
+  - Ulpe
+  - Unpe
+  - Phasenfolge ("1.2.3."/"3.2.1.")
+
+**Modusübergreifend:** Kasten-Indikator (Pfeil/Sanduhr, durchgestrichen
+ja/nein) - dynamisch, abhängig von anliegender Spannung, in jedem Modus
+gleich abfragbar.
+
+### `tools/messgeraet_steuerung.js` (2026-07-29)
+
+**Zweck:** die eigentliche Umsetzung der Referenz oben - ein Node-Modul
+(keine CLI wie `pfad_zur_einspeisung.js`, sondern `require()`-bar von
+künftigen throwaway-Skripten UND permanenten Tests), das das komplette
+throwaway-Playwright-Interaktionsmuster dieser Session in wiederverwendbare
+Funktionen fasst: Server/Browser starten, Drehknopf auf einen Modus drehen,
+Werte einstellen/lesen, Messspitzen setzen, Bauteil-Hebel/Schrauben
+bedienen, TEST drücken.
+
+**Exportierte Funktionen:**
+- `starteTestUmgebung(testcase)` - Server+Browser starten, App laden,
+  einschalten. Liefert einen Kontext (`ctx`), der Zustand mitführt
+  (aktueller Modus/Ansicht/◄►-Position/Settable-Werte) - siehe unten, warum
+  das nötig ist.
+- `drehknopfAufModus(ctx, modus)` - dreht vorwärts (wie am echten Gerät)
+  bis zum Zielmodus.
+- `wechsleAnsicht(ctx)` - Titel-Toggle (RLOW↔R LOW, ZI↔ΔU, ZS↔ZSRCD).
+- `stelleEin(ctx, feld, wert)` / `leseWert(ctx, feld)` - Feldnamen exakt
+  wie in der Referenz oben (`lsTyp`, `grenzwiderstand`, `hauptmesswert`,
+  `isc`, `ampel`, ...).
+- `messspitzeSetzen(ctx, ziel)` - `{bauteil, netz}` für eine
+  Schaltkasten-Schraube, oder ein fertiger Playwright-Locator für
+  Steckdosen-/Endstellenkontakte (die kein `data-bauteil`/`data-netz`
+  tragen, siehe `view/steckdosen.js`).
+- `hebelSchalten(ctx, bauteil)` / `schraubeSchalten(ctx, bauteil, netz)`.
+- `testDruecken(ctx)`.
+
+**Warum der Kontext (`ctx`) eigenen Zustand mitführen muss:** `zone1Auswahl`
+(die per ◄► gewählte Position) ist eine reine Closure-Variable in
+`controller/app.js`, von außen nicht auslesbar - `stelleEin()` muss also
+selbst mitzählen, wie oft ◄► seit dem letzten Drehknopf-Wechsel geklickt
+wurde, um gezielt zu einem Feld zu navigieren. Das funktioniert zuverlässig,
+weil **jeder Drehknopf-Klick in `controller/app.js` (`setzeBearbeitungenZurueck()`)
+ALLE Settable-Werte auf ihre Defaults zurücksetzt und `zone1Auswahl` auf 0**
+- `drehknopfKlickRoh()` (intern) spiegelt das exakt, sodass `ctx.werte` nach
+jedem Drehknopf-Klick garantiert wieder den echten Defaults entspricht,
+unabhängig vom vorherigen Zustand. Ein Titel-Toggle (ΔU/ZSRCD/R LOW)
+dagegen setzt NICHTS zurück (geteilte Felder wie LS-Typ bleiben über den
+Toggle hinweg erhalten) - `wechsleAnsicht()` lässt `ctx.werte` deshalb
+bewusst unverändert.
+
+**`MESSGERAET_MODI`** (Settable) und **`READABLE`** (Readable) sind die
+Datenstrukturen, auf die die ganze Zeit hingearbeitet wurde - direkte
+Übersetzung der Tabellen oben in Code, mit `zone`-Angaben (Position in der
+◄►-Reihenfolge) und entweder einer festen Werteliste oder Schrittweite pro
+Settable-Feld.
+
+**Zwei echte Bugs beim Verifizieren gefunden (bevor der Skill als fertig
+galt):**
+1. **V~ liefert leeren Wert.** Anders als überall sonst (`hauptwert` ist
+   dort immer EIN kombinierter String wie `R:13MΩ`) zeichnet V~ Label
+   (`Uln:`) und Wert (`230V`) als ZWEI getrennte `<text>`-Elemente (siehe
+   `view/messgeraet.js` `zeichneDisplay()`, `{label, wert}`-Objekte in
+   `hauptwertZeilen`). Ein Präfix-Suche nach `Uln:` trifft deshalb nur das
+   Label selbst. Fix: `nachLabel()` sucht das exakte Label im
+   `displayTexte()`-Array und liefert das NÄCHSTE Element (Label und Wert
+   werden in dieser Reihenfolge direkt hintereinander gezeichnet).
+2. **`schraubeSchalten()` hängt sich beim zweiten Aufruf auf.** Selbst
+   verursacht, aber lehrreich: ein Klick mit dem Werkzeug auf eine Schraube
+   mit bereits gesetzter Messspitze ist in `controller/app.js` bewusst
+   wirkungslos - UND lässt das Werkzeug "aufgenommen" zurück (siehe
+   `test_schraubendreher.js`s Test "Klick auf eine Schraube mit bereits
+   gesetzter Messspitze bleibt wirkungslos, Werkzeug bleibt aufgenommen" -
+   bereits bekanntes, getestetes Verhalten der App, kein neuer Fund). Ein
+   zweiter `schraubeSchalten()`-Aufruf direkt danach findet das Werkzeug an
+   der erwarteten Stelle nicht mehr und hängt sich auf. Kein Code-Fix
+   (korrektes App-Verhalten) - stattdessen ein deutlicher Warnkommentar in
+   der Funktion selbst: immer eine Schraube OHNE eigene Messspitze wählen.
+
+**Verifiziert an fünf Szenarien** (alle mit bereits aus früheren Sessions
+bekannten, manuell geprüften Werten): RISO an testcase_04s RCD1 (Typ B,
+L2/L3) - Spannung 400V→0V nach Hauptschalter-Hebel, `R:13MΩ`/Ampel rot,
+nach Grenzwiderstand-Senkung auf 10MΩ Ampel grün; ZI mit LS-Typ C/20A ->
+`Lim: 200,0A`, ΔU-Ansicht zeigt `Zref: 0,1Ω`, nach Rückwechsel bleibt
+Lim unverändert (bestätigt geteilten Zustand über den Toggle); ZSRCD mit
+Std/Low=Low; RLOW Kalibrierter Widerstand setzen + R LOW-Ansicht mit
+R+/R−-Platzhaltern; FI/RCD an testcase_06s Steckdose (SK2) ->
+`I:24,0mA`/`Uci:0,9V`/`t:21,0ms` (RCD2s bekannte Auslösewerte). Dazu V~
+(`230V`/`0V`/`0V`) und ein Schraube-lösen/wiedereindrehen-Zyklus.
+`npm test` bleibt unberührt (238 Tests) - das Modul ändert nichts an
+controller/model/view.
+
+**Noch offen:** Eintrag im Index-Skill
+`.claude/skills/entwickler-werkzeuge/SKILL.md` (siehe dort).

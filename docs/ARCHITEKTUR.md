@@ -1161,14 +1161,28 @@ Zweites HTML-basiertes View im Projekt neben `view/popup.js`.
   dupliziert). Bewusst modul-eigenes CSS statt Ergänzung in `index.html`s
   `<style>`-Block (anders als `.popup`), da hier deutlich mehr
   Formular-spezifische Klassen anfallen als bei einem einzelnen Tooltip.
-- Inhalt/Struktur exakt aus `docs/referenz/Prüfprotokoll.md` übernommen:
-  `BESICHTIGEN_PUNKTE` (14), `ERPROBEN_PUNKTE` (7), `ERDUNG_PUNKTE` (16),
-  `STROMKREIS_SPALTEN` (20, wortgleich aus der Tabellenüberschrift der .md)
-  als Konstanten-Arrays, daraus generieren `pruefpunktTabelle()`/
+- Inhalt/Struktur folgt `docs/BEDIENERPROZESS.md` (nicht mehr wortgleich
+  `docs/referenz/Prüfprotokoll.md` - BEDIENERPROZESS.md ist die bewusst
+  weiterentwickelte, an die Simulation angepasste Spezifikation, siehe dort
+  "Nomenklatur"/Pflicht-Spalten). Konstanten-Arrays: `BESICHTIGEN_PUNKTE`
+  (14), `ERPROBEN_PUNKTE` (7), `DURCHGAENGIGKEIT_PUNKTE` (14, für den
+  Abschnitt "Durchgängigkeit Potentialausgleich nachgewiesen" -
+  "Erdungswiderstand Re" ist NICHT mehr Teil dieser Liste, siehe unten),
+  `STROMKREIS_GRUPPEN` (7 Gruppen, flach 19 Spalten über
+  `STROMKREIS_SPALTEN = STROMKREIS_GRUPPEN.flatMap(...)`) als
+  Konstanten-Arrays, daraus generieren `pruefpunktTabelle()`/
   `baueStromkreisverteiler()`/`baueMessgeraeteTabelle()` die jeweiligen
   `<table>`s. Optik an `docs/referenz/Prüfprotokoll.pdf` angelehnt (schwarz
   umrandetes Blatt `.pf-blatt`, kompakte Tabellenzellen, ☐-Kästchen) - kein
   Pixel-Nachbau, sondern derselbe amtliche Formular-Charakter.
+- **Erdungswiderstand** eigener Abschnitt (`baueErdungswiderstand()`), VOR
+  "Durchgängigkeit Potentialausgleich nachgewiesen": nur ein Feld
+  ("Erdungswiderstand Re"), freier Zahlenwert in Ω statt einer
+  i.O./n.i.O.-Ankreuzzelle wie die anderen Prüfpunkt-Tabellen - dafür ein
+  schmales `feld('', true)` (fixe Breite, kein `flex: 1 1 auto`) direkt
+  gefolgt von "Ω" als Text, damit die Einheit nah am Eingabefeld steht statt
+  an den rechten Rand der Zeile gedrückt zu werden (das normale, breite
+  `feld()` hätte den gesamten verfügbaren Platz eingenommen).
 - `ProtokollView.render(container, breitePx)`: setzt `container.style.width`
   auf `breitePx` (von `controller/app.js` als `schaltkastenSvg.
   getAttribute('width')` durchgereicht - identisches Prinzip wie beim
@@ -1179,12 +1193,28 @@ Zweites HTML-basiertes View im Projekt neben `view/popup.js`.
   und `☒`, unabhängig von jedem anderen Kästchen (bewusst kein
   Radio-Verhalten, auch nicht innerhalb einer Options-Gruppe wie
   "Netzform").
-- **Messen – Stromkreisverteiler** (20 Spalten) ist breiter als die
+- **Messen – Stromkreisverteiler** (19 Spalten) ist breiter als die
   Schaltkasten-Breite - eigener `overflow-x: auto`-Wrapper (`.pf-scroll`),
   unabhängig vom Rest des Blatts, der selbst nicht seitlich scrollt. Erste
   Datenzeile hat "Hauptleitung" als vorausgefüllten `value` im
-  Zielbezeichnung-Feld (wie in der .md-Vorlage), die restlichen 10 Zeilen
-  sind komplett leer.
+  Zielbezeichnung-Feld (wie in der BEDIENERPROZESS.md-Vorlage), die
+  restlichen 10 Zeilen sind komplett leer.
+- **Zweizeiliger, gruppierter Tabellenkopf** (`baueStromkreisverteilerKopf()`):
+  eigenständige Spalten (Nr., Stromkreis/Zielbezeichnung, Rpe (Ω)) bekommen
+  `rowspan="2"` und stehen über beide Kopfzeilen hinweg, die vier Gruppen
+  (Leitung/Kabel, Riso (MΩ), Überstromschutz, RCD) bekommen ein gemeinsames
+  Gruppen-Label per `colspan` in Zeile 1 und ihre Unterspalten in Zeile 2 -
+  `STROMKREIS_GRUPPEN` (`{ label, spalten }`-Objekte, `label: null` =
+  eigenständige Spalte) treibt beides. Lange Unterspalten-Labels wie "Zs
+  (Ω)<br>L-PE" enthalten bewusst ein `<br>` an der Stelle, an der umgebrochen
+  werden soll (nicht dem Browser über `white-space: normal` überlassen, da
+  z.B. "Zs (Ω)" und "L-PE" sonst irgendwo mitten im Ω-Zeichen umbrechen
+  könnten). "Umess (V)" (in der RCD-Gruppe) ist ein Sonderfall: die
+  Unterspalte enthält zusätzlich ein eigenes `<input>` für den
+  UL-Grenzwert (Berührungsspannungsgrenze, z.B. 50V, je nach Anlage/Umgebung
+  unterschiedlich, deshalb standardmäßig LEER) - der Prüfling trägt diesen
+  Grenzwert direkt in der Spaltenüberschrift ein, bevor er die Umess-Werte
+  je Stromkreis darunter einträgt (`U_L ≤ [Eingabefeld]<br>Umess (V)`).
 - **Bewusst NICHT Teil dieser Ausbaustufe** (verschoben nach KONZEPT.md
   "Nächste Schritte"): Verknüpfung mit echten Messwerten aus dem Messgerät,
   automatische Übernahme ins Protokoll, Bewertung/Validierung (grün/rot),

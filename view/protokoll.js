@@ -86,7 +86,8 @@ function sorgeFuerCss() {
     .pf-tabelle th { background: #f0f0f0; font-weight: bold; white-space: nowrap; }
     .pf-tabelle td.pf-cb-zelle { text-align: center; }
     .pf-scroll { overflow-x: auto; }
-    .pf-scroll .pf-tabelle td, .pf-scroll .pf-tabelle th { white-space: nowrap; }
+    .pf-scroll .pf-tabelle td { white-space: nowrap; }
+    .pf-scroll .pf-tabelle th { white-space: normal; max-width: 90px; }
     .pf-scroll .pf-tabelle input.pf-feld { width: 70px; min-width: 70px; flex: none; }
     .pf-linienzeile input.pf-feld { border-bottom: 1px solid #ccc; width: 100%; }
     .pf-seite2-titel { font-size: 13px; font-weight: bold; }
@@ -115,7 +116,7 @@ function abschnitt(titel, inhaltHtml) {
 }
 
 // Tabelle mit Prüfpunkten + Ankreuzspalten (Besichtigen/Erproben: i.O./n.i.O.,
-// Erdung/Potentialausgleich: nur eine Wert-Spalte) + Bemerkung.
+// Durchgängigkeit Potentialausgleich: nur eine i.O.-Spalte) + Bemerkung.
 function pruefpunktTabelle(spaltenKoepfe, zeilenLabels) {
   const kopf = `<tr><th>Prüfpunkt</th>${spaltenKoepfe.map((s) => `<th>${s}</th>`).join('')}<th>Bemerkung</th></tr>`;
   const zeilen = zeilenLabels.map((label) =>
@@ -148,27 +149,45 @@ const ERPROBEN_PUNKTE = [
   'Überprüfung Spannungsfall', 'Gebäudesystemtechnik'
 ];
 
-const ERDUNG_PUNKTE = [
-  'Erdungswiderstand Re', 'Durchgängigkeit Potentialausgleich', 'Fundamenterder',
-  'Haupterdungsschiene', 'Hauptwasserleitung', 'Hauptschutzleiter', 'Gasinnenleitung',
-  'Heizungsanlage', 'Klimaanlage', 'Aufzugsanlage', 'EDV-Anlage', 'Telefonanlage',
-  'Blitzschutzanlage', 'Antennenanlage / BK', 'Gebäudekonstruktion',
+const DURCHGAENGIGKEIT_PUNKTE = [
+  'Fundamenterder', 'Haupterdungsschiene', 'Hauptwasserleitung', 'Hauptschutzleiter',
+  'Gasinnenleitung', 'Heizungsanlage', 'Klimaanlage', 'Aufzugsanlage', 'EDV-Anlage',
+  'Telefonanlage', 'Blitzschutzanlage', 'Antennenanlage / BK', 'Gebäudekonstruktion',
   'Wasserzwischenzähler / Potentialausgleich nachgewiesen'
 ];
 
-// Exakte Spaltenköpfe aus docs/referenz/Prüfprotokoll.md, Abschnitt
-// "Messen – Stromkreisverteiler".
-const STROMKREIS_SPALTEN = [
-  'Nr.', 'Stromkreis / Zielbezeichnung', 'Leitung/Kabel Typ', 'Querschnitt (mm²)',
-  'Rpe (Ω)', 'Riso Verbraucher ohne (MΩ)', 'Riso Verbraucher mit', 'Überstromschutz Art',
-  'Charakteristik', 'In (A)', 'Zs (Ω)', 'Ia (A)', 'L-PE Z (Ω)', 'Ir (A)', 'L-N',
-  'FI Art (A)', 'Fehlerstrom An (mA)', 'RCD Ausl. (mA)', 'Ausl.-Zeit (ms)', 'Umess (V)'
+function baueErdungswiderstand() {
+  return abschnitt('Erdungswiderstand',
+    zeile('Erdungswiderstand Re', feld('', true) + ' Ω')
+  );
+}
+
+// Spaltengruppen aus docs/BEDIENERPROZESS.md "Messen" -> "Stromkreisverteiler"
+// (erweitert/überarbeitet gegenüber der ursprünglichen, flachen Spaltenliste
+// aus docs/referenz/Prüfprotokoll.md). `label: null` = eigenständige Spalte
+// ohne Gruppierung (spannt im gerenderten Tabellenkopf per `rowspan` beide
+// Kopfzeilen), sonst eine Gruppe mehrerer Unterspalten mit gemeinsamem
+// Gruppen-Label in der oberen Kopfzeile (per `colspan`) - z.B. "RCD" über
+// den vier/fünf RCD-bezogenen Spalten, statt den Gruppennamen in jeder
+// einzelnen Spaltenüberschrift zu wiederholen.
+const STROMKREIS_GRUPPEN = [
+  { label: null, spalten: ['Nr.'] },
+  { label: null, spalten: ['Stromkreis / Zielbezeichnung'] },
+  { label: 'Leitung/Kabel', spalten: ['Typ', 'Anzahl', 'Querschnitt (mm²)'] },
+  { label: null, spalten: ['Rpe (Ω)'] },
+  { label: 'Riso (MΩ)', spalten: ['Verbraucher ohne', 'Verbraucher mit'] },
+  { label: 'Überstromschutz', spalten: ['Art Charakteristik', 'In (A)', 'Zs (Ω)<br>L-PE', 'Ik (A)<br>L-PE', 'Zi (Ω)<br>L-N', 'Ik (A)<br>L-N'] },
+  { label: 'RCD', spalten: ['In/Art (A)', 'IΔN (mA)', 'Imess (mA)', 'Ausl. Zeit tA (ms)', 'Umess (V)'] }
 ];
+
+// Flache Spaltenliste (nur die Unterspalten-Namen, ohne Gruppen-Label) -
+// bestimmt die Anzahl/Reihenfolge der Datenzellen je Zeile weiter unten.
+const STROMKREIS_SPALTEN = STROMKREIS_GRUPPEN.flatMap((g) => g.spalten);
 
 function baueKopfdaten() {
   return abschnitt('Kopfdaten',
     zeile('Nr.', feld()) +
-    zeile('Blatt', feld('', true) + ' / ' + feld('von', true)) +
+    zeile('Blatt', feld('', true) + ' von ' + feld('', true)) +
     zeile('Kunden-Nr.', feld()) +
     zeile('Auftraggeber', `<textarea class="pf-textarea" rows="2"></textarea>`) +
     zeile('Auftrag-Nr.', feld()) +
@@ -186,7 +205,7 @@ function baueKopfdaten() {
 
 function baueNetz() {
   return abschnitt('Netz',
-    zeile('Netz / V', feld()) +
+    zeile('Netz', feld('', true) + ' / ' + feld('', true) + ' V') +
     zeile('Netzform', cbGruppe(['TN-C', 'TN-S', 'TN-C-S', 'TT', 'IT'])) +
     zeile('Netzbetreiber', feld()) +
     zeile('Zähler-Nr.', feld()) +
@@ -203,8 +222,37 @@ function baueMessgeraeteTabelle() {
   );
 }
 
+// "Umess (V)" bekommt zusätzlich zum Spaltennamen ein eigenes Eingabefeld
+// IM Tabellenkopf selbst - der Prüfling trägt dort den für die jeweilige
+// Anlage/Umgebung geltenden UL-Grenzwert (Berührungsspannungsgrenze) ein,
+// bevor er die Umess-Werte je Stromkreis darunter einträgt. Bewusst KEIN
+// Default (leer) - der Grenzwert ist nicht immer 50V, der Prüfling muss
+// ihn selbst kennen (siehe docs/BEDIENERPROZESS.md "Bekannte Fehler").
+function baueStromkreisverteilerUnterspalte(gruppe, spalte) {
+  if (gruppe === 'RCD' && spalte === 'Umess (V)') return `<th>U<sub>L</sub> ≤ ${feld()}<br>Umess (V)</th>`;
+  return `<th>${spalte}</th>`;
+}
+
+// Zweizeiliger Tabellenkopf: eigenständige Spalten (Nr., Stromkreis/
+// Zielbezeichnung, Rpe) spannen per rowspan beide Kopfzeilen, gruppierte
+// Spalten (Leitung/Kabel, Riso, Überstromschutz, RCD) bekommen ein
+// gemeinsames Gruppen-Label per colspan in der oberen Zeile, statt den
+// Gruppennamen in jeder Unterspalte zu wiederholen.
+function baueStromkreisverteilerKopf() {
+  const obereZeile = STROMKREIS_GRUPPEN.map((g) =>
+    g.label === null
+      ? `<th rowspan="2">${g.spalten[0]}</th>`
+      : `<th colspan="${g.spalten.length}">${g.label}</th>`
+  ).join('');
+  const untereZeile = STROMKREIS_GRUPPEN
+    .filter((g) => g.label !== null)
+    .map((g) => g.spalten.map((s) => baueStromkreisverteilerUnterspalte(g.label, s)).join(''))
+    .join('');
+  return `<tr>${obereZeile}</tr><tr>${untereZeile}</tr>`;
+}
+
 function baueStromkreisverteiler() {
-  const kopf = `<tr>${STROMKREIS_SPALTEN.map((s) => `<th>${s}</th>`).join('')}</tr>`;
+  const kopf = baueStromkreisverteilerKopf();
   const ersteZeile = `<tr><td>${feld()}</td><td><input type="text" class="pf-feld" value="Hauptleitung"></td>${
     STROMKREIS_SPALTEN.slice(2).map(() => `<td>${feld()}</td>`).join('')
   }</tr>`;
@@ -268,7 +316,8 @@ export const ProtokollView = {
         ${baueNetz()}
         ${abschnitt('Besichtigen', pruefpunktTabelle(['i.O.', 'n.i.O.'], BESICHTIGEN_PUNKTE))}
         ${abschnitt('Erproben', pruefpunktTabelle(['i.O.', 'n.i.O.'], ERPROBEN_PUNKTE))}
-        ${abschnitt('Erdung / Potentialausgleich', pruefpunktTabelle(['Wert / i.O.'], ERDUNG_PUNKTE))}
+        ${baueErdungswiderstand()}
+        ${abschnitt('Durchgängigkeit Potentialausgleich nachgewiesen', pruefpunktTabelle(['i.O.'], DURCHGAENGIGKEIT_PUNKTE))}
         ${baueMessgeraeteTabelle()}
         ${baueStromkreisverteiler()}
         ${bauePruefergebnis()}

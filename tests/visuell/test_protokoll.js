@@ -118,20 +118,24 @@ async function main() {
     await page.close();
   });
 
-  await pruefe('Protokoll: Stromkreisverteiler-Tabelle hat 20 Spalten, 11 Datenzeilen, und braucht horizontalen Scroll', async () => {
+  await pruefe('Protokoll: Stromkreisverteiler-Tabelle hat 19 Datenspalten, zweizeiligen Gruppenkopf, 11 Datenzeilen, und braucht horizontalen Scroll', async () => {
     const page = await neueSeite();
     const info = await page.evaluate(() => {
       const scrollDiv = document.querySelector('#protokoll .pf-scroll');
       const tabelle = scrollDiv.querySelector('table');
       return {
-        spalten: tabelle.rows[0].cells.length,
+        spaltenDatenzeile: tabelle.rows[2].cells.length,
+        obereKopfzeile: tabelle.rows[0].cells.length,
+        untereKopfzeile: tabelle.rows[1].cells.length,
         zeilen: tabelle.rows.length,
         brauchtScroll: scrollDiv.scrollWidth > scrollDiv.clientWidth,
-        ersteZielbezeichnung: tabelle.rows[1].cells[1].querySelector('input').value
+        ersteZielbezeichnung: tabelle.rows[2].cells[1].querySelector('input').value
       };
     });
-    if (info.spalten !== 20) throw new Error(`erwarte 20 Spalten, gefunden ${info.spalten}`);
-    if (info.zeilen !== 12) throw new Error(`erwarte 12 Zeilen (1 Kopf + 11 Daten), gefunden ${info.zeilen}`);
+    if (info.spaltenDatenzeile !== 19) throw new Error(`erwarte 19 Datenspalten, gefunden ${info.spaltenDatenzeile}`);
+    if (info.obereKopfzeile !== 7) throw new Error(`erwarte 7 Zellen in oberer Kopfzeile (3 rowspan + 4 Gruppen), gefunden ${info.obereKopfzeile}`);
+    if (info.untereKopfzeile !== 16) throw new Error(`erwarte 16 Zellen in unterer Kopfzeile (Unterspalten der 4 Gruppen), gefunden ${info.untereKopfzeile}`);
+    if (info.zeilen !== 13) throw new Error(`erwarte 13 Zeilen (2 Kopf + 11 Daten), gefunden ${info.zeilen}`);
     if (!info.brauchtScroll) throw new Error('Tabelle sollte breiter als der Scroll-Container sein');
     if (info.ersteZielbezeichnung !== 'Hauptleitung') {
       throw new Error(`erste Zeile sollte "Hauptleitung" vorausgefüllt haben, gefunden "${info.ersteZielbezeichnung}"`);

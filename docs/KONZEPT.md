@@ -857,20 +857,27 @@ klickbare ☐/☒-Spans) statt SVG - echte Texteingabe braucht native
 Eingabefelder, SVG ist dafür das falsche Werkzeug. Einziges andere
 HTML-basierte View im Projekt: `view/popup.js`.
 
-Abschnitte (Reihenfolge und Feldnamen exakt wie in `Prüfprotokoll.md`):
-Kopfdaten, Netz, Besichtigen (14 Prüfpunkte, i.O./n.i.O./Bemerkung),
-Erproben (7 Prüfpunkte, gleiches Schema), Erdung/Potentialausgleich (16
-Prüfpunkte, eine Wert-Spalte statt i.O./n.i.O.), Verwendete Messgeräte (3
-Zeilen), Messen – Stromkreisverteiler (20 Spalten, 11 Zeilen, erste Zeile
-mit "Hauptleitung" vorausgefüllt), Prüfergebnis, Abschluss – Auftraggeber/
-Prüfer, und als eigenes zweites Blatt Seite 2 (Übergabe-/Zustandsbericht:
-Mängel/Beurteilung als je 11 linierte Zeilen, plus dieselben
-Abschluss-Felder wie Seite 1).
+Abschnitte (Reihenfolge und Feldnamen wie in `docs/BEDIENERPROZESS.md` -
+der bewusst weiterentwickelten, an die Simulation angepassten
+Spezifikation, nicht mehr wortgleich das Original-Formular
+`Prüfprotokoll.md`): Kopfdaten, Netz, Besichtigen (14 Prüfpunkte,
+i.O./n.i.O./Bemerkung), Erproben (7 Prüfpunkte, gleiches Schema),
+Erdungswiderstand (1 Feld, freier Ω-Wert), Durchgängigkeit
+Potentialausgleich nachgewiesen (14 Prüfpunkte, eine Wert-Spalte statt
+i.O./n.i.O.), Verwendete Messgeräte (3 Zeilen), Messen –
+Stromkreisverteiler (19 Spalten in 4 Gruppen + 3 eigenständigen Spalten,
+zweizeiliger Tabellenkopf, 11 Zeilen, erste Zeile mit "Hauptleitung"
+vorausgefüllt), Prüfergebnis, Abschluss – Auftraggeber/Prüfer, und als
+eigenes zweites Blatt Seite 2 (Übergabe-/Zustandsbericht: Mängel/
+Beurteilung als je 11 linierte Zeilen, plus dieselben Abschluss-Felder wie
+Seite 1).
 
-**Messen – Stromkreisverteiler braucht horizontalen Scroll:** 20 Spalten
+**Messen – Stromkreisverteiler braucht horizontalen Scroll:** 19 Spalten
 passen bei Schaltkasten-Breite nicht nebeneinander - die Tabelle sitzt in
 einem eigenen `overflow-x: auto`-Container (`.pf-scroll`), unabhängig vom
-Rest des Blatts, das selbst nicht seitlich scrollt.
+Rest des Blatts, das selbst nicht seitlich scrollt. Der Tabellenkopf ist
+zweizeilig und gruppiert (Leitung/Kabel, Riso (MΩ), Überstromschutz, RCD als
+Gruppen-Label per `colspan`, siehe ARCHITEKTUR.md "protokoll.js" für Details).
 
 **Ankreuzen:** jedes ☐/☒-Kästchen ist ein eigenständiger Span mit
 Klick-Listener (Event-Delegation auf dem Wurzel-Container), togglet

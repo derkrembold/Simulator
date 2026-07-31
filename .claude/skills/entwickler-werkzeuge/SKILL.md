@@ -80,3 +80,57 @@ Settable/Readable-Referenz" - direkt vor der Tool-Beschreibung selbst.
 bereits gesetzter Messspitze ist wirkungslos UND lässt das Werkzeug
 "aufgenommen" zurück (App-Verhalten, kein Bug) - immer eine Schraube ohne
 eigene Messspitze wählen.
+
+### `tools/fahrplan_rekorder.js`
+
+Dünner Wrapper um `tools/messgeraet_steuerung.js`: `erstelleRekorder(basis)`
+liefert ein Objekt mit denselben Funktionen, das jeden Aufruf (Funktion +
+Argumente + Rückgabewert) automatisch mitschreibt, gruppiert über
+`abschnittBeginnen(titel, begruendung)`/`abschnittEnde()`. `alsJson(anlage)`
+liefert das komplette Aktionsprotokoll - Grundlage für den geplanten
+Fahrplan (PDF + Replay-Skript, siehe ARCHITEKTUR.md "Fahrplan-Erstellung
+(Konzept)"). Wird bereits von `tools/pruefprotokoll_erstellung.js` genutzt.
+
+### `tools/pruefprotokoll_erstellung.js`
+
+Geht für eine Anlage Stromkreis für Stromkreis durch, misst über
+`tools/messgeraet_steuerung.js` (aufgezeichnet mit `fahrplan_rekorder.js`),
+füllt die Stromkreisverteiler-Tabelle in `view/protokoll.js` und
+exportiert das Ergebnis als PDF.
+
+```
+node tools/pruefprotokoll_erstellung.js testcase_04
+node tools/pruefprotokoll_erstellung.js testcase_04 pfad/zum/ausgabeordner
+```
+
+Schreibt `pruefprotokoll.pdf` + `fahrplan.json` in den Ausgabeordner
+(Default: `tests/visuell/<testcase>/`). Mit `PROTOKOLL_SCREENSHOT=<pfad>.png`
+zusätzlich drei gescrollte Debug-Screenshots der Tabelle.
+
+**Drei wichtige Fallstricke, beim Bauen/Verallgemeinern selbst gefunden:**
+1. Jede Messung läuft in einem FRISCHEN `starteTestUmgebung()`-Kontext,
+   nicht in einem wiederverwendeten - Messspitzen bleiben sonst über
+   Modus-Wechsel hinweg bestehen (nur Aus-/Einschalten entfernt sie) und
+   verschieben die Schwarz/Blau/Grün-Zuordnung der nächsten Messung.
+2. Vor RISO muss IMMER die Schraube der nächstgelegenen Trennstelle (LS
+   falls AFDD, sonst das Gruppen-RCD) geöffnet werden - auch wenn dieses
+   Bauteil selbst kein Typ B/AFDD ist. Der Hauptschalter allein reicht
+   nicht, sobald eine ANDERE RCD-Gruppe auf derselben Sammelschiene sitzt
+   (siehe `testcase_05`: G1/RCD-Typ-A und G2/RCD-Typ-B teilen sich Phase
+   L1 - nur den Hauptschalter zu öffnen ließ RCD2/LS2/LS3 weiterhin
+   erreichbar und verfälschte die Messung).
+3. `schraubeSchalten()` muss bei geteilten Schrauben auch
+   `data-netz-weitere` prüfen, nicht nur `data-netz` (siehe `testcase_06`s
+   RCD2-Ausgang, der SK2+SK3 gemeinsam versorgt) - inzwischen in
+   `messgeraet_steuerung.js` selbst gefixt (exakter Abgleich gegen beide
+   Attribute), kein Workaround im aufrufenden Code mehr nötig.
+
+Details in ARCHITEKTUR.md ("`tools/pruefprotokoll_erstellung.js`").
+
+**Verifiziert auf ALLEN SECHS Testcases (Stand 2026-07-31, `testcase_01`
+bis `testcase_06`)** - deckt ab: einphasige und dreiphasige Stromkreise,
+Stromkreise mit und ohne RCD, RCD Typ A/B, AFDD-Kombigeräte, mehrere
+RCD-Gruppen auf derselben Sammelschiene, geteilte Schrauben, verschiedene
+Hauptschalter-Namen. Sondenplatzierung erfolgt über Netz-ID aus
+`anlage.json`, nicht über Bauteilnamen-Konvention (die je nach Anzahl
+Phasen unterschiedlich ist).

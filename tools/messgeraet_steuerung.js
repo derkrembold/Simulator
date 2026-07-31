@@ -324,10 +324,15 @@ async function stelleEin(ctx, feld, wert) {
 
 // --- Baustein 3: Messspitze setzen ---
 //
-// `ziel` entweder `{ bauteil, netz }` (Schaltkasten-Schraube, `netz`
-// optional bei eindeutigem Bauteil wie PE-Klemme) oder ein bereits
-// fertiger Playwright-Locator (z.B. für einen Steckdosen-Kontakt, der
-// keine data-bauteil/data-netz-Attribute trägt, siehe
+// `ziel` entweder `{ bauteil, netz }` (Schaltkasten-Schraube, JEWEILS
+// optional solange der andere angegeben ist - `netz` allein ist nützlich,
+// wenn der Bauteilname testcase-abhängig einer Namenskonvention folgt, die
+// nicht generisch bekannt ist, z.B. "Reihenklemme_L_SK1" bei einphasigen,
+// aber "Reihenklemme_L1_SK1"/"_L2_SK1"/"_L3_SK1" bei mehrphasigen
+// Stromkreisen, siehe testcase_05 - `netz` kommt dagegen direkt und
+// eindeutig aus `anlage.json`, unabhängig von so einer Konvention) oder ein
+// bereits fertiger Playwright-Locator (z.B. für einen Steckdosen-Kontakt,
+// der keine data-bauteil/data-netz-Attribute trägt, siehe
 // view/steckdosen.js) - Farbreihenfolge (Schwarz/Blau/Grün) übernimmt die
 // App selbst anhand der Klickreihenfolge, hier nicht extra anzugeben.
 async function messspitzeSetzen(ctx, ziel) {
@@ -336,10 +341,10 @@ async function messspitzeSetzen(ctx, ziel) {
     return;
   }
   const { bauteil, netz } = ziel;
-  const selektor = netz
-    ? `#schaltkasten svg circle[data-bauteil="${bauteil}"][data-netz="${netz}"]`
-    : `#schaltkasten svg circle[data-bauteil="${bauteil}"]`;
-  await ctx.page.locator(selektor).first().click();
+  const teile = [];
+  if (bauteil) teile.push(`[data-bauteil="${bauteil}"]`);
+  if (netz) teile.push(`[data-netz="${netz}"]`);
+  await ctx.page.locator(`#schaltkasten svg circle${teile.join('')}`).first().click();
 }
 
 // --- Baustein 4: Bauteil bedienen (Hebel/Schraube) ---
@@ -382,9 +387,25 @@ async function hebelSchalten(ctx, bauteilName) {
 // Funktion also immer eine Schraube OHNE eigene Messspitze wählen - siehe
 // `tools/pfad_zur_einspeisung.js`, das denselben Fallstrick schon einmal
 // dokumentiert hat.
+//
+// `netz` kann sowohl die primäre `data-netz`-ID sein als auch eine der
+// `data-netz-weitere`-IDs bei einer geteilten Schraube (z.B. ein RCD-Ausgang,
+// der zwei nachgeschaltete LS gleichzeitig versorgt, siehe testcase_06
+// RCD2 - dort hat die Schraube EINEN Kreis mit `data-netz="N40"` und
+// `data-netz-weitere="N41"`) - ein reiner `[data-netz="..."]`-Selektor
+// findet die Schraube sonst nicht, wenn `netz` zufällig die "weitere"-ID
+// ist. Exakter Abgleich (nicht `*=`-Teilstring) analog zu
+// `tools/pfad_zur_einspeisung.js`s `ermittleDomKanten()`.
 async function schraubeSchalten(ctx, bauteil, netz) {
   await ctx.page.locator('#schraubendreher svg').click();
-  await ctx.page.locator(`#schaltkasten svg circle[data-bauteil="${bauteil}"][data-netz="${netz}"]`).click();
+  const kandidaten = ctx.page.locator(`#schaltkasten svg circle[data-bauteil="${bauteil}"]`);
+  const index = await kandidaten.evaluateAll(
+    (circles, netz) => circles.findIndex((c) =>
+      [c.getAttribute('data-netz'), ...(c.getAttribute('data-netz-weitere')?.split(',') ?? [])].includes(netz)
+    ),
+    netz
+  );
+  await kandidaten.nth(index).click();
 }
 
 // --- Baustein 6 (Readable-Teil): einen Wert lesen ---

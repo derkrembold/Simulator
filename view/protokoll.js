@@ -91,6 +91,33 @@ function sorgeFuerCss() {
     .pf-scroll .pf-tabelle input.pf-feld { width: 70px; min-width: 70px; flex: none; }
     .pf-linienzeile input.pf-feld { border-bottom: 1px solid #ccc; width: 100%; }
     .pf-seite2-titel { font-size: 13px; font-weight: bold; }
+
+    /* Druck-/PDF-Export (siehe tools/pruefprotokoll_erstellung.js): nur das
+       Prüfprotokoll selbst gehört ins PDF, nicht der Schaltkasten/die
+       Steckdosen/das Messgerät darüber - diese View-Objekte dienen der
+       Simulation auf dem Bildschirm, nicht dem Prüfprotokoll-Ergebnis. Die
+       Stromkreisverteiler-Tabelle braucht auf dem Bildschirm horizontales
+       Scrollen (siehe .pf-scroll oben), das gibt es beim Drucken nicht -
+       stattdessen wird sie über eine kleinere Schrift und schmalere Zellen
+       gestaucht, damit alle Spalten auf die Papierbreite passen.
+    */
+    @media print {
+      #steckdosen, #schaltkasten, #messgeraet-zeile { display: none; }
+      .pf-scroll { overflow: visible; }
+      .pf-scroll .pf-tabelle { font-size: 6px; }
+      .pf-scroll .pf-tabelle th, .pf-scroll .pf-tabelle td { padding: 1px 2px; }
+      .pf-scroll .pf-tabelle th { max-width: none; }
+      /* box-sizing: border-box ist hier Pflicht, nicht nur Geschmackssache -
+         ohne das zaehlt die Breite von 100% nur den Inhalt OHNE das
+         Eingabefeld-eigene Padding, das dadurch oben draufkommt und das
+         Feld breiter macht als die Zelle - das Feld ragt dann mit seinem
+         weissen Hintergrund ueber den Zellrahmen hinaus und uebermalt ihn
+         optisch. */
+      .pf-scroll .pf-tabelle input.pf-feld {
+        width: 100%; min-width: 0; border-bottom: none;
+        box-sizing: border-box; padding: 0; height: auto; font-size: inherit;
+      }
+    }
   `;
   document.head.appendChild(style);
 }
@@ -173,10 +200,10 @@ function baueErdungswiderstand() {
 const STROMKREIS_GRUPPEN = [
   { label: null, spalten: ['Nr.'] },
   { label: null, spalten: ['Stromkreis / Zielbezeichnung'] },
-  { label: 'Leitung/Kabel', spalten: ['Typ', 'Anzahl', 'Querschnitt (mm²)'] },
+  { label: 'Leitung/Kabel', spalten: ['Typ', 'Anz-<br>ahl', 'Quers. (mm²)'] },
   { label: null, spalten: ['Rpe (Ω)'] },
   { label: 'Riso (MΩ)', spalten: ['Verbraucher ohne', 'Verbraucher mit'] },
-  { label: 'Überstromschutz', spalten: ['Art Charakteristik', 'In (A)', 'Zs (Ω)<br>L-PE', 'Ik (A)<br>L-PE', 'Zi (Ω)<br>L-N', 'Ik (A)<br>L-N'] },
+  { label: 'Überstromschutz', spalten: ['Art Charakt.', 'In (A)', 'Zs (Ω)<br>L-PE', 'Ik (A)<br>L-PE', 'Zi (Ω)<br>L-N', 'Ik (A)<br>L-N'] },
   { label: 'RCD', spalten: ['In/Art (A)', 'IΔN (mA)', 'Imess (mA)', 'Ausl. Zeit tA (ms)', 'Umess (V)'] }
 ];
 

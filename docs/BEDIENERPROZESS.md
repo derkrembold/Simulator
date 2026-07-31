@@ -45,7 +45,7 @@ sinnvoll, einem Defaultwert versehen.
 | Beginn Prüfung                                                         | Ja      | Aktuelles Datum                   | Wichtig!                                        |
 | Ende Prüfung                                                           | Ja      | Aktuelle Datum                    | Wichtig!                                        |
 | Beauftragter des Auftraggebers                                         | Ja      | Kathi Katz                        |                                                 |
-| Prüfer                                                                 | Ja      | Name des Prüfers                  | Wichtig!                                        |
+| Prüfer                                                                 | Ja      | Max Mustermann                    | Wichtig! Dieselbe Person wie Auftragnehmer (in dieser Simulation identisch). |
 
 
 
@@ -53,9 +53,9 @@ sinnvoll, einem Defaultwert versehen.
 
 | Feld              | Pflicht | Defaultwert                                               | Hinweis                                                                                                                                         |
 | ----------------- | ------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Netz / V          | Ja      | 230/400V                                                  | Eintrag könnte so sein: Netz 400 / 230 V                                                                                                        |
+| Netz / V          | Ja      | 400 / 230 V                                               | Fester Standardwert (Außenleiter-/Sternspannung des allgemeinen TN-Netzes) - NICHT aus `anlage.json` übernehmen, auch wenn dort ein anderer `spannung_stromkreise`-Wert steht (der kann pro Testcase etwas anderes beschreiben, z.B. die Außenleiterspannung EINER Drehstromsteckdose, nicht die allgemeine Netzspannung). |
 | Netzform          | Ja      | aus der Anlage übernehmen (`anlage.json`-Feld `netzform`) | Nicht raten - steht schon in den Anlagedaten, die der Prüfling vor sich hat. In der Regel ist das ein TN-C-S Netz. Aber nicht notwendigerweise. |
-| Netzbetreiber     | Ja      | Stattwerte Stuttgart                                      | Hier muss was eingetragen sein.                                                                                                                 |
+| Netzbetreiber     | Ja      | Stadtwerke Stuttgart                                      | Hier muss was eingetragen sein.                                                                                                                 |
 | Zähler-Nr.        | Nein    | –                                                         | Nur relevant, wenn ein Zähler vorhanden ist.                                                                                                    |
 | Zählerstand (kWh) | Nein    | –                                                         | Nur relevant, wenn ein Zähler vorhanden ist.                                                                                                    |
 
@@ -105,7 +105,7 @@ In der Prüfung ist dieser Werte eigentlich sehr relevant. Aber in der Simulatio
 
 | Feld                 | Pflicht | Defaultwert | Hinweis                                |
 | -------------------- | ------- | ----------- | -------------------------------------- |
-| Erdungswiderstand RE | Ja      |             | Nicht besonders relevant in Simulation |
+| Erdungswiderstand RE | Ja      |             | Nicht besonders relevant in Simulation. **Widerspruch (Pflicht Ja, aber kein Defaultwert/Hinweis "nicht relevant") bewusst ungelöst gelassen**, solange die Simulation den Erdungswiderstand gar nicht messen kann - erst klärbar, wenn diese Messung (C2-Methode, siehe oben) implementiert ist. |
 
 
 
@@ -164,10 +164,10 @@ Die erste Reihe betrifft immer die Hauptleitung. Bei Hauptleitung sind Überstro
 | Riso (MΩ)<br>Verbraucher mit       | Nein                    | RISO-Messung, Verbraucher angeschlossen    | Nicht besonders relevant in Simulation                                                                                                                 |
 | Überstromschutz Art Charakteristik | Ja                      | LS-Typenschild (`bauteile.md`)             |                                                                                                                                                        |
 | Überstromschutz In (A)             | Ja                      | LS-Typenschild (`bauteile.md`)             |                                                                                                                                                        |
-| Überstromschutz Zs (Ω) L-PE        | Ja                      | ZS-Messung                                 |                                                                                                                                                        |
-| Überstromschutz Ik (A) L-PE        | Ja                      | Messgerät zeigt diesen an.                 |                                                                                                                                                        |
-| Überstromschutz Zi (Ω) L-N         | Nein                    | Zi-Messung                                 |                                                                                                                                                        |
-| Überstromschutz Ik (A) L-N         | Nein                    | Messgerät zeigt diesen an.                 |                                                                                                                                                        |
+| Überstromschutz Zs (Ω) L-PE        | Ja, falls KEIN RCD im Stromkreis | ZS-Messung                        | Sitzt ein RCD im Stromkreis, ergibt Zs/Ik L-PE keinen Sinn und entfällt - der Fehlerstrom über PE würde den RCD unnötig auslösen, ohne zusätzlichen Erkenntniswert (der PE-Fehlerfall wird bereits über den FI/RCD-Test abgedeckt). Stattdessen wird dann NUR Zi/Ik L-N gemessen (siehe unten). Ist KEIN RCD im Stromkreis, gibt es diese Einschränkung nicht - dann werden Zs/Ik L-PE UND Zi/Ik L-N BEIDE gemessen. |
+| Überstromschutz Ik (A) L-PE        | Ja, falls KEIN RCD im Stromkreis | Messgerät zeigt diesen an.        | Siehe Hinweis bei Zs (Ω) L-PE.                                                                                                                        |
+| Überstromschutz Zi (Ω) L-N         | Ja                          | Zi-Messung                             | Immer messen, unabhängig davon ob ein RCD im Stromkreis sitzt. Sitzt ein RCD im Stromkreis, ist es die EINZIGE Überstromschutz-Schleifenmessung (siehe Hinweis bei Zs (Ω) L-PE); ohne RCD kommt Zs/Ik L-PE zusätzlich dazu. |
+| Überstromschutz Ik (A) L-N         | Ja                          | Messgerät zeigt diesen an.             | Siehe Hinweis bei Zi (Ω) L-N.                                                                                                                          |
 | RCD <br>In/Art (A)                 | Ja, falls RCD vorhanden | RCD-Typenschild (`bauteile.md`)            |                                                                                                                                                        |
 | RCD <br>IΔN (mA)                   | Ja, falls RCD vorhanden | FI/RCD-Messung (Modus `FI/RCD`)            |                                                                                                                                                        |
 | RCD <br>Imess (mA)                 | Ja, falls RCD vorhanden | FI/RCD-Messung (Modus `FI/RCD`)            |                                                                                                                                                        |
@@ -176,19 +176,27 @@ Die erste Reihe betrifft immer die Hauptleitung. Bei Hauptleitung sind Überstro
 
 ## Prüfergebnis
 
+**Automatisierte Befüllung dieses Abschnitts auf später verschoben** (User,
+2026-07-31) - `tools/pruefprotokoll_erstellung.js` füllt aktuell bewusst
+NICHT Ergebnis/Prüf-Plakette/Nächster Prüftermin, obwohl die Tabelle unten
+schon Defaultwerte dafür beschreibt. Grund: "Ergebnis" bräuchte eine
+Auswertung ALLER Messwerte/Ampeln der Anlage (aktuell nicht Teil der
+Orchestrierung), an der auch die restliche Logik (Prüf-Plakette, nächster
+Prüftermin) hängt - das ist ein eigenes, noch nicht angegangenes Vorhaben.
+
 | Feld                     | Pflicht | Defaultwert/Quelle                                                                                             | Hinweis                                                                                                                |
 | ------------------------ | ------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Ergebnis                 | Ja      | Berechnet: "Mängel festgestellt", wenn IRGENDEIN n.i.O./rote Ampel vorliegt, sonst "Keine Mängel festgestellt" | Keine Mängel festgestellt oder Mängel festgestellt muss angekreuzt werden. In der Regel ist es Mängel festgestellt     |
 | Prüf-Plakette angebracht | Ja      | Ja, wenn "Keine Mängel festgestellt", sonst Nein                                                               | Die Regel sollte Nein sein.                                                                                            |
-| Nächster Prüftermin      | Ja      | Keine Mängel: In vier Jahren, Mängel in  drei Monaten.                                                         | Hängt von Prüfungsart/-intervall ab - brauche hier deine fachliche Einschätzung. In der Regel Innerhalb von 3 Monaten. |
+| Nächster Prüftermin      | Ja      | Keine Mängel: In vier Jahren, Mängel in  drei Monaten.                                                         | Hängt von Prüfungsart/-intervall ab - brauche hier deine fachliche Einschätzung (auf später verschoben, siehe oben). In der Regel Innerhalb von 3 Monaten. |
 
 ## Abschluss
 
-Abschluss Auftraggeber kann nicht ausgefüllt werden. Abschluss Prüfer muss ausgefüllt werden, sonst durchgefallen.
+Unterschrift kann nicht ausgefüllt werden. Wenn die Unterschrift fehlt, ist das ein Kriterium für durchgefallen.
 
 | Feld                                                        | Pflicht | Defaultwert                                      | Hinweis                   |
 | ----------------------------------------------------------- | ------- | ------------------------------------------------ | ------------------------- |
-| Ort                                                         | Ja      | Stuttgart                                        | Wie Standort/Auftraggeber |
+| Ort                                                         | Ja      | 70376 Stuttgart                                  | Wie Standort/Auftraggeber |
 | Datum                                                       | Ja      | Datum der Prüfung                                | Aktuelles Datum           |
 | Unterschrift (Prüfling)                                     | Ja      | Name des Prüflings                               |                           |
 | Anlage entspricht den anerkannten Regeln der Elektrotechnik | Ja      | Ja, wenn "Keine Mängel festgestellt", sonst Nein |                           |

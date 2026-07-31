@@ -3297,10 +3297,17 @@ bedienen, TEST drücken.
   wie in der Referenz oben (`lsTyp`, `grenzwiderstand`, `hauptmesswert`,
   `isc`, `ampel`, ...).
 - `messspitzeSetzen(ctx, ziel)` - `{bauteil, netz}` für eine
-  Schaltkasten-Schraube, oder ein fertiger Playwright-Locator für
-  Steckdosen-/Endstellenkontakte (die kein `data-bauteil`/`data-netz`
-  tragen, siehe `view/steckdosen.js`).
-- `hebelSchalten(ctx, bauteil)` / `schraubeSchalten(ctx, bauteil, netz)`.
+  Schaltkasten-Schraube (BEIDES optional, solange das jeweils andere
+  angegeben ist - `netz` allein z.B., wenn der Bauteilname einer
+  testcase-abhängigen Namenskonvention folgt, siehe
+  "Fahrplan-Erstellung"/`tools/pruefprotokoll_erstellung.js` unten für den
+  konkreten Anlass, 2026-07-31 ergänzt), oder ein fertiger
+  Playwright-Locator für Steckdosen-/Endstellenkontakte (die kein
+  `data-bauteil`/`data-netz` tragen, siehe `view/steckdosen.js`).
+- `hebelSchalten(ctx, bauteil)` / `schraubeSchalten(ctx, bauteil, netz)` -
+  `netz` darf seit 2026-07-31 auch eine `data-netz-weitere`-ID sein (siehe
+  "Fahrplan-Erstellung"/`pruefprotokoll_erstellung.js` unten für den
+  konkreten Anlass, testcase_06s geteilte RCD2-Ausgangsschraube).
 - `testDruecken(ctx)`.
 
 **Warum der Kontext (`ctx`) eigenen Zustand mitführen muss:** `zone1Auswahl`
@@ -3420,11 +3427,444 @@ Format für jeden der beiden Outputs, um Drift zu vermeiden:
   deutscher Satz generiert, z.B. "Messspitze an N12 (schwarz) setzen") und
   Replay-Skript (headful, feste Anlage, siehe oben).
 
-**Noch offen (nur Konzept, kein Code):** wo genau der Recorder-Wrapper und
-die beiden Renderer als Dateien unter `tools/` landen (vermutlich analog zur
-bisherigen Konvention, z.B. `tools/fahrplan_rekorder.js` +
-`tools/fahrplan_pdf.js`/`tools/fahrplan_replay.js` - noch nicht
-festgelegt); wie ein erstes Beispielskript (ohne die noch nicht existierende
-Prüfprotokoll-Erstellung) sinnvoll Abschnitte/Begründungen von Hand liefert,
-um das Konzept an einer echten Messung (z.B. RISO an testcase_04) zu
-verifizieren.
+**Recorder-Wrapper umgesetzt: `tools/fahrplan_rekorder.js` (2026-07-31).**
+Exportiert `erstelleRekorder(basisModul)` - nimmt `tools/messgeraet_steuerung.js`
+entgegen und liefert ein Objekt mit denselben Funktionsnamen, das jeden
+Aufruf (außer `starteTestUmgebung`, dessen Rückgabewert ein
+Playwright-`page`-Handle enthält) transparent in `{funktion, argumente,
+ergebnis}` protokolliert, gruppiert über `abschnittBeginnen(titel,
+begruendung)`/`abschnittEnde()`. `alsJson(anlage)` liefert das komplette
+JSON-Aktionsprotokoll wie oben beschrieben. Generisch über
+`Object.entries(basisModul)` implementiert - deckt automatisch jede
+zukünftig neu hinzukommende Funktion in `messgeraet_steuerung.js` mit ab,
+ohne den Recorder anpassen zu müssen.
+
+**Erste Nutzung: `tools/pruefprotokoll_erstellung.js` (2026-07-31) - der
+eigentliche Prüfprotokoll-Erstellung-Skill, siehe unten.** Die zwei
+Renderer (PDF-Text, Replay-Skript) aus dem Fahrplan-JSON selbst sind noch
+NICHT gebaut - bisher wird nur das rohe JSON geschrieben (`fahrplan.json`
+neben dem Prüfprotokoll-PDF). Das ist der nächste Schritt für die separate
+Fahrplan-Erstellung.
+
+### `tools/pruefprotokoll_erstellung.js` (2026-07-31)
+
+**Zweck:** erster Baustein des automatisierten Prüfprozesses (siehe
+BEDIENERPROZESS.md) - geht für eine Anlage Stromkreis für Stromkreis durch,
+führt die nötigen Messungen über `tools/messgeraet_steuerung.js` (via
+`tools/fahrplan_rekorder.js` aufgezeichnet) durch, füllt damit die
+Stromkreisverteiler-Tabelle in `view/protokoll.js` und exportiert das
+Ergebnis als PDF (`page.pdf()`).
+
+**Aufruf:**
+```
+node tools/pruefprotokoll_erstellung.js <testcase> [ausgabeordner]
+node tools/pruefprotokoll_erstellung.js testcase_04
+```
+Schreibt `pruefprotokoll.pdf` und `fahrplan.json` in den Ausgabeordner
+(Default: `tests/visuell/<testcase>/`). Mit `PROTOKOLL_SCREENSHOT=<pfad>.png`
+zusätzlich drei gescrollte PNG-Screenshots der Stromkreisverteiler-Tabelle
+(links/mitte/rechts) - Debug-Hilfe, da die Tabelle breiter ist als der
+sichtbare Ausschnitt.
+
+**Datenquelle: `anlage.json` direkt, nicht `bauteile.md`** - liefert pro
+Stromkreis (`hutschienen[].gruppen[].stromkreise[]`) bereits alles
+Nötige strukturiert: `ziel` (Zielbezeichnung), `leitung.adern` (Kabeltyp/
+Querschnitt/Anzahl an der Endstelle), `ls` (LS-Charakteristik/In,
+Ein-/Ausgangsnetz je Phase), `messungen: {zi, zs, rcd}` (welche Messungen
+nötig sind). Die RCD-Gruppendaten (`gruppen[].rcd`: Name/Typ/IΔN/Nennstrom)
+gelten für alle Stromkreise der Gruppe gemeinsam.
+
+**Scope (Stand 2026-07-31, verifiziert an ALLEN SECHS Testcases
+`testcase_01`-`testcase_06`):** mehrphasige Stromkreise (Drehstromsteckdose/
+5-polige Anschlussdose), AFDD-Kombigeräte, Stromkreise ganz ohne RCD,
+mehrere RCD-Gruppen auf einer Sammelschiene und geteilte Schrauben werden
+alle unterstützt, siehe Trennstellen-Logik unten. Noch nicht
+verallgemeinert: mehr als eine Phase gleichzeitig in EINER Riso-Messung (es
+wird immer nur `sk.phasen[0]` gegen N getestet, wie auch das Prüfprotokoll
+nur eine Riso-Spalte pro Stromkreis hat).
+
+**Sondenplatzierung über NETZ-ID, nicht über geratene Bauteilnamen** -
+`aderNetz(sk, funktion)` liest die Netz-ID direkt aus `sk.leitung.adern`
+(Endstelle). Grund: die Reihenklemmen-Namenskonvention ist NICHT
+einheitlich - einphasige Stromkreise heißen `Reihenklemme_L_SK<n>`,
+mehrphasige (z.B. `testcase_05`s Drehstromsteckdose SK1) dagegen
+`Reihenklemme_L1_SK1`/`_L2_SK1`/`_L3_SK1`. Der erste Versuch, das über den
+Bauteilnamen zu raten, brach an SK1 in `testcase_05`. Fix: `netz` allein
+(ohne `bauteil`) an `messspitzeSetzen()` übergeben - dafür wurde die
+Funktion in `messgeraet_steuerung.js` erweitert (siehe dort).
+
+**Pro Stromkreis, je in einem FRISCHEN `starteTestUmgebung()`-Kontext**
+(wichtiger Design-Fund, siehe unten) gemessen:
+1. **Rpe** (RLOW, Sonden am PE-Ader-Netz der Endstelle + `PE-Klemme`) -
+   liefert in diesem Simulator immer `0,00Ω` (PE-PE-Workaround, siehe
+   `berechneRlowMesswert()` in `controller/app.js` - PE ist noch nicht Teil
+   des Verbindungsgraphen).
+2. **Riso Verbraucher ohne** (RISO, Sonden an Phase `sk.phasen[0]`/N/PE
+   der Endstelle) - **wichtiger Fund, zweistufig:**
+   - Erster Fund (an `testcase_04`): wenn die RCD-Gruppe Typ B/B+ ist (oder
+     der LS ein AFDD ist), MUSS vorher dessen Schraube auf der Ausgangsseite
+     dieser Phase geöffnet werden - sonst liefert die Messung eine künstlich
+     schlechte Elektronik-Leckage (`berechneRisoElektronikWiderstand()`)
+     statt des korrekten `>999MΩ`.
+   - **Zweiter, wichtigerer Fund (an `testcase_05`): die Schraube muss IMMER
+     geöffnet werden, auch wenn das eigene RCD/LS gar kein Typ-B/AFDD ist.**
+     Grund: `testcase_05` hat ZWEI RCD-Gruppen (G1/RCD1 Typ A, G2/RCD2 Typ
+     B) auf DERSELBEN Sammelschiene (gleiche Phase L1, gleicher
+     Hauptschalter-Ausgang). Nur den Hauptschalter zu öffnen trennt zwar von
+     der Einspeisung, aber NICHT die beiden Gruppen VONEINANDER -
+     `findeBauteileAufPfad()` durchsucht die ganze Zusammenhangskomponente
+     der Sonde und fand dadurch RCD2/LS2/LS3 weiterhin erreichbar, obwohl
+     die gemessene Sonde an SK1 (Gruppe G1) hing - Ergebnis `10MΩ`
+     (Parallel-Widerstand aus RCD2+LS2+LS3) statt der erwarteten `>999MΩ`.
+     Fix: **immer** die Schraube der nächstgelegenen Trennstelle öffnen (LS,
+     falls AFDD, sonst das Gruppen-RCD, unabhängig von dessen Typ) -
+     `naechsteTrennstelle()` in `pruefprotokoll_erstellung.js`. Diese eine
+     Schraube isoliert den Stromkreis zuverlässig von JEDER anderen Gruppe
+     UND macht ihn spannungsfrei, unabhängig vom eigenen Gerätetyp. Nur wenn
+     ein Stromkreis GAR KEIN RCD hat, wird ersatzweise der Hauptschalter
+     geöffnet (reiner Spannungsfrei-Zweck, kein Trennungs-Bedarf).
+3. **Überstromschutz** (ZS, LS-Typ/Bemessungsstrom vorher per `stelleEin()`
+   gesetzt) - Anlage normal energisiert, kein Abklemmen nötig. Nur wenn
+   `sk.messungen.zs`.
+4. **RCD** (FI/RCD, Fehlerstrom/Typ vorher gesetzt) - nur wenn
+   `sk.messungen.rcd`. **Wichtig:** `Umess` (Live-Spannungsanzeige) wird VOR
+   `testDruecken()` gelesen, nicht danach - ein erfolgreicher RCD-Test löst
+   das RCD automatisch aus (siehe `fircdTestKlick()`), danach zeigt die
+   Spannungsanzeige 0V.
+
+**Wichtigster Design-Fund: jede Messung bekommt ihren EIGENEN, frischen
+`starteTestUmgebung()`-Kontext**, statt eine Anlage über mehrere Messungen
+hinweg wiederzuverwenden. Grund: Messspitzen werden von der App NIE
+automatisch entfernt (nur beim Ausschalten des Messgeräts,
+`entferneAlleMessspitzen()`) - beim ersten Versuch, mehrere Messungen in
+EINEM Kontext nacheinander durchzuführen, blieben die Sonden der vorherigen
+Messung stehen und verschoben die Schwarz/Blau/Grün-Zuordnung der nächsten
+Messung (Farbe wird rollierend nach Klick-REIHENFOLGE über alle jemals
+gesetzten Sonden hinweg vergeben, nicht pro Messmodus zurückgesetzt) - die
+Messung lieferte dadurch reproduzierbar falsche/leere Werte. Ein frischer
+Kontext pro Messung umgeht das komplett (und nebenbei auch das Problem,
+dass ein erfolgreicher RCD-Test dessen Hebel automatisch öffnet und damit
+nachfolgende Messungen an GESCHWISTER-Stromkreisen derselben RCD-Gruppe
+beeinflussen würde). Kostet mehr Browser-Starts (langsamer), ist aber für
+ein Korrektheits-Werkzeug wie dieses die robustere Wahl. Für die spätere
+Fahrplan-Replay-Funktion (die einen durchgehenden, für einen Zuschauer
+nachvollziehbaren Ablauf zeigen soll) ist das kein Vorbild - dort bleibt
+ein einziger durchgehender Kontext das richtige Modell.
+
+**Tabellenzellen-Zuordnung:** `view/protokoll.js`s `STROMKREIS_GRUPPEN`
+wird hier als `SPALTE`-Objekt (Name -> Index) hart hinterlegt, da
+`protokoll.js` ein ES-Modul ist und sich nicht ohne Bundler in ein
+CommonJS-Tool importieren lässt - bei Änderungen an `STROMKREIS_GRUPPEN`
+muss `SPALTE` mitgepflegt werden. Werte werden per `page.evaluate()` direkt
+in `input.value` der jeweiligen Tabellenzelle geschrieben (Zeilenindex =
+`1 + Nr.`, da `rows[0]`/`rows[1]` die beiden Kopfzeilen sind und `rows[2]`
+die Hauptleitung).
+
+**Verifiziert an `testcase_04` (3 einphasige Stromkreise an einer
+RCD-Typ-B-Gruppe) UND `testcase_05` (3-phasige Drehstromsteckdose an
+RCD-Typ-A, zwei AFDD-Kombigeräte an RCD-Typ-B, zwei RCD-Gruppen auf
+derselben Sammelschiene) - Werte stimmen jeweils mit den Typenschild-Daten
+aus `bauteile.md` überein:**
+- `testcase_04`: Rpe 0,00Ω; Riso >999MΩ (alle 3 SK); Zs/Ik je Stromkreis
+  unterschiedlich (0,54Ω/383,3A, 0,67Ω/309,0A, 0,63Ω/328,6A); RCD
+  durchgehend IΔN 30mA/Imess 16,0mA/Auslösezeit 20,0ms/Umess 230V.
+- `testcase_05`: Rpe 0,00Ω; Riso >999MΩ (alle 3 SK, auch SK1 unter dem
+  Typ-A-RCD); Zs/Ik unterschiedlich (0,54Ω/383,3A, 0,67Ω/309,0A,
+  0,57Ω/363,2A); RCD-Werte gruppen-abhängig unterschiedlich (SK1 an RCD1:
+  Imess 16,0mA/Auslösezeit 20,0ms; SK2+SK3 an RCD2: Imess 24,0mA/
+  Auslösezeit 21,0ms) - deckt sich mit `bauteile.md`s `iA`/`tA` je RCD.
+- SK1s 5-adriges Kabel (Drehstromsteckdose) korrekt als "Anzahl 5" erkannt
+  (`sk.leitung.adern.length`), gegenüber 3 bei den einphasigen Steckdosen.
+
+Per Screenshot der gefüllten Tabelle bestätigt, PDF-Export funktioniert.
+`npm test` unverändert (238 Tests grün) - die einzige Code-Änderung
+außerhalb von `tools/` ist die Erweiterung von `messspitzeSetzen()` um den
+netz-only-Modus (rein additiv, alle bestehenden Aufrufe mit `bauteil`
+bleiben unverändert).
+
+**Bewusst noch nicht umgesetzt (Stand nach Verifikation an allen sechs
+Testcases):** "Riso Verbraucher mit" (laut BEDIENERPROZESS.md "Nicht
+besonders relevant in Simulation", bleibt leer); Zi/Ik L-N bei
+`sk.messungen.zi === true` (kommt in keinem der sechs Testcases vor, daher
+nie durchprobiert - aktuell würde dafür ein eigener `messeZiLn()`-artiger
+Pfad fehlen, falls das je gebraucht wird, ist aber vom bestehenden
+`messeZi()` nur eine kleine Erweiterung); Befüllung der Hauptleitungs-Zeile
+selbst (Rpe/Riso/Zs/etc. für die Hauptleitung, aktuell nur ihre Nr.); die
+beiden Fahrplan-Renderer (PDF/Replay aus `fahrplan.json`).
+
+**Drei PDF-Feinschliffe direkt im Anschluss (2026-07-31), User hatte sich
+den PDF-Output selbst angeschaut:**
+1. **Schaltkasten/Steckdosen/Messgerät gehören nicht ins PDF** - `page.pdf()`
+   rendert standardmäßig die GANZE Seite. Fix in `view/protokoll.js`s
+   `sorgeFuerCss()`: ein `@media print`-Block blendet `#steckdosen`,
+   `#schaltkasten`, `#messgeraet-zeile` aus (nur `#protokoll` bleibt
+   sichtbar) - rein CSS-basiert, kein Eingriff in `tools/`, gilt deshalb für
+   JEDEN künftigen Druck-/PDF-Export dieser Seite, nicht nur für dieses eine
+   Tool.
+2. **Stromkreisverteiler-Tabelle wurde beim Druck abgeschnitten** - die
+   Tabelle braucht auf dem Bildschirm horizontales Scrollen
+   (`.pf-scroll { overflow-x: auto }`), das gibt es beim Drucken nicht (nur
+   der sichtbare Ausschnitt wird gedruckt). Fix: im selben `@media
+   print`-Block `overflow: visible` plus kleinere Schrift (7px) und
+   schmalere Zellen/Eingabefelder (`width: 100%` statt fester 70px) - alle
+   19 Spalten passen dadurch auf eine A4-Querformat-Seite
+   (`page.pdf({..., landscape: true})` in `pruefprotokoll_erstellung.js`).
+   Verifiziert per `page.emulateMedia({media: 'print'})` + Screenshot (kein
+   PDF-Renderer in dieser Umgebung verfügbar, `pdftoppm` fehlt) -
+   Tabellenbreite schrumpfte von >1200px auf 616px, alle Spalten sichtbar.
+3. **Kopfdaten/Prüfung/Netz waren komplett leer** - jetzt automatisch
+   befüllt aus den in `docs/BEDIENERPROZESS.md` dokumentierten
+   Defaultwerten (`baueKopfdatenWerte()`/`fuelleKopfdaten()` in
+   `pruefprotokoll_erstellung.js`). **User-Entscheidung:** wo `anlage.json`
+   echte Werte liefert, die bevorzugen statt der generischen
+   BEDIENERPROZESS.md-Platzhalter - betrifft Anlage (`anlage.name`),
+   Standort (`anlage.beschreibung`), Netzform und Netz-Spannung
+   (`spannung_einspeisung`/`spannung_stromkreise`). Alles andere (Auftrag-
+   geber/-nehmer, Kunden-/Auftrags-Nr., Prüfung-nach/Art-der-Prüfung-
+   Ankreuzfelder, Netzbetreiber) kommt 1:1 aus der Doku. Beginn/Ende Prüfung
+   nutzen das aktuelle Datum statt eines festen Werts. Nebenbei einen
+   Tippfehler in BEDIENERPROZESS.md gefunden und behoben ("Stattwerte" ->
+   "Stadtwerke Stuttgart"). Textfelder werden per Label-Text im DOM
+   gefunden (`.pf-zeile` -> `.pf-label`), Ankreuzfelder per `.click()` auf
+   den passenden `.pf-cboption`/`.pf-cb` (echter Klick, nicht nur
+   `textContent` gesetzt - konsistent mit dem Rest des Tools, das immer
+   über echte UI-Interaktion statt internen State geht).
+
+Verifiziert an `testcase_04` UND `testcase_05` (unterschiedliche
+Anlage-Namen, Beschreibungen, Netzspannungen - `testcase_04` 400/230V,
+`testcase_05` 400/400V - jeweils korrekt aus `anlage.json` übernommen).
+`npm test` weiterhin grün (238 Tests, reine CSS-/Orchestrator-Änderung).
+
+**Drei weitere Feinschliffe (2026-07-31), wieder nach Durchsicht des
+PDF-Outputs durch den User:**
+1. **Hauptleitung fehlte die Nr.** - `zeilen`-Array in `main()` bekommt jetzt
+   von Anfang an einen Eintrag `{ zeilenIndex: 2, werte: { [SPALTE.nr]: '1' } }`
+   für die Hauptleitungs-Zeile (Nr. 1), bevor die eigentliche
+   Stromkreis-Schleife ab Nr. 2 weiterzählt.
+2. **Unterstreichung der Eingabefelder in der Stromkreisverteiler-Tabelle
+   beim Drucken unnötig** - die Linie signalisiert "hier bitte von Hand
+   eintragen", ergibt aber keinen Sinn mehr, sobald die Tabelle bereits
+   automatisiert befüllt ist. Fix im selben `@media print`-Block wie oben:
+   `.pf-scroll .pf-tabelle input.pf-feld { border-bottom: none; }` - gezielt
+   nur in dieser Tabelle, der Rest des Formulars (Kopfdaten etc.) behält die
+   Linie (dort ist am Bildschirm weiterhin echte Handeingabe vorgesehen).
+   Verifiziert per `emulateMedia({media:'print'})` (`border-bottom-style:
+   none` bestätigt) + Screenshot.
+3. **Rechtsdrehfeld (Erproben-Prüfpunkt "Rechtsdrehfeld
+   (Drehstromsteckdosen)") wird jetzt automatisch geprüft und angekreuzt.**
+   Neue Funktion `messeRechtsdrehfeld()`: Modus `V~`, Sonden in Reihenfolge
+   L1 (schwarz)/L2 (blau)/L3 (grün) an der Endstelle, liest `phasenfolge`
+   (`"1.2.3."` = Rechtsdrehfeld korrekt, `"3.2.1."` = vertauschte Phasen,
+   siehe `berechnePhasenfolge()` in `controller/app.js` - bereits
+   bestehende Funktionalität, hier zum ersten Mal für die Prüfprotokoll-
+   Erstellung genutzt). Gilt EINMAL pro Anlage (nicht pro Stromkreis) - nur
+   relevant, wenn ein Stromkreis dreiphasig ist (`sk.phasen.length === 3`,
+   z.B. `testcase_05`s Drehstromsteckdose SK1). Neue Hilfsfunktion
+   `fuelleErproben(page, punkte)` kreuzt die i.O.-Spalte der genannten
+   Erproben-Prüfpunkte per echtem `.click()` an (sucht die `<tr>` über den
+   Prüfpunkt-Text in der ersten Zelle, analog zu `fuelleKopfdaten()`).
+   Verifiziert an `testcase_05`: `Rechtsdrehfeld: 1.2.3.` erkannt,
+   entsprechende Checkbox im PDF angekreuzt.
+
+`npm test` weiterhin grün (238 Tests).
+
+**Vier weitere Feinschliffe (2026-07-31), wieder nach PDF-Durchsicht - gelten laut User für ALLE Testcases, hier an `testcase_04`+`testcase_05` gefixt:**
+1. **"Stromkreis / Zielbezeichnung" zeigt jetzt `sk.bezeichnung` (SK1/SK2/SK3)** statt der oft langen `sk.ziel`-Beschreibung ("Steckdosen Zimmer 1 (L1)") - spart Platz in der ohnehin engen Tabelle.
+2. **"RCD In/Art (A)" war falsch belegt** - zeigte bisher `${in_ma}mA / ${typ}` (die Fehlerstrom-Kennung, die aber schon in der eigenen Spalte "IΔN (mA)" steht), sollte laut Spaltenkopf "(A)" aber die Bemessungsstrom-Kennung sein: `${typ}${nennstrom_a}`, z.B. `A40` (Typ A, 40A Bemessungsstrom) oder `B40`. Fix in `pruefprotokoll_erstellung.js`. (Später nochmal umgestellt, siehe unten.)
+3. **Schrift in der Stromkreisverteiler-Tabelle beim Drucken weiter verkleinert** (6px statt 7px).
+4. **Eingabefelder übermalten die Zellrahmen weiß** - Ursache: `box-sizing: content-box` (Standard) bedeutet `width: 100%` bezieht sich nur auf den Inhalt, das Eingabefeld-eigene Padding kommt oben drauf und macht das Feld breiter als die Zelle, wodurch es mit seinem weißen Hintergrund über den Rahmen hinausragt. Fix: `box-sizing: border-box` + `padding: 0` + `height: auto` auf `.pf-scroll .pf-tabelle input.pf-feld` im `@media print`-Block. Verifiziert per Screenshot (deviceScaleFactor 2, damit der 6px-Text und die Rahmen gut erkennbar sind) - saubere durchgehende Gitterlinien, keine Übermalung mehr.
+
+Außerdem: **"Standort" in den Kopfdaten-Defaultwerten von `anlage.beschreibung` (oft sehr lang) auf schlicht `"Raum XYZ"` zurückgesetzt** - User-Entscheidung nach Ansicht des PDFs: "Du hast da soviel Text drin." Widerspricht der vorherigen "anlage.json bevorzugen"-Entscheidung NUR für dieses eine Feld - `beschreibung` beschreibt die technische Ausstattung, nicht den physischen Standort, war also ohnehin ein unpassender Proxy.
+
+**Eigener Bugfix beim Umsetzen gefunden:** ein Kommentar mit Backticks INNERHALB des CSS-Template-Literals in `sorgeFuerCss()` brach das Template-Literal selbst ab (`SyntaxError`) - komplettes Laden von `protokoll.js` schlug fehl, wodurch `#schraubendreher svg` nie erschien und JEDE `starteTestUmgebung()`-basierte Messung mit Timeout abbrach. Fix: Backticks im Kommentartext durch normale Anführungszeichen/Umschreibung ersetzt. Lehre: in JS-Template-Literalen (wie dieser gesamte CSS-Block) dürfen Kommentare selbst keine Backticks enthalten, auch nicht innerhalb von `/* ... */`.
+
+`npm test` weiterhin grün (238 Tests).
+
+**Fünfte Feinschliff-Runde (2026-07-31):**
+1. **"Umess (V)" war fachlich falsch belegt** - zeigte die Netzspannung
+   (`spannungPeKreis`, VOR dem TEST gelesen, z.B. `230V`), sollte aber die
+   tatsächlich gemessene BERÜHRUNGSSPANNUNG sein (gegen die der `UL`-
+   Grenzwert in der Spaltenüberschrift geprüft wird) - das liefert `Uci` im
+   FI/RCD-Modus (z.B. `0,9V`, deckt sich mit `bauteile.md`s `UB`-Feld). Fix
+   in `messeRcd()`: `uci` statt `spannungPeKreis` lesen, jetzt NACH statt
+   vor `testDruecken()`.
+2. **`UL`-Grenzwert wird jetzt automatisch mit `50` (Standard-
+   Berührungsspannungsgrenze) befüllt** - das Eingabefeld in der
+   Spaltenüberschrift selbst war bisher (Design-Entscheidung, siehe
+   BEDIENERPROZESS.md "Bekannte Fehler" #4) bewusst leer, da der Prüfling
+   den für die jeweilige Anlage/Umgebung geltenden Wert selbst kennen
+   sollte - für die automatisierte Erstellung ist 50V (Standardfall
+   trockene Räume) aber ein sinnvoller Default. Neue Konstante
+   `UL_GRENZWERT_STANDARD` in `pruefprotokoll_erstellung.js`, Eingabefeld
+   wird über `table.querySelector('th input.pf-feld')` gefunden (einziges
+   `<input>` in einem `<th>`).
+3. **"Zi (Ω) L-N"/"Ik (A) L-N" wurden nie gemessen** - vorher an
+   `sk.messungen.zi` geknüpft, das in `testcase_04`/`testcase_05` überall
+   `false` ist. User-Entscheidung: IMMER messen, unabhängig von diesem
+   Flag. Neue Funktion `messeZi()` (Modus `ZI` statt `ZS`, nur Schwarz/Blau
+   nötig - PE spielt bei ZI keine Rolle, siehe `ziTestKlick()`). Ergebnis
+   zeigt teils andere Werte als Zs (z.B. `testcase_05` SK3: Zs 0,57Ω vs.
+   Zi 0,64Ω) - bestätigt unabhängige, korrekte Messung, kein zufälliger
+   Duplikat-Wert.
+4. **"RCD In/Art (A)" nochmal umgestellt** - jetzt `${nennstrom_a}/${typ}`
+   (z.B. `40/B`) statt `${typ}${nennstrom_a}` (`B40`) - passt zur
+   Reihenfolge im Spaltenkopf selbst ("In/Art", nicht "Art/In").
+5. **Spaltenköpfe weiter gekürzt** (Platzmangel in der Tabelle): "Anzahl"
+   -> "Anz-\<br\>ahl" (Zeilenumbruch statt Kürzung, da der Begriff selbst
+   nicht sinnvoll abkürzbar ist), "Querschnitt (mm²)" -> "Quers. (mm²)".
+
+Verifiziert an `testcase_04` UND `testcase_05`, `npm test` weiterhin grün
+(238 Tests).
+
+**Sechste Feinschliff-Runde (2026-07-31):**
+1. **"Art Charakteristik" -> "Art Charakt."** (weiterer Platzmangel in der
+   Tabelle).
+2. **Neue allgemeine fachliche Regel (User-Korrektur, 2026-07-31: "gehört ins
+   Bedienerprozess"): sitzt ein RCD im Stromkreis, ergibt Zs/Ik L-PE keinen
+   Sinn und wird ausgelassen - dann wird NUR Zi/Ik L-N gemessen.** Regel
+   selbst UND Begründung stehen jetzt in `docs/BEDIENERPROZESS.md` bei den
+   Zeilen "Überstromschutz Zs (Ω) L-PE"/"Zi (Ω) L-N" (Pflicht-Spalte:
+   "Ja, falls KEIN RCD" bzw. "Ja, falls RCD") - hier nur die Umsetzung:
+   `main()`: `if (sk.messungen.zs) { ... if (gruppe.rcd) messeZi() else
+   messeUeberstromschutz() }` - ersetzt die vorherige "immer Zi zusätzlich
+   zu Zs messen"-Logik aus der letzten Runde (die noch nicht wusste, dass
+   Zs bei RCD-Anlagen komplett entfallen sollte). Da `testcase_04` UND
+   `testcase_05` auf JEDEM Stromkreis ein RCD haben, zeigen beide jetzt
+   durchgehend nur Zi/Ik L-N, Zs/Ik L-PE bleibt leer.
+3. **"Verwendete Messgeräte (nach VDE 0413)"-Tabelle wurde nie befüllt** -
+   neue Funktion `fuelleMessgeraeteTabelle()` trägt in Zeile 1 die
+   BEDIENERPROZESS.md-Defaultwerte ein (`Fabrikat: "JU 240"`,
+   `Typ: "Installationstester"`). Tabelle wird über ihre Kopfzeile
+   (`#`/`Fabrikat`/`Typ`) gefunden, da mehrere `.pf-tabelle`-Elemente auf
+   der Seite existieren.
+
+Verifiziert an `testcase_04` UND `testcase_05`, `npm test` weiterhin grün
+(238 Tests).
+
+**Siebte Feinschliff-Runde (2026-07-31):**
+1. **"Prüfer"-Defaultwert war `"Name des Prüfers"`** (wörtlich aus
+   BEDIENERPROZESS.md übernommen, aber als Platzhalter-Beschreibung
+   gemeint, nicht als tatsächlicher Wert) - jetzt `"Max Mustermann"`
+   (dieselbe Person wie Auftragnehmer). BEDIENERPROZESS.md entsprechend
+   korrigiert.
+2. **"Netz / V" zeigte bei `testcase_05` `400/400` statt `400/230`** - Fund:
+   die "anlage.json bevorzugen"-Regel aus einer früheren Runde war für
+   DIESES Feld unpassend. `anlage.json`s `spannung_stromkreise` beschreibt
+   testcase-abhängig etwas anderes (bei `testcase_05` die
+   Außenleiterspannung DER Drehstromsteckdose, nicht die allgemeine
+   Netzspannung für die Kopfdaten) - während "Netz/V" in den Kopfdaten die
+   FESTE Standard-Netzspannung (400/230V, TN-Netz) meint, unabhängig vom
+   Testcase. Fix: `zweiteilig: [{ label: 'Netz', werte: ['400', '230'] }]`
+   fest verdrahtet, nicht mehr aus `anlage.json` gelesen.
+   BEDIENERPROZESS.md-Zeile "Netz / V" klargestellt (explizit "NICHT aus
+   anlage.json übernehmen").
+3. **"Abschluss – Auftraggeber" UND "Abschluss – Prüfer" hatten leere
+   Ort-/Datum-Felder** - neue Funktion `fuelleAbschluss(page, ort, datum)`
+   füllt BEIDE (Ort: `"70376 Stuttgart"`, wie im Auftraggeber-Feld; Datum:
+   aktuelles Datum, wie Beginn/Ende Prüfung). Scopt über
+   `.pf-abschnitt-titel` (exakter Text "Abschluss – Auftraggeber"/
+   "Abschluss – Prüfer"), da beide Abschnitte eigene, gleichnamige
+   "Ort"/"Datum"-Zeilen haben - eine globale Label-Suche hätte nur den
+   ERSTEN Treffer gefunden. Die dabei aufgefallene widersprüchliche
+   BEDIENERPROZESS.md-Zeile ("Abschluss Auftraggeber kann nicht ausgefüllt
+   werden") wurde auf Nachfrage korrigiert: gilt jetzt gezielt für die
+   Unterschrift (die einzige Angabe, die die Automatisierung tatsächlich
+   nicht liefern kann - Ort/Datum dagegen schon) - "Unterschrift kann nicht
+   ausgefüllt werden. Wenn die Unterschrift fehlt, ist das ein Kriterium
+   für durchgefallen." `view/protokoll.js` befüllt die Unterschrift-Felder
+   entsprechend absichtlich NICHT.
+
+Verifiziert an `testcase_04` UND `testcase_05`, `npm test` weiterhin grün
+(238 Tests).
+
+**Dritter Testcase durchprobiert: `testcase_06` (2026-07-31) - deckt zwei
+bisher nur geschriebene, nie verifizierte Codepfade ab und findet einen
+echten Bug.**
+
+`testcase_06` hat zwei Gruppen: G1 = EIN 3-poliger LS OHNE RCD
+(`gruppe.rcd === null`, Stromkreis SK1, 5-polige Anschlussdose - Herdanschluss),
+G2 = 2-poliger RCD (Typ A) + zwei 1-polige LS (SK2/SK3), deren gemeinsamer
+RCD-Ausgang eine ECHTE geteilte Schraube ist (`ausgang.leitung.adern[0]`
+hat ein `weitere`-Array, siehe `anlage.json`).
+
+- **Kein-RCD-Fallback zum ersten Mal an einem echten Testcase geprüft:**
+  `naechsteTrennstelle()` liefert für SK1 `null` (kein RCD im Stromkreis),
+  `messeRisoOhne()` öffnet stattdessen den Hauptschalter - funktioniert wie
+  geschrieben, `>999MΩ`. Die RCD-aware Zs/Zi-Regel (siehe oben) greift
+  ebenfalls korrekt: SK1 bekommt Zs/Ik L-PE (0,34Ω/608,8A), SK2/SK3
+  bekommen NUR Zi/Ik L-N (kein RCD-freier Stromkreis zuvor an einem anderen
+  Testcase durchprobiert).
+- **Echter Bug gefunden: `schraubeSchalten()` fand die geteilte Schraube
+  für SK3 nicht.** `naechsteTrennstelle()` liefert für SK3 die Netz-ID
+  `N41` (`sk.ls.eingang.leitung.adern[0].netz`, korrekt aus `anlage.json`)
+  - aber der zugehörige Schrauben-Kreis im Schaltkasten trägt
+  `data-netz="N40"` (die PRIMÄRE ID) und `data-netz-weitere="N41"` (siehe
+  `view/schaltkasten.js`) - EIN Kreis bedient beide LS gleichzeitig. Der
+  bisherige `schraubeSchalten(ctx, bauteil, netz)`-Selektor
+  (`[data-netz="${netz}"]`, reiner Exakt-Treffer auf die primäre ID) fand
+  dafür keinen Kreis und lief in einen 30s-Timeout. **Fix:** `netz` wird
+  jetzt gegen `data-netz` UND (gesplittet) `data-netz-weitere` geprüft
+  (`kandidaten.evaluateAll()`, exakter Array-`includes()`-Abgleich statt
+  CSS-Teilstringsuche wie `*=`, um Fehltreffer wie "N41" in "N410" sicher
+  auszuschließen) - analog zum bereits bestehenden Muster in
+  `tools/pfad_zur_einspeisung.js`s `ermittleDomKanten()`. Betrifft NUR
+  `schraubeSchalten()`, nicht `messspitzeSetzen()` (dort bisher kein
+  vergleichbarer Fall aufgetreten, da Sonden an Endstellen-eigenen,
+  nicht-geteilten Netzen sitzen).
+- **Rechtsdrehfeld erstmals an einer Anschlussdose (statt Steckdose)
+  bestätigt** - die Prüfung hängt nur an `sk.phasen.length === 3`, nicht am
+  Endstellen-Typ, entsprechend unproblematisch.
+
+Regressionstest `testcase_04`/`testcase_05` nach dem `schraubeSchalten()`-Fix:
+identische Werte wie zuvor. `npm test` weiterhin grün (238 Tests) - alle
+DREI Testcases (04/05/06) jetzt mit der Prüfprotokoll-Erstellung verifiziert.
+
+**Korrektur der Zs/Zi-Regel (2026-07-31), direkt im Anschluss an
+`testcase_06`:** die vorherige Fassung ("mit RCD nur Zi, ohne RCD nur Zs")
+war zu streng - **ohne RCD gibt es KEINE Einschränkung, dort werden BEIDE
+Messungen gemacht** (Zs/Ik L-PE UND Zi/Ik L-N). Nur MIT RCD bleibt es bei
+ausschließlich Zi/Ik L-N (Zs würde den RCD unnötig auslösen). Fix in
+`main()`: `messeZi()` wird jetzt IMMER aufgerufen (wenn `sk.messungen.zs`),
+`messeUeberstromschutz()` (Zs) zusätzlich nur wenn `!gruppe.rcd`. Regel in
+BEDIENERPROZESS.md nachgezogen (Zi/Ik L-N jetzt durchgehend `Pflicht: Ja`,
+nicht mehr an RCD-Vorhandensein geknüpft). Verifiziert an `testcase_06`s
+SK1 (kein RCD): zeigt jetzt sowohl Zs 0,34Ω/Ik 608,8A als auch Zi
+0,51Ω/Ik(L-N) 405,9A - SK2/SK3 (mit RCD) unverändert nur Zi.
+Regressionstest `testcase_04`/`testcase_05` (überall RCD vorhanden, daher
+unverändert nur Zi) bestätigt, `npm test` weiterhin grün (238 Tests).
+
+**Vierter Testcase durchprobiert: `testcase_03` (2026-07-31) - erste
+saubere Verifikation ohne neuen Bug.** 6 Stromkreise (SK1-SK6), DREI
+RCD-Gruppen (RCD1/RCD2/RCD3, je Typ A, je 2 Stromkreise) auf einer
+Hutschiene, alle einphasig, kein AFDD. Lief beim ersten Versuch
+fehlerfrei durch - RCD-Werte korrekt je Gruppe unterschiedlich (RCD1:
+Imess 16,0mA/Auslösezeit 20,0ms/Umess 0,9V; RCD2: 18,0/22,0/1,0; RCD3:
+20,0/24,0/0,8 - deckt sich mit `bauteile.md`s `iA`/`tA`/`uB` je RCD). Zeigt,
+dass die bisherigen Fixes (Netz-ID-Sonden, Trennstellen-Logik, geteilte
+Schraube, RCD-aware Zs/Zi) robust genug sind, mehrere RCD-Gruppen UND
+mehrere Stromkreise pro Gruppe gleichzeitig zu handhaben, ohne dass
+Geschwister-Stromkreise sich gegenseitig beeinflussen. Per Screenshot
+bestätigt (alle 6 SK-Zeilen korrekt nummeriert und befüllt). `npm test`
+weiterhin grün (238 Tests) - vier von sechs Testcases (03/04/05/06) jetzt
+verifiziert.
+
+**Letzte zwei Testcases durchprobiert: `testcase_01` UND `testcase_02`
+(2026-07-31) - beide auf Anhieb fehlerfrei, keine weiteren Code-Änderungen
+nötig.** `testcase_01` (einfachste Anlage: 1 RCD-Gruppe, 2 Stromkreise -
+Besonderheit: der Hauptschalter heißt hier `"Leistungsschalter"`, nicht
+`"Hauptschalter"` - unproblematisch, da der Hauptschalter-Fallback in
+`naechsteTrennstelle()` nur bei Stromkreisen OHNE RCD greift und dieser
+Testcase überall ein RCD hat). `testcase_02` (2 RCD-Gruppen, 4
+Stromkreise). RCD-Werte beider Testcases korrekt je Gruppe unterschiedlich
+und deckungsgleich mit `bauteile.md`. Per Screenshot bestätigt. `npm test`
+weiterhin grün (238 Tests).
+
+**Damit sind ALLE SECHS Testcases (01-06) mit
+`tools/pruefprotokoll_erstellung.js` verifiziert.** Abgedeckte Strukturen
+über alle sechs hinweg: einphasige und dreiphasige Stromkreise, Stromkreise
+mit und ohne RCD, RCD Typ A/B, AFDD-Kombigeräte, mehrere RCD-Gruppen auf
+derselben Sammelschiene, geteilte Schrauben (sowohl bei einem RCD-Ausgang
+als auch früher schon bei anderen Bauteilen), unterschiedliche
+Hauptschalter-Namen. Das Werkzeug ist damit nicht mehr nur an ein bis zwei
+Beispielen erprobt, sondern über die volle Bandbreite der im Projekt
+vorhandenen Testcase-Varianten.

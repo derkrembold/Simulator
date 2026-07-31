@@ -3358,5 +3358,73 @@ R+/R−-Platzhaltern; FI/RCD an testcase_06s Steckdose (SK2) ->
 `npm test` bleibt unberührt (238 Tests) - das Modul ändert nichts an
 controller/model/view.
 
-**Noch offen:** Eintrag im Index-Skill
-`.claude/skills/entwickler-werkzeuge/SKILL.md` (siehe dort).
+Dokumentiert im Index-Skill `.claude/skills/entwickler-werkzeuge/SKILL.md`.
+
+### Fahrplan-Erstellung (Konzept, 2026-07-31 - noch nicht implementiert)
+
+**Zweck:** zweiter geplanter PDF-Output des künftigen automatisierten
+Prüfprozesses (siehe KONZEPT.md "Nächste Schritte" bzw. die ursprüngliche
+3-Punkte-Planung: Entwickler-Skills → Bediener-Skills/BEDIENERPROZESS.md →
+automatisierter Prüfprozess). Anders als das eigentliche Prüfprotokoll (das
+Ergebnis, das ein echter Prüfer abgeben würde) ist der Fahrplan ein
+menschenlesbarer Bericht, der den Ablauf/die Begründung dahinter zeigt (z.B.
+"Stromkreis SK2, Modus ZS, LS-Typ B/16A eingestellt, Messspitzen an X/Y,
+Ergebnis 0,54Ω, bestanden") - pädagogischer Wert, passend zum Trainingszweck
+des Simulators. **Zusätzliche Idee (User, 2026-07-31): der Fahrplan soll
+NICHT nur menschenlesbar sein, sondern auch maschinenlesbar** - aus
+demselben Datensatz soll sich ein Replay-Skript ableiten lassen, das die
+aufgezeichneten Aktionen gegen die echte, grafische Oberfläche abspielt
+(headful), sodass ein Zuschauer live sehen kann, wie die Messungen für
+GENAU DIESE Anlage durchgeführt würden. Bewusst KEINE Verallgemeinerung auf
+andere Anlagen/Instanzen - reine 1:1-Reproduktion des aufgezeichneten Laufs
+(einfacher, ausreichend für den "live zuschauen"-Zweck; siehe auch die
+frühere "headless zuerst, headful als spätere Option"-Entscheidung oben bei
+`messgeraet_steuerung.js` - der Fahrplan-Replay ist genau der Fall, für den
+headful vorgesehen war).
+
+**Ein einziges JSON-Aktionsprotokoll als Quelle, aus dem beide Outputs
+(PDF + Replay) abgeleitet werden** - kein separates, unabhängig gepflegtes
+Format für jeden der beiden Outputs, um Drift zu vermeiden:
+
+```json
+{
+  "anlage": "tests/visuell/testcase_04/anlage.json",
+  "abschnitte": [
+    {
+      "titel": "RCD1: Fehlerstrom-Auslösung prüfen",
+      "begruendung": "RCD1 ist ein 30mA-FI (Typ B) am Stromkreis SK1 - Auslösezeit muss < 300ms sein.",
+      "schritte": [
+        { "funktion": "drehknopfAufModus", "argumente": ["FI/RCD"], "ergebnis": {...} },
+        { "funktion": "messspitzeSetzen", "argumente": ["N12", "schwarz"], "ergebnis": null },
+        { "funktion": "testDruecken", "argumente": [], "ergebnis": { "ausgeloest": true, "auslZeit_ms": 25 } }
+      ]
+    }
+  ]
+}
+```
+
+- **`schritte[]` sind generisch** `{funktion, argumente, ergebnis}` -
+  entsprechen 1:1 den Exporten aus `tools/messgeraet_steuerung.js`. Der
+  Replay wird dadurch trivial: jeder Schritt wird einfach erneut gegen
+  `messgeraet_steuerung.js` abgespielt (`modul[schritt.funktion](ctx,
+  ...schritt.argumente)`), mit kleinen Pausen dazwischen fürs Zuschauen.
+- **`titel`/`begruendung` pro Abschnitt kommen NICHT automatisch aus dem
+  Recorder**, sondern werden von der aufrufenden Logik mitgegeben (später
+  die Prüfprotokoll-Erstellung, vorerst ein handgeschriebenes
+  Beispielskript) - das ist der pädagogische Teil, der sich nicht aus
+  reinen Funktionsaufrufen ableiten lässt.
+- **Aufzeichnung:** ein dünner Recorder-Wrapper um `messgeraet_steuerung.js`,
+  der jeden Aufruf inkl. Rückgabewert automatisch mitschreibt, plus
+  `abschnittBeginnen(titel, begruendung)`/`abschnittEnde()` zum Gruppieren.
+- **Zwei Renderer aus demselben JSON:** PDF (pro Schritt-Typ wird ein
+  deutscher Satz generiert, z.B. "Messspitze an N12 (schwarz) setzen") und
+  Replay-Skript (headful, feste Anlage, siehe oben).
+
+**Noch offen (nur Konzept, kein Code):** wo genau der Recorder-Wrapper und
+die beiden Renderer als Dateien unter `tools/` landen (vermutlich analog zur
+bisherigen Konvention, z.B. `tools/fahrplan_rekorder.js` +
+`tools/fahrplan_pdf.js`/`tools/fahrplan_replay.js` - noch nicht
+festgelegt); wie ein erstes Beispielskript (ohne die noch nicht existierende
+Prüfprotokoll-Erstellung) sinnvoll Abschnitte/Begründungen von Hand liefert,
+um das Konzept an einer echten Messung (z.B. RISO an testcase_04) zu
+verifizieren.

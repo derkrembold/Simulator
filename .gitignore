@@ -5,3 +5,10 @@ node_modules/
 docs/referenz/*.pdf
 screenshots/
 *.bak
+
+# Generierte Ausgaben von tools/pruefprotokoll_erstellung.js +
+# tools/fahrplan_beschreibung.js - aus anlage.json regenerierbar, kein
+# Quellmaterial (siehe ARCHITEKTUR.md "tools/pruefprotokoll_erstellung.js").
+tests/visuell/*/pruefprotokoll.pdf
+tests/visuell/*/fahrplan.json
+tests/visuell/*/fahrplan.pdf

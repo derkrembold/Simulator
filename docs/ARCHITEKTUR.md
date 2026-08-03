@@ -1628,7 +1628,11 @@ seine ursprüngliche eigene Zentrierung (`display: flex; justify-content:
 center`, Breite = Schaltkasten-Breite, unverändert gegenüber vor der
 Schraubendreher-Einführung) - der Wrapper selbst beeinflusst diese
 Zentrierung nicht, liefert nur den Positionierungs-Anker für den
-Schraubendreher. **Wichtige Design-Entscheidung:** ein erster Versuch
+Schraubendreher. **Stand 2026-07-23 - diese Zentrierung wurde am 2026-08-04
+mit der Handy-Einführung auf User-Vorgabe aufgegeben, siehe "handy.js" ->
+"Layout-Umbau" (Messgerät sitzt seitdem nicht mehr mittig unter dem
+Schaltkasten, sondern direkt rechts vom Handy).** **Wichtige
+Design-Entscheidung (weiterhin gültig):** ein erster Versuch
 positionierte beide Elemente gemeinsam über Flexbox (`display: flex;
 justify-content: center` auf dem Wrapper) - das zentrierte zwar die
 KOMBINATION aus Schraubendreher+Messgerät, verschob aber das Messgerät
@@ -1844,7 +1848,10 @@ Getestet in `test_schraubendreher.js` (21 Tests, neue eigene Testdatei, ins
 genau ein Schraubendreher-SVG wird gerendert; seine Höhe stimmt exakt mit
 der Messgerät-Höhe überein; er sitzt rechts neben dem Messgerät ohne
 Überlappung; das Messgerät bleibt trotz Schraubendreher exakt mittig unter
-dem Schaltkasten zentriert. Elf Interaktions-Tests (testcase_01, da die
+dem Schaltkasten zentriert (**Stand 2026-07-23 - diese vierte Prüfung wurde
+am 2026-08-04 durch eine andere ersetzt, siehe "handy.js" ->
+"Layout-Umbau": die Zentrierung selbst wurde auf User-Vorgabe aufgegeben**).
+Elf Interaktions-Tests (testcase_01, da die
 Default-Anlage `beispiel_eg.json` handgepflegt ohne Netzplan-Ursprung ist
 und deshalb nirgends ein `data-netz`-Attribut trägt): Klick nimmt das
 Werkzeug auf (verschwindet); Klick auf eine Schraube löst sie (weißer
@@ -1872,7 +1879,172 @@ stellt `R:0,60Ω` wieder her; Lösen einer PE-Klemme-Schraube stürzt nicht ab
 (kein PE-Teilgraph); Lösen einer UNBETEILIGTEN Schraube (`LS2`, anderer
 Stromkreis) lässt eine laufende Messung unverändert (Isolation).
 
-### timer.js
+### handy.js (2026-08-03)
+
+**Status: erster Schritt umgesetzt** (User-Vorgabe: "wenn du anfängst, bitte
+kleine schritte. Fange einfach mit dem Handy und die zwei apps an. erst ohne
+funktion.") - siehe Projekt-Memory "Handy-Widget Vision" für die komplette,
+mit dem User durchgesprochene Spec (Replay-App, Timer-App).
+
+Sechstes View-Objekt, `HandyView.render(container, anzeigeHoehe)` - aktuell
+NUR der Homescreen (Umrandung, Notch, zwei App-Icons), keine Interaktivität
+(analog zum ersten Schritt von `schraubendreher.js`: "nur Darstellung").
+Geometrie 1:1 aus `C:\Users\rembo\Documents\Classes\Pics\handy.svg`
+übernommen (Inkscape-Export, dieselbe Übernahme-Technik wie bei
+`schraubendreher.js`/`steckdosen.js` - eine Gruppe mit
+`transform="translate(-112.85606,-4.8840661)"`, unverändert kopierte
+Original-Koordinaten). Eine Detailfarbe wurde vor dem Übernehmen per
+`getComputedStyle()` verifiziert statt nur visuell geschätzt (der Ring im
+Timer-Icon sah in einem kleinen Screenshot wie weiß aus, ist aber laut
+berechnetem Stil tatsächlich schwarz `rgb(0,0,0)` - Fehleinschätzung beim
+ersten Hinsehen korrigiert, bevor sie sich in den Code eingeschlichen hätte).
+Die vier optisch identischen Pfeil-Marker der Vorlage (Inkscape dupliziert
+pro Linie einen eigenen) wurden zu einem einzigen wiederverwendeten Marker
+zusammengefasst.
+
+**Platzierung: RECHTS vom Schraubendreher, nicht links vom Messgerät wie
+ursprünglich geplant.** Grund (per `getBoundingClientRect()`-Debugging
+gefunden): `#messgeraet` sitzt mit seiner vollen Breite (= Schaltkasten-
+Breite) flush am linken Seitenrand der Seite - der sichtbare Abstand
+zwischen Div-Rand und der tatsächlichen Messgerät-SVG (~90px bei
+`testcase_04`) ist reine `flex; justify-content:center`-Zentrierung
+INNERHALB dieser Div, kein freier Platz außerhalb. Links vom Messgerät ist
+für ein ~114px breites Handy (skaliert auf Messgerät-Höhe) schlicht kein
+Raum vorhanden. Rechts von `#schraubendreher` (in derselben, deutlich
+breiteren `#messgeraet-zeile`) ist dagegen reichlich Platz - dieselbe
+JS-ABSOLUT-Technik wie bei `positioniereSchraubendreher()`, aber verankert
+an `schraubendreherContainer.getBoundingClientRect()` statt am Messgerät.
+
+**Bug beim ersten Versuch gefunden und gefixt:** `handyContainer.style.
+position = 'absolute'` wurde ERST NACH `HandyView.render()` gesetzt - in der
+kurzen Zeitspanne dazwischen war `#handy` (das im DOM VOR `#messgeraet`
+steht) noch ein normales Block-Element mit realer Höhe und schob dadurch
+`#messgeraet` im Layout kurzzeitig nach unten. `getBoundingClientRect()`
+erzwingt einen synchronen Reflow - die Positionierungsfunktion maß dadurch
+eine kurzzeitig verschobene (zu tiefe) Messgerät-Position und übernahm diesen
+falschen Wert dauerhaft in `top`, obwohl `#handy` unmittelbar danach wieder
+`position:absolute` bekam und das Layout sich sichtbar "korrigierte" - der
+bereits berechnete `top`-Wert blieb aber falsch (eine Handy-Höhe zu tief).
+**Fix:** `position:absolute` wird jetzt VOR `HandyView.render()` gesetzt,
+`#handy` beeinflusst den Layout-Fluss dadurch nie. Per
+`getBoundingClientRect()`-Debug-Skript verifiziert (Handy-Top jetzt exakt
+gleich Messgerät-Top).
+
+Verifiziert per Screenshot (`#messgeraet-zeile`, `testcase_04`) - Handy
+sitzt vertikal bündig mit Messgerät/Schraubendreher, rechts daneben.
+`npm test` unverändert (322 Tests) - reines neues View-Modul + additive
+Controller-/HTML-Änderung, keine bestehende Logik verändert.
+
+**Fund beim Dokumentieren: es gibt bereits einen alten Roadmap-Stub
+`### timer.js`** (siehe unten, unverändert erhalten) mit denselben Eckdaten
+wie die neu geplante Timer-App - "Sichtbarer 45-Minuten Timer" plus
+Sprachansagen bei 10/35/45 min. Das ist offensichtlich dieselbe
+ursprüngliche Idee, jetzt über das Handy konkretisiert (siehe Projekt-Memory
+"Handy-Widget Vision") - die drei Sprachansage-Zeitpunkte sind eine
+sinnvolle Erweiterung für die künftige Timer-App-Umsetzung, noch nicht
+umgesetzt.
+
+**Nachbesserung (2026-08-04), User: "Kannst du bitte das Handy links vom
+messgerät hintun. Dann soll Handy, Messgerät und Schraubenzieher nicht
+breiter sein als der schaltkasten. Dann bitte die zwei Apps im Handy
+alignen."** Drei Änderungen:
+
+1. **Handy jetzt links vom Messgerät** (statt rechts vom Schraubendreher wie
+   im ersten Versuch). Um trotzdem innerhalb der Schaltkasten-Breite zu
+   bleiben, wird die verfügbare Breite auf JEDER Seite explizit berechnet -
+   `messgeraetSvgRect.left - schaltkastenRect.left - LUECKE` (links) bzw.
+   `schaltkastenRect.right - messgeraetSvgRect.right - LUECKE` (rechts) -
+   beide Werte sind über alle sechs Testcases identisch 90px (Schaltkasten
+   ist konstant 640px breit, Messgerät konstant 460px real-skaliert, unab-
+   hängig von der Anzahl Stromkreise/Hutschienen - per Debug-Skript über
+   alle sechs Testcases verifiziert).
+2. **Neue Hilfsfunktion `passendRendern(container, anzeigeHoeheIdeal,
+   verfuegbareBreite, renderFn)`** in `controller/app.js`: rendert zunächst
+   in der "idealen" Höhe (= Messgerät-Höhe, wie zuvor), misst die
+   tatsächlich resultierende Breite, und rendert bei Bedarf ein zweites Mal
+   mit einer kleineren Höhe (Seitenverhältnis bleibt erhalten), die exakt in
+   die verfügbare Breite passt. Sowohl Handy als auch Schraubendreher laufen
+   jetzt durch diese Funktion - Handy schrumpft dadurch spürbar (von
+   ~114px auf ~74px Breite bei `LUECKE=16`, Höhe entsprechend von 201px auf
+   ~135px), Schraubendreher bleibt bei voller Messgerät-Höhe (sein
+   natürlicher Bedarf von ~27px passt ohnehin locker in die 74px Budget).
+3. **Icon-Reihe im Handy jetzt horizontal zentriert** (`view/handy.js`) -
+   vorher klebten beide Icons oben-links wie in der Vorlage, jetzt mit
+   festem `ICON_ABSTAND` (6 Einheiten) zwischen ihnen und die gesamte Reihe
+   im Bildschirm zentriert. Umgesetzt über je eine wrappende `<g
+   transform="translate(dx,dy)">` pro Icon (Delta zwischen alter und neuer
+   Position) - die eigentlichen Rect-/Pfad-Koordinaten bleiben unverändert
+   1:1 aus der Vorlage, nur ihre Position verschiebt sich als Ganzes.
+
+**Kleiner Regressions-Stolperstein:** ein bestehender Schraubendreher-Test
+(`test_schraubendreher.js`, "BUGFIX - Position bleibt korrekt") hatte den
+bisherigen festen Abstand (`+16`) hart einprogrammiert - beim ersten Versuch
+mit einem testweise kleineren Abstand (`LUECKE=8`, um dem Handy mehr Budget
+zu geben) schlug er fehl. Da 16 für BEIDE Seiten weiterhin komfortabel
+ausreicht (Schraubendreher-Bedarf ~27px << 74px Budget), wurde `LUECKE`
+wieder auf 16 gesetzt statt den Test anzupassen - kleinster Eingriff, kein
+Verhaltensunterschied, der eine Testkorrektur gerechtfertigt hätte.
+
+Verifiziert per Screenshot (`#messgeraet-zeile`, `testcase_04`) und
+`getBoundingClientRect()`-Debug (Handy linksbündig an der Schaltkasten-Kante,
+Gesamtbreite bleibt unter 640px). `npm test` weiterhin grün (322 Tests).
+
+**Layout-Umbau (2026-08-04), User: "du darfst jetzt mit dem Messgerät und
+Schraubenzieher etwas nach rechts. Dafür sollte das Handy grösser. Eine
+Einschränkung! Handy, Messgerät und Schraubenzieher dürfen nicht breiter
+sein als der Schaltkasten."** Die bisherige Zentrierung des Messgeräts unter
+dem Schaltkasten (eine ursprünglich bewusste Design-Entscheidung, siehe
+`schraubendreher.js` oben) wurde durch diese neue Vorgabe explizit
+aufgehoben - Handy/Messgerät/Schraubendreher werden jetzt als EINE von links
+nach rechts gepackte Reihe behandelt, bündig an der linken Schaltkasten-
+Kante beginnend, statt das Messgerät mittig zu halten:
+
+1. Schraubendreher wird zuerst in natürlicher (Messgerät-Höhe entsprechender)
+   Größe gerendert, NUR um seine tatsächliche Breite zu kennen (Positionierung
+   folgt erst ganz am Ende).
+2. Das Handy bekommt den REST der Schaltkasten-Breite (`schaltkastenBreite -
+   LUECKE - messgeraetBreite - LUECKE - schraubendreherBreite`) - über alle
+   sechs Testcases geprüft reicht das für die VOLLE, an der Messgerät-Höhe
+   ausgerichtete Größe (640 - 16 - 460 - 16 - ~27 ≈ 121px verfügbar, Handys
+   natürlicher Bedarf bei voller Höhe liegt bei ~114px) - `passendRendern()`
+   (aus dem ersten Handy-Schritt) bleibt als Sicherheitsnetz bestehen, falls
+   eine künftige Variante (breiterer Schraubendreher, schmalerer
+   Schaltkasten) das doch nicht hergibt.
+3. Das Messgerät wird NICHT mehr über `display:flex;justify-content:center`
+   in einer künstlich auf Schaltkasten-Breite aufgeblasenen Box zentriert,
+   sondern bekommt seine tatsächliche SVG-Breite als Container-Breite plus
+   ein berechnetes `margin-left` (`handyBreite + LUECKE`) - bleibt dabei in
+   normalem Layout-Fluss (kein `position:absolute`), damit
+   `#messgeraet-zeile` weiterhin automatisch die richtige Höhe aus dem
+   Messgerät-Inhalt bezieht.
+4. Handy und Schraubendreher werden ERST NACH diesem Margin-Setzen
+   positioniert (`positioniereHandy()`/`positioniereSchraubendreher()` lesen
+   beide die dann schon finale Messgerät-Position frisch aus dem DOM) - die
+   Reihenfolge ist wichtig: Größen (Schritt 1-2) sind unabhängig von
+   Positionen, aber jede Position hängt von der vorherigen ab (Handy vom
+   Schaltkasten, Messgerät vom Handy, Schraubendreher vom Messgerät).
+
+`index.html`s CSS-Kommentar zu `#messgeraet-zeile`/`#messgeraet` entsprechend
+aktualisiert (die alte "bleibt exakt mittig zentriert"-Beschreibung war nach
+diesem Umbau falsch geworden) - `justify-content:center` selbst kann bleiben
+(harmlos, da die Container-Breite jetzt exakt der SVG-Breite entspricht,
+also kein Zentrierungs-Spielraum mehr existiert).
+
+**Regressionstest angepasst statt gelöscht:** `test_schraubendreher.js`
+hatte einen Test "Messgerät bleibt trotz Schraubendreher exakt mittig unter
+dem Schaltkasten zentriert" - dessen Prämisse durch die neue User-Vorgabe
+bewusst hinfällig wurde. Ersetzt durch einen Test derselben Kategorie, der
+die NEUE Invariante prüft: Handy linksbündig an der Schaltkasten-Kante,
+Messgerät überlappt das Handy nicht, Schraubendreher-rechte-Kante bleibt
+innerhalb der Schaltkasten-rechten-Kante.
+
+Verifiziert per Screenshot + `getBoundingClientRect()`-Debug (Handy jetzt
+114px statt vorher 74px breit, Schraubendreher endet bei 653px, Schaltkasten
+bei 660px - acht Testcase_04-Werte, gilt aber generisch über alle sechs
+Testcases, da Schaltkasten/Messgerät-Breiten testcase-übergreifend konstant
+sind). `npm test` weiterhin grün (322 Tests, ein Test inhaltlich ersetzt).
+
+### timer.js (alter Roadmap-Stub, noch nicht umgesetzt)
 - Sichtbarer 45-Minuten Timer
 - Stufe 3: Sprachansagen zu definierten Zeitpunkten
   - 10 min: "Jetzt solltest du bei den Messungen sein"
@@ -3440,11 +3612,12 @@ zukünftig neu hinzukommende Funktion in `messgeraet_steuerung.js` mit ab,
 ohne den Recorder anpassen zu müssen.
 
 **Erste Nutzung: `tools/pruefprotokoll_erstellung.js` (2026-07-31) - der
-eigentliche Prüfprotokoll-Erstellung-Skill, siehe unten.** Die zwei
-Renderer (PDF-Text, Replay-Skript) aus dem Fahrplan-JSON selbst sind noch
-NICHT gebaut - bisher wird nur das rohe JSON geschrieben (`fahrplan.json`
-neben dem Prüfprotokoll-PDF). Das ist der nächste Schritt für die separate
-Fahrplan-Erstellung.
+eigentliche Prüfprotokoll-Erstellung-Skill, siehe unten.** Schreibt
+`fahrplan.json` als Nebenprodukt neben dem Prüfprotokoll-PDF.
+
+**Erster Renderer umgesetzt: `tools/fahrplan_beschreibung.js` (2026-08-03,
+siehe eigener Abschnitt unten).** Der zweite Renderer (Replay-Skript,
+headful) ist weiterhin offen.
 
 ### `tools/pruefprotokoll_erstellung.js` (2026-07-31)
 
@@ -3465,6 +3638,19 @@ Schreibt `pruefprotokoll.pdf` und `fahrplan.json` in den Ausgabeordner
 zusätzlich drei gescrollte PNG-Screenshots der Stromkreisverteiler-Tabelle
 (links/mitte/rechts) - Debug-Hilfe, da die Tabelle breiter ist als der
 sichtbare Ausschnitt.
+
+**Ablage-Entscheidung (2026-08-03, mit User abgestimmt):** der Default-
+Ausgabeordner bleibt `tests/visuell/<testcase>/` - derselbe Ordner, in dem
+`anlage.json`/`bauteile.md`/`netzplan.md`/`graph.json` (Quelldaten, in Git
+getrackt) bereits liegen. `pruefprotokoll.pdf`, `fahrplan.json` und (siehe
+`tools/fahrplan_beschreibung.js` unten) `fahrplan.pdf` sind dagegen aus
+`anlage.json` REGENERIERBARE Artefakte, kein Quellmaterial - deshalb in
+`.gitignore` explizit ausgeschlossen (`tests/visuell/*/pruefprotokoll.pdf`,
+`tests/visuell/*/fahrplan.json`, `tests/visuell/*/fahrplan.pdf`), damit sie
+nach einem lokalen Tool-Lauf nicht als "untracked" in `git status`
+auftauchen. Verworfene Alternativen: eigener `.../ausgabe/`-Unterordner
+(unnötige zusätzliche Ordnerebene) und aktives Committen der generierten
+Dateien (kein Bedarf für versionierte Beispiel-Ausgaben erkennbar).
 
 **Datenquelle: `anlage.json` direkt, nicht `bauteile.md`** - liefert pro
 Stromkreis (`hutschienen[].gruppen[].stromkreise[]`) bereits alles
@@ -3868,3 +4054,108 @@ als auch früher schon bei anderen Bauteilen), unterschiedliche
 Hauptschalter-Namen. Das Werkzeug ist damit nicht mehr nur an ein bis zwei
 Beispielen erprobt, sondern über die volle Bandbreite der im Projekt
 vorhandenen Testcase-Varianten.
+
+### `tools/fahrplan_beschreibung.js` (2026-08-03)
+
+**Zweck:** erster der zwei geplanten Fahrplan-Renderer (siehe
+"Fahrplan-Erstellung (Konzept)" oben) - liest eine `fahrplan.json`
+(Format aus `tools/fahrplan_rekorder.js`) und erzeugt daraus eine
+menschenlesbare PDF-Beschreibung des Ablaufs. Anders als das
+Prüfprotokoll (das Ergebnis) zeigt der Fahrplan den WEG dorthin -
+pädagogischer Zweck, passend zum Trainingszweck des Simulators.
+
+**Aufruf:**
+```
+node tools/fahrplan_beschreibung.js <testcase> [ausgabeordner]
+node tools/fahrplan_beschreibung.js testcase_04
+```
+Liest `<ausgabeordner>/fahrplan.json` (Default: `tests/visuell/<testcase>/`,
+deckt sich mit dem Default-Ausgabeordner von
+`tools/pruefprotokoll_erstellung.js`), schreibt `<ausgabeordner>/fahrplan.pdf`
+daneben.
+
+**Eigenständiges Tool, nicht in `pruefprotokoll_erstellung.js` integriert** -
+arbeitet auf JEDER `fahrplan.json`, unabhängig davon, wer sie erzeugt hat
+(aktuell nur `pruefprotokoll_erstellung.js`, aber generisch gehalten für
+künftige weitere Recorder-Nutzer). Startet einen eigenen, kurzlebigen
+Chromium-Kontext nur zum Rendern von HTML zu PDF (`page.setContent()` +
+`page.pdf()`) - braucht dafür NICHT die eigentliche App/den Server, anders
+als `tools/messgeraet_steuerung.js`.
+
+**Übersetzung Funktion → deutscher Satz** (`beschreibeSchritt()`): pro
+`funktion` aus `tools/messgeraet_steuerung.js` ein eigener Satzbaustein
+(`drehknopfAufModus` → "Drehknopf auf Modus X stellen.", `schraubeSchalten`
+→ "Schraube von X (Netz Y) ... lösen bzw. wieder eindrehen." usw.).
+`FELD_NAMEN` übersetzt die internen `stelleEin()`/`leseWert()`-Feldschlüssel
+(z.B. `lsTyp`, `uci`) in die in "Messgerät: Settable/Readable-Referenz"
+verwendeten Bezeichnungen. Ein unbekannter `funktion`-Wert fällt auf eine
+rohe `funktion(arg1, arg2)`-Darstellung zurück, statt abzubrechen -
+Renderer soll auch mit künftig neuen `messgeraet_steuerung.js`-Funktionen
+nicht hart brechen, nur weniger schön aussehen.
+
+**Sondenfarbe (schwarz/blau/grün) wird NICHT im Fahrplan-JSON mitgeschrieben**
+(die App vergibt sie selbst anhand der Klick-Reihenfolge, siehe
+`messspitzeSetzen()`) - der Renderer zählt sie deshalb selbst nach, ein
+Zähler PRO ABSCHNITT (`sondenZaehler`), der bei jedem neuen `<section>`
+zurückgesetzt wird. Das funktioniert nur, weil jeder Abschnitt in der
+aktuellen Nutzung (`pruefprotokoll_erstellung.js`, ein frischer
+`starteTestUmgebung()`-Kontext pro Messung) auch tatsächlich bei 0
+gesetzten Sonden beginnt - bei einem künftigen durchgehenden
+Fahrplan-Replay-Kontext (mehrere Abschnitte in EINEM Kontext, siehe
+Konzept oben) müsste das anders gezählt werden, ist hier bewusst nicht
+vorweggenommen.
+
+**Verifiziert:** `fahrplan.json` aus einem frischen `testcase_02`-Lauf
+(4 Stromkreise, 2 RCD-Gruppen) gerendert und per Screenshot geprüft (kein
+`pdftoppm` verfügbar, daher `page.setContent()` + `page.screenshot()`
+statt direktem PDF-Rendering zur Verifikation) - alle Abschnitte
+(Titel/Begründung/nummerierte Schritte), Sondenfarben und Messergebnisse
+korrekt lesbar. `npm test` unverändert (238 Tests) - reines neues
+Tool-Skript, keine Änderung an `controller/model/view`.
+
+### `tests/visuell/test_pruefprotokoll.js` (2026-08-03)
+
+**Zweck (User-Vorgabe: "die komplette Prüfprotokollgenerierung als
+Testcase für jeden Testcase 01-06 einbinden"):** automatisierter
+Regressionstest über `tools/pruefprotokoll_erstellung.js` für alle sechs
+Testcases, statt das Tool nur manuell anzustoßen und den PDF-Output von
+Hand zu prüfen (wie bisher bei jeder Feinschliff-Runde). Bewusst KEIN
+reiner "läuft ohne Exception durch"-Test - das wäre zirkulär, da die App
+dann nur gegen sich selbst verglichen würde. Stattdessen zwei echte,
+unabhängige Referenzquellen:
+
+1. **`bauteile.md`** (über `parseBauteile()` aus `generate_anlage.js`,
+   bereits vorhandener Parser, wiederverwendet statt neu geschrieben) -
+   RCD-Werte `iA`/`tA`/`uB` sind dort per Definition hinterlegt (nicht aus
+   der Verdrahtung ableitbar, siehe `bauteile.md`s eigener Kopfkommentar) -
+   ein GENUINER Soll-Ist-Vergleich gegen die gemessenen `Imess`/`Auslösezeit`/
+   `Umess`-Werte.
+2. **Fachliche Grundregeln ohne exakten Sollwert:** `Riso Verbraucher ohne`
+   muss in JEDEM der sechs Testcases `>999MΩ` sein (kein Testcase modelliert
+   einen echten Isolationsfehler) - genau die Art Regression, die beim
+   `testcase_05`-Fund (Trennstellen-Bug, siehe oben) real aufgetreten wäre,
+   hätte es diesen Test schon gegeben. `Zs`/`Zi`/`Ik` haben dagegen KEINEN
+   unabhängig vorgegebenen Sollwert (kommen aus der Widerstands-Netzwerk-
+   Berechnung des Graphen) - dort nur Plausibilitätsprüfung (positive Zahl).
+
+**Voraussetzung: `tools/pruefprotokoll_erstellung.js` wurde dafür
+`require()`-bar gemacht** (Refactor, keine Verhaltensänderung) - die
+Mess-Schleife aus `main()` in eine neue Funktion `berechneProtokoll(testcase)`
+ausgelagert, die `{ anlage, zeilen, erprobenPunkte, ergebnisse }` liefert
+(`zeilen`/`erprobenPunkte` wie bisher für `fuelleProtokoll()`, `ergebnisse`
+NEU: eine benannte Zusammenfassung pro Stromkreis - `{sk, rpe, riso, zi,
+ikLn, zs, ik, rcdName, rcdImess, rcdAuslZeit, rcdUmess}` - für den Test).
+`berechneProtokoll()` hat bewusst KEINE Datei-/PDF-Nebenwirkungen (kein
+`fs.writeFileSync`, kein `page.pdf()`) - diese bleiben in `main()`, das
+`berechneProtokoll()` aufruft und danach wie gehabt Fahrplan-JSON + PDF
+schreibt. `module.exports = { berechneProtokoll }` plus
+`if (require.main === module)`-Guard um den `main()`-Aufruf, analog zum
+bereits bestehenden Muster in `generate_anlage.js`. Regressionstest direkt
+im Anschluss (`node tools/pruefprotokoll_erstellung.js testcase_04 ...`):
+identische Werte wie vor dem Refactor (0,54Ω/383,3A etc.).
+
+**Ergebnis: 84 neue Assertions (6 Testcases × 14 Stromkreise insgesamt),
+alle PASS.** `npm test` jetzt 322 Tests (238 + 84), Laufzeit ~55s → ~88s
+(gemessen, deckt sich mit der vorab abgeschätzten Kostenkalkulation).
+Eingebunden in `package.json`s `test`-Skript, direkt nach
+`test_schraubendreher.js` und vor `run_tests.js`.

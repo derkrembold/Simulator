@@ -142,18 +142,31 @@ async function main() {
     await page.close();
   });
 
-  await pruefe('Schraubendreher: Messgerät bleibt trotz Schraubendreher exakt mittig unter dem Schaltkasten zentriert', async () => {
+  // Ersetzt einen früheren Test ("Messgerät bleibt exakt mittig unter dem
+  // Schaltkasten zentriert") - diese Zentrierung wurde bewusst aufgegeben
+  // (User-Vorgabe 2026-08-04: "du darfst jetzt mit dem Messgerät und
+  // Schraubenzieher etwas nach rechts. Dafür sollte das Handy grösser.").
+  // Neue Invariante: Handy/Messgerät/Schraubendreher bilden eine von links
+  // nach rechts gepackte Reihe (Handy linksbündig an der Schaltkasten-Kante,
+  // Messgerät direkt danach), die INSGESAMT nicht breiter wird als der
+  // Schaltkasten (siehe controller/app.js "Layout: Handy/Messgerät/
+  // Schraubendreher").
+  await pruefe('Schraubendreher: Handy+Messgerät+Schraubendreher bleiben zusammen nicht breiter als der Schaltkasten, Messgerät sitzt direkt rechts vom Handy', async () => {
     const page = await neueSeite();
-    const mitten = await page.evaluate(() => {
-      const schaltkasten = document.querySelector('#schaltkasten svg').getBoundingClientRect();
-      const messgeraet = document.querySelector('#messgeraet svg').getBoundingClientRect();
-      return {
-        schaltkasten: schaltkasten.x + schaltkasten.width / 2,
-        messgeraet: messgeraet.x + messgeraet.width / 2
-      };
-    });
-    if (Math.abs(mitten.schaltkasten - mitten.messgeraet) > 0.5) {
-      throw new Error(`erwarte Messgerät-Mitte ${mitten.schaltkasten}, gefunden ${mitten.messgeraet}`);
+    const boxen = await page.evaluate(() => ({
+      schaltkasten: document.querySelector('#schaltkasten svg').getBoundingClientRect(),
+      handy: document.querySelector('#handy svg').getBoundingClientRect(),
+      messgeraet: document.querySelector('#messgeraet svg').getBoundingClientRect(),
+      schraubendreher: document.querySelector('#schraubendreher svg').getBoundingClientRect()
+    }));
+    if (Math.abs(boxen.handy.left - boxen.schaltkasten.left) > 0.5) {
+      throw new Error(`erwarte Handy linksbündig an der Schaltkasten-Kante (${boxen.schaltkasten.left}), gefunden ${boxen.handy.left}`);
+    }
+    if (boxen.messgeraet.left < boxen.handy.right) {
+      throw new Error(`Messgerät (linke Kante ${boxen.messgeraet.left}) überlappt das Handy (rechte Kante ${boxen.handy.right})`);
+    }
+    if (boxen.schraubendreher.right > boxen.schaltkasten.right + 0.5) {
+      throw new Error(`Handy+Messgerät+Schraubendreher (rechte Kante ${boxen.schraubendreher.right}) breiter als der Schaltkasten (rechte Kante ${boxen.schaltkasten.right})`);
     }
     await page.close();
   });

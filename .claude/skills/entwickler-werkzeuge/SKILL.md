@@ -134,3 +134,31 @@ RCD-Gruppen auf derselben Sammelschiene, geteilte Schrauben, verschiedene
 Hauptschalter-Namen. Sondenplatzierung erfolgt über Netz-ID aus
 `anlage.json`, nicht über Bauteilnamen-Konvention (die je nach Anzahl
 Phasen unterschiedlich ist).
+
+### `tools/fahrplan_beschreibung.js`
+
+Liest eine `fahrplan.json` (siehe `tools/fahrplan_rekorder.js` oben) und
+erzeugt daraus eine menschenlesbare PDF-Beschreibung des Ablaufs - ein
+deutscher Satz pro aufgezeichnetem Schritt, statt der rohen
+`{funktion, argumente, ergebnis}`-Tripel. Eigenständiges Tool, arbeitet auf
+JEDER `fahrplan.json`.
+
+```
+node tools/fahrplan_beschreibung.js <testcase> [ausgabeordner]
+node tools/fahrplan_beschreibung.js testcase_04
+```
+
+Liest `<ausgabeordner>/fahrplan.json` (Default: `tests/visuell/<testcase>/`),
+schreibt `<ausgabeordner>/fahrplan.pdf` daneben. Erster der zwei geplanten
+Fahrplan-Renderer (siehe ARCHITEKTUR.md "Fahrplan-Erstellung (Konzept)") -
+der zweite (Replay-Skript, headful) ist noch offen.
+
+### `tests/visuell/test_pruefprotokoll.js`
+
+Automatisierter Regressionstest (Teil von `npm test`) über
+`tools/pruefprotokoll_erstellung.js` für alle sechs Testcases - vergleicht
+die gemessenen RCD-Werte gegen die unabhängigen Referenzwerte aus
+`bauteile.md` (`iA`/`tA`/`uB`) und prüft `Riso Verbraucher ohne` auf
+`>999MΩ`. `tools/pruefprotokoll_erstellung.js` ist dafür `require()`-bar
+(`berechneProtokoll(testcase)`, keine Datei-/PDF-Nebenwirkungen). Details
+in ARCHITEKTUR.md.

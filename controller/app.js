@@ -4,6 +4,7 @@ import { MessgeraetView } from '../view/messgeraet.js';
 import { ProtokollView } from '../view/protokoll.js';
 import { SteckdosenView } from '../view/steckdosen.js';
 import { SchraubendreherView } from '../view/schraubendreher.js';
+import { HandyView } from '../view/handy.js';
 import { Popup } from '../view/popup.js';
 import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
@@ -880,13 +881,12 @@ async function start() {
     renderMessgeraet();
   }
 
-  // Box wird auf die tatsächlich gerenderte Schaltkasten-Breite gesetzt, damit
-  // das (schmalere) Messgerät mittig darunter erscheint, ohne die Breite hier
-  // zu duplizieren - unverändert gegenüber vorher (der Schraubendreher hängt
-  // sich per JS rechts daneben, ohne diese Zentrierung zu beeinflussen,
-  // siehe ganz unten).
+  // Die endgültige horizontale Position/Breite von #messgeraet wird erst
+  // weiter unten gesetzt (siehe "Layout: Handy/Messgerät/Schraubendreher"),
+  // NICHT hier - sie hängt von der Breite des Handys ab, das erst nach dem
+  // Messgerät gerendert wird (Messgerät steht nicht mehr zentriert unter dem
+  // Schaltkasten, sondern rechts neben dem Handy, User-Vorgabe 2026-08-04).
   const messgeraetContainer = document.getElementById('messgeraet');
-  messgeraetContainer.style.width = `${schaltkastenSvg.getAttribute('width')}px`;
 
   // Drittes View-Objekt unter dem Messgerät, gleiche Breite wie der
   // Schaltkasten (siehe view/protokoll.js).
@@ -1348,64 +1348,114 @@ async function start() {
 
   renderMessgeraet();
 
-  // Schraubendreher (siehe view/schraubendreher.js) - erster Schritt, nur
-  // Darstellung, noch keine Interaktivität (siehe KONZEPT.md "Schrauben
-  // lösen" / Projekt-Memory "Schrauben lösen Idee"). Höhe wird aus der
-  // TATSÄCHLICH gerenderten Messgerät-Höhe gelesen (nicht dupliziert), damit
-  // beide immer exakt gleich hoch sind. Rechts neben dem Messgerät (für
-  // Rechtshänder, User-Vorgabe) - per JS ABSOLUT positioniert, direkt an der
-  // rechten Kante der tatsächlichen Messgerät-SVG (nicht am rechten Rand der
-  // #messgeraet-Box, die deutlich breiter ist, um das Messgerät unter dem
-  // Schaltkasten zu zentrieren - siehe oben). Dadurch bleibt das Messgerät
-  // exakt so zentriert wie vorher, unbeeinflusst vom Schraubendreher.
+  // --- Layout: Handy/Messgerät/Schraubendreher (User-Vorgabe 2026-08-04:
+  // "du darfst jetzt mit dem Messgerät und Schraubenzieher etwas nach
+  // rechts. Dafür sollte das Handy grösser. Eine Einschränkung! Handy,
+  // Messgerät und Schraubenzieher dürfen nicht breiter sein als der
+  // Schaltkasten.") ---
+  //
+  // Alle drei werden jetzt als EINE von links nach rechts gepackte Reihe
+  // behandelt, bündig an der linken Schaltkasten-Kante beginnend - nicht
+  // mehr das Messgerät zentriert unter dem Schaltkasten (der alte Ansatz,
+  // siehe Git-Historie). Schraubendreher UND Messgerät behalten dabei ihre
+  // natürliche, an der Messgerät-Höhe ausgerichtete Größe (wie vorher) -
+  // das Handy bekommt, was von der Schaltkasten-Breite übrig bleibt,
+  // notfalls kleiner skaliert (Seitenverhältnis bleibt erhalten).
   const schraubendreherContainer = document.getElementById('schraubendreher');
+  const handyContainer = document.getElementById('handy');
   const messgeraetZeileContainer = document.getElementById('messgeraet-zeile');
-  // Höhe bleibt über die Zeit konstant (unabhängig vom Messgerät-Zustand),
-  // einmaliges Auslesen genügt - anders als bei der Positionierung unten
-  // (siehe positioniereSchraubendreher()), die JEDES Mal frisch aus dem DOM
-  // lesen muss.
+  const LUECKE = 16;
+  // Höhe/Breite bleiben über die Zeit konstant (unabhängig vom Messgerät-
+  // Zustand) - einmaliges Auslesen genügt, anders als bei den Positions-
+  // Funktionen unten, die bei jedem Re-Render frisch aus dem DOM lesen.
   const messgeraetSvgHoehe = messgeraetContainer.querySelector('svg').getAttribute('height');
+  const messgeraetSvgBreite = Number(messgeraetContainer.querySelector('svg').getAttribute('width'));
+  const schaltkastenBreite = Number(schaltkastenSvg.getAttribute('width'));
 
-  // Rechts neben der tatsächlichen Messgerät-SVG positioniert (nicht am
-  // rechten Rand der - deutlich breiteren - #messgeraet-Box, die nur zur
-  // Zentrierung unter dem Schaltkasten dient) - Position hängt nur vom
-  // (ortsfesten) Messgerät ab, ändert sich also über die Zeit nicht. WICHTIG:
-  // die SVG dafür muss bei JEDEM Aufruf frisch aus dem DOM gelesen werden
-  // (nicht der `messgeraetSvg`-Verweis von ganz oben) - `MessgeraetView.render()`
-  // leert den Container bei JEDEM Re-Render (ON/OFF, Drehknopf, Messspitzen-
-  // Änderung, ...) und hängt ein KOMPLETT NEUES `<svg>`-Element ein. Ein
-  // gecachter Verweis auf das alte, damit aus dem DOM entfernte Element
-  // liefert `getBoundingClientRect()` nur noch Nullen - Bug, der den
-  // Schraubendreher irgendwo links im Schaltschrank statt rechts vom
-  // Messgerät erscheinen ließ (User-Meldung, siehe Projekt-Memory
-  // "Schrauben lösen Idee").
+  // 1. Schraubendreher in natürlicher Größe rendern (nur um seine Breite zu
+  // kennen - die Positionierung folgt erst ganz unten, nachdem auch das
+  // Messgerät seine endgültige Position hat).
+  function aufSchraubendreherKlick() {
+    schraubendreherAufgenommen = true;
+    renderSchraubendreher();
+  }
+  SchraubendreherView.render(schraubendreherContainer, messgeraetSvgHoehe, { onKlick: aufSchraubendreherKlick });
+  const schraubendreherBreite = Number(schraubendreherContainer.querySelector('svg').getAttribute('width'));
+
+  // 2. Handy bekommt den Rest der Schaltkasten-Breite (zwei Lücken + Messgerät
+  // + Schraubendreher abgezogen) - in der Praxis reicht das für die volle,
+  // an der Messgerät-Höhe ausgerichtete Größe (über alle sechs Testcases
+  // geprüft: Schaltkasten 640px, Messgerät fix 460px, Schraubendreher an
+  // Messgerät-Höhe ~27px -> bleiben ~121px für das Handy, sein natürlicher
+  // Bedarf bei voller Höhe liegt bei ~114px). `passendRendern()` skaliert
+  // trotzdem herunter, falls das in einer künftigen Variante (breiterer
+  // Schraubendreher, schmalerer Schaltkasten) doch nicht reichen sollte.
+  const handyVerfuegbareBreite = schaltkastenBreite - LUECKE - messgeraetSvgBreite - LUECKE - schraubendreherBreite;
+  function passendRendern(container, anzeigeHoeheIdeal, verfuegbareBreite, renderFn) {
+    renderFn(anzeigeHoeheIdeal);
+    const svg = container.querySelector('svg');
+    const breite = Number(svg.getAttribute('width'));
+    if (breite > verfuegbareBreite) {
+      const hoehe = Number(svg.getAttribute('height'));
+      renderFn(Math.max(0, verfuegbareBreite) * (hoehe / breite));
+    }
+  }
+  handyContainer.style.position = 'absolute';
+  passendRendern(handyContainer, messgeraetSvgHoehe, handyVerfuegbareBreite, (hoehe) => {
+    HandyView.render(handyContainer, hoehe);
+  });
+  const handyBreite = Number(handyContainer.querySelector('svg').getAttribute('width'));
+
+  // 3. Messgerät direkt rechts vom Handy platzieren (statt wie vorher unter
+  // dem Schaltkasten zentriert) - Breite auf den tatsächlichen SVG-Bedarf
+  // reduziert (kein Zentrierungs-Spielraum mehr nötig) plus linker Rand in
+  // Höhe der Handy-Breite. Bleibt in normalem Layout-Fluss (kein
+  // `position:absolute`), damit `#messgeraet-zeile` weiterhin ihre Höhe
+  // automatisch aus dem Messgerät-Inhalt bezieht.
+  messgeraetContainer.style.width = `${messgeraetSvgBreite}px`;
+  messgeraetContainer.style.marginLeft = `${handyBreite + LUECKE}px`;
+
+  // 4. Handy links bündig an der Schaltkasten-Kante, vertikal auf Höhe des
+  // (jetzt final positionierten) Messgeräts.
+  function positioniereHandy() {
+    const messgeraetSvgRect = messgeraetContainer.querySelector('svg').getBoundingClientRect();
+    const schaltkastenRect = schaltkastenSvg.getBoundingClientRect();
+    const zeileRect = messgeraetZeileContainer.getBoundingClientRect();
+    handyContainer.style.left = `${schaltkastenRect.left - zeileRect.left}px`;
+    handyContainer.style.top = `${messgeraetSvgRect.top - zeileRect.top}px`;
+  }
+  positioniereHandy();
+
+  // 5. Schraubendreher rechts neben dem (jetzt final positionierten)
+  // Messgerät - Position hängt nur vom Messgerät ab, muss bei jedem
+  // Re-Render frisch aus dem DOM gelesen werden (siehe ausführliche
+  // Erklärung in ARCHITEKTUR.md "schraubendreher.js": `MessgeraetView.
+  // render()` hängt bei jedem Re-Render ein komplett NEUES `<svg>`-Element
+  // ein, ein gecachter Verweis auf das alte liefert nur noch Nullen).
   function positioniereSchraubendreher() {
     const messgeraetSvgRect = messgeraetContainer.querySelector('svg').getBoundingClientRect();
     const zeileRect = messgeraetZeileContainer.getBoundingClientRect();
     schraubendreherContainer.style.position = 'absolute';
-    schraubendreherContainer.style.left = `${messgeraetSvgRect.right - zeileRect.left + 16}px`;
+    schraubendreherContainer.style.left = `${messgeraetSvgRect.right - zeileRect.left + LUECKE}px`;
     schraubendreherContainer.style.top = `${messgeraetSvgRect.top - zeileRect.top}px`;
   }
+  positioniereSchraubendreher();
 
   // Solange aufgenommen (siehe onSchraubeKlick() oben), bleibt die
   // Ruheposition leer - kein zweites Icon, keine "Werkzeug ablegen"-Klickfläche,
   // exakt wie spezifiziert (kehrt nur automatisch nach einem Schrauben-Klick
-  // zurück, siehe onSchraubeKlick()).
+  // zurück, siehe onSchraubeKlick()). Für nachfolgende Re-Renders (z.B. nach
+  // dem Aufnehmen) reicht die natürliche Messgerät-Höhe ohne erneute
+  // `passendRendern()`-Prüfung - die verfügbare Breite ändert sich über die
+  // Zeit nicht.
   function renderSchraubendreher() {
     if (schraubendreherAufgenommen) {
       schraubendreherContainer.innerHTML = '';
       return;
     }
-    SchraubendreherView.render(schraubendreherContainer, messgeraetSvgHoehe, {
-      onKlick: () => {
-        schraubendreherAufgenommen = true;
-        renderSchraubendreher();
-      }
-    });
+    SchraubendreherView.render(schraubendreherContainer, messgeraetSvgHoehe, { onKlick: aufSchraubendreherKlick });
     positioniereSchraubendreher();
   }
-
-  renderSchraubendreher();
 }
 
 start();

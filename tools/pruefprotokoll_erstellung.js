@@ -360,19 +360,21 @@ async function fuelleProtokoll(testcase, anlage, zeilen, erprobenPunkte = []) {
   return ctx;
 }
 
-async function main() {
-  const testcase = process.argv[2];
-  const ausgabeordner = process.argv[3] ?? path.join(PROJEKT_ROOT, 'tests', 'visuell', testcase);
-  if (!testcase) {
-    console.error('Aufruf: node tools/pruefprotokoll_erstellung.js <testcase> [ausgabeordner]');
-    process.exit(1);
-  }
+// Führt alle Messungen für eine Anlage durch und liefert sowohl die
+// PDF-Tabellenzeilen (`zeilen`, `erprobenPunkte` - für `fuelleProtokoll()`)
+// als auch eine kompakte, benannte Zusammenfassung (`ergebnisse` - für
+// automatisierte Tests, siehe test_pruefprotokoll.js). Bewusst OHNE
+// Datei-/PDF-Nebenwirkungen (kein `fs.writeFileSync`, kein `page.pdf()`) -
+// das macht die Funktion sowohl vom CLI-Teil unten als auch von einem Test
+// aufrufbar, ohne dass der Test versehentlich echte Ausgabedateien erzeugt.
+async function berechneProtokoll(testcase) {
   const anlage = require(path.join(PROJEKT_ROOT, 'tests', 'visuell', testcase, 'anlage.json'));
 
   // Hauptleitung ist Nr. 1 - hier nicht automatisiert vermessen (kein
   // eigener Stromkreis in anlage.json), aber die Nummer selbst gehört
   // trotzdem rein.
   const zeilen = [{ zeilenIndex: 2, werte: { [SPALTE.nr]: '1' } }];
+  const ergebnisse = [];
   let nr = 2;
   for (const { sk, gruppe } of alleStromkreise(anlage)) {
     console.log(`--- ${sk.bezeichnung} (${sk.ziel}) ---`);
@@ -390,6 +392,7 @@ async function main() {
       [SPALTE.rpe]: rpe,
       [SPALTE.risoOhne]: riso
     };
+    const ergebnis = { sk: sk.bezeichnung, rpe, riso, rcdName: gruppe.rcd?.name ?? null };
 
     // Allgemeine Regel (User, 2026-07-31, in BEDIENERPROZESS.md dokumentiert):
     // sitzt ein RCD im Stromkreis, ergibt Zs/Ik L-PE keinen Sinn (der
@@ -403,11 +406,15 @@ async function main() {
       console.log('Zi:', zi, 'Ik (L-N):', ikLn);
       werte[SPALTE.zi] = zi;
       werte[SPALTE.ikLn] = ikLn;
+      ergebnis.zi = zi;
+      ergebnis.ikLn = ikLn;
       if (!gruppe.rcd) {
         const { zs, ik } = await messeUeberstromschutz(testcase, sk);
         console.log('Zs:', zs, 'Ik:', ik);
         werte[SPALTE.zs] = zs;
         werte[SPALTE.ik] = ik;
+        ergebnis.zs = zs;
+        ergebnis.ik = ik;
       }
     }
 
@@ -419,9 +426,13 @@ async function main() {
       werte[SPALTE.rcdImess] = imess;
       werte[SPALTE.rcdAuslZeit] = auslZeit;
       werte[SPALTE.rcdUmess] = umess;
+      ergebnis.rcdImess = imess;
+      ergebnis.rcdAuslZeit = auslZeit;
+      ergebnis.rcdUmess = umess;
     }
 
     zeilen.push({ zeilenIndex: 1 + nr, werte }); // rows[0]/[1] = Kopfzeilen, rows[2] = Hauptleitung
+    ergebnisse.push(ergebnis);
     nr += 1;
   }
 
@@ -435,6 +446,19 @@ async function main() {
     console.log('Rechtsdrehfeld:', phasenfolge);
     if (phasenfolge === '1.2.3.') erprobenPunkte.push('Rechtsdrehfeld (Drehstromsteckdosen)');
   }
+
+  return { anlage, zeilen, erprobenPunkte, ergebnisse };
+}
+
+async function main() {
+  const testcase = process.argv[2];
+  const ausgabeordner = process.argv[3] ?? path.join(PROJEKT_ROOT, 'tests', 'visuell', testcase);
+  if (!testcase) {
+    console.error('Aufruf: node tools/pruefprotokoll_erstellung.js <testcase> [ausgabeordner]');
+    process.exit(1);
+  }
+
+  const { anlage, zeilen, erprobenPunkte } = await berechneProtokoll(testcase);
 
   fs.mkdirSync(ausgabeordner, { recursive: true });
   const fahrplanPfad = path.join(ausgabeordner, 'fahrplan.json');
@@ -460,4 +484,10 @@ async function main() {
   await ctx.schliessen();
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+module.exports = { berechneProtokoll };
+
+// Nur bei direktem Aufruf ausführen, nicht beim require() aus
+// test_pruefprotokoll.js (analog zum Muster in generate_anlage.js).
+if (require.main === module) {
+  main().catch((e) => { console.error(e); process.exit(1); });
+}

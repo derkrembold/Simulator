@@ -1400,10 +1400,24 @@ async function start() {
       renderFn(Math.max(0, verfuegbareBreite) * (hoehe / breite));
     }
   }
+  // Handy-Navigation (User-Vorgabe 2026-08-04, kleine Schritte): beide
+  // Homescreen-Icons sind klickbar, zeigen ihre jeweilige "bereit"-Ansicht
+  // (Sanduhr bzw. Ring+45:00, Play-Button - noch ohne Funktion, X zum
+  // Schließen). `handyHoehe` wird erst NACH dem ersten `passendRendern()`-
+  // Aufruf unten bekannt, aber innerhalb der Callbacks hier nur zur
+  // KLICK-Zeit gelesen (nicht beim Definieren) - zu dem Zeitpunkt ist die
+  // Variable längst zugewiesen.
+  let handyZustand = 'homescreen';
+  function renderHandy(hoehe) {
+    HandyView.render(handyContainer, hoehe, handyZustand, {
+      onTimerIconKlick: () => { handyZustand = 'timer-bereit'; renderHandy(handyHoehe); },
+      onReplayIconKlick: () => { handyZustand = 'replay-bereit'; renderHandy(handyHoehe); },
+      onSchliessenKlick: () => { handyZustand = 'homescreen'; renderHandy(handyHoehe); }
+    });
+  }
   handyContainer.style.position = 'absolute';
-  passendRendern(handyContainer, messgeraetSvgHoehe, handyVerfuegbareBreite, (hoehe) => {
-    HandyView.render(handyContainer, hoehe);
-  });
+  passendRendern(handyContainer, messgeraetSvgHoehe, handyVerfuegbareBreite, renderHandy);
+  const handyHoehe = Number(handyContainer.querySelector('svg').getAttribute('height'));
   const handyBreite = Number(handyContainer.querySelector('svg').getAttribute('width'));
 
   // 3. Messgerät direkt rechts vom Handy platzieren (statt wie vorher unter

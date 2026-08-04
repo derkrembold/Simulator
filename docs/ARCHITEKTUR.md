@@ -2044,6 +2044,254 @@ bei 660px - acht Testcase_04-Werte, gilt aber generisch über alle sechs
 Testcases, da Schaltkasten/Messgerät-Breiten testcase-übergreifend konstant
 sind). `npm test` weiterhin grün (322 Tests, ein Test inhaltlich ersetzt).
 
+**Icon-Größe/Abstand nachgezogen (2026-08-04), User hatte die exportierte
+`view/handy.js`-Zeichnung selbst in Inkscape nachbearbeitet ("die icons sind
+kleiner geworden, ich habe sie auch mehr in die Mitte versetzt") und danach
+gebeten, diese Änderung zu übernehmen.** Werte aus dem bearbeiteten Export
+abgemessen (Icon-Rechtecke tragen dort einen `matrix(...)`-Transform -
+zurückgerechnet auf Vorlage-Koordinaten ergab: Icons um Faktor ~0,887
+verkleinert, `ICON_ABSTAND` von 6 auf ~2,16 geschrumpft, `ICON_Y` praktisch
+unverändert ~17). Umgesetzt als neue Konstante `ICON_SKALIERUNG = 0.887`
+(`ICON_BREITE`/`ICON_HOEHE` daraus abgeleitet, Seitenverhältnis bleibt
+erhalten). **Wichtig, sonst optischer Fehler:** die vorherige Version
+(Runde davor, `ICON_ABSTAND` horizontal zentriert) setzte `ICON_BREITE`/
+`ICON_HOEHE` direkt als Rect-`width`/`height` - das genügte, weil sie exakt
+der Original-Vorlagengröße entsprachen (kein Skalierungsbedarf). Jetzt, wo
+die Icons kleiner sein sollen, würde dasselbe Vorgehen NUR das Rechteck
+schrumpfen, nicht das Glyph darin (Ring-Pfeil bzw. Punkte-Pfad), das
+weiterhin die absoluten Vorlage-Pfadkoordinaten nutzt - das Glyph würde über
+den Rand hinausragen. Fix: `icon1Gruppe`/`icon2Gruppe` bekommen jetzt einen
+kombinierten `translate(zielX,zielY) scale(ICON_SKALIERUNG)
+translate(-originalX,-originalY)`-Transform (Pivot = Rect-Ecke in
+Original-Vorlage-Koordinaten) - Rect UND Glyph bleiben unverändert in
+Original-Größe im Code, werden aber als Ganzes gemeinsam skaliert und an die
+neue, zentrierte Zielposition verschoben (dieselbe Technik, die Inkscape
+selbst beim Skalieren in der Vorlage verwendet hat).
+
+Verifiziert per Screenshot (`view/handy.js` isoliert gerendert, mit dem vom
+User bearbeiteten Export visuell verglichen) - Icons erkennbar kleiner,
+Glyphen korrekt mitskaliert (kein Überstand), Reihe weiterhin zentriert.
+`npm test` weiterhin grün (322 Tests, reine `view/handy.js`-Änderung).
+
+**Mikrofon-Schlitz ergänzt (2026-08-04), User-Klarstellung zum vermeintlichen
+"Home-Indikator-Balken" aus derselben bearbeiteten Vorlage: "das ist kein
+Home-Indikator-Balken, dieser weiße Streifen soll das Mikro darstellen -
+bitte so übernehmen, auch diese schwarz drum herum".** Neues `<rect>`
+(grau `#999999`, schwarze Umrandung `stroke:#000000`) unten mittig, Position
+aus demselben bearbeiteten Export abgemessen (Umrechnung von dessen
+flachem/finalem Koordinatensystem zurück auf die in `view/handy.js` sonst
+durchgängig verwendeten Vorlage-Koordinaten, siehe die feste Verschiebung
+`translate(-112.85606,-4.8840661)` der äußeren Gruppe `g`).
+
+**Regression beim ersten Versuch, selbst gefunden:** der Mikrofon-Schlitz
+landete zunächst komplett auf weißem statt dunklem Grund - der
+Bildschirm-Rect deckte in `view/handy.js` noch seine ursprüngliche VOLLE
+Höhe ab (`89.329048`), während er im User-Export sichtbar VERKÜRZT war
+(`85.007149`), wodurch dort der dunkle Gehäuserand unten sichtbar bleibt
+und der Mikrofon-Schlitz auf DIESEM dunklen Rand liegt, nicht auf dem
+Bildschirm selbst. Fix: neue Konstante `SCREEN_HOEHE = 85.007149`
+(`SCREEN_X`/-`Y`/-`BREITE` bleiben unverändert - nur die Höhe wurde in der
+Vorlage gekürzt). Per Screenshot verifiziert, direkter Vergleich mit dem
+bearbeiteten Export bestätigt jetzt denselben dunklen Rand um den
+Mikrofon-Schlitz. `npm test` weiterhin grün (322 Tests).
+
+**Erste Navigation umgesetzt (2026-08-04): Replay-Icon → "Replay bereit" →
+X → zurück zum Homescreen.** User-Vorgabe, ganz bewusst klein geschnitten
+("Bitte immer kleine Schritte"): NUR das weiße Replay-Icon ist klickbar, das
+blaue Timer-Icon bleibt vorerst inaktiv (eigener, späterer Schritt). Play-/
+Schritt-Button in der neuen Ansicht sind ebenfalls noch ohne Funktion (reine
+Darstellung) - nur die Navigation selbst (hin und zurück) wurde umgesetzt.
+
+**Vorlage hat FÜNF Handy-Zustände, nicht nur den Homescreen** - User hatte
+`handy.svg` um vier weitere, fertig gezeichnete App-Zustände erweitert (je
+ein "läuft"/"bereit"-Paar für Replay und Timer, siehe Projekt-Memory
+"Handy-Widget Vision"). Jeder Zustand ist in der Vorlage eine komplett
+EIGENE, separat positionierte Bauteilgruppe mit eigenen absoluten
+Koordinaten (kein gemeinsames, wiederverwendbares Koordinatensystem über
+alle Zustände hinweg). Um trotzdem jede Pfad-/Rect-Koordinate 1:1
+unverändert aus der Vorlage übernehmen zu können (wie bei allen anderen
+View-Objekten dieses Projekts), wird der feste Koordinaten-Versatz zwischen
+der Ziel-Bauteilgruppe und der Homescreen-Gruppe EINMALIG berechnet
+(`REPLAY_BEREIT_DX/DY = homescreenOrigin - zielGruppenOrigin`, aus den
+jeweiligen äußeren Umrandungs-Rects) und per `replayBereitX(x)`/
+`replayBereitY(y)`-Hilfsfunktionen auf jede aus der Vorlage kopierte
+Koordinate angewendet - Herleitung/Verifikation der Umrechnung (Rundprobe:
+umgerechnete Umrandungs-Koordinaten der Zielgruppe ergeben exakt die
+Homescreen-Koordinaten) erfolgte über ein Node-Skript, das die Matrix-Werte
+aus der Vorlage direkt nachrechnete.
+
+**Gehäuse (Umrandung/Notch/Mikrofon) in eine eigene Funktion
+`zeichneGehaeuse()` ausgelagert**, unconditional vor dem eigentlichen
+Screen-Inhalt gezeichnet - diese drei Elemente sind physisch am Gerät und
+unabhängig vom angezeigten Screen (Homescreen oder eine App) immer gleich.
+`zeichneHomescreen()`/`zeichneReplayBereit()` zeichnen nur noch den
+eigentlichen Bildschirminhalt (Hintergrundfarbe + Icons/Buttons).
+
+**Bug 1, selbst beim Testen gefunden: Klick auf das Replay-Icon registrierte
+zunächst NICHT.** Das Icon-Rect hat `fill: none` (nur die Umrandung ist
+sichtbar, der Rest ist transparent) - ein SVG-Element mit `fill:none`
+reagiert standardmäßig NICHT auf Klicks in seiner transparenten Mitte, der
+Klick "fällt durch" zum darunterliegenden (weißen) Bildschirm-Hintergrund.
+Fix: `'pointer-events': 'all'` auf dieses Rect - macht es unabhängig von
+seiner sichtbaren Füllung über seine GESAMTE Fläche klickbar. Gefunden über
+einen Playwright-Regressionstest, der exakt diesen Klick-Callback prüft
+(nicht nur die Darstellung).
+
+**Bug 2, selbst beim Testen gefunden: die Sanduhr sah wie ein simples
+Dreieck aus, nicht wie eine Sanduhr.** Das gemeinsame `STERN_PFAD`-Motiv
+(ein 3-seitiger "Stern" mit alternierendem Innen-/Außenradius, siehe
+`ICON_SKALIERUNG`-Kommentar oben zur Wiederverwendung desselben Pfads für
+mehrere Icons) ergibt ALLEIN unter der für die Sanduhr vorgesehenen
+Transform-Matrix nur ein simples, gefülltes Dreieck - verifiziert durch
+Isolieren des Pfads in einer eigenen Testdatei (nur dieses eine `<path>`,
+nichts sonst) und Rendern. Die Vorlage überlagert dafür tatsächlich ZWEI
+Instanzen des Pfads: eine normal gefüllte (untere Dreieckshälfte) UND eine
+ZWEITE, schwarz gefüllte mit einer sehr dicken weißen Umrandung
+(`stroke-width: 8.0867`) - die dicke Umrandung selbst bildet die sichtbare
+"hohle" obere Dreieckshälfte (die schwarze Füllung dahinter ist auf
+schwarzem Hintergrund unsichtbar). Gefunden durch systematisches Abtasten
+der Vorlage per `document.elementFromPoint()` an mehreren Pixeln der
+sichtbaren "hohlen" Kontur, bis das zweite, bis dahin übersehene Element
+(`path4-9-4-5-7-0`) identifiziert war - ein reines "Text lesen"-Vorgehen
+hatte das zweite Element nicht zuverlässig zugeordnet, da mehrere
+optisch identische Duplikate dieses Pfads in der Vorlage existieren (je
+einer pro Handy-Zustand) und ihre `transform`-Werte sich nur in den
+Ziffern unterscheiden.
+
+**Ergebnis:** `view/handy.js` exportiert jetzt `HandyView.render(container,
+anzeigeHoehe, zustand = 'homescreen', callbacks = {})` -
+`zustand`/`callbacks` sind neue, rückwärtskompatible Parameter (ohne sie
+verhält sich `render()` exakt wie vorher: Homescreen, nicht interaktiv).
+`controller/app.js` hält den Handy-Zustand in einer lokalen Variable
+(`handyZustand`) und ruft bei Klick auf das jeweilige Icon/den X-Button
+`renderHandy(handyHoehe)` mit dem neuen Zustand erneut auf - `handyHoehe`
+bleibt dabei über Zustandswechsel hinweg konstant (aus dem initialen
+`passendRendern()`-Aufruf), da sich die äußere Handy-Größe nicht ändert,
+nur der Bildschirminhalt.
+
+Verifiziert per Screenshot-Sequenz in der ECHTEN App (`testcase_04`):
+Homescreen → Klick auf Replay-Icon → "Replay bereit"-Ansicht → Klick auf X
+→ zurück zum Homescreen, alle drei Zustände korrekt dargestellt. `npm test`
+weiterhin grün (322 Tests, keine neuen Testfälle - reine `view/handy.js`/
+`controller/app.js`-Änderung, kein bestehendes Verhalten geändert).
+
+**Zweite Navigation umgesetzt (2026-08-04): Timer-Icon → "Timer bereit" → X
+→ zurück zum Homescreen** (User: "mache den Timer. Wenn du den timer icon
+drückst, dann soll das untere rechte bild erscheinen."). Analog zu
+"Replay bereit" - Play-Button bewusst noch ohne Funktion (User: "lass den
+erst ohne funktion. es kommt aber noch eine!" - eine künftige, noch nicht
+spezifizierte Funktion ist also ausdrücklich angekündigt).
+
+**Diesmal ein ANDERES Umsetzungsmuster gewählt als bei "Replay bereit":**
+statt jede Koordinate einzeln per Hilfsfunktion (`replayBereitX/Y()`) zu
+verschieben, wird die komplette "Timer bereit"-Zeichnung in EINE äußere `<g
+transform="translate(TIMER_BEREIT_DX,TIMER_BEREIT_DY)">` gepackt - alle
+Koordinaten/Pfade darin bleiben dadurch UNVERÄNDERT (buchstäblich aus der
+Vorlage kopiert), die Gruppe selbst übernimmt die komplette Positionierung
+auf einmal. Robuster als das Pro-Koordinate-Verschieben, sobald ein Element
+bereits einen EIGENEN Transform trägt (hier: der Ring-Pfad `path1-8-7` sowie
+der Play-Button, beide mit eigener Matrix/Skalierung) - dort hätte der
+Versatz erst korrekt mit dem bestehenden Transform verrechnet werden müssen,
+statt ihn einfach am Ende zu addieren. `zeichneReplayBereit()` bewusst NICHT
+rückwirkend auf dieses Muster umgestellt (funktionierender Code, keine
+Notwendigkeit für eine Umstellung ohne konkreten Anlass).
+
+**User-Vorgabe zur Ring-Geometrie explizit bestätigt:** der blaue Ring
+(`path1-8-7`) deckt tatsächlich ~306° von 360° ab (kleine Lücke von ca. 54°)
+- passend zu "Achte darauf, dass der blaue Kreis fast geschlossen ist".
+`d`-Pfad 1:1 unverändert aus der Vorlage übernommen (nur der allererste,
+ABSOLUTE Punkt der `d`-Zeichenkette braucht überhaupt einen Koordinaten-
+bezug zur Homescreen-Gruppe - der Rest sind relative Bogensegmente, die von
+der äußeren `<g>`-Verschiebung automatisch mitgenommen werden).
+
+**"45:00"-Text-Stil aus der Vorlage übernommen mit einer Cleanup-Entscheidung:**
+der äußere `<text>`-Stil der Vorlage sagt `fill:#0000ff` (blau), wird aber
+vom inneren `<tspan>` mit `fill:#ffffff;stroke-opacity:0` überschrieben - die
+TATSÄCHLICH sichtbare Farbe ist also weiß, nicht blau. Hier vereinfacht
+direkt als `fill:#ffffff` auf einem einzelnen `<text>`-Element (ohne
+verschachteltes `<tspan>`) umgesetzt - dieselbe Vereinfachung wie schon beim
+X-Button-Text zuvor.
+
+**Ein kleines, kaum sichtbares Element bewusst NICHT übernommen:** an dieser
+Stelle liegt in der Vorlage noch ein winziges graues Punkt-Icon (grauer Ring
++ schwarzer Punkt, `path7-2-4-6-2`/`path7-3-5-3-8-2`) ohne erkennbare
+Funktion - wirkt wie ein Kopier-Artefakt aus dem iterativen Bearbeiten der
+Vorlage, nicht wie ein bewusst platziertes Element. User-Entscheidung: "Wenn
+der Punkt kaum sichtbar ist, bitte ignorieren." Bewusst ausgelassen.
+
+Verifiziert per Screenshot-Sequenz in der ECHTEN App (`testcase_04`):
+Homescreen → Timer-Icon → "Timer bereit" (Ring ~306° geschlossen, "45:00",
+blauer Play-Button, X) → zurück zum Homescreen; Replay-Navigation im selben
+Testlauf als Regressionscheck erneut bestätigt. `npm test` weiterhin grün
+(322 Tests, keine neuen Testfälle).
+
+**Regression, vom User gemeldet ("du hast die kamera irgendwie verloren"):
+der Notch (Kamera-Kreis oben mittig) war in ALLEN drei Zuständen
+verschwunden.** Ursache: beim Auslagern der ursprünglichen
+`render()`-Funktion in `zeichneGehaeuse()` (siehe "Erste Navigation
+umgesetzt" oben) wurde Notch+Mikrofon versehentlich VOR den Screen-Inhalt
+gezeichnet. Geometrisch liegt der Notch aber INNERHALB des Screen-Bereichs
+(Screen beginnt knapp oberhalb des Notchs) - das undurchsichtige
+Screen-Rechteck, jetzt NACH dem Notch gezeichnet, deckte ihn komplett zu.
+Im ursprünglichen (noch nicht in Funktionen aufgeteilten) Code war die
+Reihenfolge zufällig korrekt (Screen vor Notch) - beim Aufteilen in
+`zeichneGehaeuse()` (Körper+Notch+Mikrofon in einer Funktion, komplett vor
+dem Screen-Inhalt aufgerufen) ging diese Reihenfolge verloren, ohne dass es
+beim Testen auffiel (der Notch wurde in den bisherigen Screenshot-
+Vergleichen nicht gezielt geprüft).
+
+**Fix:** `zeichneGehaeuse()` in zwei Funktionen aufgeteilt -
+`zeichneGehaeuseKoerper()` (nur die äußere Umrandung, weiterhin VOR dem
+Screen-Inhalt) und `zeichneNotchUndMikrofon()` (Notch + Mikrofon-Schlitz,
+jetzt NACH dem Screen-Inhalt, siehe `render()`). Mikrofon-Schlitz war von
+diesem Bug nicht betroffen (liegt unterhalb des Screen-Bereichs, siehe
+"Mikrofon-Schlitz ergänzt" oben), wird der Einfachheit halber aber am
+selben Ort gezeichnet, da beide Elemente physisch/zustandsunabhängig
+zusammengehören.
+
+Verifiziert per Screenshot aller drei Zustände (Homescreen, Replay bereit,
+Timer bereit) nebeneinander - Notch in allen dreien wieder sichtbar. `npm
+test` weiterhin grün (322 Tests, keine neuen Testfälle - reiner
+Zeichenreihenfolge-Fix).
+
+**Ring-Lücke korrigiert (2026-08-04), User: "vorhin habe ich gesagt, wenn du
+auf den timer icon drückst, dann kommt der timer screen. der blaue kreis
+sollte aber fast geschlossen sein. Hier ist er ab leicht offen."** Ursache:
+NICHT ein eigener Umsetzungsfehler, sondern eine STALE Kopie - der `d`-Pfad
+von `path1-8-7` (Ring der "Timer bereit"-Ansicht), den ich beim ersten
+Umsetzen aus der Vorlage übernommen hatte, war zu diesem Zeitpunkt korrekt,
+der User hat `handy.svg` aber ZWISCHENZEITLICH weiter bearbeitet (Ring-Lücke
+deutlich verkleinert) - meine Kopie im Code blieb auf dem alten Stand.
+
+**Diagnose-Weg, der zur Wurzel führte:** ein Vergleich zweier Screenshots
+(mein Render vs. ein Crop der Vorlage) zeigte einen sichtbar größeren
+Lücken-Winkel bei mir. Erst eine Nachrechnung der tatsächlichen
+Bogen-Endpunkte aus dem `d`-Pfad (Start-/Endwinkel relativ zum Kreismittel-
+punkt, nicht die `sodipodi:start`/`sodipodi:end`-Werte, die nur
+Inkscape-interne Bearbeitungs-Metadaten sind und vom eigentlichen
+`d`-Attribut abweichen können) bestätigte: meine gespeicherte Kopie ergab
+geometrisch tatsächlich eine ~54°-Lücke - stimmte also intern konsistent,
+war nur nicht mehr aktuell. **Den entscheidenden Unterschied lieferte erst
+ein Direktvergleich des LIVE aus dem DOM ausgelesenen `d`-Attributs
+(`element.getAttribute('d')`, in der aktuell auf der Platte liegenden
+`handy.svg` frisch geladen) gegen meine im Code hinterlegte Kopie** - beide
+unterschieden sich in den Bogen-Radien-Zahlen, obwohl Startpunkt und
+Kreismittelpunkt identisch geblieben waren. Lehre für künftige Male: bei
+Verdacht auf eine veraltete Kopie aus einer vom User weiterbearbeiteten
+Vorlage-Datei immer die Datei FRISCH neu einlesen, nicht auf eine frühere
+Lektüre im Gesprächsverlauf verlassen.
+
+**Fix:** `d`-Pfad des Rings in `zeichneTimerBereit()` durch den aktuellen
+Wert aus `handy.svg` ersetzt (`m 140.49241,229.65801 a 12.852182,12.85218 0
+0 1 12.75815,12.84823 ...`) - deckt jetzt denselben, fast vollständigen
+Kreis mit nur einer winzigen Lücke oben ab wie in der Vorlage. Play-Button/
+Text/X-Button unverändert (beim erneuten Volllesen der Datei bestätigt,
+dass sich sonst nichts an der "Timer bereit"-Ansicht geändert hatte).
+
+Verifiziert per Screenshot, direkt mit dem Vorlage-Crop verglichen - Lücke
+jetzt sichtbar minimal, wie gefordert. `npm test` weiterhin grün (322 Tests,
+keine neuen Testfälle - reine Pfad-Daten-Korrektur).
+
 ### timer.js (alter Roadmap-Stub, noch nicht umgesetzt)
 - Sichtbarer 45-Minuten Timer
 - Stufe 3: Sprachansagen zu definierten Zeitpunkten

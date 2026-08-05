@@ -5,6 +5,7 @@ import { ProtokollView } from '../view/protokoll.js';
 import { SteckdosenView } from '../view/steckdosen.js';
 import { SchraubendreherView } from '../view/schraubendreher.js';
 import { HandyView } from '../view/handy.js';
+import { fuehreSchrittAus } from './fahrplan_ausfuehrung.js';
 import { Popup } from '../view/popup.js';
 import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
@@ -59,6 +60,15 @@ async function start() {
   // Netzplan hat (z.B. die handgepflegte beispiel_eg.json). Ohne Graph bleibt
   // RLOW einfach beim Platzhalter, kein Fehlerfall.
   const graph = await Anlage.ladeGraph(pfad);
+
+  // Fahrplan für die Replay-App im Handy (siehe view/handy.js, Projekt-
+  // Memory "Handy-Widget Vision") - null, wenn für diese Anlage keiner
+  // erzeugt wurde (Replay-Icon wird dann unten gar nicht erst gezeichnet).
+  // Die eigentliche Abspiel-Logik (Schritte gegen den Schaltkasten/das
+  // Messgerät ausführen) ist noch NICHT umgesetzt - dieser Schritt lädt
+  // bewusst nur die Daten, um das zu einem kleinen, isoliert testbaren
+  // Schritt zu machen (User-Vorgabe: "kleine Schritte").
+  const fahrplan = await Anlage.ladeFahrplan(pfad);
 
   // kreis-Element -> Farbe bzw. -> zugehörige Ader (für die Pfadsuche: welche
   // Funktion/welches Netz hängt an dieser Schraube) bzw. -> Overlay-Kreis-Element.
@@ -1237,6 +1247,42 @@ async function start() {
     messspitzenAder.clear();
   }
 
+  // Setzt den kompletten Schaltkasten auf den Ausgangszustand zurück -
+  // Messspitzen entfernt, alle gelösten Schrauben wieder eingedreht, alle
+  // Schalter/Hebel geschlossen, Schraubendreher zugriffsbereit (nicht
+  // aufgenommen). Aufgerufen beim Öffnen der Replay-App (siehe
+  // onReplayIconKlick unten) - User-Idee 2026-08-05, direkt ausgelöst durch
+  // die testDruecken-Verifikation: dort hatten Messspitzen aus einem
+  // vorherigen (manuellen) Abschnitt Farben blockiert, weil `fahrplan.json`
+  // ein Umstecken nicht als eigenen Schritt modelliert - ein Replay-Start
+  // sollte immer auf einer "frischen" Anlage aufsetzen, wie ein Prüfer, der
+  // den Schaltkasten vor einem neuen Durchlauf wieder in Grundzustand bringt.
+  function setzeSchaltkastenZurueck() {
+    entferneAlleMessspitzen();
+
+    // Gelöste Schrauben wieder eindrehen: die betroffenen Kanten direkt aus
+    // `geloesteKanten` zurücksetzen (dieselbe Menge, die der Schraubendreher
+    // beim Lösen befüllt hat) - einfacher als der Umweg über
+    // findeSchraubenKanten()/ader, der pro Schraube den ursprünglichen
+    // Klick-Kontext bräuchte, den wir hier nicht mehr haben.
+    for (const kante of geloesteKanten) {
+      kante.geschlossen = kante._schalterSoll ?? true;
+    }
+    geloesteKanten.clear();
+    for (const overlay of geloesteSchrauben.values()) overlay.remove();
+    geloesteSchrauben.clear();
+
+    // ERST die Schrauben (oben) zurücksetzen, DANN die Schalter - sonst
+    // würde schalterUmschalten() (aufgerufen über setGeschlossen() unten)
+    // an der `!geloesteKanten.has(kante)`-Sperre in schalterUmschalten()
+    // oben abprallen und den Schalter fälschlich offen lassen.
+    for (const handle of schalterHandles.values()) handle.setGeschlossen(true);
+
+    schraubendreherAufgenommen = false;
+    renderSchraubendreher();
+    renderMessgeraet();
+  }
+
   function renderMessgeraet() {
     MessgeraetView.render(messgeraetContainer, baueAnzeigeZustand(), {
       onOff: () => {
@@ -1402,17 +1448,82 @@ async function start() {
   }
   // Handy-Navigation (User-Vorgabe 2026-08-04, kleine Schritte): beide
   // Homescreen-Icons sind klickbar, zeigen ihre jeweilige "bereit"-Ansicht
-  // (Sanduhr bzw. Ring+45:00, Play-Button - noch ohne Funktion, X zum
-  // Schließen). `handyHoehe` wird erst NACH dem ersten `passendRendern()`-
-  // Aufruf unten bekannt, aber innerhalb der Callbacks hier nur zur
-  // KLICK-Zeit gelesen (nicht beim Definieren) - zu dem Zeitpunkt ist die
-  // Variable längst zugewiesen.
+  // (Sanduhr bzw. Ring+45:00, Play-Button, X zum Schließen). `handyHoehe`
+  // wird erst NACH dem ersten `passendRendern()`-Aufruf unten bekannt, aber
+  // innerhalb der Callbacks hier nur zur KLICK-Zeit gelesen (nicht beim
+  // Definieren) - zu dem Zeitpunkt ist die Variable längst zugewiesen.
+  //
+  // `handyLaeuft` (User-Vorgabe 2026-08-05: "man braucht keine neue
+  // Ansicht! da sich nur der startknopf zum pauseknopf ändert" - gilt für
+  // Replay UND Timer gleichermaßen): Play-Klick schaltet NUR dieses Flag um
+  // (bleibt im selben `handyZustand`), Pause-Klick schaltet zurück - noch
+  // OHNE echte Funktion dahinter (kein Countdown, kein Fahrplan-Abspielen,
+  // siehe view/handy.js), das folgt als eigener, späterer Schritt. Beim
+  // Verlassen der Ansicht (Icon-Klick auf ein ANDERES Icon oder X) wird
+  // `handyLaeuft` zurückgesetzt, damit eine App beim erneuten Öffnen immer
+  // wieder im "bereit"-Zustand startet.
   let handyZustand = 'homescreen';
+  let handyLaeuft = false;
+  // Flache Liste aller Fahrplan-Schritte (für die Ausführung, siehe
+  // onSchrittKlick unten) + eine parallele Liste mit Anzeige-Infos pro
+  // Schritt (siehe view/handy.js) - ZWEI Ebenen, User-Vorgabe 2026-08-05:
+  // "Ich würde aber gerne den Aktuellen Titel und die Anzahl der Titel
+  // sehen" ZUSÄTZLICH zum bisherigen Schritt-im-Abschnitt-Zähler. Pro
+  // Schritt: Position/Funktion INNERHALB des Abschnitts (`indexInAbschnitt`/
+  // `abschnittGroesse`/`funktion`) UND Position des Abschnitts selbst im
+  // GESAMTEN Fahrplan (`abschnittIndex`/`abschnittAnzahl`/`titel`). Laufender
+  // Index, welcher Schritt als nächstes drankommt, wird beim Öffnen der
+  // Replay-App (siehe onReplayIconKlick unten) auf 0 zurückgesetzt, damit
+  // jeder Durchlauf wieder von vorn beginnt.
+  const replaySchritte = [];
+  const replaySchrittInfo = [];
+  if (fahrplan) {
+    fahrplan.abschnitte.forEach((abschnitt, abschnittPos) => {
+      abschnitt.schritte.forEach((schritt, i) => {
+        replaySchritte.push(schritt);
+        replaySchrittInfo.push({
+          titel: abschnitt.titel,
+          indexInAbschnitt: i + 1,
+          abschnittGroesse: abschnitt.schritte.length,
+          abschnittIndex: abschnittPos + 1,
+          abschnittAnzahl: fahrplan.abschnitte.length,
+          funktion: schritt.funktion
+        });
+      });
+    });
+  }
+  let replayIndex = 0;
   function renderHandy(hoehe) {
     HandyView.render(handyContainer, hoehe, handyZustand, {
-      onTimerIconKlick: () => { handyZustand = 'timer-bereit'; renderHandy(handyHoehe); },
-      onReplayIconKlick: () => { handyZustand = 'replay-bereit'; renderHandy(handyHoehe); },
-      onSchliessenKlick: () => { handyZustand = 'homescreen'; renderHandy(handyHoehe); }
+      laeuft: handyLaeuft,
+      // Kein Replay-Icon auf dem Homescreen, wenn für diese Anlage kein
+      // Fahrplan existiert (siehe Anlage.ladeFahrplan() oben) - User: "dann
+      // gibt es auch keinen replay app icon auf dem Handy und nichts kann
+      // gestartet werden."
+      replayVerfuegbar: fahrplan !== null,
+      onTimerIconKlick: () => { handyZustand = 'timer-bereit'; handyLaeuft = false; renderHandy(handyHoehe); },
+      onReplayIconKlick: () => { handyZustand = 'replay-bereit'; handyLaeuft = false; replayIndex = 0; setzeSchaltkastenZurueck(); renderHandy(handyHoehe); },
+      onSchliessenKlick: () => { handyZustand = 'homescreen'; handyLaeuft = false; renderHandy(handyHoehe); },
+      onPlayKlick: () => { handyLaeuft = true; renderHandy(handyHoehe); },
+      onPauseKlick: () => { handyLaeuft = false; renderHandy(handyHoehe); },
+      // Schritt-Anzeige (siehe view/handy.js: "N/M: Abschnittstitel", User-
+      // Vorgabe 2026-08-05) - zeigt immer den NÄCHSTEN auszuführenden
+      // Schritt (auch schon VOR dem ersten Klick, daher `Math.min(...)`
+      // gegen das Ende der Liste geklemmt, statt bei erreichtem Ende leer
+      // zu bleiben).
+      schrittInfo: replaySchrittInfo[Math.min(replayIndex, replaySchrittInfo.length - 1)],
+      // Schritt-Button (siehe view/handy.js): führt GENAU einen Fahrplan-
+      // Schritt aus (siehe controller/fahrplan_ausfuehrung.js - bisher nur
+      // `messspitzeSetzen`/`schraubeSchalten`/`testDruecken` implementiert,
+      // alles andere wird übersprungen, siehe dort) und rückt den Index weiter. Erneutes
+      // `renderHandy()` NÖTIG (anders als zuvor) - die Schritt-Anzeige oben
+      // muss sich mit jedem Klick aktualisieren.
+      onSchrittKlick: () => {
+        if (replayIndex >= replaySchritte.length) return;
+        fuehreSchrittAus(replaySchritte[replayIndex]);
+        replayIndex += 1;
+        renderHandy(handyHoehe);
+      }
     });
   }
   handyContainer.style.position = 'absolute';

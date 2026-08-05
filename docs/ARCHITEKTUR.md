@@ -2292,6 +2292,521 @@ Verifiziert per Screenshot, direkt mit dem Vorlage-Crop verglichen - Lücke
 jetzt sichtbar minimal, wie gefordert. `npm test` weiterhin grün (322 Tests,
 keine neuen Testfälle - reine Pfad-Daten-Korrektur).
 
+### Play/Pause-Umschaltung (2026-08-05) - KEINE eigene "läuft"-Ansicht
+
+**Design-Diskussion vor der Umsetzung, User: "Bei Punkt 1. Brauchen wie
+überhaupt diese ansicht? Wir druecken auf play, dann laeuft es durch.
+Beziehungsweise, die Pfeil icon kann einfach auf Pause wechseln."** Der für
+morgen (2026-08-05) angekündigte nächste Schritt war ursprünglich, eine
+komplett separate "Replay läuft"-Zeichnung zu bauen (mit eigener
+Koordinaten-Umrechnung, analog zu "Timer bereit"). Der User hat das
+verworfen: **kein neuer Zustand nötig** - dieselbe "bereit"-Zeichnung bleibt
+bestehen, nur der Button-Inhalt wechselt (Play+Schritt ↔ nur Pause).
+Gilt identisch für Replay UND Timer (per Rückfrage bestätigt, User: "ich
+meinte man braucht keine neue Ansicht! da sich nur der startknopf zum
+pauseknopf ändert").
+
+**Umfang dieses Schritts bewusst eng gehalten (User: "bitte kleine schritte
+machen. also erst den button tausch... Countdown und Fahrplan abspielen
+bitte separat"):** NUR der visuelle Button-Tausch + Zustands-Flag, OHNE
+echte Funktion dahinter - keine Sanduhr-Rotation, kein Countdown-Herunter-
+zählen, kein Fahrplan-Abspielen. Diese drei folgen als eigene, spätere
+Schritte.
+
+**API-Erweiterung `view/handy.js`:** `HandyView.render()`s `callbacks`-
+Objekt bekommt zwei neue Einträge - `laeuft` (boolean, KEIN neuer
+`zustand`-String) und `onPlayKlick`/`onPauseKlick`. `zeichneReplayBereit()`
+und `zeichneTimerBereit()` verzweigen jetzt intern auf `laeuft`, statt dass
+`render()` einen weiteren `zustand`-Fall braucht.
+
+**Zwei Ausrichtungs-Korrekturen, vom User explizit verlangt ("guck dass bei
+dem replay die button gleich gross sind, und aligend" / "guck bitte dass
+die Pfeil und Pause buttons aufeinander liegen, und nicht verschoben"):**
+1. **Replay Play-/Schritt-Button vereinheitlicht:** hatten in der Vorlage
+   leicht unterschiedliche Maße (Play: 19.850899×15.778917, Schritt:
+   19.596401×15.269919, unterschiedliches Y) - Handzeichnungs-Ungenauigkeit,
+   nicht beabsichtigt. Neue Konstanten `REPLAY_BUTTON_X/Y/BREITE/HOEHE/RX/RY`
+   (Play-Button-Maße als Kanon), beide Buttons nutzen sie jetzt identisch.
+   Das Schritt-Button-GLYPH (Punkte+Pfeil, eigene absolute Vorlage-
+   Koordinaten) wird dafür um einen kleinen, aus der Mittelpunkt-Differenz
+   alt/neu berechneten Versatz (`STEP_GLYPH_VERSATZ_X/Y`, ≈0,13/-0,21
+   Einheiten) verschoben, damit es im (jetzt geringfügig größeren) Rahmen
+   weiterhin zentriert sitzt.
+2. **Play- und Pause-Button liegen für BEIDE Apps exakt aufeinander:** bei
+   Replay teilen sich Play- und Pause-Button dieselben
+   `REPLAY_BUTTON_*`-Konstanten; bei Timer nutzen beide dieselbe
+   `playPauseGruppe` (identische `matrix(...)`-Transform-Zeichenkette) -
+   nur das Kind-Element (Dreieck-Pfad vs. zwei Balken-Rects) wird je nach
+   `laeuft` ausgetauscht, nie die Position/Größe der Gruppe selbst.
+
+**Pause-Glyphen (zwei Balken) 1:1 aus der Vorlage übernommen, nicht neu
+gezeichnet** (User: "Der Pause Icon existiert bereits in handy.svg. Da wird
+der pfeil einfach nur die zwei vertikale balken ersetzt."):
+- **Replay-Pause:** Balken-Koordinaten relativ zur EIGENEN Button-Ecke der
+  Vorlage (deren "Replay läuft"-Zustand, mittig links: `rect3-0-3` als
+  Button-Rahmen, `rect7-4`+`rect7-4-0` als Balken) ausgemessen und auf
+  `REPLAY_BUTTON_X/Y` übertragen (relativer Versatz + Zielecke, wie bei den
+  anderen Koordinaten-Umrechnungen in dieser Datei). `rect3-0-3` hat
+  zufällig exakt dieselbe Breite/Höhe wie der vereinheitlichte
+  `REPLAY_BUTTON_*`-Kanon - keine Skalierung nötig, nur Addition.
+- **Timer-Pause:** analog, Balken-Koordinaten relativ zur Button-Ecke der
+  Vorlage-eigenen "Timer läuft"-Gruppe (`rect3-1` als Rahmen, `rect7`+
+  `rect7-0` als Balken) ausgemessen und auf die Play-Button-Ecke (116.81491/
+  263.40616, dieselbe `matrix(...)`-Gruppe) übertragen. Auch hier: beide
+  Vorlage-Rahmen (`rect3`/`rect3-1`) haben zufällig identische Breite/Höhe.
+
+**Controller-Wiring:** neue Variable `handyLaeuft` (zusätzlich zu
+`handyZustand`) in `controller/app.js` - Play-Klick setzt sie auf `true`,
+Pause-Klick auf `false`, beide lösen nur `renderHandy(handyHoehe)` erneut
+aus (kein `handyZustand`-Wechsel). Icon-Klicks UND der X-Button setzen
+`handyLaeuft` zusätzlich zurück auf `false`, damit eine App beim erneuten
+Öffnen immer im "bereit"-Zustand mit Play-Button startet, nicht versehentlich
+im zuletzt verlassenen "läuft"-Zustand.
+
+Verifiziert per Screenshot-Sequenz in der ECHTEN App (`testcase_04`): Replay
+bereit → Play → läuft (Sanduhr-Screen zeigt nur noch Pause) → Pause →
+wieder bereit → X → Homescreen; separat Timer bereit → Play → läuft (Ring-
+Screen zeigt nur noch Pause) → Pause → wieder bereit. Beide Buttons
+(Play/Pause) liegen jeweils pixelgenau übereinander (kein sichtbarer
+Sprung beim Umschalten). `npm test` weiterhin grün (322 Tests, keine neuen
+Testfälle - reine `view/handy.js`/`controller/app.js`-Änderung).
+
+**Bewusst NICHT Teil dieses Schritts** (User: "Countdown und Fahrplan
+abspielen bitte separat"): Sanduhr-Rotation (45°/Sekunde, rein kosmetisch,
+startet bei Play/stoppt bei Pause, siehe Projekt-Memory "Handy-Widget
+Vision" für die volle Design-Diskussion dazu); Timer-Countdown (Ring
+schrumpft/Zahl zählt runter); tatsächliches Fahrplan-Abspielen. Alle drei
+folgen als eigene, spätere Schritte.
+
+### Fahrplan laden (2026-08-05) - erster Schritt zur echten Replay-Funktion
+
+**Design-Diskussion vor der Umsetzung:** User schlug vor, `fahrplan.json`
+nicht als JSON per `fetch()` zu laden, sondern in eine JS-Datei zu
+konvertieren, die dann als Code importiert wird ("macht es sinn, den
+fahrplan nicht in ein einfache js file zu konvertieren"). Dagegen
+entschieden: welche Anlage geladen ist, steht erst zur Laufzeit fest (über
+den `?anlage=...`-URL-Parameter) - ob dafür `fetch()` auf JSON oder
+`import()` auf eine JS-Datei läuft, ist in beiden Fällen ein asynchroner
+Ladevorgang, keine echte Vereinfachung. `anlage.json` wird schon exakt so
+(fetch, gleicher Ordner) geladen - denselben, bereits bewährten Mechanismus
+für `fahrplan.json` zu nutzen vermeidet einen zusätzlichen Konvertierungs-
+schritt in der Offline-Erzeugung (`tools/pruefprotokoll_erstellung.js`).
+
+**Zweiter Teil der User-Vorgabe, umgesetzt:** "Wenn fahrplan nicht
+existiert, dann gibt es auch keinen replay app icon auf dem Handy und
+nichts kann gestartet werden." - kein ausgegrautes Icon, keine
+Fehlermeldung, das Icon fehlt einfach komplett.
+
+**`model/anlage.js`:** neue Funktion `Anlage.ladeFahrplan(anlagePfad)`,
+1:1 nach dem Vorbild von `Anlage.ladeGraph()` (Pfad-Ableitung per
+`.replace(/anlage\.json$/, 'fahrplan.json')`, liefert `null` statt zu
+werfen bei 404). `controller/app.js`s `start()` lädt den Fahrplan direkt
+nach dem Graph (`const fahrplan = await Anlage.ladeFahrplan(pfad);`) - noch
+OHNE jede Ausführungslogik, bewusst nur das Laden, um diesen Schritt klein
+zu halten (User: "kleine Schritte").
+
+**`view/handy.js`s `zeichneHomescreen()`** bekommt einen neuen Parameter
+`replayVerfuegbar` - fehlt er (bzw. ist `false`), wird der komplette
+"Icon 2"-Block (Replay) übersprungen, und das Timer-Icon rückt ALLEIN in
+die Bildschirmmitte (`iconReiheBreite` wird bei fehlendem Replay-Icon auf
+die Breite eines einzelnen Icons reduziert, statt mit einer Lücke rechts
+stehen zu bleiben). `controller/app.js` reicht `replayVerfuegbar: fahrplan
+!== null` durch.
+
+**Regressions-Stolperstein beim Testen selbst gefunden:** der erste
+Testversuch nutzte `anlagen/beispiel_eg.json` (die Default-Anlage ohne
+Testcase-Ordner) als "Anlage ohne Fahrplan"-Fall - zeigte aber
+fälschlicherweise weiterhin BEIDE Icons. Ursache: `Anlage.ladeGraph()`s
+(und jetzt auch `ladeFahrplan()`s) Pfad-Ableitung per
+`.replace(/anlage\.json$/, ...)` funktioniert nur, wenn die Datei WÖRTLICH
+`anlage.json` heißt - bei `beispiel_eg.json` (anderer Dateiname) matcht die
+Regex nicht, `.replace()` bleibt wirkungslos, und der Pfad bleibt
+unverändert `anlagen/beispiel_eg.json` - `ladeFahrplan()` fetcht dadurch
+versehentlich die ANLAGE-Datei selbst nochmal, bekommt eine gültige Antwort
+(`.ok === true`) und hält das fälschlich für einen vorhandenen Fahrplan.
+**Das ist keine neue Einschränkung, sondern eine bereits bestehende
+Eigenschaft von `ladeGraph()`**, hier nur zum ersten Mal sichtbar geworden,
+weil `beispiel_eg.json` als einzige Anlage im Projekt nicht `anlage.json`
+heißt (alle Testcase-Ordner heißen exakt so). Kein Fix nötig für den
+aktuellen Scope (betrifft nur die Sonderdatei `beispiel_eg.json`, nicht die
+sechs echten Testcases) - für den echten Test wurde stattdessen
+`testcase_04`s `fahrplan.json` temporär beiseitegelegt (korrekt benannter
+Pfad, aber Datei fehlt) - dort funktionierte die Erkennung sofort korrekt.
+
+Verifiziert: `testcase_04` (hat `fahrplan.json`) zeigt beide Icons;
+`testcase_04` mit temporär entfernter `fahrplan.json` zeigt NUR das
+Timer-Icon, zentriert. `npm test` weiterhin grün (322 Tests, keine neuen
+Testfälle - alle sechs Testcases haben eine `fahrplan.json`, bestehendes
+Verhalten dadurch unverändert).
+
+**Nächste Schritte (noch nicht umgesetzt, siehe Diskussion mit dem User):**
+ein Ein-Schritt-Ausführer (neues Modul, Geschwister zu
+`tools/messgeraet_steuerung.js`, aber mit echten DOM-Klicks statt
+Playwright-Locators) - inkrementell nach Funktionstyp aufgebaut (zuerst nur
+`messspitzeSetzen`, dann `schraubeSchalten`, usw.), verdrahtet an den
+Schritt-Button; danach Play = derselbe Ein-Schritt-Aufruf im
+2-Sekunden-Takt.
+
+### Ein-Schritt-Ausführer, erste Funktion (2026-08-05) - `messspitzeSetzen`
+
+**Neues Modul `controller/fahrplan_ausfuehrung.js`** - Geschwister zu
+`tools/messgeraet_steuerung.js` (das dieselben Aktionen für Playwright,
+externe Automatisierung, bereitstellt), aber für die ECHTE, bereits im
+Browser laufende App gebaut. Exportiert `fuehreSchrittAus(schritt)` -
+nimmt genau EIN Objekt aus `fahrplan.json`s `schritte[]` (`{funktion,
+argumente}`) entgegen. User-Vorgabe befolgt ("erst gucken ob es prinzipiell
+funktioniert. z.B. replay nur mit messspitzen."): nur `funktion ===
+'messspitzeSetzen'` löst tatsächlich einen Klick aus, jeder andere
+`funktion`-Name wird kommentarlos übersprungen (kein Fehler).
+
+**Bug beim ersten Versuch selbst gefunden: `element.click()` funktioniert
+NICHT auf SVG-Elementen** in diesem Browser - `typeof
+svgCircleElement.click` ist `'undefined'` (anders als bei `HTMLElement`,
+wo `.click()` eine Standardmethode ist). Verifiziert über ein isoliertes
+Playwright-Skript (`document.querySelector('circle').click` direkt
+geprüft). **Fix:** statt `.click()` wird ein echtes `MouseEvent('click', {
+bubbles: true, cancelable: true })` per `element.dispatchEvent(...)`
+ausgelöst - funktioniert für JEDES Element (HTML/SVG gleichermaßen), da
+`addEventListener('click', ...)` (siehe `view/schaltkasten.js`) auf das
+Event-Objekt reagiert, unabhängig davon, ob es vom Nutzer oder
+programmatisch ausgelöst wurde.
+
+**`messspitzeSetzen({bauteil, netz})`** baut denselben CSS-Selektor wie
+`tools/messgeraet_steuerung.js`s gleichnamige Funktion (`#schaltkasten svg
+circle[data-bauteil="..."][data-netz="..."]`, beide Teile optional) und
+klickt (per `dispatchEvent`) das erste Treffer-Element - dieselben
+`data-bauteil`/`data-netz`-Attribute, die `view/schaltkasten.js` beim
+Rendern schon setzt, keine neue Selektor-Logik nötig.
+
+**Verdrahtung:** `controller/app.js`s `start()` flacht den geladenen
+Fahrplan einmalig zu einer flachen Liste ab (`fahrplan.abschnitte.flatMap(a
+=> a.schritte)`, Abschnitte spielen für die Ausführung selbst keine Rolle)
+und hält einen laufenden Index (`replayIndex`), der beim Öffnen der
+Replay-App (Icon-Klick) auf 0 zurückgesetzt wird. `view/handy.js`s bisher
+wirkungsloser Schritt-Button bekommt jetzt `onSchrittKlick` (neuer
+Callback-Parameter in `zeichneReplayBereit()`) - bei Klick wird der
+aktuelle Schritt ausgeführt und der Index weitergezählt. Kein erneutes
+`HandyView.render()` nötig nach einem Schritt-Klick - der Klick verändert
+nicht das Handy selbst, nur den Schaltkasten (dessen eigene, bereits
+bestehende Click-Handler reagieren auf den simulierten Klick normal,
+inklusive eigenem Re-Render/Overlay).
+
+**Zweiter, wichtigerer Bug beim eigenen Testen gefunden (kein
+Implementierungsfehler in diesem Schritt selbst, sondern ein bereits
+vorher bestehender, jetzt erstmals zum Absturz führender Bug):**
+`Anlage.ladeGraph()`/`ladeFahrplan()`s Pfad-Ableitung
+(`anlagePfad.replace(/anlage\.json$/, ...)`) ließ einen nicht passenden
+Pfad (z.B. `anlagen/beispiel_eg.json`, die einzige Anlage im Projekt mit
+abweichendem Dateinamen) unverändert stehen - dadurch fetchte
+`ladeFahrplan()` versehentlich die ANLAGE-Datei selbst nochmal und hielt
+die gültige Antwort (`antwort.ok === true`) fälschlich für einen
+vorhandenen Fahrplan (bereits in der vorherigen Runde gefunden, siehe
+"Fahrplan laden" oben, aber dort als harmlos eingestuft, weil noch nichts
+`fahrplan.abschnitte` gelesen hatte). **Jetzt, wo `start()` tatsächlich
+`fahrplan.abschnitte.flatMap(...)` aufruft, führte das zum Absturz**
+(Anlage-Daten haben kein `abschnitte`-Feld) - `start()` bricht komplett ab,
+sobald eine `TypeError` unbehandelt in der `async function` auftritt, was
+ALLES nachfolgende Rendering (inklusive Handy/Schraubendreher) verhinderte
+- sichtbar geworden über zwei fehlschlagende Schraubendreher-Layout-Tests
+(`test_schraubendreher.js`, nutzen die Default-Anlage ohne `?anlage=`-Param).
+
+**Fix:** neue private Hilfsfunktion `Anlage._abgeleiteterPfad(anlagePfad,
+zielDatei)` - liefert `null`, wenn `anlagePfad` gar nicht auf
+`"anlage.json"` endet (kein sinnvoll ableitbarer Pfad), statt einen
+unveränderten Pfad zurückzugeben. `ladeGraph()`/`ladeFahrplan()` nutzen
+diese Hilfsfunktion jetzt beide und geben `null` zurück, wenn sie `null`
+liefert (vor dem eigentlichen Fetch, kein unnötiger Netzwerk-Request mehr
+für `beispiel_eg.json`).
+
+Verifiziert: Schritt-Button-Klicks auf `testcase_04`s Fahrplan (Schritt 1
+`drehknopfAufModus` übersprungen, Schritt 2+3 `messspitzeSetzen`) setzen
+tatsächlich sichtbare Messspitzen-Overlays im Schaltkasten (per Screenshot
+bestätigt) - kompletter Pfad Schritt-Button → Fahrplan-Schritt →
+DOM-Click-Event → bestehender Click-Handler → sichtbare Änderung
+funktioniert Ende-zu-Ende. `beispiel_eg.json` lädt wieder sauber (nur noch
+EIN Netzwerk-Request, kein fälschliches Graph-/Fahrplan-Nachladen mehr).
+`npm test` weiterhin grün (322 Tests, keine neuen Testfälle - die beiden
+durch den Pfad-Ableitungs-Bug zwischenzeitlich fehlschlagenden
+Schraubendreher-Tests laufen nach dem Fix wieder durch).
+
+**Nutzungshinweis, vom User selbst gefunden (nicht mein Fehler):** das
+Messgerät muss über den ON/OFF-Knopf eingeschaltet sein, damit
+Messspitzen-Klicks überhaupt etwas bewirken - beim ersten eigenen Test
+ohne das dachte der User, der Schritt-Button funktioniere nicht
+("ich muss das messgerät erst anmachen! Jetzt tut was."). Kein Code-Fund,
+nur zur Erinnerung für künftige Sessions/Doku.
+
+### Ein-Schritt-Ausführer, zweite Funktion (2026-08-05) - `schraubeSchalten`
+
+**User: "machte bitte jetzt mit den schrauben weiter."** Analog zu
+`messspitzeSetzen` - `schraubeSchalten(bauteil, netz)` in
+`controller/fahrplan_ausfuehrung.js` führt ZWEI Klicks aus, genau wie ein
+Mensch (und wie `tools/messgeraet_steuerung.js`s gleichnamige Playwright-
+Funktion): erst das Schraubendreher-Werkzeug "aufnehmen", dann die
+Ziel-Schraube treffen.
+
+**Bug beim ersten Versuch selbst gefunden:** ein Klick-Event auf
+`#schraubendreher svg` (das ÄUSSERE `<svg>`-Element) hatte keine Wirkung.
+Grund: der Klick-Listener sitzt in `view/schraubendreher.js` auf der
+INNEREN `<g>` (`g.addEventListener('click', onKlick)`), nicht auf dem
+`<svg>` selbst - Events bubbeln beim Auslösen nur zu VORFAHREN des
+tatsächlichen Ziels nach oben, nie zu NACHFAHREN. Ein Klick auf das `<svg>`
+(Vorfahre der `<g>`) erreicht die `<g>` (Nachfahre) deshalb nie. **Fix:**
+Selektor auf `#schraubendreher svg g` geändert - trifft das Element, auf
+dem der Listener tatsächlich sitzt.
+
+**Ziel-Schraube-Suche 1:1 aus `tools/messgeraet_steuerung.js`s
+`schraubeSchalten()` übernommen** (dieselbe, dort bereits gefundene und
+dokumentierte Logik, siehe "`tools/messgeraet_steuerung.js`" weiter oben):
+exakter Abgleich gegen `data-netz` ODER (gesplittet) `data-netz-weitere`,
+NICHT per CSS-Teilstring-Selektor (`*=`) - sonst würden geteilte Schrauben
+(ein RCD-Ausgang, der zwei nachgeschaltete LS versorgt) falsch gefunden
+oder ein Netz wie "N41" fälschlich auch "N410" treffen.
+
+Verifiziert: Schritt-Button-Sequenz auf `testcase_04`s Fahrplan (Drehknopf
+übersprungen → 2× Messspitze sichtbar → Anzeige-Lesen übersprungen →
+`schraubeSchalten` auf RCD1/N20 → Drehknopf übersprungen → 2× weitere
+Messspitze sichtbar) - die RCD1-Schraube zeigt nach dem `schraubeSchalten`-
+Schritt korrekt den weißen "gelöst"-Kreis-Overlay (per Screenshot
+bestätigt), dieselbe Darstellung wie bei einem echten manuellen Klick.
+`npm test` weiterhin grün (322 Tests, keine neuen Testfälle).
+
+**Nächster kleiner Schritt (noch offen):** `drehknopfAufModus` als dritte
+Funktion - im Unterschied zu den ersten beiden EIN Klick genügt nicht,
+sondern der Knopf muss so oft geklickt werden, bis der Zielmodus erreicht
+ist (siehe `tools/messgeraet_steuerung.js`s `drehknopfAufModus()`, das
+dafür intern den aktuellen Modus mitführt) - der DOM-Ausführer bräuchte
+dafür ebenfalls einen mitgeführten "aktueller Modus"-Zustand, nicht nur
+einen zustandslosen Einzelklick wie bei den bisherigen zwei Funktionen.
+
+### Schritt-Anzeige im Handy (2026-08-05)
+
+**User-Vorschlag, direkt umgesetzt:** "Macht es Sinn, auf dem Handy immer
+den Titel über der Sanduhr zu zeigen, in weißer Schrift, mit aktuellem
+Schritt und Anzahl der Schritte/Schritte insgesamt vorne dran. Z.B. 1/11
+SK1: Rpe (PE-Durchgang)". Zähler bezieht sich auf den AKTUELLEN Abschnitt
+(nicht auf den gesamten Fahrplan) - bestätigt: "Zähler bezieht sich auf den
+aktuellen Abschnitt." Zur Kontrolle nachgeschaut: `testcase_04`s Fahrplan
+hat 12 Abschnitte mit unterschiedlich vielen Schritten (4 bis 10, je nach
+Messart) - die Zähler-Obergrenze ist also PRO ABSCHNITT verschieden, nicht
+fest, was für die Implementierung kein Problem ist (wird dynamisch aus den
+echten Daten berechnet).
+
+**Format:** `{Schritt im Abschnitt}/{Schritte im Abschnitt gesamt}:
+{Titel}`, z.B. `2/8: SK1: RCD-Auslösung...`. **Harte Zeichen-Obergrenze
+statt weichem Umbruch** (User: "Bitte auf jeden Fall abschneiden, falls
+der String zu lang ist... Wichtig ist: kein Überlauf beim Screen, sondern
+Anzahl der Charakter auf jedenfall beschränken") - `SCHRITT_TEXT_MAX_ZEICHEN
+= 20` in `view/handy.js`, überschüssiger Text wird durch `...` ersetzt.
+Der Wert wurde NICHT rein rechnerisch hergeleitet (bei der winzigen
+Handy-Bildschirmbreite und den vorhandenen Schriftgrößen im restlichen UI
+kaum präzise vorhersagbar), sondern per Screenshot-Test direkt gegen zwei
+Extremfälle (kurzer und sehr langer Titel) geprüft - passte auf Anhieb
+(kein Überlauf, noch sichtbarer Rand rechts).
+
+**Positionierung, User-Vorgabe:** "unter dem X, aber mit Abstand. Auch
+Abstand zur Sanduhr... Den Text machst du links aligned zum display. Aber
+auch hier: Abstand zu Rand link[s]." Umgesetzt: `x: SCREEN_X + 2` (kleiner
+Innenabstand zum linken Bildschirmrand), `y: 33` (fester Wert, ebenfalls
+per Screenshot statt Berechnung ermittelt - liegt sichtbar unterhalb des
+X-Buttons, dessen berechnete untere Kante bei y≈27.17 liegt, und deutlich
+oberhalb der Sanduhr).
+
+**In BEIDEN Zuständen sichtbar** (User: "Ich würde sagen, in beiden
+Zuständen.") - im gemeinsamen Zeichnungsteil VOR der `if (laeuft)`-Weiche
+in `zeichneReplayBereit()` platziert, nicht dupliziert.
+
+**Datenherkunft, `controller/app.js`:** die bisher flache Fahrplan-
+Schrittliste (`replaySchritte`, nur für die Ausführung gedacht) bekommt
+eine PARALLELE Liste `replaySchrittInfo` (`{titel, indexInAbschnitt,
+abschnittGroesse}` pro Schritt, beim Aufbau aus den Abschnitten berechnet,
+Abschnitts-Grenzen gehen dabei NICHT verloren wie zuvor beim reinen
+`flatMap()`). `renderHandy()` reicht `replaySchrittInfo[replayIndex]`
+(auf das Listenende geklemmt, damit auch nach dem letzten Schritt noch
+etwas Sinnvolles angezeigt wird) als neue `schrittInfo`-Option durch.
+**Wichtige Verhaltensänderung gegenüber der vorherigen Runde:**
+`onSchrittKlick` ruft jetzt `renderHandy()` erneut auf (vorher bewusst
+NICHT nötig, da der Klick nur den Schaltkasten veränderte) - die
+Schritt-Anzeige selbst muss sich ja mit jedem Klick aktualisieren.
+
+Verifiziert per Screenshot-Sequenz in der ECHTEN App (`testcase_04`):
+Anzeige zeigt vor dem ersten Klick "1/4: SK1: Rpe (PE..." (erster Schritt
+des ersten Abschnitts), nach vier Klicks (kompletter erster Abschnitt
+durchlaufen) korrekt "1/7: SK1: Riso Ve..." (erster Schritt des ZWEITEN
+Abschnitts, Zähler auf 1 zurückgesetzt, neue Abschnittsgröße 7). `npm test`
+weiterhin grün (322 Tests, keine neuen Testfälle).
+
+### Zweite Schritt-Anzeige-Zeile (2026-08-05) - Abschnitts-Ebene
+
+**User, direkt nach der ersten Runde: "Bei SK1: Rpe (PE-Durchgang) hast du
+vier schritte. Das zeigst du alles richtig... Ich würde aber gerne den
+Aktuellen Titel und die Anzahl der Titel sehen. Vielleicht gehört da ein
+neuer Text zwischen Sanduhr und Pfeiltaste: Counter Titel/Anzahl Title:
+Titel. Über der Sanduhr N/M: Funktion."** Die bisherige EINE Zeile wird zu
+ZWEI Zeilen mit unterschiedlicher Granularität:
+1. **Über der Sanduhr (bestehende Position), Inhalt geändert:** `N/M:
+   Funktion` - N/M bleibt Position/Gesamtzahl INNERHALB des aktuellen
+   Abschnitts (unverändert), aber statt des Abschnittstitels steht jetzt
+   der Funktionsname des EINZELNEN Schritts dahinter (`schritt.funktion`,
+   z.B. "messspitzeSetzen", "schraubeSchalten") - feingranulare
+   Schritt-Ebene.
+2. **NEU, zwischen Sanduhr und Play-/Pause-Button:** `N/M: Titel` - N/M
+   sind hier Position/Gesamtzahl des AKTUELLEN ABSCHNITTS selbst im
+   GESAMTEN Fahrplan (nicht mehr innerhalb des Abschnitts), gefolgt vom
+   vollen Abschnittstitel - grobgranulare Abschnitts-Ebene, zeigt welche
+   Messaufgabe insgesamt läuft und wie weit man im kompletten Fahrplan ist.
+
+**`controller/app.js`s `replaySchrittInfo` um drei neue Felder erweitert:**
+`abschnittIndex` (1-basierte Position des Abschnitts im Fahrplan),
+`abschnittAnzahl` (Gesamtzahl der Abschnitte) und `funktion`
+(`schritt.funktion`, direkt durchgereicht) - beim Aufbau der Liste jetzt
+`fahrplan.abschnitte.forEach((abschnitt, abschnittPos) => ...)` statt
+einer einfachen `for...of`-Schleife, um den Abschnitts-Index mitzuführen.
+
+**`view/handy.js`:** `formatiereSchrittInfo()` in ZWEI Funktionen
+aufgeteilt - `formatiereSchrittZeile()` (Schritt-Ebene, wie oben) und
+`formatiereAbschnittZeile()` (Abschnitt-Ebene, neu) -, beide nutzen
+dieselbe `kuerzeAufMaxZeichen()`-Hilfsfunktion (dieselbe
+`SCHRITT_TEXT_MAX_ZEICHEN = 20`-Grenze wie zuvor, für beide Zeilen
+identisch). Neue Textzeile bei `y: 65` (zwischen Sanduhr und
+`REPLAY_BUTTON_Y`-Bereich, der bei `y≈70.6` beginnt) - Wert wieder per
+Screenshot statt Berechnung ermittelt.
+
+**Zufällig entdeckt beim Verifizieren, kein Bug:** der zweite
+Fahrplan-Abschnitt in `testcase_04` ("SK1: Riso Verbraucher ohne") beginnt
+mit `schraubeSchalten` (RCD1-Schraube öffnen), NICHT mit
+`drehknopfAufModus` wie die meisten anderen Abschnitte - passend zur schon
+dokumentierten Trennstellen-Regel (RISO-Messung öffnet zuerst die
+Trennstelle, bevor der Messmodus gewechselt wird, siehe
+`tools/pruefprotokoll_erstellung.js`s `naechsteTrennstelle()`). Direkt in
+der echten `fahrplan.json` nachgeprüft, bestätigt kein Anzeige-Fehler.
+
+Verifiziert per Screenshot (isolierte Testdaten UND echte App,
+`testcase_04`): beide Zeilen erscheinen korrekt getrennt, mit klarem
+Abstand zu X-Button, Sanduhr und Play-/Pause-Button, Kürzung funktioniert
+auf beiden Zeilen unabhängig. `npm test` weiterhin grün (322 Tests, keine
+neuen Testfälle).
+
+### Ein-Schritt-Ausführer, dritte Funktion (2026-08-05) - `testDruecken`
+
+**User: "ok. wir machen testDruecken jetzt."** (nach kurzer
+Diskussion - `testDruecken` gewählt statt `drehknopfAufModus`, weil
+zustandslos wie die ersten beiden Funktionen, `drehknopfAufModus` braucht
+dagegen einen mitgeführten "aktueller Modus"-Zustand und bleibt der
+nächste größere Schritt). `testDruecken()` in
+`controller/fahrplan_ausfuehrung.js` sucht das `<text>`-Element mit
+`textContent === 'TEST'` (analog zu `tools/messgeraet_steuerung.js`s
+`page.getByText('TEST', {exact:true}).click()`) und klickt es - der
+Klick-Listener sitzt in `view/messgeraet.js` auf der umschließenden `<g>`
+(`testGruppe`, kein eigenes ID/Data-Attribut), ein Klick auf das
+gefundene `<text>` bubbelt dorthin hoch (dasselbe Bubbling-Prinzip wie
+schon bei `schraubeSchalten()` dokumentiert).
+
+**Verifikation lief in mehreren Anläufen, weil zwei GETRENNTE, für sich
+harmlose Effekte das Ergebnis anfangs verschleiert haben** (kein Bug im
+neuen Code selbst - beide unten):
+
+1. **Fehlklick-Zählung im eigenen Testskript:** `drehknopfAufModus`-Schritte
+   werden vom Ausführer zwar übersprungen (kein DOM-Klick), zählen aber
+   trotzdem als EIN Schritt-Button-Klick (der Index rückt trotzdem weiter,
+   siehe `onSchrittKlick` in `controller/app.js`). Ein Test, der die
+   Klick-Anzahl bis `testDruecken` von Hand durchzählt, muss diese
+   übersprungenen Schritte MITZÄHLEN - beim ersten Diagnose-Durchlauf
+   wurde das vergessen, wodurch der Klick auf den Schritt-Button
+   tatsächlich einen ANDEREN Schritt ausführte (`messspitzeSetzen` statt
+   `testDruecken`), was fälschlich wie ein wirkungsloser `testDruecken`-
+   Klick aussah (per `console.log`-Instrumentierung in `fuehreSchrittAus()`
+   aufgedeckt und wieder entfernt).
+2. **Messspitzen aus dem vorherigen Abschnitt bleiben stehen:** die
+   `fahrplan.json`-Schritte modellieren keine explizite
+   "Messspitze-entfernen"-Aktion zwischen zwei Abschnitten - genau wie am
+   echten Gerät müsste ein Prüfer die physischen Probes selbst umstecken.
+   Bleiben alte Messspitzen (z.B. aus dem Rpe-Test des vorigen Abschnitts)
+   auf ihren alten Kontakten stehen, sind schon 2 der 3 Farben (schwarz/
+   blau/grün) belegt, bevor der RISO-Test überhaupt seine eigenen 3 Proben
+   setzt - `naechsteMessspitzenFarbe()` (`controller/app.js`) vergibt dann
+   Farben in unerwarteter Reihenfolge bzw. gar keine mehr, wodurch
+   `risoTestKlick()` an der `!schwarzAder || !blauAder || !gruenAder`-Prüfung
+   scheitert und der Platzhalter (`R:---MΩ`) stehen bleibt. Kein Fehler im
+   Ausführer - dieselbe Verwechslung passiert identisch bei einem
+   NATIVEN Klick auf TEST, wenn alte Probes nicht vorher entfernt wurden.
+
+**Sauber verifiziert** (`testcase_04`, Abschnitt "SK1: Riso Verbraucher
+ohne"): Schritt-Button-Sequenz - `schraubeSchalten` (RCD1/N20, Trennstelle
+öffnen) → `drehknopfAufModus` (übersprungen, Modus manuell nachgestellt,
+wie bei `drehknopfAufModus` grundsätzlich noch offen) → 3×
+`messspitzeSetzen` (N27/N28/PE-Klemme, alte Probes aus dem vorigen
+Abschnitt vorher entfernt) → `testDruecken` über den Schritt-Button. Die
+Anzeige wechselt direkt bei DIESEM Klick von `R:---MΩ` auf `R:>999MΩ`
+(korrekter Isolationswert für einen fehlerfreien Pfad) - per
+`console.log`-Instrumentierung bestätigt, dass genau dieser Klick
+`testKlick()` → `risoTestKlick()` erreicht (danach wieder entfernt, siehe
+oben). `npm test` weiterhin grün (322 Tests, keine neuen Testfälle).
+
+Stale-Kommentar in `controller/app.js`s `onSchrittKlick`-Dokumentation
+("bisher nur `messspitzeSetzen`/`schraubeSchalten` implementiert")
+korrigiert, jetzt inklusive `testDruecken`.
+
+**Nächster kleiner Schritt (noch offen):** `drehknopfAufModus` als vierte
+Funktion - im Unterschied zu den ersten drei genügt ein Klick nicht,
+sondern der Knopf muss so oft geklickt werden, bis der Zielmodus erreicht
+ist (siehe `tools/messgeraet_steuerung.js`s `drehknopfAufModus()`, das
+dafür intern den aktuellen Modus mitführt) - der DOM-Ausführer bräuchte
+dafür ebenfalls einen mitgeführten "aktueller Modus"-Zustand.
+
+### Schaltkasten-Reset beim Öffnen der Replay-App (2026-08-05)
+
+**User, direkt im Anschluss an die `testDruecken`-Verifikation: "wenn auf
+den Replay App gedrückt wird, dann sind messpitzen, schalter, Schrauben
+noch auf der alten Position. Macht es hier nicht Sinn, ein Reset zu
+machen?"** Genau der Bug, der die Verifikation oben verkompliziert hatte
+(alte Messspitzen aus einem vorherigen Abschnitt blockierten Farben),
+generalisiert zu einer echten Produkt-Anforderung: ein neuer Replay-Start
+soll immer auf einer frischen Anlage aufsetzen, wie ein Prüfer, der den
+Schaltkasten vor einem neuen Durchlauf wieder in Grundzustand bringt.
+**User-Bestätigung zum Umfang: "Eigentlich alles reseten: Messpitzen,
+Schalter auf geschlossen, Schraube alle drin, Schraubenzieher
+zugriffsbereit."**
+
+**Neue Funktion `setzeSchaltkastenZurueck()` in `controller/app.js`**
+(direkt neben `entferneAlleMessspitzen()`, das sie auch aufruft), in
+dieser Reihenfolge:
+1. **Messspitzen:** `entferneAlleMessspitzen()` (bereits vorhandene
+   Funktion, bisher nur beim Ausschalten des Messgeräts aufgerufen).
+2. **Gelöste Schrauben wieder eindrehen:** iteriert direkt über
+   `geloesteKanten` (dieselbe Menge, die der Schraubendreher beim Lösen
+   befüllt) und setzt `kante.geschlossen = kante._schalterSoll ?? true` -
+   einfacher als der Umweg über `findeSchraubenKanten(ader, kreis)`, der
+   den ursprünglichen Klick-Kontext (welche `ader` gehört zu diesem
+   `kreis`) bräuchte, den es beim Reset nicht mehr gibt. Anschließend alle
+   weißen "gelöst"-Overlays entfernen, `geloesteSchrauben`/`geloesteKanten`
+   leeren.
+3. **Schalter/Hebel schließen:** `schalterHandles.values()` (Map aller
+   Schalter-Handles, siehe `view/schaltkasten.js` `zeichneSchalter()`
+   Rückgabewert) - `handle.setGeschlossen(true)` für jeden, was denselben
+   `onKlick`-Pfad wie ein echter Klick auslöst (`schalterUmschalten()`).
+   **Reihenfolge wichtig:** MUSS nach Schritt 2 laufen - `
+   schalterUmschalten()` respektiert `geloesteKanten` (öffnet eine per
+   Schraubendreher gekappte Kante nicht einfach wieder), ist `
+   geloesteKanten` an dieser Stelle noch nicht geleert, bliebe der Schalter
+   fälschlich offen.
+4. **Schraubendreher:** `schraubendreherAufgenommen = false` +
+   `renderSchraubendreher()` (zugriffsbereit, nicht in der Hand).
+
+Verdrahtet in `onReplayIconKlick` (`view/handy.js`-Callback), direkt neben
+dem bereits bestehenden `replayIndex = 0`-Reset - beide Resets gehören
+konzeptionell zusammen (neuer Durchlauf = neuer Fahrplan-Index UND neue
+Anlage). **Bewusst NICHT bei der Timer-App** (rührt den Schaltkasten gar
+nicht an, kein Reset-Grund).
+
+Verifiziert per Playwright-Skript: Messspitze gesetzt, eine Schraube
+gelöst, ein RCD-Hebel geöffnet - vor dem Reset 2 sichtbare r=7-Overlays (1
+Messspitze + 1 gelöste Schraube) und ein offener Hebel (per Screenshot
+bestätigt), nach Öffnen der Replay-App 0 Overlays und der Hebel wieder
+geschlossen (ebenfalls per Screenshot bestätigt, RCD-Symbol zeigt wieder
+die durchgezogenen Balken statt des offenen Kreis-Symbols). `npm test`
+weiterhin grün (322 Tests, keine neuen Testfälle).
+
 ### timer.js (alter Roadmap-Stub, noch nicht umgesetzt)
 - Sichtbarer 45-Minuten Timer
 - Stufe 3: Sprachansagen zu definierten Zeitpunkten

@@ -9,6 +9,9 @@ screenshots/
 # Generierte Ausgaben von tools/pruefprotokoll_erstellung.js +
 # tools/fahrplan_beschreibung.js - aus anlage.json regenerierbar, kein
 # Quellmaterial (siehe ARCHITEKTUR.md "tools/pruefprotokoll_erstellung.js").
+# fahrplan.json ist NICHT dabei - die App läd sie zur Laufzeit per fetch()
+# (siehe model/anlage.js Anlage.ladeFahrplan()), muss also mitversioniert
+# sein, sonst fehlt die Replay-App auf GitHub Pages (kein Server-seitiges
+# Neu-Generieren dort möglich, siehe ARCHITEKTUR.md "Fahrplan-Erstellung").
 tests/visuell/*/pruefprotokoll.pdf
-tests/visuell/*/fahrplan.json
 tests/visuell/*/fahrplan.pdf

@@ -4406,14 +4406,29 @@ sichtbare Ausschnitt.
 Ausgabeordner bleibt `tests/visuell/<testcase>/` - derselbe Ordner, in dem
 `anlage.json`/`bauteile.md`/`netzplan.md`/`graph.json` (Quelldaten, in Git
 getrackt) bereits liegen. `pruefprotokoll.pdf`, `fahrplan.json` und (siehe
-`tools/fahrplan_beschreibung.js` unten) `fahrplan.pdf` sind dagegen aus
-`anlage.json` REGENERIERBARE Artefakte, kein Quellmaterial - deshalb in
-`.gitignore` explizit ausgeschlossen (`tests/visuell/*/pruefprotokoll.pdf`,
-`tests/visuell/*/fahrplan.json`, `tests/visuell/*/fahrplan.pdf`), damit sie
-nach einem lokalen Tool-Lauf nicht als "untracked" in `git status`
-auftauchen. Verworfene Alternativen: eigener `.../ausgabe/`-Unterordner
-(unnötige zusätzliche Ordnerebene) und aktives Committen der generierten
-Dateien (kein Bedarf für versionierte Beispiel-Ausgaben erkennbar).
+`tools/fahrplan_beschreibung.js` unten) `fahrplan.pdf` sind aus
+`anlage.json` REGENERIERBARE Artefakte, kein Quellmaterial - `.gitignore`
+schließt deshalb `tests/visuell/*/pruefprotokoll.pdf` und
+`tests/visuell/*/fahrplan.pdf` explizit aus, damit sie nach einem lokalen
+Tool-Lauf nicht als "untracked" in `git status` auftauchen. Verworfene
+Alternativen: eigener `.../ausgabe/`-Unterordner (unnötige zusätzliche
+Ordnerebene) und aktives Committen ALLER generierten Dateien (kein Bedarf
+für versionierte Beispiel-PDFs erkennbar).
+
+**Korrektur (2026-08-06): `fahrplan.json` ist NICHT mehr in `.gitignore`,
+im Unterschied zu den beiden PDFs.** Grund: anders als `pruefprotokoll.pdf`/
+`fahrplan.pdf` (reine Menschen-lesbare Exportformate) wird `fahrplan.json`
+zur LAUFZEIT von der App selbst per `fetch()` nachgeladen
+(`Anlage.ladeFahrplan()`, siehe "Fahrplan laden" bei `handy.js` weiter
+oben) - sie ist damit funktional eine Laufzeit-Abhängigkeit, kein reines
+Debug-/Doku-Artefakt. **User-gemeldeter Bug:** auf GitHub Pages fehlte die
+Replay-App komplett, weil `fahrplan.json` dort (mangels Commit) ein 404
+lieferte und `ladeFahrplan()` `null` zurückgab (`replayVerfuegbar: fahrplan
+!== null` blendet das Icon dann bewusst aus - kein Fehler in der
+Icon-Logik selbst, sondern in der fehlenden Datei). **Fix:** `fahrplan.json`
+aus `.gitignore` entfernt, für alle sechs Testcases frisch regeneriert und
+eingecheckt - muss ab jetzt bei jeder `anlage.json`-Änderung manuell
+neu erzeugt UND committet werden (kein automatischer CI-Schritt).
 
 **Datenquelle: `anlage.json` direkt, nicht `bauteile.md`** - liefert pro
 Stromkreis (`hutschienen[].gruppen[].stromkreise[]`) bereits alles

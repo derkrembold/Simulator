@@ -1513,13 +1513,26 @@ async function start() {
       // zu bleiben).
       schrittInfo: replaySchrittInfo[Math.min(replayIndex, replaySchrittInfo.length - 1)],
       // Schritt-Button (siehe view/handy.js): führt GENAU einen Fahrplan-
-      // Schritt aus (siehe controller/fahrplan_ausfuehrung.js - bisher nur
-      // `messspitzeSetzen`/`schraubeSchalten`/`testDruecken` implementiert,
-      // alles andere wird übersprungen, siehe dort) und rückt den Index weiter. Erneutes
+      // Schritt aus (siehe controller/fahrplan_ausfuehrung.js - bisher
+      // `messspitzeSetzen`/`schraubeSchalten`/`testDruecken`/
+      // `drehknopfAufModus` implementiert, alles andere wird übersprungen,
+      // siehe dort) und rückt den Index weiter. Erneutes
       // `renderHandy()` NÖTIG (anders als zuvor) - die Schritt-Anzeige oben
       // muss sich mit jedem Klick aktualisieren.
+      // Messspitzen automatisch entfernen, sobald ein neuer Abschnitt
+      // beginnt (User-Fund 2026-08-06: "die Werte werden nicht angezeigt",
+      // beim Durchklicken mehrerer Abschnitte hintereinander) - `fahrplan.json`
+      // modelliert ein Umstecken der Sonden zwischen zwei Abschnitten NICHT
+      // als eigenen Schritt (wie ein Prüfer es real täte), alte Sonden
+      // blockieren sonst Messspitzen-Farben für den neuen Abschnitt (siehe
+      // ARCHITEKTUR.md "testDruecken" für die identische Ursache). Bewusst
+      // NUR Messspitzen, NICHT Schrauben/Schalter - manche Trennstellen
+      // bleiben über mehrere Abschnitte hinweg absichtlich offen.
       onSchrittKlick: () => {
         if (replayIndex >= replaySchritte.length) return;
+        const vorherigerAbschnitt = replaySchrittInfo[replayIndex - 1]?.abschnittIndex;
+        const aktuellerAbschnitt = replaySchrittInfo[replayIndex].abschnittIndex;
+        if (replayIndex > 0 && aktuellerAbschnitt !== vorherigerAbschnitt) entferneAlleMessspitzen();
         fuehreSchrittAus(replaySchritte[replayIndex]);
         replayIndex += 1;
         renderHandy(handyHoehe);

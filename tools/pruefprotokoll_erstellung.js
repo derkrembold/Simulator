@@ -93,7 +93,7 @@ async function messeRpe(testcase, sk) {
   return nurZahl(wert);
 }
 
-async function messeRisoOhne(testcase, sk, gruppe) {
+async function messeRisoOhne(testcase, sk, gruppe, hauptschalterName) {
   const trennstelle = naechsteTrennstelle(sk, gruppe);
 
   const ctx = await basis.starteTestUmgebung(testcase);
@@ -106,9 +106,17 @@ async function messeRisoOhne(testcase, sk, gruppe) {
       : 'Vor RISO die Anlage spannungsfrei machen (Hauptschalter aus, kein RCD auf diesem Stromkreis vorhanden).'
   );
   if (trennstelle) {
+    // Sicherheit (User-Vorgabe 2026-08-06, Diskussion "Freischalten zuerst"):
+    // eine Schraube wird NIE unter Spannung gelöst/eingedreht - erst den
+    // Hauptschalter aus, dann die Schraube öffnen, danach den Hauptschalter
+    // wieder ein (die eigentliche Trennstelle für RISO ist ab hier die
+    // offene Schraube selbst, siehe Begründungstext oben - der Hauptschalter
+    // schützt nur während der kurzen physischen Schrauben-Handlung).
+    await messgeraet.hebelSchalten(ctx, hauptschalterName);
     await messgeraet.schraubeSchalten(ctx, trennstelle.bauteil, trennstelle.netz);
+    await messgeraet.hebelSchalten(ctx, hauptschalterName);
   } else {
-    await messgeraet.hebelSchalten(ctx, 'Hauptschalter');
+    await messgeraet.hebelSchalten(ctx, hauptschalterName);
   }
   await messgeraet.drehknopfAufModus(ctx, 'RISO');
   await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, sk.phasen[0]) }); // schwarz
@@ -116,6 +124,26 @@ async function messeRisoOhne(testcase, sk, gruppe) {
   await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
   await messgeraet.testDruecken(ctx);
   const wert = await messgeraet.leseWert(ctx, 'hauptmesswert');
+  // Trennstelle wieder schließen (Schraube eindrehen/Hauptschalter zurück) -
+  // die Anlage muss für die nachfolgenden Messungen (Zi/Zs/RCD-Auslösung)
+  // wieder spannungsführend sein. `schraubeSchalten()`/`hebelSchalten()`
+  // schalten hier - wie am echten Gerät und wie beim Öffnen oben - immer nur
+  // um, unabhängig vom Zielzustand (die App entscheidet anhand des
+  // tatsächlichen Zustands, ob das ein Öffnen oder Schließen ist), deshalb
+  // hier derselbe Aufruf wie beim Öffnen (Fund 2026-08-06, User: "Ist der
+  // Grund, dass die Schraube draußen war? Sollten die nicht entfernt werden
+  // nach einem Durchgang?" - vorher blieb die Trennstelle offen, wodurch
+  // Zi/Zs/RCD-Auslösung beim Replay keinen Wert lieferten, siehe
+  // ARCHITEKTUR.md "Messspitzen-Reset pro Abschnitt").
+  if (trennstelle) {
+    // Dieselbe Sicherheits-Umklammerung wie beim Öffnen oben, jetzt fürs
+    // Wiedereindrehen.
+    await messgeraet.hebelSchalten(ctx, hauptschalterName);
+    await messgeraet.schraubeSchalten(ctx, trennstelle.bauteil, trennstelle.netz);
+    await messgeraet.hebelSchalten(ctx, hauptschalterName);
+  } else {
+    await messgeraet.hebelSchalten(ctx, hauptschalterName);
+  }
   messgeraet.abschnittEnde();
   await ctx.schliessen();
   return nurZahl(wert);
@@ -182,6 +210,14 @@ async function messeRcd(testcase, sk, gruppe) {
   // (gegen die der UL-Grenzwert in der Spaltenüberschrift geprüft wird),
   // NICHT die Netzspannung vor dem Test - das liefert "Uci" im FI/RCD-Modus.
   const umess = await messgeraet.leseWert(ctx, 'uci');
+  // RCD wieder einschalten (User-Fund 2026-08-06, dieselbe Ursache wie die
+  // Trennstelle bei Riso, siehe ARCHITEKTUR.md "Trennstelle nach Riso
+  // wieder schließen"): der TEST-Klick löst den Hebel automatisch aus
+  // (siehe fircdTestKlick() in controller/app.js), bleibt aber offen -
+  // versorgt das RCD wie hier MEHRERE Stromkreise gemeinsam (eine ganze
+  // `gruppe`, nicht nur `sk`), wären ALLE nachfolgenden Zi/Zs/RCD-Tests
+  // dieser Gruppe ohne Spannung und lieferten keinen Wert.
+  await messgeraet.hebelSchalten(ctx, gruppe.rcd.name);
   messgeraet.abschnittEnde();
   await ctx.schliessen();
   return { imess: nurZahl(imess), auslZeit: nurZahl(auslZeit), umess: nurZahl(umess) };
@@ -380,7 +416,7 @@ async function berechneProtokoll(testcase) {
     console.log(`--- ${sk.bezeichnung} (${sk.ziel}) ---`);
     const rpe = await messeRpe(testcase, sk);
     console.log('Rpe:', rpe);
-    const riso = await messeRisoOhne(testcase, sk, gruppe);
+    const riso = await messeRisoOhne(testcase, sk, gruppe, anlage.hauptsicherung.name);
     console.log('Riso Verbraucher ohne:', riso);
 
     const werte = {

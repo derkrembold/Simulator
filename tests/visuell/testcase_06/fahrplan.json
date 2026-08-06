@@ -95,6 +95,13 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -282,10 +289,24 @@
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD2 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD2",
             "N40"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
           ],
           "ergebnis": null
         },
@@ -334,6 +355,28 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD2",
+            "N40"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -482,6 +525,13 @@
             "uci"
           ],
           "ergebnis": "Uci:0,9V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD2"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -528,10 +578,24 @@
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD2 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD2",
             "N41"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
           ],
           "ergebnis": null
         },
@@ -580,6 +644,28 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD2",
+            "N41"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -728,6 +814,13 @@
             "uci"
           ],
           "ergebnis": "Uci:0,9V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD2"
+          ],
+          "ergebnis": null
         }
       ]
     },

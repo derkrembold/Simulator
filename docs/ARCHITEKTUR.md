@@ -2807,6 +2807,294 @@ geschlossen (ebenfalls per Screenshot bestätigt, RCD-Symbol zeigt wieder
 die durchgezogenen Balken statt des offenen Kreis-Symbols). `npm test`
 weiterhin grün (322 Tests, keine neuen Testfälle).
 
+### Ein-Schritt-Ausführer, vierte Funktion (2026-08-06) - `drehknopfAufModus`
+
+**User: "Kannst du jetzt bitte den Drehknopf angehen?"** Im Unterschied zu
+den ersten drei Funktionen (je ein einzelner, zustandsloser Klick) muss
+der Drehknopf ggf. MEHRFACH geklickt werden, bis der Zielmodus erreicht
+ist - `tools/messgeraet_steuerung.js`s gleichnamige Playwright-Funktion
+löst das, indem sie den aktuellen Modus in einer eigenen Variable
+(`ctx.modus`) mitführt, weil ein externes Skript die laufende App nicht
+synchron "befragen" kann.
+
+**Bewusst ANDERER Ansatz für den DOM-Ausführer, ohne mitgeführten
+Zustand:** `fahrplan_ausfuehrung.js` läuft im SELBEN Browser-Kontext wie
+die App selbst - der aktuelle Modus kann deshalb nach jedem Klick direkt
+aus dem laufenden DOM neu gelesen werden, statt eine zweite, potenziell
+abweichende Kopie des Zustands mitzuzählen. Zwei nahliegende Quellen dafür
+wurden verworfen:
+- **Der angezeigte Zone-1-Titel** (z.B. "Durchgang" bei RLOW) - wechselt
+  per ▲/▼-Taste zwischen `titel` und `label` (siehe `view/messgeraet.js`
+  `DREHKNOPF_POSITIONEN`), UND ist bei RISO wortgleich mit dem festen
+  Ring-Label "R ISO", das `zeichneDrehknopf()` ohnehin für JEDEN Modus
+  zeichnet (nicht nur den aktuell gewählten) - über zwei mögliche
+  Textquellen mit potentieller Wort-Dopplung zuverlässig auf den Modus zu
+  schließen wäre fragil.
+- Stattdessen: **der Rotationswinkel des Drehknopf-Griffs**
+  (`transform="rotate(winkel, cx, cy)"` auf der inneren `<g>`, siehe
+  `zeichneDrehknopf()`) - für jeden Modus ein fester, eindeutiger Wert
+  (-160/-110/-70/-30/5/65°), unabhängig von jeder Anzeige-Einstellung.
+  `aktuellerModus()` in `fahrplan_ausfuehrung.js` liest genau dieses
+  Attribut, parst den Winkel per Regex und schlägt ihn in einer kleinen,
+  1:1 aus `DREHKNOPF_POSITIONEN` übernommenen Rückwärts-Tabelle
+  (`WINKEL_ZU_MODUS`) nach.
+
+**`drehknopfAufModus(zielModus)`:** klickt den Drehknopf (dieselbe
+`circle[fill="#1a1a1a"]` wie beim manuellen Klick) wiederholt, bis
+`aktuellerModus() === zielModus` - mit einer Sicherheitsgrenze von
+`MODUS_REIHENFOLGE.length` Iterationen gegen eine Endlosschleife, falls
+`aktuellerModus()` aus irgendeinem Grund dauerhaft `null` liefert (z.B.
+DOM-Struktur künftig geändert). Bereits am Zielmodus → 0 Klicks (No-op),
+wie am echten Gerät.
+
+Verifiziert: kompletter Zyklus RLOW→RISO→ZI→ZS→FI/RCD→V~→RLOW über sechs
+aufeinanderfolgende `fuehreSchrittAus()`-Aufrufe, jeder wechselt den
+angezeigten Titel korrekt (Screenshots/Text-Vergleich); erneuter Aufruf
+mit dem bereits aktiven Modus ändert nichts. **End-to-End auf
+`testcase_04`s echtem Fahrplan über den Handy-Schritt-Button:** die
+komplette Sequenz `schraubeSchalten` → `drehknopfAufModus (RISO)` → 3×
+`messspitzeSetzen` → `testDruecken` läuft jetzt OHNE jeden manuellen
+Eingriff durch und liefert das korrekte `R:>999MΩ` - bisher musste der
+Modus-Wechsel in jedem Test von Hand nachgeholt werden (siehe
+`testDruecken`-Abschnitt oben), das entfällt jetzt. `npm test` weiterhin
+grün (322 Tests, keine neuen Testfälle). Stale-Kommentar in
+`controller/app.js`s `onSchrittKlick`-Dokumentation korrigiert (jetzt
+inklusive `drehknopfAufModus`).
+
+**Damit sind jetzt alle VIER geplanten Ein-Schritt-Ausführer-Funktionen
+umgesetzt** (`messspitzeSetzen`, `schraubeSchalten`, `testDruecken`,
+`drehknopfAufModus`) - offen bleiben nur noch `leseWert` (reine
+Anzeige-Ablesung, vermutlich ohne echten DOM-Klick nötig), `stelleEin`
+und `hebelSchalten` (in `testcase_04`s Fahrplan bisher nicht vorkommend,
+noch nicht mit dem User besprochen, ob/wann nötig).
+
+### Messspitzen-Reset pro Abschnitt (2026-08-06)
+
+**User, direkt nach der `drehknopfAufModus`-Verifikation: "die Werte
+werden nicht angezeigt"** - beim Durchklicken MEHRERER Abschnitte
+hintereinander (nicht schon beim allerersten Test). Ursache identisch zur
+bereits dokumentierten `testDruecken`-Eigenheit, nur diesmal bei JEDEM
+Abschnittübergang statt nur einmal: `fahrplan.json` modelliert das
+Umstecken der Messspitzen zwischen zwei Abschnitten nicht als eigenen
+Schritt - alte Sonden aus dem vorherigen Abschnitt blockieren Farben für
+den neuen, `risoTestKlick()`/`ziTestKlick()`/etc. brechen an der
+`!schwarzAder`-Prüfung ab, der Platzhalter bleibt stehen.
+
+**Fix, bewusst NUR Messspitzen (User-Entscheidung, Alternative "alles pro
+Abschnitt zurücksetzen" abgelehnt):** `onSchrittKlick` in
+`controller/app.js` vergleicht vor jeder Ausführung
+`replaySchrittInfo[replayIndex].abschnittIndex` mit dem des VORHERIGEN
+Schritts - unterscheiden sie sich, wird `entferneAlleMessspitzen()`
+aufgerufen, bevor der eigentliche Schritt läuft. Schrauben/Schalter bleiben
+dabei bewusst unangetastet, da manche Trennstellen absichtlich über
+mehrere Abschnitte offen bleiben sollen (siehe nächster Abschnitt unten -
+tatsächlich stellte sich das als eigenes, größeres Thema heraus).
+
+Verifiziert: kompletter Klick-Durchlauf durch `testcase_04`s Abschnitte 0+1
+(19 Klicks, KEIN manueller Eingriff) - Riso-Test in Abschnitt 1 zeigt jetzt
+automatisch `R:>999MΩ` (vorher blieb der Platzhalter stehen, siehe
+`testDruecken`-Abschnitt oben, wo das Wegräumen noch von Hand nötig war).
+`npm test` weiterhin grün (322 Tests, keine neuen Testfälle).
+
+**Zweiter, tieferer Fund beim selben Verifikationslauf, DAMALS noch nicht
+behoben:** der Zi-Test in Abschnitt 2 zeigte weiterhin den Platzhalter
+(`Z:---Ω`), auch nach dem Messspitzen-Fix. Ursache lag NICHT im
+Ein-Schritt-Ausführer, sondern im Fahrplan selbst: `schraubeSchalten`
+öffnet für den Riso-Test die Trennstelle (`RCD1`/`N20`/`N21`/`N22`, je
+SK), aber KEIN späterer Schritt drehte sie wieder ein -
+`ziTestKlick()`/`zsTestKlick()`/`fircdTestKlick()` brauchen aber ein
+spannungsführendes Netz (`findePfadZurEinspeisung()` findet sonst keinen
+Pfad, Platzhalter bleibt bewusst stehen, siehe Kommentar dort - kein Bug
+in der Anzeige-Logik selbst). Per manuellem Wiedereindrehen der Schraube
+bestätigt: Zi liefert danach sofort den korrekten Wert (`Z:0,54Ω`).
+**Behoben, siehe nächster Abschnitt** - der User erkannte dieselbe Lücke
+unabhängig wenig später bei `testcase_05` und fragte direkt nach der
+richtigen Ursache/dem richtigen Fix-Ort.
+
+### Trennstelle nach Riso wieder schließen (2026-08-06)
+
+**User, bei `testcase_05`: "RISO hat funktioniert. Aber Zi glaube nicht.
+Ist der Grund, dass die Schraube draußen war? Sollten die nicht entfernt
+werden nach einem Durchgang?"** - bestätigt exakt den oben offen
+gelassenen Fund, diesmal mit der richtigen Fix-Idee direkt vom User
+selbst genannt.
+
+**Fix in `tools/pruefprotokoll_erstellung.js`s `messeRisoOhne()`:** nach
+`testDruecken`/`leseWert` wird die Trennstelle jetzt mit demselben Aufruf
+wie beim Öffnen wieder geschlossen (`schraubeSchalten(ctx, trennstelle.bauteil,
+trennstelle.netz)` bzw. `hebelSchalten(ctx, 'Hauptschalter')` ohne
+RCD-Trennstelle) - beide Funktionen SCHALTEN UM, unabhängig vom
+Zielzustand (die App entscheidet anhand des tatsächlichen DOM-Zustands,
+ob das ein Öffnen oder Schließen ist, siehe `onSchraubeKlick()` in
+`controller/app.js`), derselbe Aufruf wie beim Öffnen dreht die Schraube
+deshalb korrekt wieder ein. Neuer `schraubeSchalten`-Schritt landet als
+LETZTER Schritt der "Riso Verbraucher ohne"-Abschnitte in `fahrplan.json`
+(vor `abschnittEnde()`) - kein neuer Abschnitt, keine neue Begründungszeile
+nötig, da es sich um dieselbe Handlung (Trennstelle bedienen) nur in
+umgekehrter Richtung handelt.
+
+Für alle sechs Testcases neu generiert (`fahrplan.json`/`pruefprotokoll.pdf`)
+- alle Prüfwerte selbst UNVERÄNDERT (dieselben Sonden/Messungen, nur ein
+zusätzlicher Schritt am Ende jedes Riso-Abschnitts). **Wichtig, seit der
+`fahrplan.json`-Commit-Entscheidung vom Vortag:** diese Dateien sind jetzt
+mitversioniert, ein `git add`/Commit der neu generierten Dateien ist nach
+diesem Fix nötig (nicht automatisch geschehen).
+
+Verifiziert: kompletter 20-Klick-Durchlauf durch `testcase_04`s Abschnitte
+0-2 OHNE jeden manuellen Eingriff - Spannungsanzeige wechselt nach dem
+Wiedereindrehen korrekt von `0V` auf `230V`, Zi-Test liefert automatisch
+den korrekten Wert `Z:0,54Ω` (vorher `Z:---Ω`). `npm test` weiterhin grün
+(322 Tests, keine neuen Testfälle - die PDF-Erzeugung selbst nutzt bereits
+denselben `messeRisoOhne()`, die bestehenden Werte-Vergleichstests decken
+den Fix also automatisch mit ab).
+
+### RCD-Hebel nach Auslösung wieder einschalten + `hebelSchalten` im Ausführer (2026-08-06)
+
+**User, direkt im Anschluss bei `testcase_05`: "Der FI/RCD-Test löst den
+RCD-Hebel aus. Allerdings bleibt er bei den folgenden Tests noch offen.
+Gehört das so?"** Exakt dieselbe Fehlerklasse wie die Trennstelle oben,
+diesmal beim RCD-Hebel: `fircdTestKlick()` (`controller/app.js`) öffnet
+automatisch den Hebel des ausgelösten RCD (`schalterHandles.get(rcd.name)
+?.setGeschlossen(false)`, explizite, korrekte User-Vorgabe von früher - DAS
+Verhalten selbst ist beabsichtigt), aber kein späterer Schritt schaltet ihn
+zurück ein. Kritischer als bei der Trennstelle: EIN RCD versorgt oft eine
+GANZE Gruppe (mehrere Stromkreise, siehe `anlage.json`
+`hutschienen[].gruppen[].rcd` vs. `.stromkreise[]`) - bleibt der Hebel
+offen, sind ALLE nachfolgenden Zi/Zs/RCD-Tests JEDES weiteren Stromkreises
+derselben Gruppe ohne Spannung. Bestätigt an `testcase_04`: SK1s
+RCD-Auslösung liefert korrekt `I:16,0mA`, SK2s direkt anschließender
+Zi-Test danach `Z:---Ω`/`0V` (RCD1 versorgt SK1+SK2+SK3 gemeinsam).
+
+**Fix Teil 1, Generator:** `tools/pruefprotokoll_erstellung.js`s
+`messeRcd()` schaltet den Hebel nach `leseWert('uci')` mit
+`messgeraet.hebelSchalten(ctx, gruppe.rcd.name)` wieder ein - selber
+Aufruf-Mechanismus wie bei der Trennstelle (reiner Umschalt-Klick,
+unabhängig vom Zielzustand). Neuer `hebelSchalten`-Schritt landet als
+letzter Schritt jedes "RCD-Auslösung (FI/RCD)"-Abschnitts.
+
+**Fix Teil 2, Ausführer - eigener, notwendiger Fund beim Verifizieren:**
+der neue `hebelSchalten`-Schritt wurde beim ersten Testlauf trotzdem
+übersprungen, weil `controller/fahrplan_ausfuehrung.js` diese `funktion`
+bisher gar nicht implementierte (stand noch auf der "wird übersprungen"-
+Liste). Neue Funktion `findeHebel(bauteilName)` - 1:1 dieselbe Idee wie
+`tools/messgeraet_steuerung.js`s gleichnamige Playwright-Funktion (der
+Hebel selbst trägt kein `data-bauteil`-Attribut, deshalb Suche über die
+räumlich NÄCHSTGELEGENE klickbare `<g>` zur eigenen Schraube des
+Bauteils, per euklidischer 2D-Distanz zwischen `getBoundingClientRect()`-
+Mittelpunkten) - hier per `getBoundingClientRect()` statt Playwrights
+`boundingBox()`, da direkt im selben DOM gearbeitet wird. `hebelSchalten()`
+klickt den gefundenen Hebel.
+
+Verifiziert: kompletter 90-Schritt-Durchlauf durch `testcase_04`s ALLE
+drei Stromkreise (SK1+SK2+SK3, je Rpe/Riso/Zi/RCD-Auslösung) OHNE jeden
+manuellen Eingriff - alle NEUN `testDruecken`-Aufrufe liefern einen
+echten Wert, kein einziger Platzhalter (`---`/`___`) bleibt irgendwo
+stehen. Für alle sechs Testcases neu generiert (`fahrplan.json`/
+`pruefprotokoll.pdf`), Prüfwerte selbst unverändert. `npm test` weiterhin
+grün (322 Tests, keine neuen Testfälle).
+
+**Damit läuft jetzt JEDER Fahrplan von Anfang bis Ende komplett
+automatisch über den Handy-Schritt-Button durch** - alle bekannten
+"Wert fehlt"-Lücken (Messspitzen pro Abschnitt, Trennstelle nach Riso,
+RCD-Hebel nach Auslösung) sind geschlossen.
+
+### Hauptschalter vor jeder Schrauben-Handlung (2026-08-06)
+
+**User, "nur diskutieren": "Wenn man Schrauben auf und zu dreht, sollte
+man normalerweise den Hauptschalter aufmachen, wegen der Sicherheit. Was
+meinst du dazu?"** Realer Unterschied zum bisherigen Modell: nach den 5
+Sicherheitsregeln (Freischalten zuerst) wird ein vorgeschaltetes
+Schaltgerät BETÄTIGT, um spannungsfrei zu machen, bevor man mit dem
+Schraubendreher an Klemmen arbeitet - im Simulator machte bisher das
+Öffnen der Schraube SELBST erst spannungsfrei (Reihenfolge real gesehen
+rückwärts). Die bereits bestehende Regel in BEDIENERPROZESS.md ("immer
+Schraubendreher+Schraube statt RCD/AFDD-Hebel verwenden") ist eine
+MESSTECHNISCHE Vorgabe (zuverlässige Isolierung von Geschwister-Gruppen),
+keine Sicherheits-Vorgabe für die Person - beide Anliegen sind
+unabhängig voneinander gültig. **User-Entscheidung nach der Diskussion:
+"Immer wenn Schraube raus oder rein geht, vorher Hauptschalter auf, danach
+wieder zu."** Bewusst NUR das (kein voller 5-Sicherheitsregeln-Ablauf mit
+Spannungsprüfung/Erden/Abdecken - das wäre für einen "Prüfer macht
+Messungen"-Simulator zu viel Scope).
+
+**Fix in `tools/pruefprotokoll_erstellung.js`s `messeRisoOhne()`:** beide
+`schraubeSchalten()`-Aufrufe (Öffnen UND Wiedereindrehen) jetzt von einem
+`hebelSchalten(ctx, hauptschalterName)`-Paar umklammert - Hauptschalter
+aus, Schraube betätigen, Hauptschalter wieder ein. Der `else`-Zweig (kein
+RCD auf diesem Stromkreis vorhanden, Hauptschalter selbst IST die
+Trennstelle) bleibt unverändert - eine Umklammerung des Hauptschalters um
+sich selbst wäre sinnlos.
+
+**Echter Bug beim ersten Testlauf gefunden, unabhängig vom eigentlichen
+Feature:** `testcase_01` schlug mit einem Playwright-Timeout fehl
+(`locator [data-bauteil="Hauptschalter"]` nicht gefunden). Ursache: der
+Bauteilname des Haupt-Trenngeräts ist NICHT bei allen Testcases wörtlich
+"Hauptschalter" - `testcase_01`s Gerät heißt "Leistungsschalter"
+(`anlage.hauptsicherung.typ`/`.name`, siehe `generate_anlage.js` - nur
+`testcase_04`s Gerät heißt zufällig genauso wie der generische Begriff).
+Der vorher schon bestehende `else`-Zweig hatte denselben hartkodierten
+String, war aber bislang nie mit `testcase_01` in dieser Fallkonstellation
+gelaufen (dort existiert immer eine Trennstelle), weshalb der Bug latent
+blieb. **Fix:** `messeRisoOhne()` bekommt einen neuen Parameter
+`hauptschalterName`, `berechneProtokoll()` übergibt jetzt
+`anlage.hauptsicherung.name` statt eines hartkodierten Strings - trifft
+für jeden Testcase automatisch den korrekten Bauteilnamen.
+
+Für alle sechs Testcases neu generiert - Prüfwerte selbst unverändert
+(nur zwei zusätzliche `hebelSchalten`-Schritte je Riso-Abschnitt).
+Verifiziert: kompletter 101-Schritt-Durchlauf durch `testcase_04`s alle
+drei Stromkreise weiterhin OHNE Platzhalter an jedem der neun
+`testDruecken`-Punkte; `testcase_01`s Fahrplan zeigt jetzt korrekt
+`hebelSchalten(["Leistungsschalter"])` statt des harten
+`"Hauptschalter"`-Strings. `npm test` weiterhin grün (322 Tests, keine
+neuen Testfälle).
+
+### `tests/visuell/test_fahrplan_ausfuehrung.js` (2026-08-06)
+
+**User: "Ich finde das schreit ein bisschen nach: mach aus den ganzen
+Sequenzen Testcase. Was meinst du dazu?"** - zurecht: die vorherigen vier
+Bugs (Messspitzen-Reste, offene Trennstelle, offener RCD-Hebel,
+hartkodierter Hauptschalter-Name) wurden alle nur durch AD-HOC-
+Playwright-Skripte im Scratchpad gefunden, die nach der Session wieder
+verschwinden - keiner davon war durch `npm test` selbst abgesichert.
+
+**Diskussion vor der Umsetzung: Umfang "nur kein Platzhalter" (Option 1)
+vs. "Werte gegen bauteile.md vergleichen" (Option 2, wie
+`test_pruefprotokoll.js`).** Empfehlung für Option 1, vom User bestätigt
+("ok. machen wir 1."): `fahrplan.json` wird von derselben Aufzeichnungs-
+Logik erzeugt, die `test_pruefprotokoll.js` bereits gegen `bauteile.md`
+verifiziert (identische Berechnungsfunktion in `controller/app.js`, nur
+per externem Playwright-Klick statt internem `dispatchEvent` ausgelöst) -
+ein zweiter Wertevergleich hier wäre größtenteils redundant. Wichtiger:
+ALLE bisher gefundenen Bugs in dieser Kette zeigten sich als FEHLENDER
+Wert, nie als plausibler-aber-falscher - genau das deckt Option 1 ab. Der
+umgekehrte Fall (richtiger Codepfad, falscher Wert, z.B. ein
+Indexfehler bei der Messspitzen-Zuordnung) wäre ein anderes Fehlerbild,
+eher durch gezielte Einzeltests (wie die bestehenden Netzplan-/Pfad-Tests)
+zu fangen als durch einen End-to-End-Smoketest - bewusst nicht
+vorweggenommen.
+
+**Umsetzung:** klickt für ALLE SECHS Testcases den Handy-Schritt-Button
+über den KOMPLETTEN Fahrplan hinweg (739 Schritte insgesamt, 70-210 je
+Testcase) - Replay-App öffnen, dann `fahrplan.abschnitte.flatMap(a =>
+a.schritte).length`-mal auf den Schritt-Button klicken, exakt wie ein
+Nutzer es täte. Nach JEDEM `testDruecken`-Schritt: Display-Texte auf
+`---`/`___`-Substrings prüfen, bei Fund `FAIL` mit Abschnittstitel.
+
+**Regressions-Probe vor dem Einbau (nicht dauerhaft im Code):** den
+Messspitzen-Reset-Aufruf in `controller/app.js`s `onSchrittKlick()`
+testweise mit `if (false && ...)` deaktiviert - der neue Test schlägt
+daraufhin für ALLE sechs Testcases korrekt fehl (`R:---MΩ` bei "SK1: Riso
+Verbraucher ohne"), bestätigt die Fehlerklasse wird zuverlässig gefangen.
+Fix danach sofort wieder rückgängig gemacht.
+
+In `package.json`s `test`-Skript zwischen `test_pruefprotokoll.js` und
+`run_tests.js` eingehängt. Laufzeit ca. 40 Sekunden (739 echte
+Browser-Klicks über sechs frische Seiten) - akzeptabel im Vergleich zur
+bereits bestehenden, umfangreichen Playwright-Testsuite. `npm test`
+insgesamt jetzt 328 Tests (322 bisherige + 6 neue, je einer pro
+Testcase), alle grün.
+
 ### timer.js (alter Roadmap-Stub, noch nicht umgesetzt)
 - Sichtbarer 45-Minuten Timer
 - Stufe 3: Sprachansagen zu definierten Zeitpunkten

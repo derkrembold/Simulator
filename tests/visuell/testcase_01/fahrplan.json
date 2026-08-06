@@ -44,10 +44,24 @@
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Leistungsschalter"
+          ],
+          "ergebnis": null
+        },
+        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD1",
             "N6"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Leistungsschalter"
           ],
           "ergebnis": null
         },
@@ -96,6 +110,28 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Leistungsschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N6"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Leistungsschalter"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -244,6 +280,13 @@
             "uci"
           ],
           "ergebnis": "Uci:1,0V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD1"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -290,10 +333,24 @@
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Leistungsschalter"
+          ],
+          "ergebnis": null
+        },
+        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD1",
             "N7"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Leistungsschalter"
           ],
           "ergebnis": null
         },
@@ -342,6 +399,28 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Leistungsschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N7"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Leistungsschalter"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -490,6 +569,13 @@
             "uci"
           ],
           "ergebnis": "Uci:1,0V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD1"
+          ],
+          "ergebnis": null
         }
       ]
     }

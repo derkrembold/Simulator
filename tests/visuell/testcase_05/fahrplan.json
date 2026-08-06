@@ -44,10 +44,24 @@
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD1",
             "N20"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
           ],
           "ergebnis": null
         },
@@ -96,6 +110,28 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N20"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -244,6 +280,13 @@
             "uci"
           ],
           "ergebnis": "Uci:0,9V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD1"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -290,10 +333,24 @@
       "begruendung": "Vor RISO die Anlage spannungsfrei machen. Da LS2 ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md \"Riso Verbraucher ohne\").",
       "schritte": [
         {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "LS2",
             "N60"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
           ],
           "ergebnis": null
         },
@@ -342,6 +399,28 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS2",
+            "N60"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -490,6 +569,13 @@
             "uci"
           ],
           "ergebnis": "Uci:0,9V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD2"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -536,10 +622,24 @@
       "begruendung": "Vor RISO die Anlage spannungsfrei machen. Da LS3 ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md \"Riso Verbraucher ohne\").",
       "schritte": [
         {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "LS3",
             "N61"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
           ],
           "ergebnis": null
         },
@@ -588,6 +688,28 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS3",
+            "N61"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -736,6 +858,13 @@
             "uci"
           ],
           "ergebnis": "Uci:0,9V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD2"
+          ],
+          "ergebnis": null
         }
       ]
     },

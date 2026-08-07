@@ -1464,6 +1464,12 @@ async function start() {
   // wieder im "bereit"-Zustand startet.
   let handyZustand = 'homescreen';
   let handyLaeuft = false;
+  // Fester Takt für den automatischen Fahrplan-Durchlauf (User-Vorgabe
+  // 2026-08-04: "ja. feste pause. 2 sekunden. Gibt ja den Pause button,
+  // falls zu schnell.") - `replayIntervalId` ist `null`, solange kein
+  // Durchlauf läuft.
+  const REPLAY_TAKT_MS = 2000;
+  let replayIntervalId = null;
   // Flache Liste aller Fahrplan-Schritte (für die Ausführung, siehe
   // onSchrittKlick unten) + eine parallele Liste mit Anzeige-Infos pro
   // Schritt (siehe view/handy.js) - ZWEI Ebenen, User-Vorgabe 2026-08-05:
@@ -1493,6 +1499,54 @@ async function start() {
     });
   }
   let replayIndex = 0;
+
+  // Stoppt einen laufenden automatischen Durchlauf (Intervall löschen +
+  // `handyLaeuft` zurück auf false) - EINE Stelle für alle Wege, wie ein
+  // Durchlauf enden kann: Pause-Klick, Fahrplan-Ende erreicht, oder die
+  // Ansicht wird verlassen (X/anderes Icon). Ohne diese zentrale Stelle an
+  // JEDEM Ausstiegspunkt würde ein `setInterval` im Hintergrund
+  // weiterlaufen, obwohl die Replay-Ansicht gar nicht mehr sichtbar ist
+  // (Timer-Leak, schon beim Design am 2026-08-04 als Risiko notiert). No-op,
+  // wenn ohnehin kein Durchlauf läuft.
+  function stoppeReplayAutomatik() {
+    if (replayIntervalId !== null) {
+      clearInterval(replayIntervalId);
+      replayIntervalId = null;
+    }
+    handyLaeuft = false;
+  }
+
+  // Führt GENAU einen Fahrplan-Schritt aus (siehe
+  // controller/fahrplan_ausfuehrung.js - bisher `messspitzeSetzen`/
+  // `schraubeSchalten`/`testDruecken`/`drehknopfAufModus`/`hebelSchalten`/
+  // `stelleEin` implementiert, `leseWert` übersprungen, siehe dort) und
+  // rückt den Index weiter - gemeinsam genutzt vom manuellen Schritt-Button
+  // UND vom automatischen Durchlauf (Play-Taste, siehe unten), damit beide
+  // Wege exakt dasselbe tun (keine zwei unabhängige Ausführungspfade, die
+  // auseinanderlaufen könnten). Ist der Fahrplan nach diesem Schritt zu
+  // Ende, wird ein laufender automatischer Durchlauf gleich mitbeendet
+  // (zurück zum Play-Button) statt sinnlos weiterzuticken.
+  //
+  // Messspitzen automatisch entfernen, sobald ein neuer Abschnitt beginnt
+  // (User-Fund 2026-08-06: "die Werte werden nicht angezeigt", beim
+  // Durchklicken mehrerer Abschnitte hintereinander) - `fahrplan.json`
+  // modelliert ein Umstecken der Sonden zwischen zwei Abschnitten NICHT als
+  // eigenen Schritt (wie ein Prüfer es real täte), alte Sonden blockieren
+  // sonst Messspitzen-Farben für den neuen Abschnitt (siehe ARCHITEKTUR.md
+  // "testDruecken" für die identische Ursache). Bewusst NUR Messspitzen,
+  // NICHT Schrauben/Schalter - manche Trennstellen bleiben über mehrere
+  // Abschnitte hinweg absichtlich offen.
+  function fuehreNaechstenReplaySchrittAus() {
+    if (replayIndex >= replaySchritte.length) return;
+    const vorherigerAbschnitt = replaySchrittInfo[replayIndex - 1]?.abschnittIndex;
+    const aktuellerAbschnitt = replaySchrittInfo[replayIndex].abschnittIndex;
+    if (replayIndex > 0 && aktuellerAbschnitt !== vorherigerAbschnitt) entferneAlleMessspitzen();
+    fuehreSchrittAus(replaySchritte[replayIndex]);
+    replayIndex += 1;
+    if (replayIndex >= replaySchritte.length) stoppeReplayAutomatik();
+    renderHandy(handyHoehe);
+  }
+
   function renderHandy(hoehe) {
     HandyView.render(handyContainer, hoehe, handyZustand, {
       laeuft: handyLaeuft,
@@ -1501,42 +1555,35 @@ async function start() {
       // gibt es auch keinen replay app icon auf dem Handy und nichts kann
       // gestartet werden."
       replayVerfuegbar: fahrplan !== null,
-      onTimerIconKlick: () => { handyZustand = 'timer-bereit'; handyLaeuft = false; renderHandy(handyHoehe); },
-      onReplayIconKlick: () => { handyZustand = 'replay-bereit'; handyLaeuft = false; replayIndex = 0; setzeSchaltkastenZurueck(); renderHandy(handyHoehe); },
-      onSchliessenKlick: () => { handyZustand = 'homescreen'; handyLaeuft = false; renderHandy(handyHoehe); },
-      onPlayKlick: () => { handyLaeuft = true; renderHandy(handyHoehe); },
-      onPauseKlick: () => { handyLaeuft = false; renderHandy(handyHoehe); },
+      onTimerIconKlick: () => { handyZustand = 'timer-bereit'; stoppeReplayAutomatik(); renderHandy(handyHoehe); },
+      onReplayIconKlick: () => { handyZustand = 'replay-bereit'; stoppeReplayAutomatik(); replayIndex = 0; setzeSchaltkastenZurueck(); renderHandy(handyHoehe); },
+      onSchliessenKlick: () => { handyZustand = 'homescreen'; stoppeReplayAutomatik(); renderHandy(handyHoehe); },
+      // Play: sofort den ersten Schritt ausführen (nicht erst nach den
+      // vollen 2 Sekunden warten - fühlt sich sonst an, als würde nichts
+      // passieren), danach im festen Takt weiter. Guard oben: bereits am
+      // Ende des Fahrplans -> gar nicht erst auf Pause umschalten, es gäbe
+      // nichts zum Abspielen. `fuehreNaechstenReplaySchrittAus()` selbst
+      // beendet den Durchlauf automatisch, falls der erste Schritt schon
+      // der letzte war - das Intervall wird dann folgerichtig NICHT
+      // gestartet (`handyLaeuft` ist zu dem Zeitpunkt schon wieder false).
+      onPlayKlick: () => {
+        if (replayIndex >= replaySchritte.length) return;
+        handyLaeuft = true;
+        fuehreNaechstenReplaySchrittAus();
+        if (handyLaeuft) replayIntervalId = setInterval(fuehreNaechstenReplaySchrittAus, REPLAY_TAKT_MS);
+      },
+      onPauseKlick: () => { stoppeReplayAutomatik(); renderHandy(handyHoehe); },
       // Schritt-Anzeige (siehe view/handy.js: "N/M: Abschnittstitel", User-
       // Vorgabe 2026-08-05) - zeigt immer den NÄCHSTEN auszuführenden
       // Schritt (auch schon VOR dem ersten Klick, daher `Math.min(...)`
       // gegen das Ende der Liste geklemmt, statt bei erreichtem Ende leer
       // zu bleiben).
       schrittInfo: replaySchrittInfo[Math.min(replayIndex, replaySchrittInfo.length - 1)],
-      // Schritt-Button (siehe view/handy.js): führt GENAU einen Fahrplan-
-      // Schritt aus (siehe controller/fahrplan_ausfuehrung.js - bisher
-      // `messspitzeSetzen`/`schraubeSchalten`/`testDruecken`/
-      // `drehknopfAufModus` implementiert, alles andere wird übersprungen,
-      // siehe dort) und rückt den Index weiter. Erneutes
-      // `renderHandy()` NÖTIG (anders als zuvor) - die Schritt-Anzeige oben
-      // muss sich mit jedem Klick aktualisieren.
-      // Messspitzen automatisch entfernen, sobald ein neuer Abschnitt
-      // beginnt (User-Fund 2026-08-06: "die Werte werden nicht angezeigt",
-      // beim Durchklicken mehrerer Abschnitte hintereinander) - `fahrplan.json`
-      // modelliert ein Umstecken der Sonden zwischen zwei Abschnitten NICHT
-      // als eigenen Schritt (wie ein Prüfer es real täte), alte Sonden
-      // blockieren sonst Messspitzen-Farben für den neuen Abschnitt (siehe
-      // ARCHITEKTUR.md "testDruecken" für die identische Ursache). Bewusst
-      // NUR Messspitzen, NICHT Schrauben/Schalter - manche Trennstellen
-      // bleiben über mehrere Abschnitte hinweg absichtlich offen.
-      onSchrittKlick: () => {
-        if (replayIndex >= replaySchritte.length) return;
-        const vorherigerAbschnitt = replaySchrittInfo[replayIndex - 1]?.abschnittIndex;
-        const aktuellerAbschnitt = replaySchrittInfo[replayIndex].abschnittIndex;
-        if (replayIndex > 0 && aktuellerAbschnitt !== vorherigerAbschnitt) entferneAlleMessspitzen();
-        fuehreSchrittAus(replaySchritte[replayIndex]);
-        replayIndex += 1;
-        renderHandy(handyHoehe);
-      }
+      // Schritt-Button (siehe view/handy.js) - nur im "bereit"-Zustand
+      // überhaupt sichtbar (siehe zeichneReplayBereit() in view/handy.js,
+      // `laeuft`-Weiche), kann also nie parallel zu einem laufenden
+      // automatischen Durchlauf geklickt werden.
+      onSchrittKlick: fuehreNaechstenReplaySchrittAus
     });
   }
   handyContainer.style.position = 'absolute';

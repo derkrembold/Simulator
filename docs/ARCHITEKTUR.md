@@ -3095,6 +3095,171 @@ bereits bestehenden, umfangreichen Playwright-Testsuite. `npm test`
 insgesamt jetzt 328 Tests (322 bisherige + 6 neue, je einer pro
 Testcase), alle grün.
 
+### Ein-Schritt-Ausführer, fünfte Funktion (2026-08-07) - `stelleEin`
+
+**User: "Ich denke wir können stelleEin machen."** Letzte der ursprünglich
+geplanten Funktionen (siehe "fehlt noch was bei den Replay-Steps?"-
+Diskussion vom Vortag) - betrifft die einstellbaren Referenzwerte
+(LS-Typ, Bemessungsstrom, RCD-Fehlerstrom/-Typ), die vor Zi/Zs/RCD-
+Auslösung eingestellt werden. Konkret bestätigt VOR der Umsetzung: fast
+alle sechs Testcases nutzen Werte, die vom Geräte-Default abweichen
+(`bemessungsstrom: 10A`/`20A` statt `16A`, `typ: A` statt `AC`) - ohne
+diese Funktion zeigt das Replay einen FALSCHEN Vergleichswert (z.B. "Lim"
+bei Zi), obwohl die eigentliche Messung selbst korrekt bleibt (die hängt
+nicht von den Settable-Feldern ab, sondern direkt vom Netzplan).
+
+**Bewusst ANDERER Ansatz als `tools/messgeraet_steuerung.js`s
+gleichnamige Funktion, analog zur `drehknopfAufModus()`-Entscheidung:**
+das externe Playwright-Skript hinterlegt Zone-Nummern hart pro
+Modus/Ansicht (`MESSGERAET_MODI`-Tabelle, ~70 Zeilen), weil es den
+laufenden Zustand nicht synchron introspizieren kann. Der DOM-Ausführer
+braucht das nicht - er sucht die ZIEL-ZONE live: alle aktuell sichtbaren
+Zone-1-Felder (Titel + titelWerte, siehe `zeichneDisplay()` in
+`view/messgeraet.js`) sind an ihrer eigenen Schriftart (`'Courier New'`)
+erkennbar (Tasten wie TEST/◄►/▲/▼ nutzen die SVG-Standardschrift), die
+aktuell AUSGEWÄHLTE Zone am invertierten Fill (`fill="#ffffff"`, siehe
+`zeichneTitelFeld()`s `invers`-Parameter - weißer Text auf schwarzem
+Kästchen). Die Ziel-Zone für ein Feld wie `bemessungsstrom` ist einfach
+die Zone, deren AKTUELLER Text zu dessen Werteliste passt (`['6A','10A',
+...]`) - unabhängig davon, welche Ansicht (z.B. ZI "standard" vs. "ΔU")
+gerade aktiv ist, ganz ohne eigene Zone-Tabelle.
+
+**Zwei Navigationsschritte, unterschiedliche Klemm-Logik:**
+1. **◄► (Zone wählen):** zyklisch, IMMER vorwärts (wie `drehknopfAufModus`)
+   - nach jedem Klick wird `zoneFelder()` frisch aus dem DOM neu gelesen
+   (jede Zustandsänderung baut das komplette Messgerät-SVG neu auf,
+   `MessgeraetView.render()` - alte Element-Referenzen sind danach
+   losgelöst vom DOM, dürfen nicht wiederverwendet werden).
+2. **▲/▼ (Wert wählen):** NICHT zyklisch (`klemmeIndex()` in
+   `controller/app.js` klemmt am Anfang/Ende der Werteliste) - Richtung
+   muss deshalb stimmen (Ziel-Index vs. aktueller Index in
+   `FELD_WERTELISTEN`), kein blindes Vorwärtsklicken wie beim Drehknopf.
+
+**Wertelisten** (`FELD_WERTELISTEN` in `controller/fahrplan_ausfuehrung.js`)
+1:1 aus `tools/messgeraet_steuerung.js` übernommen. Nur LISTEN-basierte
+Felder implementiert - freie Zahlenwerte (`kalibrierterWiderstand`,
+`grenzwiderstand`, `spannungsfall`) kommen in KEINEM der sechs echten
+Fahrpläne vor (nachgeprüft), deshalb vorerst übersprungen (kleine
+Schritte).
+
+Verifiziert: `stelleEin('bemessungsstrom', '10A')` (Ziel VOR dem Default
+in der Liste, braucht ▼) UND `stelleEin('lsTyp', 'D')` (Ziel NACH dem
+Default, braucht ▲) liefern beide das korrekte Ergebnis inklusive live
+aktualisiertem "Lim"-Wert; FI/RCD-Felder (`fehlerstrom`/`typ`) ebenfalls
+geprüft. **End-to-End auf `testcase_01`s echtem Fahrplan** (SK2: Zi,
+`bemessungsstrom: 10A`): 59-Klick-Durchlauf über den Handy-Schritt-Button
+zeigt nach `testDruecken` korrekt `10A`/`Lim: 50,0A` statt der vorher
+fälschlich stehengebliebenen Default-Werte `16A`/`Lim: 80,0A`. `npm test`
+weiterhin grün (328 Tests, keine neuen Testfälle - `stelleEin`s vorherige
+No-op-Lücke erzeugte keinen Platzhalter, wurde also von
+`test_fahrplan_ausfuehrung.js` nicht gefangen, siehe dortige
+Scope-Diskussion).
+
+**Damit sind jetzt SECHS der SIEBEN im Fahrplan tatsächlich vorkommenden
+Funktionen implementiert** (`messspitzeSetzen`, `schraubeSchalten`,
+`testDruecken`, `drehknopfAufModus`, `hebelSchalten`, `stelleEin`) - nur
+`leseWert` bleibt bewusst ein No-op (reines Ablesen, alle Werte stehen
+bereits gleichzeitig im Display, keine Navigation nötig).
+
+### Play-Button: automatischer Fahrplan-Durchlauf (2026-08-07)
+
+**User: "Heute möchte ich 1. und 2. machen [...] Kannst du bitte mit 1.
+loslegen?"** - bezieht sich auf die eigene "Was fehlt?"-Einschätzung von
+eben: der Play-Button tauschte bisher nur sein Icon (Play↔Pause), führte
+aber keinen einzigen Schritt aus - "Replay" war bis hierhin nur ein
+manuelles Schritt-für-Schritt-Tool.
+
+**Refactoring zuerst:** die bisher inline in `onSchrittKlick` stehende
+Ausführungslogik (Abschnitts-Grenze erkennen -> `entferneAlleMessspitzen()`
+-> `fuehreSchrittAus()` -> Index erhöhen -> `renderHandy()`) in eine
+eigene Funktion `fuehreNaechstenReplaySchrittAus()` ausgelagert - jetzt
+von ZWEI Aufrufern genutzt (manueller Schritt-Button UND automatischer
+Durchlauf), damit beide Wege garantiert exakt dasselbe tun, statt zwei
+Ausführungspfade zu pflegen, die auseinanderlaufen könnten.
+
+**`REPLAY_TAKT_MS = 2000`** (fester Takt, bereits am 2026-08-04
+festgelegt: "ja. feste pause. 2 sekunden. Gibt ja den Pause button, falls
+zu schnell."). `onPlayKlick`: setzt `handyLaeuft = true`, führt SOFORT
+den ersten Schritt aus (nicht erst nach den vollen 2 Sekunden warten -
+fühlt sich sonst an, als würde nichts passieren, eigene Design-
+Entscheidung, dem User zur Kontrolle mitgeteilt), startet danach ein
+`setInterval(fuehreNaechstenReplaySchrittAus, REPLAY_TAKT_MS)`. Guard am
+Anfang: bereits am Fahrplan-Ende -> Play tut gar nichts (kein sinnloses
+Umschalten auf Pause ohne dass etwas passiert).
+
+**Zentrale Stopp-Funktion `stoppeReplayAutomatik()`** (`clearInterval` +
+`handyLaeuft = false`) - an JEDER Stelle aufgerufen, an der ein
+Durchlauf enden kann:
+1. Pause-Klick (offensichtlich).
+2. Fahrplan-Ende erreicht (`fuehreNaechstenReplaySchrittAus()` selbst
+   ruft es auf, sobald `replayIndex` das Ende erreicht) - kein sinnloses
+   Weiterticken, Anzeige springt zurück auf den Play-Button.
+3. Die Replay-Ansicht wird verlassen (X-Klick, ODER Wechsel zum
+   Timer-Icon, ODER erneutes Öffnen von Replay selbst) - schon beim
+   ursprünglichen Play/Pause-Design 2026-08-04 als Risiko notiert ("das X
+   muss den setInterval GENAUSO stoppen wie Pause - sonst würde die
+   Rotation im Hintergrund weiterlaufen, obwohl die Ansicht gar nicht
+   mehr sichtbar ist") - jetzt mit echter Funktion dahinter erstmals
+   TATSÄCHLICH relevant (vorher gab es ja noch gar kein Intervall).
+
+Verifiziert per drei separaten Playwright-Skripten: (1) Play führt
+sofort einen Schritt aus, nach 2,2s automatisch einen weiteren, Pause
+stoppt zuverlässig (kein Fortschritt mehr auch nach weiteren 2,5s
+Wartezeit); (2) Fahrplan bis kurz vorm letzten Schritt manuell
+durchgeklickt, Play für den letzten Schritt gedrückt - springt sofort
+zurück in den "bereit"-Zustand (Play/Schritt/X sichtbar), bleibt auch
+nach weiteren 2,2s dort (kein hängengebliebener Pause-Zustand); (3)
+Play gedrückt, sofort per X zur Homescreen navigiert, 4,5s gewartet
+(mehr als zwei Taktzyklen) - keine weiteren Messspitzen-Änderungen,
+Intervall lief nicht im Hintergrund weiter. `npm test` weiterhin grün
+(328 Tests, keine neuen Testfälle - reines Verhalten, kein neuer
+Platzhalter-relevanter Zustand).
+
+### `test_fahrplan_ausfuehrung.js`: Wertevergleich ergänzt (2026-08-07)
+
+**User: "Heute möchte ich 1. und 2. machen [...]"** - Punkt 2 aus der
+"Was fehlt?"-Einschätzung vom selben Tag: die bisherige Fassung des Tests
+(2026-08-06) prüfte nur "kein Platzhalter", explizit NICHT "ist der Wert
+korrekt" - der `stelleEin`-Bug vom selben Tag (Zone falsch navigiert,
+falscher Vergleichswert im Display, aber KEIN Platzhalter) wäre von der
+ursprünglichen Fassung NICHT gefangen worden. Genau diese Lücke wird jetzt
+geschlossen.
+
+**Sollwert-Herkunft, ohne neuen Referenzdatensatz:** `fahrplan.json`s
+`leseWert`-Schritte tragen bereits ein `ergebnis`-Feld - den beim
+AUFZEICHNEN tatsächlich abgelesenen Wert (z.B. `"Z:0,54Ω"`). Ein frischer
+Replay MUSS beim selben Schritt exakt denselben String zeigen. Zusätzlich:
+`stelleEin`-Schritte tragen ihren Zielwert direkt in `argumente[1]` - nach
+Ausführung muss dieser String im Display stehen (prüft Zone-Navigation
+UND Werte-Auswahl direkt, statt indirekt über die davon unabhängige
+eigentliche Messung).
+
+**Warum der reine `leseWert`-Vergleich den `stelleEin`-Bug NICHT gefangen
+hätte, extra geprüft:** die Settable-Felder (LS-Typ, Bemessungsstrom,
+RCD-Fehlerstrom/-Typ) beeinflussen nur den angezeigten Vergleichswert
+("Lim" bei Zi), NICHT die eigentliche Messung selbst (kommt direkt aus
+dem Netzplan) - UND "Lim" wird nirgends per `leseWert` erfasst, landet
+also auch nicht im offiziellen Prüfprotokoll. Ein reiner
+Soll-Ist-Vergleich der `leseWert`-Ergebnisse hätte den Bug deshalb
+übersehen - erst die zusätzliche `stelleEin`-Prüfung (Zielwert muss im
+Display stehen) deckt genau diese Fehlerklasse ab.
+
+**Kollisionsrisiko bei einbuchstabigen Werten (z.B. `lsTyp: "B"`)
+geprüft und für unkritisch befunden:** alle sonst permanent sichtbaren
+Display-Texte (Ring-Labels, Tasten-Beschriftungen) sind mehrzeichige,
+exakt andere Strings - kein exakter Treffer möglich außer am tatsächlich
+gesetzten Feld.
+
+**Regressions-Probe:** `stelleEin()` testweise komplett deaktiviert
+(`if (true) return;`) - der Test schlägt daraufhin für alle sechs
+Testcases präzise mit dem betroffenen Schritt/Zielwert fehl (z.B.
+`stelleEin("typ", "A") - Zielwert nicht im Display gefunden`). Fix danach
+sofort wieder rückgängig gemacht.
+
+Laufzeit unverändert (~40s, keine zusätzlichen Klicks, nur zusätzliche
+Lese-Assertions). `npm test` weiterhin grün (328 Tests, keine neuen
+Testfälle - dieselben sechs Testcase-Tests prüfen jetzt mehr).
+
 ### timer.js (alter Roadmap-Stub, noch nicht umgesetzt)
 - Sichtbarer 45-Minuten Timer
 - Stufe 3: Sprachansagen zu definierten Zeitpunkten

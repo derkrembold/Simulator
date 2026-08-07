@@ -18,10 +18,11 @@
 // Kleine Schritte (User-Vorgabe 2026-08-05, "erst gucken ob es prinzipiell
 // funktioniert. z.B. replay nur mit messspitzen. dann replay mit
 // messspitzen und schraubenzieher."): `messspitzeSetzen`, `schraubeSchalten`,
-// `testDruecken`, `drehknopfAufModus` und jetzt auch `hebelSchalten`
-// implementiert - jeder andere `funktion`-Name (`leseWert`, `stelleEin`)
-// wird vorerst kommentarlos übersprungen (kein Fehler, einfach kein
-// DOM-Klick) und folgt als eigener, späterer Schritt.
+// `testDruecken`, `drehknopfAufModus`, `hebelSchalten` und jetzt auch
+// `stelleEin` implementiert - nur noch `leseWert` wird kommentarlos
+// übersprungen (reines Ablesen, kein DOM-Klick nötig - alle Werte stehen
+// bereits gleichzeitig im Display, siehe ARCHITEKTUR.md
+// "test_fahrplan_ausfuehrung.js").
 
 function klicke(element) {
   element?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
@@ -148,6 +149,83 @@ function hebelSchalten(bauteilName) {
   klicke(findeHebel(bauteilName));
 }
 
+// Wertelisten je Settable-Feld, 1:1 aus `tools/messgeraet_steuerung.js`
+// übernommen (dort wiederum identisch zu den entsprechenden `const`-Arrays
+// in `controller/app.js`, siehe ARCHITEKTUR.md "Messgerät: Settable/
+// Readable-Referenz"). Nur LISTEN-basierte Felder - freie Zahlenwerte
+// (`kalibrierterWiderstand`/`grenzwiderstand`/`spannungsfall`) kommen in
+// KEINEM der sechs echten Fahrpläne vor (nachgeprüft 2026-08-06) und sind
+// deshalb vorerst nicht implementiert (kleine Schritte).
+const FELD_WERTELISTEN = {
+  pruefspannung: ['50V', '100V', '250V', '500V', '1000V'],
+  lsTyp: ['B', 'C', 'D', 'K', 'Z', 'L', 'U', 'NV', 'gG'],
+  bemessungsstrom: ['6A', '10A', '13A', '16A', '20A', '25A', '32A', '35A', '40A', '50A', '63A', '80A', '100A', '125A'],
+  abschaltzeit: ['35ms', '70ms', '0,1s', '0,2s', '0,4s', '1s', '5s'],
+  stdLow: ['Std', 'Low'],
+  fehlerstrom: ['10mA', '30mA', '100mA', '300mA', '500mA'],
+  typ: ['AC', 'A', 'F', 'B', 'B+']
+};
+
+// Alle aktuell sichtbaren Zone-1-Felder (Titel + titelWerte + ggf.
+// titelWertRechts, siehe zeichneDisplay() in view/messgeraet.js) in
+// DOM-Reihenfolge = Zonen-Reihenfolge (Index 0 = Titel, Index i = i-tes
+// per ◄►-Taste erreichbares Feld) - erkennbar an ihrer eigenen Schriftart
+// ('Courier New'), die NUR diese Felder verwenden (Tasten wie TEST/◄►/▲/▼
+// nutzen die Standard-Schrift des restlichen SVG).
+function zoneFelder() {
+  return [...document.querySelectorAll('#messgeraet svg text')].filter((t) => t.getAttribute('font-family')?.includes('Courier'));
+}
+
+// Aktuell AUSGEWÄHLTE Zone (weißer Text auf schwarzem Kästchen, siehe
+// zeichneTitelFeld()s `invers`-Parameter) - `-1`, falls aus irgendeinem
+// Grund keine gefunden wird.
+function aktuelleZone(felder) {
+  return felder.findIndex((t) => t.getAttribute('fill') === '#ffffff');
+}
+
+// `feld` = Schlüssel aus FELD_WERTELISTEN (bei fester Werteliste ist `wert`
+// einer der Listeneinträge, exakter String, z.B. "C" oder "20A"). Anders
+// als `tools/messgeraet_steuerung.js`s gleichnamige Playwright-Funktion
+// (dort Zone-Nummern hart pro Modus/Ansicht in MESSGERAET_MODI hinterlegt,
+// weil ein externes Skript den Zustand nicht synchron introspizieren kann)
+// wird die ZIEL-ZONE hier live gesucht: die Zone, deren AKTUELLER Text zur
+// Werteliste dieses Felds gehört - robuster, weil unabhängig von der
+// gerade aktiven Ansicht (z.B. ZI "standard" vs. "ΔU") und ohne eigene
+// Zone-Tabelle. Kein Fund (Feld in dieser Ansicht nicht sichtbar/settable,
+// oder freier Zahlenwert - siehe FELD_WERTELISTEN oben) -> No-op.
+function stelleEin(feld, wert) {
+  const werteliste = FELD_WERTELISTEN[feld];
+  if (!werteliste) return;
+
+  let felder = zoneFelder();
+  const zielZoneIndex = felder.findIndex((t) => werteliste.includes(t.textContent));
+  if (zielZoneIndex === -1) return;
+
+  // ◄►-Navigation: IMMER vorwärts, zyklisch (wie am echten Gerät, siehe
+  // aendereZone() in controller/app.js) - Sicherheitsgrenze wie bei
+  // drehknopfAufModus() oben. Nach JEDEM Klick frisch neu aus dem DOM
+  // gelesen (nicht die alten `felder`-Referenzen weiterverwendet) - jede
+  // Zustandsänderung baut das komplette Messgerät-SVG neu auf
+  // (`MessgeraetView.render()`), alte Element-Referenzen sind danach vom
+  // DOM losgelöst.
+  for (let i = 0; i < felder.length && aktuelleZone(felder) !== zielZoneIndex; i++) {
+    klicke([...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent === '◄►'));
+    felder = zoneFelder();
+  }
+
+  // ▲/▼-Navigation: Werteliste ist NICHT zyklisch (`klemmeIndex()` in
+  // controller/app.js klemmt am Anfang/Ende) - Richtung muss deshalb
+  // stimmen, kein blindes Vorwärtsklicken wie beim Drehknopf.
+  const aktuellerIndex = werteliste.indexOf(felder[zielZoneIndex]?.textContent);
+  const zielIndex = werteliste.indexOf(wert);
+  if (aktuellerIndex === -1 || zielIndex === -1) return;
+
+  const pfeilSymbol = zielIndex > aktuellerIndex ? '▲' : '▼';
+  for (let i = 0; i < Math.abs(zielIndex - aktuellerIndex); i++) {
+    klicke([...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent === pfeilSymbol));
+  }
+}
+
 export function fuehreSchrittAus(schritt) {
   if (schritt.funktion === 'messspitzeSetzen') {
     messspitzeSetzen(schritt.argumente[0]);
@@ -159,5 +237,7 @@ export function fuehreSchrittAus(schritt) {
     drehknopfAufModus(schritt.argumente[0]);
   } else if (schritt.funktion === 'hebelSchalten') {
     hebelSchalten(schritt.argumente[0]);
+  } else if (schritt.funktion === 'stelleEin') {
+    stelleEin(schritt.argumente[0], schritt.argumente[1]);
   }
 }

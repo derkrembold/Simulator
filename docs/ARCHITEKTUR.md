@@ -3260,6 +3260,123 @@ Laufzeit unverändert (~40s, keine zusätzlichen Klicks, nur zusätzliche
 Lese-Assertions). `npm test` weiterhin grün (328 Tests, keine neuen
 Testfälle - dieselben sechs Testcase-Tests prüfen jetzt mehr).
 
+### Bugfix: Play/Pause zwischen Timer und Replay kollidierten (2026-08-10)
+
+**User: "Können wir heute den Timer noch machen?"** Beim Vorbereiten des
+echten Timer-Countdowns Code gelesen und einen Bug gefunden, BEVOR
+überhaupt neue Timer-Logik geschrieben wurde: `HandyView.render()`
+(`view/handy.js`) reicht DASSELBE `callbacks`-Objekt sowohl an
+`zeichneReplayBereit()` als auch an `zeichneTimerBereit()` weiter - beide
+Zeichenfunktionen destrukturierten bisher `onPlayKlick`/`onPauseKlick` aus
+diesem EINEN gemeinsamen Objekt. `controller/app.js` lieferte für diese
+Namen nur EINEN Handler (den Replay-Auto-Loop, siehe "Play-Button:
+automatischer Fahrplan-Durchlauf") - ein Play-Klick auf dem TIMER-Screen
+löste dadurch unsichtbar denselben Handler aus und führte im Hintergrund
+echte Fahrplan-Schritte am Schaltkasten aus, obwohl der sichtbare Screen
+der Timer war. Der Bug existierte latent seit der Play-Auto-Loop-Runde,
+fiel aber nie auf, weil bis dahin niemand Play auf dem Timer-Screen
+gedrückt hatte (dessen Play-Button war ja noch wirkungslos).
+
+**Fix:** App-spezifische Callback-Namen statt eines gemeinsamen Paars -
+`onReplayPlayKlick`/`onReplayPauseKlick` (nur `zeichneReplayBereit()`)
+und `onTimerPlayKlick`/`onTimerPauseKlick` (nur `zeichneTimerBereit()`,
+in `controller/app.js` noch nicht belegt - Timer-Play bleibt bewusst ein
+No-op, bis der echte Countdown gebaut wird). Keine Kollision mehr
+möglich, selbst wenn beide Zeichenfunktionen weiterhin dasselbe
+`callbacks`-Objekt bekommen.
+
+**Neuer Test `tests/visuell/test_handy_timer.js`** (künftig auch Ort für
+die Timer-Countdown-Tests): zwei Fälle - (1) Play im Timer-Screen darf
+KEINEN Fahrplan-Schritt auslösen (länger als einen 2-Sekunden-Taktzyklus
+warten, Messspitzen-Anzahl muss unverändert bleiben), (2) Play im
+Replay-Screen muss weiterhin normal funktionieren (Regressionscheck
+gegen die Umbenennung selbst). Regressions-Probe bestätigt: Bug testweise
+wiederhergestellt (Timer-Play testweise auf denselben Replay-Handler
+verdrahtet) - Test (1) schlägt daraufhin korrekt fehl, Fix danach sofort
+rückgängig gemacht. In `package.json` eingehängt.
+
+`npm test` insgesamt jetzt 330 Tests (328 bisherige + 2 neue), alle grün.
+
+### Timer-Countdown: Ring schrumpft, Zahl zählt runter (2026-08-10)
+
+**User: "ja bitte"** (nach dem Play/Pause-Bugfix) - der erste echte
+Funktionsschritt der Timer/Self-Test-App: aus dem bisher statischen
+"bereit"-Screen (45:00, Ring immer gleich, Play ohne Wirkung, siehe
+Umsetzungsstand vom 2026-08-04) wird ein tatsächlich laufender Countdown.
+
+**Ring-Geometrie empirisch vermessen statt neu konstruiert:** die Vorlage
+zeichnet den Ring als EINEN zusammengesetzten Pfad aus vier
+Ellipsen-Bogen-Segmenten (`a 12.852182,12.85218 ...` viermal
+hintereinander) - unhandlich, um daraus direkt einen SCHRUMPFENDEN Bogen
+für beliebige Zwischenwerte abzuleiten. Stattdessen: den statischen Ring
+im Browser gerendert, `getBBox()` (liefert eine exakt QUADRATISCHE Box ->
+bestätigt Kreisform, Mittelpunkt/Radius direkt daraus ablesbar) und
+`getPointAtLength()` an elf gleichmäßig verteilten Stellen entlang des
+Pfads abgetastet, deren Winkel relativ zum Mittelpunkt berechnet (`atan2`)
+- ergibt Mittelpunkt (140.398, 242.510), Radius 12.852, Start-/Endwinkel
+des Bogens (-89.581°/-91.322°, Gesamt-Sweep 358.259° - der fehlende
+Rest, ~1,74°, ist genau die von der Vorlage gewollte "fast
+geschlossen"-Lücke).
+
+**`beschreibeCountdownRing(sekundenVerbleibend, sekundenGesamt)`**
+(`view/handy.js`): der ENDE-Winkel bleibt beim Runterzählen IMMER fest
+(genau die Vorlagen-Lücke) - der START-Winkel wandert mit sinkender
+Restzeit auf den Ende-Winkel zu (voller 358,26°-Bogen bei voller
+Restzeit, ein Punkt/kein Bogen bei 00:00). Visuell wie eine klassische
+Kuchendiagramm-/Stoppuhr-Anzeige, die sich im Uhrzeigersinn leert - der
+volle Bogen "wandert" quasi rückwärts auf seinen eigenen Anfang zu.
+`null` zurückgegeben (kein `<path>` gezeichnet), sobald der Sweep unter
+0,5° fällt, statt einen entarteten Nulllängen-Pfad zu erzeugen.
+
+**Zustand in `controller/app.js`, analog zum Replay-Auto-Loop, aber mit
+einem bewussten Unterschied:** `TIMER_GESAMT_SEKUNDEN = 45*60`,
+`timerSekundenVerbleibend`, `timerIntervalId`, `TIMER_TAKT_MS = 1000`,
+zentrale `stoppeTimerAutomatik()` (dasselbe Muster wie
+`stoppeReplayAutomatik()` - Pause, 00:00 erreicht, Ansicht verlassen).
+**Unterschied zu `onReplayPlayKlick`:** dort wird der ERSTE Schritt SOFORT
+ausgeführt (Reaktionsschnelligkeit bei diskreten Aktions-Schritten), beim
+Timer dagegen NICHT sofort dekrementiert - ein Countdown ist eine
+Uhrzeit-Anzeige, kein Aktions-Schritt; die Anzeige muss die volle
+Restzeit zeigen, bis wirklich eine reale Sekunde vergangen ist, sonst
+wäre sie ab der ersten Millisekunde ungenau.
+
+**Jeder Navigations-Callback (`onTimerIconKlick`/`onReplayIconKlick`/
+`onSchliessenKlick`) stoppt jetzt BEIDE Automatiken**, nicht nur die zur
+Zielansicht passende - Sicherheitsnetz, falls z.B. der Timer lief und man
+währenddessen zu Replay wechselt. `onTimerIconKlick` setzt zusätzlich
+`timerSekundenVerbleibend` auf `TIMER_GESAMT_SEKUNDEN` zurück (frischer
+Start bei jedem Öffnen, analog zu `replayIndex = 0` beim Replay).
+
+**Verifiziert per Playwrights virtueller Uhr (`page.clock`)** statt
+echter 45 Minuten Wartezeit: `clock.runFor(ms)` simuliert vergangene Zeit
+inklusive korrektem `setInterval`-Feuern (im Unterschied zu
+`fastForward()`, das Zwischen-Ticks überspringt). Bestätigt: Play
+dekrementiert NICHT sofort; nach 3 simulierten Sekunden zeigt die Anzeige
+korrekt `44:57`, der Ring-Pfad hat sich sichtbar verändert; Pause friert
+den Stand ein (5 weitere simulierte Sekunden ändern nichts); der
+komplette Ablauf (`clock.runFor(45*60*1000)`) endet bei `00:00`, der Ring
+verschwindet, der Play-Button erscheint automatisch wieder; erneutes
+Öffnen der Timer-App setzt zuverlässig auf `45:00` zurück, auch wenn der
+Countdown beim Verlassen (X-Klick) noch lief.
+
+**Regressions-Probe:** Auto-Stop bei 00:00 testweise entfernt - der Test
+"Kompletter Ablauf..." schlägt daraufhin korrekt fehl ("Play-Button
+erscheint nach Ablauf nicht wieder"). Fix danach sofort rückgängig
+gemacht.
+
+**Vier neue permanente Tests in `tests/visuell/test_handy_timer.js`**
+(derselben Datei, die schon den Play/Pause-Kollisionsbug testet - wie
+angekündigt jetzt auch Heimat der Countdown-Tests): kein
+Sofort-Dekrement + korrekter Wert nach 3s, Pause stoppt zuverlässig,
+kompletter Ablauf stoppt automatisch bei 00:00, Reset bei erneutem
+Öffnen. `npm test` insgesamt jetzt 334 Tests (330 bisherige + 4 neue),
+alle grün.
+
+**Bewusst noch NICHT Teil dieses Schritts** (User-Vorgabe vom
+Sitzungsbeginn: "Grading heute NICHT"): die automatische Auswertung im
+Prüfprotokoll nach Ablauf - bleibt eigener, separater, noch nicht
+spezifizierter nächster Schritt.
+
 ### timer.js (alter Roadmap-Stub, noch nicht umgesetzt)
 - Sichtbarer 45-Minuten Timer
 - Stufe 3: Sprachansagen zu definierten Zeitpunkten

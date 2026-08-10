@@ -1470,6 +1470,14 @@ async function start() {
   // Durchlauf läuft.
   const REPLAY_TAKT_MS = 2000;
   let replayIntervalId = null;
+  // Timer/Self-Test-App (2026-08-10): fester Start bei 45:00 (User-Vorgabe
+  // 2026-08-03, "die 45:00 ist anfangs ein fester wert"), zählt sekündlich
+  // runter. `timerIntervalId` ist `null`, solange kein Countdown läuft -
+  // analog zu `replayIntervalId` oben.
+  const TIMER_GESAMT_SEKUNDEN = 45 * 60;
+  const TIMER_TAKT_MS = 1000;
+  let timerSekundenVerbleibend = TIMER_GESAMT_SEKUNDEN;
+  let timerIntervalId = null;
   // Flache Liste aller Fahrplan-Schritte (für die Ausführung, siehe
   // onSchrittKlick unten) + eine parallele Liste mit Anzeige-Infos pro
   // Schritt (siehe view/handy.js) - ZWEI Ebenen, User-Vorgabe 2026-08-05:
@@ -1516,6 +1524,18 @@ async function start() {
     handyLaeuft = false;
   }
 
+  // Dasselbe Prinzip wie stoppeReplayAutomatik() oben, für den
+  // Timer-Countdown: EINE zentrale Stelle für alle Wege, wie ein
+  // laufender Countdown enden kann (Pause-Klick, 00:00 erreicht, Ansicht
+  // verlassen) - verhindert einen `setInterval`-Leak im Hintergrund.
+  function stoppeTimerAutomatik() {
+    if (timerIntervalId !== null) {
+      clearInterval(timerIntervalId);
+      timerIntervalId = null;
+    }
+    handyLaeuft = false;
+  }
+
   // Führt GENAU einen Fahrplan-Schritt aus (siehe
   // controller/fahrplan_ausfuehrung.js - bisher `messspitzeSetzen`/
   // `schraubeSchalten`/`testDruecken`/`drehknopfAufModus`/`hebelSchalten`/
@@ -1555,9 +1575,31 @@ async function start() {
       // gibt es auch keinen replay app icon auf dem Handy und nichts kann
       // gestartet werden."
       replayVerfuegbar: fahrplan !== null,
-      onTimerIconKlick: () => { handyZustand = 'timer-bereit'; stoppeReplayAutomatik(); renderHandy(handyHoehe); },
-      onReplayIconKlick: () => { handyZustand = 'replay-bereit'; stoppeReplayAutomatik(); replayIndex = 0; setzeSchaltkastenZurueck(); renderHandy(handyHoehe); },
-      onSchliessenKlick: () => { handyZustand = 'homescreen'; stoppeReplayAutomatik(); renderHandy(handyHoehe); },
+      // Jeder Navigations-Punkt stoppt BEIDE Automatiken (nicht nur die zur
+      // Zielansicht passende) - Sicherheitsnetz, falls z.B. der Timer lief
+      // und man währenddessen zu Replay wechselt (oder umgekehrt), statt
+      // sich auf "kann eh nicht laufen" zu verlassen.
+      onTimerIconKlick: () => {
+        handyZustand = 'timer-bereit';
+        stoppeReplayAutomatik();
+        stoppeTimerAutomatik();
+        timerSekundenVerbleibend = TIMER_GESAMT_SEKUNDEN;
+        renderHandy(handyHoehe);
+      },
+      onReplayIconKlick: () => {
+        handyZustand = 'replay-bereit';
+        stoppeReplayAutomatik();
+        stoppeTimerAutomatik();
+        replayIndex = 0;
+        setzeSchaltkastenZurueck();
+        renderHandy(handyHoehe);
+      },
+      onSchliessenKlick: () => {
+        handyZustand = 'homescreen';
+        stoppeReplayAutomatik();
+        stoppeTimerAutomatik();
+        renderHandy(handyHoehe);
+      },
       // Play: sofort den ersten Schritt ausführen (nicht erst nach den
       // vollen 2 Sekunden warten - fühlt sich sonst an, als würde nichts
       // passieren), danach im festen Takt weiter. Guard oben: bereits am
@@ -1566,13 +1608,46 @@ async function start() {
       // beendet den Durchlauf automatisch, falls der erste Schritt schon
       // der letzte war - das Intervall wird dann folgerichtig NICHT
       // gestartet (`handyLaeuft` ist zu dem Zeitpunkt schon wieder false).
-      onPlayKlick: () => {
+      //
+      // App-spezifischer Name `onReplayPlayKlick`/`onReplayPauseKlick`
+      // (NICHT `onPlayKlick`/`onPauseKlick`) - Bug 2026-08-10: `renderHandy()`
+      // reicht DASSELBE `callbacks`-Objekt an `zeichneReplayBereit()` UND
+      // `zeichneTimerBereit()` weiter (siehe view/handy.js
+      // `HandyView.render()`), ein gemeinsamer Name hätte einen Play-Klick
+      // im TIMER unsichtbar diesen Replay-Handler auslösen lassen
+      // (gefunden beim Vorbereiten des echten Timer-Countdowns, per
+      // Playwright bestätigt: Timer-Play führte nach einem Taktzyklus
+      // tatsächlich einen Fahrplan-Schritt im Schaltkasten aus).
+      onReplayPlayKlick: () => {
         if (replayIndex >= replaySchritte.length) return;
         handyLaeuft = true;
         fuehreNaechstenReplaySchrittAus();
         if (handyLaeuft) replayIntervalId = setInterval(fuehreNaechstenReplaySchrittAus, REPLAY_TAKT_MS);
       },
-      onPauseKlick: () => { stoppeReplayAutomatik(); renderHandy(handyHoehe); },
+      onReplayPauseKlick: () => { stoppeReplayAutomatik(); renderHandy(handyHoehe); },
+      // Timer-Countdown (2026-08-10): anders als beim Replay-Auto-Loop wird
+      // NICHT sofort dekrementiert - die Anzeige soll die volle Restzeit
+      // zeigen, bis tatsächlich eine reale Sekunde vergangen ist (ein
+      // Countdown ist eine Uhrzeit-Anzeige, kein diskreter Aktions-Schritt
+      // wie beim Fahrplan - "sofort einen runterzählen" würde die Anzeige
+      // ab der ersten Millisekunde verfälschen). Guard oben: bei 0
+      // verbleibenden Sekunden tut Play nichts.
+      onTimerPlayKlick: () => {
+        if (timerSekundenVerbleibend <= 0) return;
+        handyLaeuft = true;
+        timerIntervalId = setInterval(() => {
+          timerSekundenVerbleibend -= 1;
+          if (timerSekundenVerbleibend <= 0) {
+            timerSekundenVerbleibend = 0;
+            stoppeTimerAutomatik();
+          }
+          renderHandy(handyHoehe);
+        }, TIMER_TAKT_MS);
+        renderHandy(handyHoehe);
+      },
+      onTimerPauseKlick: () => { stoppeTimerAutomatik(); renderHandy(handyHoehe); },
+      timerSekundenVerbleibend,
+      timerSekundenGesamt: TIMER_GESAMT_SEKUNDEN,
       // Schritt-Anzeige (siehe view/handy.js: "N/M: Abschnittstitel", User-
       // Vorgabe 2026-08-05) - zeigt immer den NÄCHSTEN auszuführenden
       // Schritt (auch schon VOR dem ersten Klick, daher `Math.min(...)`

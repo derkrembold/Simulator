@@ -265,7 +265,17 @@ function formatiereAbschnittZeile({ abschnittIndex, abschnittAnzahl, titel }) {
   return kuerzeAufMaxZeichen(`${abschnittIndex}/${abschnittAnzahl}: ${titel}`);
 }
 
-function zeichneReplayBereit(g, { onSchliessenKlick, onPlayKlick, onPauseKlick, onSchrittKlick, laeuft, schrittInfo } = {}) {
+// `onPlayKlick`/`onPauseKlick` HIESSEN früher identisch in
+// zeichneTimerBereit() UND wurden über dasselbe `callbacks`-Objekt
+// hereingereicht (siehe HandyView.render()) - ein Klick auf Play im TIMER
+// löste dadurch tatsächlich den REPLAY-Handler aus (Bug gefunden
+// 2026-08-10, beim Vorbereiten des echten Timer-Countdowns: Play im
+// Timer-Screen führte unsichtbar im Hintergrund Fahrplan-Schritte aus).
+// Fix: eigene, App-spezifische Namen (`onReplayPlayKlick`/
+// `onReplayPauseKlick` hier, `onTimerPlayKlick`/`onTimerPauseKlick` in
+// zeichneTimerBereit()) - keine Kollision mehr möglich, auch wenn beide
+// Zeichenfunktionen weiterhin dasselbe `callbacks`-Objekt bekommen.
+function zeichneReplayBereit(g, { onSchliessenKlick, onReplayPlayKlick, onReplayPauseKlick, onSchrittKlick, laeuft, schrittInfo } = {}) {
   // Bildschirm (schwarz, App aktiv) - eigene Höhe (etwas höher als beim
   // Homescreen, aus der Vorlage übernommen), X/Y/Breite ansonsten identisch.
   g.appendChild(svgEl('rect', {
@@ -331,8 +341,8 @@ function zeichneReplayBereit(g, { onSchliessenKlick, onPlayKlick, onPauseKlick, 
     // übertragen, damit die Balken exakt im (hier neu positionierten)
     // Button-Rahmen zentriert sitzen, unabhängig von der Original-Position
     // in der Vorlage.
-    const pauseGruppe = svgEl('g', { style: onPauseKlick ? 'cursor:pointer' : '' });
-    if (onPauseKlick) pauseGruppe.addEventListener('click', onPauseKlick);
+    const pauseGruppe = svgEl('g', { style: onReplayPauseKlick ? 'cursor:pointer' : '' });
+    if (onReplayPauseKlick) pauseGruppe.addEventListener('click', onReplayPauseKlick);
     g.appendChild(pauseGruppe);
     pauseGruppe.appendChild(svgEl('rect', {
       fill: '#ffffff', stroke: '#000000', 'stroke-width': 0.356001, 'pointer-events': 'all',
@@ -352,8 +362,8 @@ function zeichneReplayBereit(g, { onSchliessenKlick, onPlayKlick, onPauseKlick, 
     }));
   } else {
     // Play-Button (weißes Feld, schwarze Umrandung + Dreieck).
-    const playGruppe = svgEl('g', { style: onPlayKlick ? 'cursor:pointer' : '' });
-    if (onPlayKlick) playGruppe.addEventListener('click', onPlayKlick);
+    const playGruppe = svgEl('g', { style: onReplayPlayKlick ? 'cursor:pointer' : '' });
+    if (onReplayPlayKlick) playGruppe.addEventListener('click', onReplayPlayKlick);
     g.appendChild(playGruppe);
     playGruppe.appendChild(svgEl('rect', {
       fill: '#ffffff', stroke: '#000000', 'stroke-width': 0.356001, 'pointer-events': 'all',
@@ -429,7 +439,60 @@ function zeichneReplayBereit(g, { onSchliessenKlick, onPlayKlick, onPauseKlick, 
 // oder der Play-Button, die selbst schon eine Skalierung/Rotation tragen) -
 // ein Koordinaten-Offset per Hand hätte dort mit dem bestehenden Transform
 // verrechnet werden müssen, statt nur einmal am Schluss addiert zu werden.
-function zeichneTimerBereit(g, { onSchliessenKlick, onPlayKlick, onPauseKlick, laeuft } = {}) {
+// Vorgabewert, falls `callbacks.timerSekundenVerbleibend`/`timerSekundenGesamt`
+// fehlen (z.B. bei isolierten Darstellungs-Tests ohne volle App-Verdrahtung)
+// - identisch zum bisherigen statischen "45:00".
+const TIMER_ANZEIGE_DEFAULT_SEKUNDEN = 45 * 60;
+
+function formatiereCountdown(sekunden) {
+  const m = Math.floor(sekunden / 60);
+  const s = sekunden % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+// Ring-Geometrie 1:1 aus der Vorlage vermessen (2026-08-10, per
+// `getBBox()`+`getPointAtLength()` am live gerenderten statischen Ring -
+// Mittelpunkt/Radius aus der quadratischen BBox, Start-/Endwinkel aus elf
+// entlang des Pfads verteilten Sample-Punkten relativ zum Mittelpunkt).
+// `RING_ENDE_WINKEL` bleibt beim Countdown IMMER fest - das ist der kleine
+// "fast geschlossen"-Spalt aus der Vorlage (User-Vorgabe 2026-08-04:
+// "Achte darauf, dass der blaue Kreis fast geschlossen ist"), der
+// Verschluss-Punkt des Rings ändert sich beim Runterzählen nicht. Der
+// START-Winkel wandert dagegen mit sinkender Restzeit auf den Ende-Winkel
+// zu: voller Kreis (358,26° Bogen, wie die Vorlage) bei voller Restzeit,
+// ein einzelner Punkt (kein Bogen mehr) bei 00:00 - visuell wie eine
+// klassische Kuchendiagramm-/Stoppuhr-Anzeige, die sich im Uhrzeigersinn
+// leert.
+const RING_CX = 140.39838;
+const RING_CY = 242.51001;
+const RING_R = 12.852182;
+const RING_GESAMT_WINKEL_GRAD = 358.259;
+const RING_ENDE_WINKEL_GRAD = -91.322;
+
+// `null`, wenn der Ring bei (praktisch) abgelaufener Zeit keinen
+// sichtbaren Bogen mehr hätte (Restwert wird dann einfach nicht
+// gezeichnet, statt einen entarteten Nulllängen-Pfad zu erzeugen).
+function beschreibeCountdownRing(sekundenVerbleibend, sekundenGesamt) {
+  const anteil = Math.max(0, Math.min(1, sekundenVerbleibend / sekundenGesamt));
+  const sweep = anteil * RING_GESAMT_WINKEL_GRAD;
+  if (sweep < 0.5) return null;
+
+  const startWinkelGrad = RING_ENDE_WINKEL_GRAD - sweep;
+  const startRad = (startWinkelGrad * Math.PI) / 180;
+  const endeRad = (RING_ENDE_WINKEL_GRAD * Math.PI) / 180;
+  const x1 = RING_CX + RING_R * Math.cos(startRad);
+  const y1 = RING_CY + RING_R * Math.sin(startRad);
+  const x2 = RING_CX + RING_R * Math.cos(endeRad);
+  const y2 = RING_CY + RING_R * Math.sin(endeRad);
+  const grossBogen = sweep > 180 ? 1 : 0;
+  return `M ${x1},${y1} A ${RING_R},${RING_R} 0 ${grossBogen} 1 ${x2},${y2}`;
+}
+
+function zeichneTimerBereit(g, {
+  onSchliessenKlick, onTimerPlayKlick, onTimerPauseKlick, laeuft,
+  timerSekundenVerbleibend = TIMER_ANZEIGE_DEFAULT_SEKUNDEN,
+  timerSekundenGesamt = TIMER_ANZEIGE_DEFAULT_SEKUNDEN
+} = {}) {
   const gruppe = svgEl('g', { transform: `translate(${TIMER_BEREIT_DX},${TIMER_BEREIT_DY})` });
   g.appendChild(gruppe);
 
@@ -439,23 +502,27 @@ function zeichneTimerBereit(g, { onSchliessenKlick, onPlayKlick, onPauseKlick, l
     x: 115.65977, y: 199.87042, rx: 4.3264818, ry: 4.835474
   }));
 
-  // Ring (blau, fast geschlossen - User-Vorgabe 2026-08-04: "Achte darauf,
-  // dass der blaue Kreis fast geschlossen ist") + "45:00"-Text (weiß, aus
-  // dem `tspan`-Stil der Vorlage übernommen - der äußere `<text>`-Stil dort
-  // sagt zwar fill:#0000ff, wird aber vom `tspan` mit fill:#ffffff
-  // überschrieben, das ist also die tatsächlich sichtbare Farbe). Countdown
-  // (Ring schrumpft/Zahl zählt runter) folgt als eigener, späterer Schritt
-  // (User-Vorgabe 2026-08-05: "Countdown und Fahrplan abspielen bitte
-  // separat") - hier bewusst noch immer statisch bei 45:00.
-  gruppe.appendChild(svgEl('path', {
-    fill: 'none', stroke: '#0082f5', 'stroke-width': 3.356,
-    d: 'm 140.49241,229.65801 a 12.852182,12.85218 0 0 1 12.75815,12.84823 12.852182,12.85218 0 0 1 -12.75094,12.85538 12.852182,12.85218 0 0 1 -12.95189,-12.65291 12.852182,12.85218 0 0 1 12.55416,-13.04763'
-  }));
+  // Ring (blau) - schrumpft jetzt ECHT mit sinkender Restzeit (siehe
+  // beschreibeCountdownRing() oben), bei voller Restzeit identisch zur
+  // bisherigen statischen Vorlagen-Form (User-Vorgabe 2026-08-04: "Achte
+  // darauf, dass der blaue Kreis fast geschlossen ist"). Kein Pfad, wenn
+  // die Zeit (praktisch) abgelaufen ist.
+  const ringPfad = beschreibeCountdownRing(timerSekundenVerbleibend, timerSekundenGesamt);
+  if (ringPfad) {
+    gruppe.appendChild(svgEl('path', {
+      fill: 'none', stroke: '#0082f5', 'stroke-width': 3.356, d: ringPfad
+    }));
+  }
+  // "45:00"-Text (weiß, aus dem `tspan`-Stil der Vorlage übernommen - der
+  // äußere `<text>`-Stil dort sagt zwar fill:#0000ff, wird aber vom
+  // `tspan` mit fill:#ffffff überschrieben, das ist also die tatsächlich
+  // sichtbare Farbe) - zeigt jetzt die ECHTE Restzeit statt eines
+  // statischen Werts.
   const zeitText = svgEl('text', {
     x: 135.40381, y: 239.44341, fill: '#ffffff', 'font-size': '5.3959px',
     transform: 'scale(0.97961154,1.0208128)'
   });
-  zeitText.textContent = '45:00';
+  zeitText.textContent = formatiereCountdown(timerSekundenVerbleibend);
   gruppe.appendChild(zeitText);
 
   // Play-/Pause-Button (blaues Feld, Dreieck bzw. zwei Balken) - dieselbe
@@ -471,9 +538,9 @@ function zeichneTimerBereit(g, { onSchliessenKlick, onPlayKlick, onPauseKlick, l
   // funktion. es kommt aber noch eine!") - Klick schaltet nur `laeuft` um.
   const playPauseGruppe = svgEl('g', {
     transform: 'matrix(0.86516855,0,0,0.92857142,28.47526,19.069227)',
-    style: (laeuft ? onPauseKlick : onPlayKlick) ? 'cursor:pointer' : ''
+    style: (laeuft ? onTimerPauseKlick : onTimerPlayKlick) ? 'cursor:pointer' : ''
   });
-  const playPauseKlick = laeuft ? onPauseKlick : onPlayKlick;
+  const playPauseKlick = laeuft ? onTimerPauseKlick : onTimerPlayKlick;
   if (playPauseKlick) playPauseGruppe.addEventListener('click', playPauseKlick);
   gruppe.appendChild(playPauseGruppe);
   playPauseGruppe.appendChild(svgEl('rect', {
@@ -527,10 +594,15 @@ export const HandyView = {
   // eigener Zustands-String für "läuft", um Koordinaten aus der separaten
   // Vorlage-Bauteilgruppe nicht zusätzlich umrechnen zu müssen.
   // `callbacks`: `onTimerIconKlick`/`onReplayIconKlick`/`onSchliessenKlick`/
-  // `onPlayKlick`/`onPauseKlick` (jeweils optional - ohne wird nur
-  // gezeichnet, ohne Interaktion, z.B. für reine Darstellungs-Tests) sowie
-  // `laeuft` (boolean, Default falsy = "bereit"-Ansicht mit Play-Button;
-  // truthy = "läuft"-Ansicht mit Pause-Button statt Play/Schritt).
+  // `onReplayPlayKlick`/`onReplayPauseKlick`/`onTimerPlayKlick`/
+  // `onTimerPauseKlick` (jeweils optional - ohne wird nur gezeichnet, ohne
+  // Interaktion, z.B. für reine Darstellungs-Tests) - bewusst App-
+  // spezifische Namen, KEIN gemeinsames `onPlayKlick`/`onPauseKlick` mehr
+  // (Bug 2026-08-10: beide Zeichenfunktionen bekommen dasselbe `callbacks`-
+  // Objekt, ein gemeinsamer Name hätte Play im Timer den Replay-Handler
+  // auslösen lassen) - sowie `laeuft` (boolean, Default falsy =
+  // "bereit"-Ansicht mit Play-Button; truthy = "läuft"-Ansicht mit
+  // Pause-Button statt Play/Schritt).
   render(container, anzeigeHoehe, zustand = 'homescreen', callbacks = {}) {
     const anzeigeBreite = BREITE * (anzeigeHoehe / HOEHE);
 

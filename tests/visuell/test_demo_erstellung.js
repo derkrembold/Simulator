@@ -130,6 +130,22 @@ pruefe('Zu viele TE für eine Hutschiene: dritte Gruppe kommt auf eine neue Huts
   pruefeErreichbarkeit(ergebnis);
 });
 
+pruefe('Dosen-Raster hat höchstens 3 Spalten (Schaltkasten 640 px, Zelle 190 px), keine Dose geht verloren', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
+    stromkreise: [
+      { name: 'SK1', gruppe: 'G1', phase: 'L1', dosen: 2 }, { name: 'SK2', gruppe: 'G1', phase: 'L2' },
+      { name: 'SK3', gruppe: 'G1', phase: 'L3' }, { name: 'SK4', gruppe: 'G1', phase: 'L1', dosen: 2 },
+      { name: 'SK5', gruppe: 'G1', phase: 'L2' }
+    ]
+  }));
+  const p = ergebnis.anlage.steckdosen_platzierung;
+  bedingung(Math.max(...p.map((z) => z.col)) <= 2, 'mehr als 3 Spalten im Dosen-Raster');
+  bedingung(p.length === 7, `erwartet 7 Dosen, ${p.length} gefunden`);
+  bedingung(new Set(p.map((z) => `${z.row}/${z.col}`)).size === p.length, 'zwei Dosen auf demselben Rasterplatz');
+  bedingung(p.filter((z) => z.sk === 'SK4').length === 2 && p.filter((z) => z.sk === 'SK5').length === 1, 'Dosenzahl je Stromkreis falsch');
+});
+
 pruefe('3-poliger LS ohne RCD plus Gruppe mit 2-poligem RCD (wie testcase_06)', () => {
   const ergebnis = erzeuge(baueAnforderung({
     gruppen: [{ id: 'G1', rcdPole: 'ohne' }, { id: 'G2', rcdPole: 2 }],

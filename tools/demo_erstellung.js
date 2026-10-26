@@ -439,6 +439,9 @@ function schreibeNetzplan(anf, modell, demoName) {
 
 // --- bauteile.md schreiben ---
 
+// Der Schaltkasten ist 640 px breit, eine Dosen-Zelle 190 px: mehr als 3 Spalten ragen über den Rand.
+const MAX_DOSEN_SPALTEN = 3;
+
 function schreibeBauteile(anf, modell) {
   const { gruppenInfo, sks, hs3, qHS } = modell;
   const SPALTEN = ['Bauteil', 'Gruppe', 'Typ/Charakteristik', 'Fehlerstrom', 'Nennstrom', 'Max. Querschnitt', 'Pole', 'Selektiv', 'Abklemmen', 'Anzahl LS', 'tA', 'IA', 'UB'];
@@ -480,11 +483,17 @@ function schreibeBauteile(anf, modell) {
 
   zeilen.push('', '## Steckdosen (Platzierung)', '');
   zeilen.push('Raster für die Anordnung der Steckdosen/Anschlussdosen oberhalb des Schaltkastens.', '');
-  const reihen = Math.max(...sks.map((s) => s.dosen));
-  zeilen.push(`|         | ${sks.map((_, i) => `Spalte ${i + 1}`).join(' | ')} |`);
-  zeilen.push(`|---------|${sks.map(() => '----------').join('|')}|`);
-  for (let r = 0; r < reihen; r++) {
-    zeilen.push(`| Reihe ${r + 1} | ${sks.map((s) => (r < s.dosen ? s.name : '–')).join(' | ')} |`);
+  const spalten = Math.min(sks.length, MAX_DOSEN_SPALTEN);
+  zeilen.push(`|         | ${Array.from({ length: spalten }, (_, i) => `Spalte ${i + 1}`).join(' | ')} |`);
+  zeilen.push(`|---------|${Array.from({ length: spalten }, () => '----------').join('|')}|`);
+  let reihenNr = 0;
+  for (let b = 0; b < sks.length; b += MAX_DOSEN_SPALTEN) {
+    const block = sks.slice(b, b + MAX_DOSEN_SPALTEN);
+    const reihen = Math.max(...block.map((s) => s.dosen));
+    for (let r = 0; r < reihen; r++) {
+      const zellen = Array.from({ length: spalten }, (_, i) => (block[i] && r < block[i].dosen ? block[i].name : '–'));
+      zeilen.push(`| Reihe ${++reihenNr} | ${zellen.join(' | ')} |`);
+    }
   }
 
   zeilen.push('', '## Anlage (Kopfdaten)', '');

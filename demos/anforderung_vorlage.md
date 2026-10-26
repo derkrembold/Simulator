@@ -58,5 +58,6 @@ Phase bleibt dann leer.
 
 Fehler Zuleitung (Ω): optionaler Widerstand auf der Leitung zur Endstelle, leer = 0 Ω.
 
-Die Dosen werden automatisch angeordnet: Reihe 1 mit je einer Dose pro Stromkreis, weitere
-Dosen darunter.
+Die Dosen werden automatisch angeordnet: je Block von höchstens 3 Stromkreisen eine Reihe mit
+je einer Dose pro Stromkreis, weitere Dosen darunter. Der nächste Block beginnt in einer
+neuen Reihe (mehr als 3 Spalten passen nicht in die Breite des Schaltkastens).

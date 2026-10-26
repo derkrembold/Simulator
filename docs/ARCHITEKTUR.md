@@ -5557,8 +5557,9 @@ L3 grau, N blau, PE gn-ge), Leiterquerschnitte nach LS-Nennstrom (6/10 A = 1,5 m
 ihrer Stromkreise, Klemmen (bei 3-poligem Hauptschalter L1/L2/L3/N/PE, bei 2-poligem nur PE),
 Hutschienen (H1 Hauptschalter, dann Gruppen der Reihe nach bis 16 TE je Schiene, zuletzt
 Reihenklemmen), Namen (RCD1, RCD2, ..., LS<n> zu SK<n>, Reihenklemme_*, Endstelle_*), RCD-Prüfwerte
-(tA 22 ms, IA = 60 % des Nennfehlerstroms, UB 1 V), Steckdosen-Raster (Reihe 1 eine Dose je
-Stromkreis, weitere Dosen darunter), Spannung der Stromkreise (400 V, wenn ein Stromkreis
+(tA 22 ms, IA = 60 % des Nennfehlerstroms, UB 1 V), Steckdosen-Raster (je Block von höchstens 3
+Stromkreisen eine Reihe mit einer Dose je Stromkreis, weitere Dosen darunter; der Schaltkasten
+ist 640 px breit, eine Zelle 190 px, mehr als 3 Spalten ragen über den Rand), Spannung der Stromkreise (400 V, wenn ein Stromkreis
 dreiphasig ist, sonst 230 V).
 
 **Prüfregeln:** gültige Werte je Feld; Gruppe und Phase existieren; 2-poliger RCD höchstens 2 LS,

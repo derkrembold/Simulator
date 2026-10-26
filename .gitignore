@@ -15,3 +15,5 @@ screenshots/
 # Neu-Generieren dort möglich, siehe ARCHITEKTUR.md "Fahrplan-Erstellung").
 tests/visuell/*/pruefprotokoll.pdf
 tests/visuell/*/fahrplan.pdf
+demos/*/pruefprotokoll.pdf
+demos/*/fahrplan.pdf

@@ -162,3 +162,17 @@ die gemessenen RCD-Werte gegen die unabhängigen Referenzwerte aus
 `>999MΩ`. `tools/pruefprotokoll_erstellung.js` ist dafür `require()`-bar
 (`berechneProtokoll(testcase)`, keine Datei-/PDF-Nebenwirkungen). Details
 in ARCHITEKTUR.md.
+
+### `tools/demo_erstellung.js`
+
+Erzeugt eine Demo-Anlage unter `demos/demo_NN/` aus einer einfachen Anforderung
+(`anforderung.md`, Vorlage `demos/anforderung_vorlage.md`): `netzplan.md`, `bauteile.md`,
+`anlage.json`, `graph.json`, `fahrplan.json` und die PDFs. Eine neue Gruppe ist eine Zeile
+mehr in der Anforderung. Nutzen, statt `netzplan.md` von Hand zu schreiben.
+
+```
+node tools/demo_erstellung.js demo_02 --neu    # Anforderung aus der Vorlage anlegen
+node tools/demo_erstellung.js demo_02          # alles erzeugen und die Verdrahtung prüfen
+```
+
+Details, Prüfregeln und Grenzen: `docs/ARCHITEKTUR.md`, Abschnitt `tools/demo_erstellung.js`.

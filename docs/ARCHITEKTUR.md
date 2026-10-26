@@ -58,6 +58,10 @@ Simulator/
 |   |-- beispiel_eg.json
 |   +-- ...
 |
+|-- demos/                   <- Demo-Anlagen, getrennt von den Testcases (tools/demo_erstellung.js)
+|   |-- anforderung_vorlage.md
+|   +-- demo_01/
+|
 |-- docs/                    <- Konzept, Architektur, Referenz
 |   |-- KONZEPT.md
 |   |-- ARCHITEKTUR.md
@@ -5507,3 +5511,72 @@ alle PASS.** `npm test` jetzt 322 Tests (238 + 84), Laufzeit ~55s → ~88s
 (gemessen, deckt sich mit der vorab abgeschätzten Kostenkalkulation).
 Eingebunden in `package.json`s `test`-Skript, direkt nach
 `test_schraubendreher.js` und vor `run_tests.js`.
+
+### `tools/demo_erstellung.js` (2026-10-26)
+
+**Zweck:** erzeugt eine Demo-Anlage aus einer einfachen Anforderung, statt `netzplan.md` und
+`bauteile.md` von Hand zu schreiben (siehe Ticket sim-m31). Demos liegen unter `demos/demo_NN/`
+und nicht unter `tests/visuell/`, weil `run_tests.js` jeden Unterordner von `tests/visuell/` als
+Testcase mitprüft und der Testlauf nicht wachsen soll. `demos/demo_01` ist die von Hand gebaute
+Referenz (ohne Skill), aus der der Skill abgeleitet wurde.
+
+```
+node tools/demo_erstellung.js demo_02 --neu        # legt demos/demo_02/anforderung.md aus der Vorlage an
+node tools/demo_erstellung.js demo_02              # erzeugt alles aus der Anforderung
+node tools/demo_erstellung.js demo_02 --nur-modell # nur netzplan.md, bauteile.md, anlage.json, graph.json
+```
+
+**Eingabe:** `demos/demo_NN/anforderung.md`, kopiert aus `demos/anforderung_vorlage.md`. Drei
+Tabellen mit festen Auswahlwerten (die erlaubten Werte stehen oben in der Vorlage, Quelle:
+`docs/referenz/bauteilwerte.md`): **Anlage** (Name, Netzform, Hauptschalter 2/3-polig und Ampere),
+**Gruppen** (RCD Pole 2/4/`ohne`, Typ, Fehlerstrom, Nennstrom, Selektiv, Abklemmen), **Stromkreise**
+(Gruppe, Ziel, Endstelle, Anzahl Dosen, LS Pole 1/3, Charakteristik, Ampere, Phase, Zi/Zs/RCD,
+optional Fehler Zuleitung in Ω). Eine neue Gruppe ist eine zusätzliche Zeile in `Gruppen` plus die
+Stromkreise mit dieser Gruppen-ID.
+
+**Ablauf:** Anforderung parsen und prüfen (alle Meldungen auf einmal) -> `netzplan.md` und
+`bauteile.md` schreiben (Netz-IDs fortlaufend vergeben) -> `generate_anlage.js`
+(`generiereAnlage()`, `generiereGraph()`) -> `anlage.json` und `graph.json` schreiben ->
+Verdrahtungsprüfung mit `tools/pfad_zur_einspeisung.js` (vergleicht `graph.json` mit dem
+gerenderten Kasten, bricht bei Abweichung ab) -> `tools/pruefprotokoll_erstellung.js`
+(`fahrplan.json`, `pruefprotokoll.pdf`) -> `tools/fahrplan_beschreibung.js` (`fahrplan.pdf`).
+`netzplan.md` und `bauteile.md` bleiben die Quelle für den Generator, sind aber erzeugt und
+werden nicht von Hand geändert.
+
+**Vom Werkzeug abgeleitet (nicht in der Anforderung):** Netz-IDs, Farben (L1 schwarz, L2 braun,
+L3 grau, N blau, PE gn-ge), Leiterquerschnitte nach LS-Nennstrom (6/10 A = 1,5 mm², 13/16 A = 2,5,
+20/25 A = 4, 32 A = 6, 35 bis 50 A = 10, 63 A = 16), Hauptschalterseite 10 mm² und Einspeisung
+16 mm² (bei 35 A), PE-Zubringer 2,5 mm², gemeinsame N-Ader der Gruppe mit dem größten Querschnitt
+ihrer Stromkreise, Klemmen (bei 3-poligem Hauptschalter L1/L2/L3/N/PE, bei 2-poligem nur PE),
+Hutschienen (H1 Hauptschalter, dann Gruppen der Reihe nach bis 16 TE je Schiene, zuletzt
+Reihenklemmen), Namen (RCD1, RCD2, ..., LS<n> zu SK<n>, Reihenklemme_*, Endstelle_*), RCD-Prüfwerte
+(tA 22 ms, IA = 60 % des Nennfehlerstroms, UB 1 V), Steckdosen-Raster (Reihe 1 eine Dose je
+Stromkreis, weitere Dosen darunter), Spannung der Stromkreise (400 V, wenn ein Stromkreis
+dreiphasig ist, sonst 230 V).
+
+**Prüfregeln:** gültige Werte je Feld; Gruppe und Phase existieren; 2-poliger RCD höchstens 2 LS,
+nur 1-polig und alle auf derselben Phase; 4-poliger RCD höchstens 6 LS, 3-poliger Hauptschalter
+und Stromkreise auf L1, L2 und L3; RCD-Nennstrom größer als jeder LS; Gruppe ohne RCD genau ein
+Stromkreis; 3-poliger LS nur mit 3-poligem Hauptschalter, ohne Phase und mit Drehstromsteckdose
+oder 5-poliger Anschlussdose (1-polig: Steckdose oder Lichtauslass); bei 2-poligem Hauptschalter
+nur Phase L1; höchstens 16 TE je Gruppe.
+
+**Bewusste Grenzen der ersten Fassung:** kein AFDD-Kombigerät; mehr als ein Stromkreis in einer
+Gruppe ohne RCD nicht möglich; die Netzform (TN-S, TN-C-S, TT) ist nur eine Beschriftung, der
+Generator unterscheidet sie nicht; ein Fehlerwiderstand pro Stromkreis (auf der ersten
+Phasen-Zuleitung zur Endstelle).
+
+**Pfade für Demos:** Die Werkzeuge in `tools/` bilden den Pfad als `tests/visuell/<name>`. Mit
+einem relativen Namen wie `../../demos/demo_02` laufen sie ohne Codeänderung auch für `demos/`
+(`demo_erstellung.js` übergibt den Namen automatisch so). `fahrplan.json` enthält dann den Pfad
+`tests/visuell/../../demos/demo_02/anlage.json`. Im lokalen Browser funktioniert das, auf GitHub
+Pages ist es nicht geprüft.
+
+**Test:** `tests/visuell/test_demo_erstellung.js` (Teil von `npm test`, ohne Browser, in
+Temp-Ordnern): Die Vorlage erzeugt dieselbe `anlage.json` wie die von Hand gebaute `demos/demo_01`
+(verglichen ohne Netz-IDs); zweite Gruppe mit 4-poligem RCD Typ B; dritte Gruppe wandert auf eine
+zweite Hutschiene; 3-poliger LS ohne RCD (wie testcase_06); 4-poliger RCD mit 3-poligem LS und
+Drehstromsteckdose (wie testcase_05); 2-poliger Hauptschalter (wie testcase_01); Fehlerwiderstand
+in `graph.json`; neun abgelehnte Anforderungen mit der erwarteten Meldung. Bei den erzeugten
+Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über `istSpannungFuehrend()` mit der
+Einspeisung verbunden sein.

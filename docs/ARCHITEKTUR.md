@@ -4545,6 +4545,12 @@ Doku HIER ergänzen, den Index-Skill nur um einen kurzen Verweis erweitern.
 
 ### `tools/pfad_zur_einspeisung.js` (2026-07-28)
 
+**Ergänzung (2026-10-26): `--alle`.** `node tools/pfad_zur_einspeisung.js <testcase> --alle` prüft mit
+einem Browserstart die Pfade Endstelle -> Einspeisung aller Stromkreise und Phasen (L1/L2/L3 je nach
+Stromkreis, plus N) gegen den gerenderten Schaltkasten und gibt jede Abweichung einzeln aus
+(Exit-Code 1). Als Funktion `pruefeVerdrahtung(testcase)` auch `require()`-bar (Hauptprogramm läuft
+nur bei direktem Aufruf), genutzt von `tools/demo_erstellung.js` und `test_demo_erstellung.js`.
+
 **Zweck:** gibt für eine beliebige Schraube im Schaltkasten den
 Verdrahtungspfad zurück zur Einspeisung aus - ersetzt das manuelle
 Nachschlagen von Netz-IDs in `anlage.json`/`graph.json`, das diese ganze
@@ -5537,8 +5543,9 @@ Stromkreise mit dieser Gruppen-ID.
 **Ablauf:** Anforderung parsen und prüfen (alle Meldungen auf einmal) -> `netzplan.md` und
 `bauteile.md` schreiben (Netz-IDs fortlaufend vergeben) -> `generate_anlage.js`
 (`generiereAnlage()`, `generiereGraph()`) -> `anlage.json` und `graph.json` schreiben ->
-Verdrahtungsprüfung mit `tools/pfad_zur_einspeisung.js` (vergleicht `graph.json` mit dem
-gerenderten Kasten, bricht bei Abweichung ab) -> `tools/pruefprotokoll_erstellung.js`
+Verdrahtungsprüfung `tools/pfad_zur_einspeisung.js <demo> --alle` (vergleicht für jeden Stromkreis
+und jede Phase plus N den Pfad Endstelle -> Einspeisung zwischen `graph.json` und dem gerenderten
+Kasten, bricht bei Abweichung ab) -> `tools/pruefprotokoll_erstellung.js`
 (`fahrplan.json`, `pruefprotokoll.pdf`) -> `tools/fahrplan_beschreibung.js` (`fahrplan.pdf`).
 `netzplan.md` und `bauteile.md` bleiben die Quelle für den Generator, sind aber erzeugt und
 werden nicht von Hand geändert.
@@ -5577,6 +5584,15 @@ Temp-Ordnern): Die Vorlage erzeugt dieselbe `anlage.json` wie die von Hand gebau
 (verglichen ohne Netz-IDs); zweite Gruppe mit 4-poligem RCD Typ B; dritte Gruppe wandert auf eine
 zweite Hutschiene; 3-poliger LS ohne RCD (wie testcase_06); 4-poliger RCD mit 3-poligem LS und
 Drehstromsteckdose (wie testcase_05); 2-poliger Hauptschalter (wie testcase_01); Fehlerwiderstand
-in `graph.json`; neun abgelehnte Anforderungen mit der erwarteten Meldung. Bei den erzeugten
-Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über `istSpannungFuehrend()` mit der
-Einspeisung verbunden sein.
+in `graph.json`; vierzehn abgelehnte Anforderungen mit der erwarteten Meldung (u. a. `SK01`,
+`16abc`, negativer oder unlesbarer Fehlerwiderstand, unlesbare RCD-Polzahl, die nicht still als
+`ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
+`istSpannungFuehrend()` mit der Einspeisung verbunden sein. Zusätzlich prüft der Test im headless
+Browser, dass bei den eingecheckten `demos/demo_01` und `demos/demo_02` alle Pfade im Graphen und
+im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).
+
+**Review (Codex, Ticket sim-m31):** Drei Befunde umgesetzt. Stromkreisnamen müssen kanonisch sein
+(`SK<Nummer>` ohne führende Null, `SK01` erzeugte sonst einen Absturz im Generator). Zahlen werden
+vollständig gelesen (`16abc` ist ungültig), der Fehlerwiderstand muss leer oder eine Zahl ab 0 sein.
+Die Verdrahtungsprüfung prüft alle Stromkreise und Phasen und nicht nur die erste Phase des ersten
+Stromkreises.

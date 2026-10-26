@@ -241,4 +241,47 @@ lehntAb('4-poliger RCD mit sieben LS', baueAnforderung({
     .concat([{ name: 'SK7', gruppe: 'G1', phase: 'L1' }])
 }), 'höchstens 6 LS');
 
-process.exit(alleBestanden ? 0 : 1);
+lehntAb('Stromkreisname mit führender Null (SK01)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK01', gruppe: 'G1', phase: 'L1' }]
+}), 'ohne führende Null');
+
+lehntAb('LS-Ampere mit angehängtem Text (16abc)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', lsA: '16abc' }]
+}), 'LS (A) "null" ungültig');
+
+lehntAb('negativer Fehlerwiderstand', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehler: '-5' }]
+}), 'Fehler Zuleitung "-5" ungültig');
+
+lehntAb('Fehlerwiderstand mit Text', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehler: '0,3x' }]
+}), 'Fehler Zuleitung "0,3x" ungültig');
+
+// Ein unlesbarer RCD-Wert darf nicht still als "ohne RCD" gelten.
+lehntAb('unlesbare RCD-Polzahl (abc) wird nicht als "ohne" gelesen', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 'abc' }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+}), 'RCD Pole "abc" ungültig');
+
+// Verdrahtung der eingecheckten Demos: jeder Pfad Endstelle -> Einspeisung (alle Stromkreise und
+// Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
+(async () => {
+  const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
+  for (const demo of ['demo_01', 'demo_02']) {
+    const name = `Verdrahtung ${demo}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
+    try {
+      const { abweichungen, geprueft } = await pruefeVerdrahtung(`../../demos/${demo}`);
+      bedingung(geprueft > 0, 'keine Pfade geprüft');
+      bedingung(abweichungen.length === 0, abweichungen.join('; '));
+      console.log(`${name}: PASS (${geprueft} Pfade)`);
+    } catch (err) {
+      console.log(`${name}: FAIL – ${err.message}`);
+      alleBestanden = false;
+    }
+  }
+  process.exit(alleBestanden ? 0 : 1);
+})();

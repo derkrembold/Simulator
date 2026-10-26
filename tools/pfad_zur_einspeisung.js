@@ -256,7 +256,56 @@ async function ermittleDomKanten(page) {
   return kanten;
 }
 
+// Vergleicht die Endstellen-Pfade ALLER Stromkreise und Phasen (L1/L2/L3 je nach Stromkreis, plus N)
+// zwischen graph.json und dem gerenderten Schaltkasten, mit nur einem Browserstart. Liefert die
+// Liste der Abweichungen (leer = alles stimmt) und die Anzahl der geprüften Pfade.
+async function pruefeVerdrahtung(testcase) {
+  const anlage = ladeAnlage(testcase);
+  const graph = ladeGraph(testcase);
+
+  const server = await starteServer();
+  const port = server.address().port;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/${testcase}/anlage.json`);
+    await page.waitForSelector('#schraubendreher svg');
+    const domKanten = await ermittleDomKanten(page);
+
+    const abweichungen = [];
+    let geprueft = 0;
+    const stromkreise = anlage.hutschienen.flatMap((h) => h.gruppen).flatMap((g) => g.stromkreise);
+    for (const sk of stromkreise) {
+      for (const funktion of [...sk.phasen, 'N']) {
+        const aufgeloest = ermittleEndstelleNetz(anlage, sk.bezeichnung, funktion);
+        if (!aufgeloest) {
+          abweichungen.push(`${sk.bezeichnung} ${funktion}: keine Ader in anlage.json gefunden`);
+          continue;
+        }
+        const einspeisung = graph.einspeisung[funktion];
+        const graphZeilen = berechneTabelle(graph[funktion].kanten, einspeisung, aufgeloest.netz);
+        const domZeilen = berechneTabelle(domKanten.filter((k) => k.funktion === funktion), einspeisung, aufgeloest.netz);
+        geprueft += 1;
+        if (graphZeilen === null) {
+          abweichungen.push(`${sk.bezeichnung} ${funktion} (${aufgeloest.netz}): im Graphen (graph.json) kein Pfad zur Einspeisung`);
+        } else if (domZeilen === null) {
+          abweichungen.push(`${sk.bezeichnung} ${funktion} (${aufgeloest.netz}): Graph findet einen Pfad, der gerenderte Schaltkasten nicht`);
+        } else if (JSON.stringify(graphZeilen) !== JSON.stringify(domZeilen)) {
+          abweichungen.push(`${sk.bezeichnung} ${funktion} (${aufgeloest.netz}): Pfad im Graphen weicht vom gerenderten Schaltkasten ab`);
+        }
+      }
+    }
+    return { abweichungen, geprueft };
+  } finally {
+    await browser.close();
+    server.close();
+  }
+}
+
 function zeigeHilfe() {
+  console.error('Aufruf: node tools/pfad_zur_einspeisung.js <testcase> --alle');
+  console.error('Prüft alle Stromkreise und Phasen (Endstelle bis Einspeisung) gegen den gerenderten Schaltkasten.');
+  console.error('');
   console.error('Aufruf: node tools/pfad_zur_einspeisung.js <testcase> <bauteil> <netz>');
   console.error('Beispiel: node tools/pfad_zur_einspeisung.js testcase_04 LS3 N26');
   console.error('');
@@ -268,6 +317,17 @@ function zeigeHilfe() {
 async function main() {
   const [, , testcase, ...rest] = process.argv;
   if (!testcase) { zeigeHilfe(); process.exit(1); }
+
+  if (rest[0] === '--alle') {
+    const { abweichungen, geprueft } = await pruefeVerdrahtung(testcase);
+    if (abweichungen.length > 0) {
+      console.error(`ABWEICHUNG in ${abweichungen.length} von ${geprueft} Pfaden:`);
+      abweichungen.forEach((a) => console.error(`  - ${a}`));
+      process.exit(1);
+    }
+    console.log(`Verdrahtung ${testcase}: ${geprueft} Pfade (Endstelle bis Einspeisung) stimmen zwischen graph.json und gerendertem Schaltkasten überein.`);
+    return;
+  }
 
   const istEndstelle = rest[0] === '--endstelle';
   const bauteil = istEndstelle ? null : rest[0];
@@ -359,4 +419,6 @@ async function main() {
   console.log(formatTabelle(graphZeilen));
 }
 
-main();
+module.exports = { pruefeVerdrahtung };
+
+if (require.main === module) main();

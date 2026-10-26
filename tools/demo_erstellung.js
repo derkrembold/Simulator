@@ -64,9 +64,11 @@ function leseTabelle(abschnitt) {
   });
 }
 
+// Liest eine Zahl vollständig: "16abc" oder "1,2,3" ergeben null statt einer still abgeschnittenen Zahl.
 function zahl(wert) {
-  const n = parseFloat(String(wert).replace(',', '.'));
-  return Number.isNaN(n) ? null : n;
+  const text = String(wert ?? '').trim();
+  if (!/^[+-]?\d+([.,]\d+)?$/.test(text)) return null;
+  return parseFloat(text.replace(',', '.'));
 }
 
 function parseAnforderung(text) {
@@ -78,6 +80,7 @@ function parseAnforderung(text) {
 
   const gruppen = leseTabelle(finde('Gruppen') ?? '').filter((z) => z.Gruppe).map((z) => ({
     id: z.Gruppe,
+    ohneRcd: /^ohne$/i.test(z['RCD Pole']),
     rcdPole: /^ohne$/i.test(z['RCD Pole']) ? null : zahl(z['RCD Pole']),
     rcdPoleRoh: z['RCD Pole'],
     typ: z['RCD Typ'],
@@ -98,6 +101,7 @@ function parseAnforderung(text) {
     lsA: zahl(z['LS (A)']),
     phase: z.Phase || null,
     zi: z.Zi, zs: z.Zs, rcd: z.RCD,
+    fehlerRoh: z['Fehler Zuleitung (Ω)'] ?? '',
     fehler: z['Fehler Zuleitung (Ω)'] ? zahl(z['Fehler Zuleitung (Ω)']) : null
   }));
 
@@ -131,7 +135,7 @@ function pruefeAnforderung(anf) {
   for (const g of anf.gruppen) {
     muss(!gruppenIds.has(g.id), `Gruppe ${g.id}: doppelt vergeben`);
     gruppenIds.add(g.id);
-    if (g.rcdPole === null) continue;
+    if (g.ohneRcd) continue;
     muss(aus(g.rcdPole, ERLAUBT.rcdPole), `Gruppe ${g.id}: RCD Pole "${g.rcdPoleRoh}" ungültig (erlaubt: ${liste(ERLAUBT.rcdPole)} oder ohne)`);
     muss(aus(g.typ, ERLAUBT.rcdTyp), `Gruppe ${g.id}: RCD Typ "${g.typ}" ungültig (erlaubt: ${liste(ERLAUBT.rcdTyp)})`);
     muss(aus(g.fehlerstrom, ERLAUBT.fehlerstrom), `Gruppe ${g.id}: Fehlerstrom "${g.fehlerstrom}" ungültig (erlaubt: ${liste(ERLAUBT.fehlerstrom)})`);
@@ -143,7 +147,7 @@ function pruefeAnforderung(anf) {
   const skNamen = new Set();
   for (const s of anf.stromkreise) {
     const n = s.name;
-    muss(/^SK\d+$/.test(n), `Stromkreis "${n}": Name muss SK<Nummer> lauten`);
+    muss(/^SK[1-9]\d*$/.test(n), `Stromkreis "${n}": Name muss SK<Nummer> ohne führende Null lauten (z.B. SK1)`);
     muss(!skNamen.has(n), `Stromkreis ${n}: doppelt vergeben`);
     skNamen.add(n);
     muss(gruppenIds.has(s.gruppe), `Stromkreis ${n}: Gruppe "${s.gruppe}" existiert nicht`);
@@ -154,6 +158,7 @@ function pruefeAnforderung(anf) {
     for (const [feld, wert] of [['Zi', s.zi], ['Zs', s.zs], ['RCD', s.rcd]]) {
       muss(aus(wert, ERLAUBT.janein), `Stromkreis ${n}: ${feld} "${wert}" ungültig (ja/nein)`);
     }
+    muss(s.fehlerRoh === '' || (s.fehler !== null && s.fehler >= 0), `Stromkreis ${n}: Fehler Zuleitung "${s.fehlerRoh}" ungültig (leer oder eine Zahl ab 0)`);
     if (s.lsPole === 3) {
       muss(aus(s.endstelle, ERLAUBT.endstelleDreiphasig), `Stromkreis ${n}: Endstelle "${s.endstelle}" passt nicht zu einem 3-poligen LS (erlaubt: ${liste(ERLAUBT.endstelleDreiphasig)})`);
       muss(!s.phase, `Stromkreis ${n}: bei 3-poligem LS muss Phase leer bleiben`);
@@ -168,7 +173,7 @@ function pruefeAnforderung(anf) {
   for (const g of anf.gruppen) {
     const sks = anf.stromkreise.filter((s) => s.gruppe === g.id);
     muss(sks.length > 0, `Gruppe ${g.id}: kein Stromkreis zugeordnet`);
-    if (g.rcdPole === null) {
+    if (g.ohneRcd) {
       muss(sks.length === 1, `Gruppe ${g.id}: eine Gruppe ohne RCD darf genau einen Stromkreis haben (hat ${sks.length})`);
       continue;
     }
@@ -556,9 +561,8 @@ function main() {
 
   // Die Werkzeuge in tools/ erwarten den Pfad relativ zu tests/visuell/.
   const werkzeugName = path.relative(path.join(PROJEKT_ROOT, 'tests', 'visuell'), ordner).replace(/\\/g, '/');
-  const phase = ergebnis.modell.sks[0].phasen[0];
   const schritte = [
-    ['Verdrahtungsprüfung', ['tools/pfad_zur_einspeisung.js', werkzeugName, '--endstelle', ergebnis.modell.sks[0].name, phase]],
+    ['Verdrahtungsprüfung (alle Stromkreise und Phasen)', ['tools/pfad_zur_einspeisung.js', werkzeugName, '--alle']],
     ['Fahrplan und Prüfprotokoll', ['tools/pruefprotokoll_erstellung.js', werkzeugName]],
     ['Fahrplan-Beschreibung', ['tools/fahrplan_beschreibung.js', werkzeugName]]
   ];

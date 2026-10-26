@@ -41,6 +41,11 @@ Sammelschiene/geteilten Schraube (Verzweigungs-Spalte, z.B. `RCD2 (1)`,
 `RCD2 (2)` bei einer geteilten Ausgangsschraube); ob die Verdrahtung
 zwischen Datenmodell und Rendering konsistent ist.
 
+Aufruf für alle Stromkreise und Phasen auf einmal (Verdrahtungsprüfung Graph gegen Rendering):
+```
+node tools/pfad_zur_einspeisung.js <testcase> --alle
+```
+
 **Nicht geeignet für:** Fragen zu Schalterzuständen/Messwerten (Hebel/
 Schrauben-Interaktion, RISO/RCD-Auslösewerte etc.) - das Werkzeug ignoriert
 bewusst jeden Schaltzustand und prüft nur die statische Verdrahtung. Dafür

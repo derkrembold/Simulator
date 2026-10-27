@@ -283,11 +283,27 @@ lehntAb('unlesbare RCD-Polzahl (abc) wird nicht als "ohne" gelesen', baueAnforde
   stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
 }), 'RCD Pole "abc" ungültig');
 
+// Die Pfadtabelle darf nicht von der Reihenfolge der Kanten abhängen (Graph und Browser liefern sie
+// verschieden): weder bei den Abzweigen noch bei der Nummerierung mehrerer Kanten desselben Bauteils.
+pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
+  const { berechneTabelle } = require('../../tools/pfad_zur_einspeisung.js');
+  const kanten = [
+    { von: 'N1', nach: 'N2', bauteil: 'RCD1' },
+    { von: 'N1', nach: 'N3', bauteil: 'RCD1' },
+    { von: 'N1', nach: 'N5', bauteil: 'RCD2' },
+    { von: 'N1', nach: 'N6', bauteil: 'RCD3' },
+    { von: 'N2', nach: 'N4', bauteil: 'LS1' }
+  ];
+  const vorwaerts = JSON.stringify(berechneTabelle(kanten, 'N1', 'N4'));
+  const rueckwaerts = JSON.stringify(berechneTabelle([...kanten].reverse(), 'N1', 'N4'));
+  bedingung(vorwaerts === rueckwaerts, `Tabelle hängt von der Kantenreihenfolge ab:\n${vorwaerts}\n${rueckwaerts}`);
+});
+
 // Verdrahtung der eingecheckten Demos: jeder Pfad Endstelle -> Einspeisung (alle Stromkreise und
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['demo_01', 'demo_02']) {
+  for (const demo of ['demo_01', 'demo_02', 'demo_04']) {
     const name = `Verdrahtung ${demo}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
       const { abweichungen, geprueft } = await pruefeVerdrahtung(`../../demos/${demo}`);

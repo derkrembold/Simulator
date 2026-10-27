@@ -109,7 +109,8 @@ function nummeriereKanten(kanten) {
     if (eigeneKanten.length === 1) {
       label.set(eigeneKanten[0], bauteil);
     } else {
-      eigeneKanten.forEach((kante, i) => label.set(kante, `${bauteil} (${i + 1})`));
+      const nachNetzpaar = [...eigeneKanten].sort((a, b) => `${a.von}|${a.nach}`.localeCompare(`${b.von}|${b.nach}`));
+      nachNetzpaar.forEach((kante, i) => label.set(kante, `${bauteil} (${i + 1})`));
     }
   }
   return label;
@@ -169,7 +170,7 @@ function berechneTabelle(kanten, einspeisungsNetz, startNetz) {
       kanten
         .filter((k) => k !== kante && k !== naechsteKante && (k.von === nach || k.nach === nach))
         .map((k) => label.get(k))
-    )];
+    )].sort();
     return { eingang: kante.von, ausgang: kante.nach, bauteil: label.get(kante), verzweigung: verzweigungen.join(', ') || '–' };
   });
 }
@@ -419,6 +420,6 @@ async function main() {
   console.log(formatTabelle(graphZeilen));
 }
 
-module.exports = { pruefeVerdrahtung };
+module.exports = { pruefeVerdrahtung, berechneTabelle };
 
 if (require.main === module) main();

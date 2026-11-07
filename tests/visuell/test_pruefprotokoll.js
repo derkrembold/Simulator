@@ -6,7 +6,11 @@
 //   1. bauteile.md (über generate_anlage.js parseBauteile()) - RCD-Werte
 //      (iA/tA/uB) sind dort per Definition hinterlegt, nicht aus der
 //      Verdrahtung ableitbar, also eine ECHTE unabhängige Erwartung.
-//   2. Fachliche Grundregeln (Riso ohne Fehler -> immer >999MΩ; Zs/Zi/Ik
+//   2. Dokumentierte Zi-Werte je Außenleiter für testcase_05 SK1
+//      (docs/KONZEPT.md, "3-poliger LS": dieselben Werte wie testcase_04s
+//      drei einpolige Stromkreise) - sichert ab, dass wirklich jeder
+//      Außenleiter gemessen wird und nicht dreimal L1.
+//   3. Fachliche Grundregeln (Riso ohne Fehler -> immer >999MΩ; Zs/Zi/Ik
 //      sind positive Zahlen) - kein Soll-Ist-Vergleich möglich, da diese
 //      Werte aus der Widerstands-Netzwerk-Berechnung des Graphen kommen und
 //      nirgends unabhängig vorgegeben sind (siehe ARCHITEKTUR.md) - hier nur
@@ -18,6 +22,11 @@ const { berechneProtokoll } = require('../../tools/pruefprotokoll_erstellung.js'
 const { parseBauteile } = require('./generate_anlage.js');
 
 const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
+
+// Sollwerte Zi je Außenleiter, siehe Kopfkommentar Punkt 2.
+const ZI_JE_AUSSENLEITER = {
+  'testcase_05 SK1': { L1: '0,54', L2: '0,67', L3: '0,63' }
+};
 
 function parseKomma(text) {
   return parseFloat(String(text).replace(',', '.'));
@@ -82,6 +91,43 @@ async function main() {
         await pruefe(`${testcase} ${erg.sk}: Zi/Ik(L-N) sind plausible positive Zahlen`, async () => {
           erwartePositiv(parseKomma(erg.zi), `${erg.sk} Zi`);
           erwartePositiv(parseKomma(erg.ikLn), `${erg.sk} Ik(L-N)`);
+        });
+      }
+
+      if (erg.messungen.zs) {
+        await pruefe(`${testcase} ${erg.sk}: Zi/Zs für jeden Außenleiter (${erg.phasen.join('/')}) gemessen`, async () => {
+          if (!erg.aussenleiter) throw new Error(`${erg.sk}: keine Messwerte pro Außenleiter geliefert`);
+          const gemessen = erg.aussenleiter.map((m) => m.phase).join('/');
+          erwarteGleich(gemessen, erg.phasen.join('/'), `${erg.sk} gemessene Außenleiter`);
+          for (const m of erg.aussenleiter) {
+            erwartePositiv(parseKomma(m.zi), `${erg.sk} ${m.phase} Zi`);
+            erwartePositiv(parseKomma(m.ikLn), `${erg.sk} ${m.phase} Ik(L-N)`);
+            if (!erg.rcdName) {
+              erwartePositiv(parseKomma(m.zs), `${erg.sk} ${m.phase} Zs`);
+              erwartePositiv(parseKomma(m.ik), `${erg.sk} ${m.phase} Ik(L-PE)`);
+            }
+          }
+        });
+      }
+
+      const soll = ZI_JE_AUSSENLEITER[`${testcase} ${erg.sk}`];
+      if (soll) {
+        await pruefe(`${testcase} ${erg.sk}: Zi je Außenleiter stimmt mit docs/KONZEPT.md überein`, async () => {
+          for (const m of erg.aussenleiter) erwarteGleich(m.zi, soll[m.phase], `${erg.sk} ${m.phase} Zi`);
+        });
+      }
+
+      // Die Fehlertabellen der Testcases geben jedem Außenleiter eigene
+      // Widerstände. Gleiche Werte auf allen Außenleitern hießen, dass
+      // dreimal derselbe Leiter gemessen wurde.
+      if (erg.aussenleiter?.length > 1) {
+        await pruefe(`${testcase} ${erg.sk}: Zi/Zs unterscheiden sich je Außenleiter`, async () => {
+          for (const groesse of erg.rcdName ? ['zi'] : ['zi', 'zs']) {
+            const werte = erg.aussenleiter.map((m) => m[groesse]);
+            if (new Set(werte).size !== werte.length) {
+              throw new Error(`${erg.sk} ${groesse}: gleiche Werte auf mehreren Außenleitern (${werte.join(' / ')})`);
+            }
+          }
         });
       }
 

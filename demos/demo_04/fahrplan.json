@@ -136,7 +136,7 @@
       ]
     },
     {
-      "titel": "SK6: Zi (L-N)",
+      "titel": "SK6 L1: Zi (L-N)",
       "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
       "schritte": [
         {
@@ -167,6 +167,138 @@
           "argumente": [
             {
               "netz": "N57"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N60"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,14Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:1478,6A"
+        }
+      ]
+    },
+    {
+      "titel": "SK6 L2: Zi (L-N)",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZI"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "16A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N58"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N60"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,14Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:1478,6A"
+        }
+      ]
+    },
+    {
+      "titel": "SK6 L3: Zi (L-N)",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZI"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "16A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N59"
             }
           ],
           "ergebnis": null
@@ -1581,7 +1713,7 @@
       ]
     },
     {
-      "titel": "SK5: Zi (L-N)",
+      "titel": "SK5 L1: Zi (L-N)",
       "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
       "schritte": [
         {
@@ -1612,6 +1744,138 @@
           "argumente": [
             {
               "netz": "N52"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N55"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,14Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:1478,6A"
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L2: Zi (L-N)",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZI"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "16A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N53"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N55"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,14Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:1478,6A"
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L3: Zi (L-N)",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZI"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "16A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N54"
             }
           ],
           "ergebnis": null

@@ -5069,7 +5069,11 @@ Funktion in `messgeraet_steuerung.js` erweitert (siehe dort).
      geöffnet (reiner Spannungsfrei-Zweck, kein Trennungs-Bedarf).
 3. **Überstromschutz** (ZS, LS-Typ/Bemessungsstrom vorher per `stelleEin()`
    gesetzt) - Anlage normal energisiert, kein Abklemmen nötig. Nur wenn
-   `sk.messungen.zs`.
+   `sk.messungen.zs`. Zi (L-N) und, ohne RCD, Zs (L-PE) werden für **jeden
+   Außenleiter** in `sk.phasen` einzeln gemessen, je in einem eigenen
+   Abschnitt (Titel z.B. `SK1 L2: Zi (L-N)`). Die Werte pro Außenleiter
+   liefert `berechneProtokoll()` in `ergebnis.aussenleiter`; die
+   Protokollzeile zeigt vorerst den ersten Außenleiter.
 4. **RCD** (FI/RCD, Fehlerstrom/Typ vorher gesetzt) - nur wenn
    `sk.messungen.rcd`. **Wichtig:** `Umess` (Live-Spannungsanzeige) wird VOR
    `testDruecken()` gelesen, nicht danach - ein erfolgreicher RCD-Test löst

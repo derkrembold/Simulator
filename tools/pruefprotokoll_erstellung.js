@@ -149,16 +149,22 @@ async function messeRisoOhne(testcase, sk, gruppe, hauptschalterName) {
   return nurZahl(wert);
 }
 
-async function messeUeberstromschutz(testcase, sk) {
+// Abschnittstitel-Präfix: bei mehrphasigen Stromkreisen mit Außenleiter
+// ("SK1 L2"), damit die drei Messungen im Fahrplan unterscheidbar sind.
+function messstelle(sk, phase) {
+  return sk.phasen.length > 1 ? `${sk.bezeichnung} ${phase}` : sk.bezeichnung;
+}
+
+async function messeUeberstromschutz(testcase, sk, phase) {
   const ctx = await basis.starteTestUmgebung(testcase);
   messgeraet.abschnittBeginnen(
-    `${sk.bezeichnung}: Überstromschutz (Zs)`,
+    `${messstelle(sk, phase)}: Überstromschutz (Zs)`,
     `Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (${sk.ls.char}/${sk.ls.in}A) am Messgerät einstellen, dann Schleifenimpedanz messen.`
   );
   await messgeraet.drehknopfAufModus(ctx, 'ZS');
   await messgeraet.stelleEin(ctx, 'lsTyp', sk.ls.char);
   await messgeraet.stelleEin(ctx, 'bemessungsstrom', `${sk.ls.in}A`);
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, sk.phasen[0]) }); // schwarz
+  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, phase) }); // schwarz
   await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'N') }); // blau
   await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
   await messgeraet.testDruecken(ctx);
@@ -172,16 +178,16 @@ async function messeUeberstromschutz(testcase, sk) {
 // Zi (L-N-Schleifenimpedanz statt L-PE wie bei Zs) - Modus ZI, nur Schwarz
 // (L)/Blau (N) nötig, PE spielt hier keine Rolle (siehe ziTestKlick() in
 // controller/app.js).
-async function messeZi(testcase, sk) {
+async function messeZi(testcase, sk, phase) {
   const ctx = await basis.starteTestUmgebung(testcase);
   messgeraet.abschnittBeginnen(
-    `${sk.bezeichnung}: Zi (L-N)`,
+    `${messstelle(sk, phase)}: Zi (L-N)`,
     `Anlage normal energisiert - LS-Typenschild (${sk.ls.char}/${sk.ls.in}A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.`
   );
   await messgeraet.drehknopfAufModus(ctx, 'ZI');
   await messgeraet.stelleEin(ctx, 'lsTyp', sk.ls.char);
   await messgeraet.stelleEin(ctx, 'bemessungsstrom', `${sk.ls.in}A`);
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, sk.phasen[0]) }); // schwarz
+  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, phase) }); // schwarz
   await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'N') }); // blau
   await messgeraet.testDruecken(ctx);
   const zi = await messgeraet.leseWert(ctx, 'hauptmesswert');
@@ -428,29 +434,43 @@ async function berechneProtokoll(testcase) {
       [SPALTE.rpe]: rpe,
       [SPALTE.risoOhne]: riso
     };
-    const ergebnis = { sk: sk.bezeichnung, rpe, riso, rcdName: gruppe.rcd?.name ?? null };
+    const ergebnis = { sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rpe, riso, rcdName: gruppe.rcd?.name ?? null };
 
     // Allgemeine Regel (User, 2026-07-31, in BEDIENERPROZESS.md dokumentiert):
     // sitzt ein RCD im Stromkreis, ergibt Zs/Ik L-PE keinen Sinn (der
     // Fehlerstrom liefe über PE, würde also den RCD auslösen) - dann wird
     // NUR Zi/Ik L-N gemessen. OHNE RCD gibt es diese Einschränkung nicht -
     // dort werden BEIDE Messungen gemacht (Zs/Ik L-PE UND Zi/Ik L-N).
+    // Jeder Außenleiter wird einzeln gemessen - ein Fehler auf L2 oder L3
+    // eines mehrphasigen Stromkreises fiele sonst nicht auf. Die Werte pro
+    // Außenleiter stehen in `ergebnis.aussenleiter`, die Protokollzeile
+    // zeigt den ersten Außenleiter.
     if (sk.messungen.zs) {
       werte[SPALTE.ueArt] = sk.ls.char;
       werte[SPALTE.ueIn] = String(sk.ls.in);
-      const { zi, ik: ikLn } = await messeZi(testcase, sk);
-      console.log('Zi:', zi, 'Ik (L-N):', ikLn);
-      werte[SPALTE.zi] = zi;
-      werte[SPALTE.ikLn] = ikLn;
-      ergebnis.zi = zi;
-      ergebnis.ikLn = ikLn;
+      ergebnis.aussenleiter = [];
+      for (const phase of sk.phasen) {
+        const { zi, ik: ikLn } = await messeZi(testcase, sk, phase);
+        console.log(`Zi ${phase}:`, zi, 'Ik (L-N):', ikLn);
+        const messung = { phase, zi, ikLn };
+        if (!gruppe.rcd) {
+          const { zs, ik } = await messeUeberstromschutz(testcase, sk, phase);
+          console.log(`Zs ${phase}:`, zs, 'Ik:', ik);
+          messung.zs = zs;
+          messung.ik = ik;
+        }
+        ergebnis.aussenleiter.push(messung);
+      }
+      const erster = ergebnis.aussenleiter[0];
+      werte[SPALTE.zi] = erster.zi;
+      werte[SPALTE.ikLn] = erster.ikLn;
+      ergebnis.zi = erster.zi;
+      ergebnis.ikLn = erster.ikLn;
       if (!gruppe.rcd) {
-        const { zs, ik } = await messeUeberstromschutz(testcase, sk);
-        console.log('Zs:', zs, 'Ik:', ik);
-        werte[SPALTE.zs] = zs;
-        werte[SPALTE.ik] = ik;
-        ergebnis.zs = zs;
-        ergebnis.ik = ik;
+        werte[SPALTE.zs] = erster.zs;
+        werte[SPALTE.ik] = erster.ik;
+        ergebnis.zs = erster.zs;
+        ergebnis.ik = erster.ik;
       }
     }
 

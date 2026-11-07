@@ -106,7 +106,7 @@
       ]
     },
     {
-      "titel": "SK1: Zi (L-N)",
+      "titel": "SK1 L1: Zi (L-N)",
       "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
       "schritte": [
         {
@@ -172,7 +172,7 @@
       ]
     },
     {
-      "titel": "SK1: Überstromschutz (Zs)",
+      "titel": "SK1 L1: Überstromschutz (Zs)",
       "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
       "schritte": [
         {
@@ -243,6 +243,288 @@
             "isc"
           ],
           "ergebnis": "Isc:608,8A"
+        }
+      ]
+    },
+    {
+      "titel": "SK1 L2: Zi (L-N)",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZI"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "16A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N24"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N26"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,59Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:350,8A"
+        }
+      ]
+    },
+    {
+      "titel": "SK1 L2: Überstromschutz (Zs)",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZS"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "16A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N24"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N26"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,42Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:492,9A"
+        }
+      ]
+    },
+    {
+      "titel": "SK1 L3: Zi (L-N)",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZI"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "16A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N25"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N26"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,46Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:450,0A"
+        }
+      ]
+    },
+    {
+      "titel": "SK1 L3: Überstromschutz (Zs)",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZS"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "16A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N25"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N26"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,29Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:713,8A"
         }
       ]
     },

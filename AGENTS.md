@@ -20,8 +20,10 @@ Antworten und Tickets auf Deutsch.
   `docs/` oder dem Code werden nicht ins Ticket kopiert.
 - Erkenntnisse, Entscheidungen und Review-Ergebnisse kommen als Kommentar ans Ticket:
   `bd comments add <id> "..."`.
-- Beads ist lokal eingerichtet (Stealth, nicht in Git). Die Tickets gibt es nur auf diesem
-  Rechner.
+- Beads ist im Repository versioniert (Präfix `sim`). `.beads/issues.jsonl` ist die lesbare
+  Ticket-Liste und wird mit dem Code committet. Die vollständige Historie synchronisiert
+  `bd dolt push` / `bd dolt pull` über dasselbe GitHub-Repository.
+- Das Repository ist öffentlich: Tickets und Kommentare sind für alle sichtbar.
 
 ## Ablauf
 

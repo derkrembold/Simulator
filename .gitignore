@@ -17,3 +17,6 @@ tests/visuell/*/pruefprotokoll.pdf
 tests/visuell/*/fahrplan.pdf
 demos/*/pruefprotokoll.pdf
 demos/*/fahrplan.pdf
+
+# Beads-Sperrdatei (von bd im Projektordner angelegt)
+.beads.gate.lock

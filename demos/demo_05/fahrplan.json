@@ -40,7 +40,7 @@
       ]
     },
     {
-      "titel": "SK1: Riso Verbraucher ohne",
+      "titel": "SK1 L1-N: Riso Verbraucher ohne",
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
@@ -86,6 +86,102 @@
           "argumente": [
             {
               "netz": "N34"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N16"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK1 L1-PE: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N16"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N33"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N35"
             }
           ],
           "ergebnis": null
@@ -329,7 +425,7 @@
       ]
     },
     {
-      "titel": "SK2: Riso Verbraucher ohne",
+      "titel": "SK2 L1-N: Riso Verbraucher ohne",
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
@@ -375,6 +471,102 @@
           "argumente": [
             {
               "netz": "N37"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N17"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK2 L1-PE: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N17"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N36"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N38"
             }
           ],
           "ergebnis": null
@@ -618,7 +810,7 @@
       ]
     },
     {
-      "titel": "SK3: Riso Verbraucher ohne",
+      "titel": "SK3 L2-N: Riso Verbraucher ohne",
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD2 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
@@ -664,6 +856,102 @@
           "argumente": [
             {
               "netz": "N40"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD2",
+            "N21"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK3 L2-PE: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD2 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD2",
+            "N21"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N39"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N41"
             }
           ],
           "ergebnis": null
@@ -907,7 +1195,7 @@
       ]
     },
     {
-      "titel": "SK4: Riso Verbraucher ohne",
+      "titel": "SK4 L2-N: Riso Verbraucher ohne",
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD2 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
@@ -953,6 +1241,102 @@
           "argumente": [
             {
               "netz": "N43"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD2",
+            "N22"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK4 L2-PE: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD2 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD2",
+            "N22"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N42"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N44"
             }
           ],
           "ergebnis": null
@@ -1196,7 +1580,7 @@
       ]
     },
     {
-      "titel": "SK5: Riso Verbraucher ohne",
+      "titel": "SK5 L1-N: Riso Verbraucher ohne",
       "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
       "schritte": [
         {
@@ -1279,6 +1663,822 @@
           "argumente": [
             "RCD3",
             "N26"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L2-N: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N27"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N48"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N27"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L3-N: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N28"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N48"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N28"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L1-PE: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N26"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N49"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N26"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L2-PE: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N27"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N49"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N27"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L3-PE: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N28"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N49"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N28"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L1-L2: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N26"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N27"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N26"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N27"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L1-L3: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N26"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N28"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N26"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N28"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK5 L2-L3: Riso Verbraucher ohne",
+      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD3 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N27"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N28"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N27"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD3",
+            "N28"
           ],
           "ergebnis": null
         },

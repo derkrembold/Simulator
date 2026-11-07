@@ -77,6 +77,10 @@ console.log(await leseWert(ctx, 'hauptmesswert'), await leseWert(ctx, 'ampel'));
 await ctx.schliessen();
 ```
 
+`platzierteMessspitzen(ctx)` liest im Browser aus, auf welchem Netz die
+schwarze, blaue und grüne Messspitze tatsächlich sitzen (`{ schwarz, blau,
+'grün' }`), z.B. um in einem Test die echte Sondenplatzierung zu prüfen.
+
 Welche Felder pro Modus settable/readable sind (inkl. Defaults, feste
 Wertelisten vs. Schrittweiten): siehe ARCHITEKTUR.md "Messgerät:
 Settable/Readable-Referenz" - direkt vor der Tool-Beschreibung selbst.

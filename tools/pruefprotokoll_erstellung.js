@@ -69,13 +69,54 @@ function aderNetz(sk, funktion) {
 // - unabhängig vom eigenen Gerätetyp. Der LS hat Vorrang vor dem RCD, da er
 // näher an der Endstelle sitzt (eine offene Schraube schneidet automatisch
 // auch alles weiter stromaufwärts ab).
-function naechsteTrennstelle(sk, gruppe) {
-  if (sk.ls.afdd) return { bauteil: sk.ls.name, netz: sk.ls.eingang.leitung.adern[0].netz, istLeckageQuelle: true };
+// `phasen` = die Außenleiter, an denen gemessen wird: deren Schrauben
+// werden geöffnet (`netze`, eine pro Außenleiter). Nur diese, weil die App
+// höchstens zwei gelöste Schrauben gleichzeitig erlaubt
+// (SCHRAUBENDREHER_MAX_GELOEST in controller/app.js) - bei einem
+// Riso-Messpaar sind es nie mehr als zwei.
+function naechsteTrennstelle(sk, gruppe, phasen) {
+  const netze = sk.ls.eingang.leitung.adern
+    .filter((a) => sk.phasen.includes(a.funktion) && phasen.includes(a.funktion))
+    .map((a) => a.netz);
+  if (sk.ls.afdd) return { bauteil: sk.ls.name, netze, istLeckageQuelle: true };
   if (gruppe.rcd) {
     const istTypBOderAfdd = gruppe.rcd.typ === 'B' || gruppe.rcd.typ === 'B+';
-    return { bauteil: gruppe.rcd.name, netz: sk.ls.eingang.leitung.adern[0].netz, istLeckageQuelle: istTypBOderAfdd };
+    return { bauteil: gruppe.rcd.name, netze, istLeckageQuelle: istTypBOderAfdd };
   }
   return null;
+}
+
+// Riso-Messpaare (Schwarz/Blau): jeder Außenleiter gegen N und gegen PE,
+// bei mehrphasigen Stromkreisen zusätzlich jedes Außenleiter-Paar
+// gegeneinander. Grün sitzt immer an PE, weil die App das verlangt; in den
+// Messwert gehen nur Schwarz und Blau ein (siehe risoTestKlick() in
+// controller/app.js). PE behandelt die App wie N an der Einspeisung
+// (risoEffektiveAder()), L-PE liefert deshalb denselben Wert wie L-N.
+function risoPaare(sk) {
+  const paare = [
+    ...sk.phasen.map((phase) => ({ name: `${phase}-N`, schwarz: phase, blau: 'N' })),
+    ...sk.phasen.map((phase) => ({ name: `${phase}-PE`, schwarz: phase, blau: 'PE' }))
+  ];
+  for (let i = 0; i < sk.phasen.length; i++) {
+    for (let j = i + 1; j < sk.phasen.length; j++) {
+      paare.push({ name: `${sk.phasen[i]}-${sk.phasen[j]}`, schwarz: sk.phasen[i], blau: sk.phasen[j] });
+    }
+  }
+  return paare;
+}
+
+// Kleinster Riso-Wert als Anzeigetext (">999" zählt als unendlich). Ein
+// Wert ohne Zahl (z.B. "---", Spannung lag an) wird unverändert
+// zurückgegeben, damit er im Protokoll sichtbar bleibt.
+function kleinsterRiso(werte) {
+  const alsZahl = (w) => (w.startsWith('>') ? Infinity : parseFloat(w.replace(',', '.')));
+  const ungueltig = werte.find((w) => Number.isNaN(alsZahl(w)));
+  if (ungueltig !== undefined) return ungueltig;
+  return werte.reduce((min, w) => (alsZahl(w) < alsZahl(min) ? w : min));
+}
+
+async function trennstelleUmschalten(ctx, trennstelle) {
+  for (const netz of trennstelle.netze) await messgeraet.schraubeSchalten(ctx, trennstelle.bauteil, netz);
 }
 
 async function messeRpe(testcase, sk) {
@@ -93,12 +134,12 @@ async function messeRpe(testcase, sk) {
   return nurZahl(wert);
 }
 
-async function messeRisoOhne(testcase, sk, gruppe, hauptschalterName) {
-  const trennstelle = naechsteTrennstelle(sk, gruppe);
+async function messeRisoOhne(testcase, sk, gruppe, hauptschalterName, paar) {
+  const trennstelle = naechsteTrennstelle(sk, gruppe, [paar.schwarz, paar.blau]);
 
   const ctx = await basis.starteTestUmgebung(testcase);
   messgeraet.abschnittBeginnen(
-    `${sk.bezeichnung}: Riso Verbraucher ohne`,
+    `${sk.bezeichnung} ${paar.name}: Riso Verbraucher ohne`,
     trennstelle
       ? (trennstelle.istLeckageQuelle
         ? `Vor RISO die Anlage spannungsfrei machen. Da ${trennstelle.bauteil} ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md "Riso Verbraucher ohne").`
@@ -113,15 +154,18 @@ async function messeRisoOhne(testcase, sk, gruppe, hauptschalterName) {
     // offene Schraube selbst, siehe Begründungstext oben - der Hauptschalter
     // schützt nur während der kurzen physischen Schrauben-Handlung).
     await messgeraet.hebelSchalten(ctx, hauptschalterName);
-    await messgeraet.schraubeSchalten(ctx, trennstelle.bauteil, trennstelle.netz);
+    await trennstelleUmschalten(ctx, trennstelle);
     await messgeraet.hebelSchalten(ctx, hauptschalterName);
   } else {
     await messgeraet.hebelSchalten(ctx, hauptschalterName);
   }
   await messgeraet.drehknopfAufModus(ctx, 'RISO');
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, sk.phasen[0]) }); // schwarz
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'N') }); // blau
+  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, paar.schwarz) }); // schwarz
+  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, paar.blau) }); // blau
   await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
+  // Direkt über `basis`, nicht über den Rekorder: das Auslesen ist kein
+  // Bedienschritt und gehört nicht in den Fahrplan.
+  const { schwarz: schwarzNetz, blau: blauNetz } = await basis.platzierteMessspitzen(ctx);
   await messgeraet.testDruecken(ctx);
   const wert = await messgeraet.leseWert(ctx, 'hauptmesswert');
   // Trennstelle wieder schließen (Schraube eindrehen/Hauptschalter zurück) -
@@ -139,14 +183,14 @@ async function messeRisoOhne(testcase, sk, gruppe, hauptschalterName) {
     // Dieselbe Sicherheits-Umklammerung wie beim Öffnen oben, jetzt fürs
     // Wiedereindrehen.
     await messgeraet.hebelSchalten(ctx, hauptschalterName);
-    await messgeraet.schraubeSchalten(ctx, trennstelle.bauteil, trennstelle.netz);
+    await trennstelleUmschalten(ctx, trennstelle);
     await messgeraet.hebelSchalten(ctx, hauptschalterName);
   } else {
     await messgeraet.hebelSchalten(ctx, hauptschalterName);
   }
   messgeraet.abschnittEnde();
   await ctx.schliessen();
-  return nurZahl(wert);
+  return { paar: paar.name, wert: nurZahl(wert), schwarzNetz, blauNetz };
 }
 
 // Abschnittstitel-Präfix: bei mehrphasigen Stromkreisen mit Außenleiter
@@ -422,7 +466,13 @@ async function berechneProtokoll(testcase) {
     console.log(`--- ${sk.bezeichnung} (${sk.ziel}) ---`);
     const rpe = await messeRpe(testcase, sk);
     console.log('Rpe:', rpe);
-    const riso = await messeRisoOhne(testcase, sk, gruppe, anlage.hauptsicherung.name);
+    const risoMessungen = [];
+    for (const paar of risoPaare(sk)) {
+      const messung = await messeRisoOhne(testcase, sk, gruppe, anlage.hauptsicherung.name, paar);
+      console.log(`Riso ${paar.name}:`, messung.wert);
+      risoMessungen.push(messung);
+    }
+    const riso = kleinsterRiso(risoMessungen.map((m) => m.wert));
     console.log('Riso Verbraucher ohne:', riso);
 
     const werte = {
@@ -434,7 +484,7 @@ async function berechneProtokoll(testcase) {
       [SPALTE.rpe]: rpe,
       [SPALTE.risoOhne]: riso
     };
-    const ergebnis = { sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rpe, riso, rcdName: gruppe.rcd?.name ?? null };
+    const ergebnis = { sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rpe, riso, risoMessungen, rcdName: gruppe.rcd?.name ?? null };
 
     // Allgemeine Regel (User, 2026-07-31, in BEDIENERPROZESS.md dokumentiert):
     // sitzt ein RCD im Stromkreis, ergibt Zs/Ik L-PE keinen Sinn (der
@@ -540,7 +590,7 @@ async function main() {
   await ctx.schliessen();
 }
 
-module.exports = { berechneProtokoll };
+module.exports = { berechneProtokoll, kleinsterRiso };
 
 // Nur bei direktem Aufruf ausführen, nicht beim require() aus
 // test_pruefprotokoll.js (analog zum Muster in generate_anlage.js).

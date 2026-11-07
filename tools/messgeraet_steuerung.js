@@ -496,7 +496,33 @@ async function leseWert(ctx, feld) {
   return leser(texte);
 }
 
+// Liest im Browser aus, auf welchem Netz die Messspitzen tatsächlich sitzen
+// (`{ schwarz, blau, 'grün' }`, je Netz-ID oder `null`). Die App zeichnet je
+// Messspitze einen farbigen Kreis auf die Mitte der Schraube (siehe
+// controller/app.js, MESSSPITZEN_FARBWERTE) - gesucht wird die Schraube mit
+// `data-netz` an derselben Stelle.
+async function platzierteMessspitzen(ctx) {
+  return ctx.page.evaluate(() => {
+    const FARBEN = { '#111111': 'schwarz', '#2255cc': 'blau', '#22aa44': 'grün' };
+    const ergebnis = { schwarz: null, blau: null, 'grün': null };
+    const mitte = (el) => (el.tagName === 'rect'
+      ? [parseFloat(el.getAttribute('x')) + parseFloat(el.getAttribute('width')) / 2,
+        parseFloat(el.getAttribute('y')) + parseFloat(el.getAttribute('height')) / 2]
+      : [parseFloat(el.getAttribute('cx')), parseFloat(el.getAttribute('cy'))]);
+    for (const marker of document.querySelectorAll('#schaltkasten svg circle, #steckdosen svg circle')) {
+      const farbe = FARBEN[marker.getAttribute('fill')];
+      if (!farbe || marker.hasAttribute('data-netz')) continue;
+      const [mx, my] = mitte(marker);
+      const schraube = [...marker.parentNode.querySelectorAll('[data-netz]')]
+        .find((el) => { const [x, y] = mitte(el); return Math.abs(x - mx) < 0.5 && Math.abs(y - my) < 0.5; });
+      if (schraube) ergebnis[farbe] = schraube.getAttribute('data-netz');
+    }
+    return ergebnis;
+  });
+}
+
 module.exports = {
+  platzierteMessspitzen,
   starteTestUmgebung,
   drehknopfAufModus,
   wechsleAnsicht,

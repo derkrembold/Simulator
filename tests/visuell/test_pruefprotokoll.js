@@ -18,7 +18,7 @@
 //
 // Aufruf: node tests/visuell/test_pruefprotokoll.js
 const path = require('path');
-const { berechneProtokoll } = require('../../tools/pruefprotokoll_erstellung.js');
+const { berechneProtokoll, kleinsterRiso } = require('../../tools/pruefprotokoll_erstellung.js');
 const { parseBauteile } = require('./generate_anlage.js');
 
 const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
@@ -27,6 +27,12 @@ const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', '
 const ZI_JE_AUSSENLEITER = {
   'testcase_05 SK1': { L1: '0,54', L2: '0,67', L3: '0,63' }
 };
+
+const anlagen = {};
+
+function alleStromkreiseAus(anlage) {
+  return (anlage.hutschienen ?? []).flatMap((h) => (h.gruppen ?? []).flatMap((g) => g.stromkreise));
+}
 
 function parseKomma(text) {
   return parseFloat(String(text).replace(',', '.'));
@@ -63,10 +69,20 @@ function erwartePositiv(tatsaechlich, kontext) {
 }
 
 async function main() {
+  await pruefe('kleinsterRiso: kleinster endlicher Wert gewinnt, >999 zählt als unendlich', async () => {
+    erwarteGleich(kleinsterRiso(['>999', '12,5', '3', '450']), '3', 'gemischte Werte');
+    erwarteGleich(kleinsterRiso(['>999', '0,8']), '0,8', 'Komma-Wert');
+    erwarteGleich(kleinsterRiso(['>999', '>999']), '>999', 'nur >999');
+  });
+  await pruefe('kleinsterRiso: ungültiger Wert (---) bleibt sichtbar', async () => {
+    erwarteGleich(kleinsterRiso(['>999', '---', '2']), '---', 'mit ---');
+  });
+
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse } = await berechneProtokoll(testcase);
+    const { ergebnisse, anlage } = await berechneProtokoll(testcase);
+    anlagen[testcase] = anlage;
 
     for (const erg of ergebnisse) {
       await pruefe(`${testcase} ${erg.sk}: Rpe (PE-Durchgang) ist 0,00Ω (RLOW-Workaround)`, async () => {
@@ -75,6 +91,23 @@ async function main() {
 
       await pruefe(`${testcase} ${erg.sk}: Riso Verbraucher ohne ist >999MΩ (kein Isolationsfehler in diesem Testcase)`, async () => {
         erwarteGleich(erg.riso, '>999', `${erg.sk} Riso`);
+      });
+
+      await pruefe(`${testcase} ${erg.sk}: Riso je Leiterpaar mit den im Browser gesetzten Sonden gemessen`, async () => {
+        const sk = alleStromkreiseAus(anlagen[testcase]).find((s) => s.bezeichnung === erg.sk);
+        const netz = (funktion) => sk.leitung.adern.find((a) => a.funktion === funktion).netz;
+        const erwartet = [...sk.phasen.map((p) => [p, 'N']), ...sk.phasen.map((p) => [p, 'PE'])];
+        for (let i = 0; i < sk.phasen.length; i++) {
+          for (let j = i + 1; j < sk.phasen.length; j++) erwartet.push([sk.phasen[i], sk.phasen[j]]);
+        }
+        // schwarzNetz/blauNetz liest berechneProtokoll() im Browser an den
+        // tatsächlich gesetzten Messspitzen ab (platzierteMessspitzen()).
+        erwarteGleich(erg.risoMessungen.length, erwartet.length, `${erg.sk} Anzahl Riso-Messungen`);
+        erwartet.forEach(([a, b], i) => {
+          const m = erg.risoMessungen[i];
+          erwarteGleich(`${m.schwarzNetz}/${m.blauNetz}`, `${netz(a)}/${netz(b)}`, `${erg.sk} Riso ${a}-${b} Sonden`);
+          erwarteGleich(m.wert, '>999', `${erg.sk} Riso ${a}-${b}`);
+        });
       });
 
       if (erg.rcdName) {

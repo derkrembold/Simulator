@@ -5022,10 +5022,9 @@ gelten für alle Stromkreise der Gruppe gemeinsam.
 `testcase_01`-`testcase_06`):** mehrphasige Stromkreise (Drehstromsteckdose/
 5-polige Anschlussdose), AFDD-Kombigeräte, Stromkreise ganz ohne RCD,
 mehrere RCD-Gruppen auf einer Sammelschiene und geteilte Schrauben werden
-alle unterstützt, siehe Trennstellen-Logik unten. Noch nicht
-verallgemeinert: mehr als eine Phase gleichzeitig in EINER Riso-Messung (es
-wird immer nur `sk.phasen[0]` gegen N getestet, wie auch das Prüfprotokoll
-nur eine Riso-Spalte pro Stromkreis hat).
+alle unterstützt, siehe Trennstellen-Logik unten. Riso wird bei
+mehrphasigen Stromkreisen pro Leiterpaar gemessen (siehe Punkt 2 unten);
+das Prüfprotokoll hat nur eine Riso-Spalte und bekommt den kleinsten Wert.
 
 **Sondenplatzierung über NETZ-ID, nicht über geratene Bauteilnamen** -
 `aderNetz(sk, funktion)` liest die Netz-ID direkt aus `sk.leitung.adern`
@@ -5043,8 +5042,20 @@ Funktion in `messgeraet_steuerung.js` erweitert (siehe dort).
    liefert in diesem Simulator immer `0,00Ω` (PE-PE-Workaround, siehe
    `berechneRlowMesswert()` in `controller/app.js` - PE ist noch nicht Teil
    des Verbindungsgraphen).
-2. **Riso Verbraucher ohne** (RISO, Sonden an Phase `sk.phasen[0]`/N/PE
-   der Endstelle) - **wichtiger Fund, zweistufig:**
+2. **Riso Verbraucher ohne** (RISO, Grün immer an PE). Messpaare aus
+   `risoPaare()`: jeder Außenleiter gegen N und gegen PE, bei mehrphasigen
+   Stromkreisen zusätzlich jedes Außenleiter-Paar gegeneinander (L1-L2,
+   L1-L3, L2-L3), je in einem eigenen Abschnitt (Titel z.B. `SK1 L2-L3: Riso
+   Verbraucher ohne`). Grün geht nicht in den Messwert ein. Da PE nicht im
+   Verbindungsgraphen ist und wie N an der Einspeisung behandelt wird
+   (`risoEffektiveAder()`), liefert L-PE heute denselben Wert wie L-N; N-PE
+   lässt `risoPaarTyp()` nicht zu. Geöffnet werden nur die Schrauben der gemessenen Außenleiter,
+   weil die App höchstens zwei gelöste Schrauben gleichzeitig erlaubt
+   (`SCHRAUBENDREHER_MAX_GELOEST` in `controller/app.js`) - beim Öffnen
+   aller drei Schrauben eines 3-poligen LS blieb L3 spannungsführend und
+   Riso L3-N zeigte `---`. Ins Protokoll kommt der kleinste Wert
+   (`kleinsterRiso()`); ein ungültiger Wert wie `---` bleibt dabei
+   sichtbar. **Wichtiger Fund zur Trennstelle, zweistufig:**
    - Erster Fund (an `testcase_04`): wenn die RCD-Gruppe Typ B/B+ ist (oder
      der LS ein AFDD ist), MUSS vorher dessen Schraube auf der Ausgangsseite
      dieser Phase geöffnet werden - sonst liefert die Messung eine künstlich

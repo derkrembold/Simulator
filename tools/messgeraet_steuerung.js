@@ -527,8 +527,34 @@ async function platzierteMessspitzen(ctx) {
   });
 }
 
+// --- Prüfprotokoll ausfüllen (sim-nt2) ---
+//
+// `ziel` = { zeile, spalte, spaltenName }: Zeilen-/Spaltenindex in der
+// Stromkreisverteiler-Tabelle (rows[0]/[1] Kopfzeilen, rows[2]
+// Hauptleitung), `spaltenName` nur für die Fahrplan-Beschreibung.
+async function protokollEintragen(ctx, { zeile, spalte }, wert) {
+  await ctx.page.evaluate(({ zeile, spalte, wert }) => {
+    const input = document.querySelector('#protokoll .pf-scroll table').rows[zeile].cells[spalte].querySelector('input');
+    input.value = wert;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, { zeile, spalte, wert });
+}
+
+// Kreuzt bei einem Prüfpunkt (Label in der ersten Zelle, z.B. in der
+// Erproben-Tabelle) die erste Ankreuz-Spalte (i.O.) an - nur wenn noch
+// nicht angekreuzt, weil ein Klick umschaltet.
+async function protokollAnkreuzen(ctx, punkt) {
+  await ctx.page.evaluate((punkt) => {
+    const zeile = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((z) => z.cells[0]?.textContent === punkt);
+    const kaestchen = zeile?.querySelector('.pf-cb-zelle .pf-cb');
+    if (kaestchen && kaestchen.textContent !== '☒') kaestchen.click();
+  }, punkt);
+}
+
 module.exports = {
   platzierteMessspitzen,
+  protokollEintragen,
+  protokollAnkreuzen,
   starteTestUmgebung,
   drehknopfAufModus,
   wechsleAnsicht,

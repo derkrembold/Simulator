@@ -116,8 +116,28 @@ async function main() {
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung } = await berechneProtokoll(testcase);
+    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege } = await berechneProtokoll(testcase);
     anlagen[testcase] = anlage;
+
+    // sim-nt2: Das Replay trägt genau die Werte ein, die auch in der PDF
+    // stehen - außer dem Kabeltyp, der in der Anlage nicht ablesbar ist.
+    await pruefe(`${testcase}: Protokoll-Einträge im Fahrplan stimmen mit den PDF-Zeilen überein`, async () => {
+      const soll = zeilen.flatMap((z) => Object.entries(z.werte)
+        .filter(([spalte]) => Number(spalte) !== SPALTE.kabelTyp)
+        .map(([spalte, wert]) => `${z.zeilenIndex}/${spalte}=${wert}`)).sort();
+      const ist = protokollEintraege.map((e) => `${e.zeile}/${e.spalte}=${e.wert}`).sort();
+      erwarteGleich(ist.join('; '), soll.join('; '), 'Einträge');
+    });
+
+    await pruefe(`${testcase}: Stromkreis-Bezeichnung aus LS-Position und Endstellen`, async () => {
+      ergebnisse.forEach((erg, i) => {
+        const zeile = zeilen.find((z) => z.zeilenIndex === erg.zeilenIndex);
+        const ziel = zeile.werte[SPALTE.ziel];
+        if (!ziel.startsWith(`LS${i + 1}`)) throw new Error(`${erg.sk}: Bezeichnung "${ziel}" beginnt nicht mit LS${i + 1}`);
+        const anzahl = (anlage.steckdosen_platzierung ?? []).filter((p) => p.sk === erg.sk).length;
+        if (anzahl > 0 && !ziel.includes(`: ${anzahl} `)) throw new Error(`${erg.sk}: Bezeichnung "${ziel}" nennt nicht ${anzahl} Endstellen`);
+      });
+    });
 
     // Erwartete Spannungen im gesunden Netz: 230 V gegen N/PE, 400 V zwischen
     // Außenleitern, 0 V zwischen N und PE.
@@ -210,7 +230,7 @@ async function main() {
       // Stromkreisen den schlechtesten Außenleiter zeigen.
       if (erg.aussenleiter?.length > 1) {
         await pruefe(`${testcase} ${erg.sk}: Protokollzeile zeigt den schlechtesten Außenleiter`, async () => {
-          const zeile = zeilen.find((z) => z.werte[SPALTE.ziel] === erg.sk);
+          const zeile = zeilen.find((z) => z.zeilenIndex === erg.zeilenIndex);
           if (!zeile) throw new Error(`${erg.sk}: keine Protokollzeile gefunden`);
           const zi = schlechtesteMessung(erg.aussenleiter, 'zi');
           erwarteGleich(`${zeile.werte[SPALTE.zi]} / ${zeile.werte[SPALTE.ikLn]}`, `${zi.zi} / ${zi.ikLn}`, `${erg.sk} Zi/Ik in der Zeile`);

@@ -597,6 +597,50 @@ async function fuelleProtokoll(testcase, anlage, zeilen, erprobenPunkte = []) {
   return ctx;
 }
 
+// Lesbare Spaltennamen für die Fahrplan-Beschreibung (protokollEintragen).
+const SPALTEN_NAMEN = {
+  nr: 'Nr.', ziel: 'Stromkreis / Zielbezeichnung', kabelTyp: 'Leitung Typ', kabelAnzahl: 'Leitung Anzahl Adern',
+  kabelQuerschnitt: 'Leitung Querschnitt (mm²)', rpe: 'Rpe (Ω)', risoOhne: 'Riso ohne Verbraucher (MΩ)', risoMit: 'Riso mit Verbraucher (MΩ)',
+  ueArt: 'Überstromschutz Art', ueIn: 'Überstromschutz In (A)', zs: 'Zs (Ω)', ik: 'Ik L-PE (A)', zi: 'Zi (Ω)', ikLn: 'Ik L-N (A)',
+  rcdInArt: 'RCD In/Art', rcdIdn: 'RCD IΔn (mA)', rcdImess: 'RCD Imess (mA)', rcdAuslZeit: 'RCD Auslösezeit (ms)', rcdUmess: 'RCD Umess (V)'
+};
+
+const ENDSTELLEN_MEHRZAHL = {
+  Steckdose: 'Steckdosen', Lichtauslass: 'Lichtauslässe', Drehstromsteckdose: 'Drehstromsteckdosen',
+  '5-polige Anschlussdose': '5-polige Anschlussdosen'
+};
+
+// Stromkreis-Bezeichnung, wie der Benutzer sie selbst ermitteln kann
+// (Entscheidung zu sim-nt2): Position des LS im Verteiler von links und
+// Art/Anzahl der zugeordneten Endstellen, z.B. "LS1: 2 Steckdosen". Auf den
+// Geräten steht nur das Typenschild, SK-Namen sieht der Benutzer nicht.
+function stromkreisBezeichnung(anlage, sk, position) {
+  const anzahl = endstellenVon(anlage, sk).length;
+  if (anzahl === 0) return `LS${position}`;
+  const art = anzahl === 1 ? sk.endstelle : (ENDSTELLEN_MEHRZAHL[sk.endstelle] ?? sk.endstelle);
+  return `LS${position}: ${anzahl} ${art}`;
+}
+
+// Eigener Abschnitt, der die gerade gemessenen Werte ins Prüfprotokoll
+// einträgt (sim-nt2) - nach jeder Messart, damit das Replay das Protokoll
+// so ausfüllt wie ein Prüfer: erst alle Rpe, dann alle Riso usw.
+// `eintraege` = [{ zeile, spalte (Schlüssel aus SPALTE), wert }].
+// Schaltet nichts, deshalb ohne Startzustand.
+// Liefert die tatsächlich eingetragenen Einträge (Spalte als Index) zurück.
+async function trageEin(testcase, titel, begruendung, eintraege) {
+  const ctx = await basis.starteTestUmgebung(testcase);
+  messgeraet.abschnittBeginnen(titel, begruendung);
+  const eingetragen = [];
+  for (const { zeile, spalte, wert } of eintraege) {
+    if (wert === undefined || wert === null || wert === '') continue;
+    await messgeraet.protokollEintragen(ctx, { zeile, spalte: SPALTE[spalte], spaltenName: SPALTEN_NAMEN[spalte] }, wert);
+    eingetragen.push({ zeile, spalte: SPALTE[spalte], wert });
+  }
+  messgeraet.abschnittEnde();
+  await ctx.schliessen();
+  return eingetragen;
+}
+
 // Führt alle Messungen für eine Anlage durch und liefert sowohl die
 // PDF-Tabellenzeilen (`zeilen`, `erprobenPunkte` - für `fuelleProtokoll()`)
 // als auch eine kompakte, benannte Zusammenfassung (`ergebnisse` - für
@@ -610,16 +654,23 @@ async function berechneProtokoll(testcase) {
   // Hauptleitung ist Nr. 1 - hier nicht automatisiert vermessen (kein
   // eigener Stromkreis in anlage.json), aber die Nummer selbst gehört
   // trotzdem rein.
-  const zeilen = [{ zeilenIndex: 2, werte: { [SPALTE.nr]: '1' } }];
+  const HAUPTLEITUNG_ZEILE = 2;
   const stromkreise = alleStromkreise(anlage);
+  // Protokollwerte je Stromkreis (Schlüssel aus SPALTE), werden nach jeder
+  // Messart ergänzt und eingetragen. Zeile rows[3] ff., Nr. ab 2.
+  const protokoll = stromkreise.map((_, i) => ({ zeile: i + 3, werte: {} }));
+  const protokollEintraege = [];
+  const eintraegeFuer = (spalten) => stromkreise.flatMap((_, i) =>
+    spalten.map((spalte) => ({ zeile: protokoll[i].zeile, spalte, wert: protokoll[i].werte[spalte] })));
 
   // Ablauf nach Messart (Entscheidung zu sim-7c6, Wiederholungsprüfung):
   // 1. Spannung an der Einspeisung, 2. Zuordnung der Endstellen,
   // 3. Freischalten und Spannungsfreiheit, 4. Rpe, 5. Riso, 6. Wieder-
   // einschalten, 7. Zi/Zs, 8. RCD-Test, 9. Drehfeld. Jede Messart läuft über
   // alle Stromkreise, bevor die nächste beginnt.
-  const ergebnisse = stromkreise.map(({ sk, gruppe }) => ({
-    sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rcdName: gruppe.rcd?.name ?? null
+  const ergebnisse = stromkreise.map(({ sk, gruppe }, i) => ({
+    sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rcdName: gruppe.rcd?.name ?? null,
+    zeilenIndex: protokoll[i].zeile
   }));
   const ergebnisVon = (sk) => ergebnisse.find((e) => e.sk === sk.bezeichnung);
 
@@ -646,6 +697,21 @@ async function berechneProtokoll(testcase) {
       zuordnung.push(z);
     }
   }
+  stromkreise.forEach(({ sk }, i) => {
+    Object.assign(protokoll[i].werte, {
+      nr: String(i + 2),
+      ziel: stromkreisBezeichnung(anlage, sk, i + 1),
+      kabelTyp: sk.leitung.typ,
+      kabelAnzahl: String(sk.leitung.adern.length),
+      // Dezimalkomma wie bei allen anderen Protokollwerten ("2,5" statt "2.5").
+      kabelQuerschnitt: String(sk.leitung.adern[0].querschnitt_mm2).replace('.', ',')
+    });
+  });
+  // Kabeltyp (NYM) wird nicht eingetragen: in der Anlage nicht ablesbar
+  // (Entscheidung zu sim-0bn/sim-nt2), steht aber in der PDF.
+  protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Stromkreise eintragen',
+    'Nach der Zuordnung je Stromkreis eine Zeile anlegen: Nummer, Bezeichnung (Position des LS von links und zugeordnete Endstellen), Aderanzahl und Querschnitt der abgehenden Leitung.',
+    [{ zeile: HAUPTLEITUNG_ZEILE, spalte: 'nr', wert: '1' }, ...eintraegeFuer(['nr', 'ziel', 'kabelAnzahl', 'kabelQuerschnitt'])]));
 
   console.log('--- Freischalten ---');
   await schalteHauptschalter(testcase, anlage, {
@@ -676,6 +742,9 @@ async function berechneProtokoll(testcase) {
     e.rpe = groessterRpe(e.rpeMessungen.map((m) => m.wert));
     console.log(`${sk.bezeichnung} Rpe:`, e.rpe);
   }
+  stromkreise.forEach(({ sk }, i) => { protokoll[i].werte.rpe = ergebnisVon(sk).rpe; });
+  protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Rpe eintragen',
+    'Je Stromkreis den größten Rpe-Wert seiner Endstellen eintragen.', eintraegeFuer(['rpe'])));
 
   console.log('--- Riso ---');
   for (const { sk, gruppe } of stromkreise) {
@@ -688,6 +757,9 @@ async function berechneProtokoll(testcase) {
     }
     e.riso = kleinsterRiso(e.risoMessungen.map((m) => m.wert));
   }
+  stromkreise.forEach(({ sk }, i) => { protokoll[i].werte.risoOhne = ergebnisVon(sk).riso; });
+  protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Riso eintragen',
+    'Je Stromkreis den kleinsten Riso-Wert aller Leiterpaare eintragen.', eintraegeFuer(['risoOhne'])));
 
   await schalteHauptschalter(testcase, anlage, {
     titel: 'Wiedereinschalten: Hauptschalter ein',
@@ -730,6 +802,15 @@ async function berechneProtokoll(testcase) {
       e.ik = schlechtesterZs.ik;
     }
   }
+  stromkreise.forEach(({ sk, gruppe }, i) => {
+    if (!sk.messungen.zs) return;
+    const e = ergebnisVon(sk);
+    Object.assign(protokoll[i].werte, { ueArt: sk.ls.char, ueIn: String(sk.ls.in), zi: e.zi, ikLn: e.ikLn });
+    if (!gruppe.rcd) Object.assign(protokoll[i].werte, { zs: e.zs, ik: e.ik });
+  });
+  protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Überstromschutz eintragen',
+    'Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild sowie Zi/Ik und, ohne RCD, Zs/Ik eintragen. Bei Drehstrom der schlechteste Außenleiter.',
+    eintraegeFuer(['ueArt', 'ueIn', 'zs', 'ik', 'zi', 'ikLn'])));
 
   console.log('--- RCD ---');
   for (const { sk, gruppe } of stromkreise) {
@@ -741,6 +822,17 @@ async function berechneProtokoll(testcase) {
     e.rcdAuslZeit = auslZeit;
     e.rcdUmess = umess;
   }
+  stromkreise.forEach(({ sk, gruppe }, i) => {
+    if (!(sk.messungen.rcd && gruppe.rcd)) return;
+    const e = ergebnisVon(sk);
+    Object.assign(protokoll[i].werte, {
+      rcdInArt: `${gruppe.rcd.nennstrom_a}/${gruppe.rcd.typ}`, rcdIdn: String(gruppe.rcd.in_ma),
+      rcdImess: e.rcdImess, rcdAuslZeit: e.rcdAuslZeit, rcdUmess: e.rcdUmess
+    });
+  });
+  protokollEintraege.push(...await trageEin(testcase, 'Protokoll: RCD eintragen',
+    'Je Stromkreis die RCD-Daten vom Typenschild und die Messwerte des RCD-Tests eintragen.',
+    eintraegeFuer(['rcdInArt', 'rcdIdn', 'rcdImess', 'rcdAuslZeit', 'rcdUmess'])));
 
   // Rechtsdrehfeld (Erproben-Prüfpunkt, gilt EINMAL pro Anlage, nicht pro
   // Stromkreis) - nur relevant, wenn irgendein Stromkreis dreiphasig ist
@@ -752,42 +844,25 @@ async function berechneProtokoll(testcase) {
     console.log('Rechtsdrehfeld:', phasenfolge);
     if (phasenfolge === '1.2.3.') erprobenPunkte.push('Rechtsdrehfeld (Drehstromsteckdosen)');
   }
+  if (erprobenPunkte.length > 0) {
+    const ctx = await basis.starteTestUmgebung(testcase);
+    messgeraet.abschnittBeginnen('Protokoll: Erproben ankreuzen', 'Rechtsdrehfeld gemessen (1.2.3.), unter Erproben i.O. ankreuzen.');
+    for (const punkt of erprobenPunkte) await messgeraet.protokollAnkreuzen(ctx, punkt);
+    messgeraet.abschnittEnde();
+    await ctx.schliessen();
+  }
 
-  // Protokollzeilen erst am Ende, wenn alle Messarten für jeden Stromkreis
-  // vorliegen.
-  stromkreise.forEach(({ sk, gruppe }, i) => {
-    const e = ergebnisVon(sk);
-    const nr = i + 2;
-    const werte = {
-      [SPALTE.nr]: String(nr),
-      [SPALTE.ziel]: sk.bezeichnung,
-      [SPALTE.kabelTyp]: sk.leitung.typ,
-      [SPALTE.kabelAnzahl]: String(sk.leitung.adern.length),
-      [SPALTE.kabelQuerschnitt]: String(sk.leitung.adern[0].querschnitt_mm2),
-      [SPALTE.rpe]: e.rpe,
-      [SPALTE.risoOhne]: e.riso
-    };
-    if (sk.messungen.zs) {
-      werte[SPALTE.ueArt] = sk.ls.char;
-      werte[SPALTE.ueIn] = String(sk.ls.in);
-      werte[SPALTE.zi] = e.zi;
-      werte[SPALTE.ikLn] = e.ikLn;
-      if (!gruppe.rcd) {
-        werte[SPALTE.zs] = e.zs;
-        werte[SPALTE.ik] = e.ik;
-      }
-    }
-    if (sk.messungen.rcd && gruppe.rcd) {
-      werte[SPALTE.rcdInArt] = `${gruppe.rcd.nennstrom_a}/${gruppe.rcd.typ}`;
-      werte[SPALTE.rcdIdn] = String(gruppe.rcd.in_ma);
-      werte[SPALTE.rcdImess] = e.rcdImess;
-      werte[SPALTE.rcdAuslZeit] = e.rcdAuslZeit;
-      werte[SPALTE.rcdUmess] = e.rcdUmess;
-    }
-    zeilen.push({ zeilenIndex: 1 + nr, werte }); // rows[0]/[1] = Kopfzeilen, rows[2] = Hauptleitung
-  });
+  // Zeilen für die PDF (fuelleProtokoll()) aus denselben Werten wie die
+  // Protokoll-Einträge im Fahrplan, inklusive Kabeltyp.
+  const zeilen = [
+    { zeilenIndex: HAUPTLEITUNG_ZEILE, werte: { [SPALTE.nr]: '1' } },
+    ...protokoll.map(({ zeile, werte }) => ({
+      zeilenIndex: zeile,
+      werte: Object.fromEntries(Object.entries(werte).filter(([, w]) => w !== undefined).map(([k, w]) => [SPALTE[k], w]))
+    }))
+  ];
 
-  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung };
+  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege };
 }
 
 async function main() {

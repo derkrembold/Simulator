@@ -232,6 +232,24 @@ function stelleEin(feld, wert) {
   }
 }
 
+// Prüfprotokoll ausfüllen (sim-nt2), wie die gleichnamigen Funktionen in
+// tools/messgeraet_steuerung.js.
+function protokollEintragen({ zeile, spalte }, wert) {
+  const input = document.querySelector('#protokoll .pf-scroll table')?.rows[zeile]?.cells[spalte]?.querySelector('input');
+  if (!input) return;
+  input.value = wert;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// Setzt das Kreuz nur, wenn es noch fehlt: ein Klick schaltet zwischen leer
+// und angekreuzt um (view/protokoll.js), ein schon gesetztes Kreuz (zweiter
+// Replay-Durchlauf, vom Benutzer gesetzt) würde sonst wieder entfernt.
+function protokollAnkreuzen(punkt) {
+  const zeile = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((z) => z.cells[0]?.textContent === punkt);
+  const kaestchen = zeile?.querySelector('.pf-cb-zelle .pf-cb');
+  if (kaestchen && kaestchen.textContent !== '☒') klicke(kaestchen);
+}
+
 export function fuehreSchrittAus(schritt) {
   if (schritt.funktion === 'messspitzeSetzen') {
     messspitzeSetzen(schritt.argumente[0]);
@@ -245,5 +263,9 @@ export function fuehreSchrittAus(schritt) {
     hebelSchalten(schritt.argumente[0]);
   } else if (schritt.funktion === 'stelleEin') {
     stelleEin(schritt.argumente[0], schritt.argumente[1]);
+  } else if (schritt.funktion === 'protokollEintragen') {
+    protokollEintragen(schritt.argumente[0], schritt.argumente[1]);
+  } else if (schritt.funktion === 'protokollAnkreuzen') {
+    protokollAnkreuzen(schritt.argumente[0]);
   }
 }

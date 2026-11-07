@@ -5061,6 +5061,20 @@ den eigenen Abschnitten "Freischalten"/"Wiedereinschalten" (und im ersten
 Einspeisungs-Abschnitt) aufgezeichnet. Ob das stimmt, prüft
 `test_fahrplan_ausfuehrung.js`, das den ganzen Fahrplan abspielt.
 
+**Protokoll beim Replay ausfüllen (sim-nt2):** Nach jeder Messart folgt
+ein Abschnitt "Protokoll: ... eintragen" mit Schritten
+`protokollEintragen({ zeile, spalte, spaltenName }, wert)` bzw.
+`protokollAnkreuzen(punkt)` (Rechtsdrehfeld unter Erproben) - so füllt das
+Replay das Protokoll wie ein Prüfer: nach der Zuordnung Nr., Bezeichnung,
+Aderanzahl, Querschnitt, dann Rpe, Riso, Überstromschutz (LS-Daten, Zi/Ik,
+Zs/Ik), RCD. Die Bezeichnung ist "LS<Position von links>: <Anzahl>
+<Endstellen>" (`stromkreisBezeichnung()`), weil der Benutzer in der App
+nur Typenschilder sieht. Der Kabeltyp wird nicht eingetragen (nicht
+ablesbar), steht aber weiter in der PDF. Die PDF-Zeilen (`zeilen`) werden
+aus denselben Werten gebaut; `test_pruefprotokoll.js` prüft, dass Einträge
+und PDF übereinstimmen, `test_fahrplan_ausfuehrung.js` prüft beim Abspielen
+jede eingetragene Zelle.
+
 **Messspitzen an Endstellen:** `messspitzeSetzen(ctx, { endstelle, netz })`
 setzt eine Spitze an einen Kontakt im Steckdosen-View
 (`#steckdosen [data-endstelle="Reihe-Spalte"] [data-netz=...]`, siehe

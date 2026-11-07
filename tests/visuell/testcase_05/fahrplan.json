@@ -500,6 +500,168 @@
       ]
     },
     {
+      "titel": "Protokoll: Stromkreise eintragen",
+      "begruendung": "Nach der Zuordnung je Stromkreis eine Zeile anlegen: Nummer, Bezeichnung (Position des LS von links und zugeordnete Endstellen), Aderanzahl und Querschnitt der abgehenden Leitung.",
+      "schritte": [
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 2,
+              "spalte": 0,
+              "spaltenName": "Nr."
+            },
+            "1"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 0,
+              "spaltenName": "Nr."
+            },
+            "2"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 1,
+              "spaltenName": "Stromkreis / Zielbezeichnung"
+            },
+            "LS1: 1 Drehstromsteckdose"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 3,
+              "spaltenName": "Leitung Anzahl Adern"
+            },
+            "5"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 4,
+              "spaltenName": "Leitung Querschnitt (mm²)"
+            },
+            "2,5"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 0,
+              "spaltenName": "Nr."
+            },
+            "3"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 1,
+              "spaltenName": "Stromkreis / Zielbezeichnung"
+            },
+            "LS2: 1 Steckdose"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 3,
+              "spaltenName": "Leitung Anzahl Adern"
+            },
+            "3"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 4,
+              "spaltenName": "Leitung Querschnitt (mm²)"
+            },
+            "2,5"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 0,
+              "spaltenName": "Nr."
+            },
+            "4"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 1,
+              "spaltenName": "Stromkreis / Zielbezeichnung"
+            },
+            "LS3: 1 Steckdose"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 3,
+              "spaltenName": "Leitung Anzahl Adern"
+            },
+            "3"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 4,
+              "spaltenName": "Leitung Querschnitt (mm²)"
+            },
+            "2,5"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "Freischalten: Hauptschalter aus",
       "begruendung": "Für Rpe und Riso die Anlage freischalten. Der Hauptschalter bleibt bis nach den Riso-Messungen aus.",
       "schritte": [
@@ -1376,6 +1538,48 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:0,00Ω"
+        }
+      ]
+    },
+    {
+      "titel": "Protokoll: Rpe eintragen",
+      "begruendung": "Je Stromkreis den größten Rpe-Wert seiner Endstellen eintragen.",
+      "schritte": [
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 5,
+              "spaltenName": "Rpe (Ω)"
+            },
+            "0,00"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 5,
+              "spaltenName": "Rpe (Ω)"
+            },
+            "0,00"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 5,
+              "spaltenName": "Rpe (Ω)"
+            },
+            "0,00"
+          ],
+          "ergebnis": null
         }
       ]
     },
@@ -2312,6 +2516,48 @@
       ]
     },
     {
+      "titel": "Protokoll: Riso eintragen",
+      "begruendung": "Je Stromkreis den kleinsten Riso-Wert aller Leiterpaare eintragen.",
+      "schritte": [
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 6,
+              "spaltenName": "Riso ohne Verbraucher (MΩ)"
+            },
+            ">999"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 6,
+              "spaltenName": "Riso ohne Verbraucher (MΩ)"
+            },
+            ">999"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 6,
+              "spaltenName": "Riso ohne Verbraucher (MΩ)"
+            },
+            ">999"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "Wiedereinschalten: Hauptschalter ein",
       "begruendung": "Rpe und Riso sind abgeschlossen, alle Trennstellen sind geschlossen. Anlage für die Messungen unter Spannung wieder einschalten.",
       "schritte": [
@@ -2655,6 +2901,156 @@
       ]
     },
     {
+      "titel": "Protokoll: Überstromschutz eintragen",
+      "begruendung": "Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild sowie Zi/Ik und, ohne RCD, Zs/Ik eintragen. Bei Drehstrom der schlechteste Außenleiter.",
+      "schritte": [
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 8,
+              "spaltenName": "Überstromschutz Art"
+            },
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 9,
+              "spaltenName": "Überstromschutz In (A)"
+            },
+            "16"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 12,
+              "spaltenName": "Zi (Ω)"
+            },
+            "0,67"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 13,
+              "spaltenName": "Ik L-N (A)"
+            },
+            "309,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 8,
+              "spaltenName": "Überstromschutz Art"
+            },
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 9,
+              "spaltenName": "Überstromschutz In (A)"
+            },
+            "20"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 12,
+              "spaltenName": "Zi (Ω)"
+            },
+            "0,67"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 13,
+              "spaltenName": "Ik L-N (A)"
+            },
+            "309,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 8,
+              "spaltenName": "Überstromschutz Art"
+            },
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 9,
+              "spaltenName": "Überstromschutz In (A)"
+            },
+            "16"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 12,
+              "spaltenName": "Zi (Ω)"
+            },
+            "0,64"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 13,
+              "spaltenName": "Ik L-N (A)"
+            },
+            "323,4"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "SK1: RCD-Auslösung (FI/RCD)",
       "begruendung": "RCD1-Typenschild (30mA, Typ A) am Messgerät einstellen, dann Fehlerstrom-Auslösung testen - löst den RCD danach automatisch aus.",
       "schritte": [
@@ -2922,6 +3318,192 @@
       ]
     },
     {
+      "titel": "Protokoll: RCD eintragen",
+      "begruendung": "Je Stromkreis die RCD-Daten vom Typenschild und die Messwerte des RCD-Tests eintragen.",
+      "schritte": [
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 14,
+              "spaltenName": "RCD In/Art"
+            },
+            "40/A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 15,
+              "spaltenName": "RCD IΔn (mA)"
+            },
+            "30"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 16,
+              "spaltenName": "RCD Imess (mA)"
+            },
+            "16,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 17,
+              "spaltenName": "RCD Auslösezeit (ms)"
+            },
+            "20,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 3,
+              "spalte": 18,
+              "spaltenName": "RCD Umess (V)"
+            },
+            "0,9"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 14,
+              "spaltenName": "RCD In/Art"
+            },
+            "40/B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 15,
+              "spaltenName": "RCD IΔn (mA)"
+            },
+            "30"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 16,
+              "spaltenName": "RCD Imess (mA)"
+            },
+            "24,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 17,
+              "spaltenName": "RCD Auslösezeit (ms)"
+            },
+            "21,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 18,
+              "spaltenName": "RCD Umess (V)"
+            },
+            "0,9"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 14,
+              "spaltenName": "RCD In/Art"
+            },
+            "40/B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 15,
+              "spaltenName": "RCD IΔn (mA)"
+            },
+            "30"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 16,
+              "spaltenName": "RCD Imess (mA)"
+            },
+            "24,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 17,
+              "spaltenName": "RCD Auslösezeit (ms)"
+            },
+            "21,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 18,
+              "spaltenName": "RCD Umess (V)"
+            },
+            "0,9"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "Rechtsdrehfeld an SK1 (Drehstromsteckdose)",
       "begruendung": "Anlage normal energisiert - Phasenfolge über V~ prüfen (Sonden in Reihenfolge L1/L2/L3 an Schwarz/Blau/Grün).",
       "schritte": [
@@ -2965,6 +3547,19 @@
             "phasenfolge"
           ],
           "ergebnis": "1.2.3."
+        }
+      ]
+    },
+    {
+      "titel": "Protokoll: Erproben ankreuzen",
+      "begruendung": "Rechtsdrehfeld gemessen (1.2.3.), unter Erproben i.O. ankreuzen.",
+      "schritte": [
+        {
+          "funktion": "protokollAnkreuzen",
+          "argumente": [
+            "Rechtsdrehfeld (Drehstromsteckdosen)"
+          ],
+          "ergebnis": null
         }
       ]
     }

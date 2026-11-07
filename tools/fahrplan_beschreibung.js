@@ -87,6 +87,10 @@ function beschreibeSchritt(schritt, sondenZaehler) {
       return 'TEST-Taste drücken.';
     case 'leseWert':
       return `Anzeige ablesen (${feldName(a)}): ${formatiereErgebnis(schritt.ergebnis)}`;
+    case 'protokollEintragen':
+      return `Ins Prüfprotokoll eintragen, Zeile ${a.zeile - 1}, ${a.spaltenName}: ${b}`;
+    case 'protokollAnkreuzen':
+      return `Im Prüfprotokoll ankreuzen: ${a} (i.O.)`;
     default:
       return `${schritt.funktion}(${schritt.argumente.map((x) => JSON.stringify(x)).join(', ')})`;
   }

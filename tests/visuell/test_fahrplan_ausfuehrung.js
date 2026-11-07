@@ -61,6 +61,10 @@ function starteServer() {
 
 let alleBestanden = true;
 
+function erwarteGleich(ist, soll, kontext) {
+  if (ist !== soll) throw new Error(`${kontext}: erwarte "${soll}", gefunden "${ist}"`);
+}
+
 async function pruefe(name, fn) {
   try {
     await fn();
@@ -118,6 +122,25 @@ async function main() {
           }
         }
 
+        if (schritt.funktion === 'protokollEintragen') {
+          const [{ zeile, spalte }, wert] = schritt.argumente;
+          const ist = await page.evaluate(({ zeile, spalte }) =>
+            document.querySelector('#protokoll .pf-scroll table').rows[zeile].cells[spalte].querySelector('input')?.value, { zeile, spalte });
+          if (ist !== wert) {
+            throw new Error(`${schritt.abschnittTitel}: Protokollzelle Zeile ${zeile}/Spalte ${spalte} erwartet "${wert}", gefunden "${ist}"`);
+          }
+        }
+
+        if (schritt.funktion === 'protokollAnkreuzen') {
+          const angekreuzt = await page.evaluate((punkt) => {
+            const zeile = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((z) => z.cells[0]?.textContent === punkt);
+            return zeile?.querySelector('.pf-cb-zelle .pf-cb')?.textContent;
+          }, schritt.argumente[0]);
+          if (angekreuzt !== '☒') {
+            throw new Error(`${schritt.abschnittTitel}: "${schritt.argumente[0]}" nicht angekreuzt (gefunden "${angekreuzt}")`);
+          }
+        }
+
         if (schritt.funktion === 'stelleEin') {
           const zielWert = schritt.argumente[1];
           const texte = await displayTexte(page);
@@ -131,6 +154,31 @@ async function main() {
       await page.close();
     });
   }
+
+  // protokollAnkreuzen setzt das Kreuz, entfernt es aber nie: zweimal
+  // ausgeführt (zweiter Replay-Durchlauf) und bei einem schon vom Benutzer
+  // gesetzten Kreuz bleibt es angekreuzt (Codex-Review zu sim-nt2).
+  await pruefe('protokollAnkreuzen: Kreuz bleibt bei Wiederholung und bei schon gesetztem Kreuz', async () => {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/testcase_05/anlage.json`);
+    await page.waitForSelector('#protokoll .pf-tabelle');
+    const punkt = 'Rechtsdrehfeld (Drehstromsteckdosen)';
+    const zustandNach = (schritte) => page.evaluate(async ({ punkt, schritte }) => {
+      const { fuehreSchrittAus } = await import('/controller/fahrplan_ausfuehrung.js');
+      const kaestchen = () => [...document.querySelectorAll('#protokoll .pf-tabelle tr')]
+        .find((z) => z.cells[0]?.textContent === punkt).querySelector('.pf-cb-zelle .pf-cb');
+      const zustaende = [];
+      for (const schritt of schritte) {
+        if (schritt === 'klick') kaestchen().click();
+        else fuehreSchrittAus({ funktion: 'protokollAnkreuzen', argumente: [punkt] });
+        zustaende.push(kaestchen().textContent);
+      }
+      return zustaende.join(' ');
+    }, { punkt, schritte });
+    erwarteGleich(await zustandNach(['ankreuzen', 'ankreuzen']), '☒ ☒', 'zweimal ankreuzen');
+    erwarteGleich(await zustandNach(['klick', 'klick', 'ankreuzen']), '☐ ☒ ☒', 'erst von Hand angekreuzt, dann ankreuzen');
+    await page.close();
+  });
 
   await browser.close();
   server.close();

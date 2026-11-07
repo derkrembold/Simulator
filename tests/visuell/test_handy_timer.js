@@ -166,8 +166,10 @@ async function main() {
     fahrplan.abschnitte.forEach((abschnitt) => abschnitt.schritte.forEach((schritt, i) => {
       if (!(schritt.funktion === 'leseWert' && i > 0)) takte += 1;
     }));
+    // Nur die Zähler vergleichen: das Handy kürzt lange Texte ("...").
     const letzter = fahrplan.abschnitte.at(-1);
-    const erwartet = `${letzter.schritte.length}/${letzter.schritte.length}: ${letzter.schritte.at(-1).funktion}`;
+    const n = fahrplan.abschnitte.length;
+    const erwartet = [`${letzter.schritte.length}/${letzter.schritte.length}: `, `${n}/${n}: `];
 
     const page = await neueSeiteMitUhr();
     await page.locator('#handy svg g[style*="cursor"]').last().click(); // Replay-Icon
@@ -177,8 +179,10 @@ async function main() {
     await page.clock.runFor((takte - 1) * TAKT_MS + 100);
     await page.waitForTimeout(100);
     const texte = await page.evaluate(() => [...document.querySelectorAll('#handy svg text')].map((t) => t.textContent));
-    if (!texte.includes(erwartet)) {
-      throw new Error(`Nach ${takte} Takten erwartet "${erwartet}", gefunden ${JSON.stringify(texte)}`);
+    for (const anfang of erwartet) {
+      if (!texte.some((t) => t.startsWith(anfang))) {
+        throw new Error(`Nach ${takte} Takten erwartet "${anfang}...", gefunden ${JSON.stringify(texte)}`);
+      }
     }
     await page.close();
   });

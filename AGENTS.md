@@ -20,10 +20,14 @@ Antworten und Tickets auf Deutsch.
   `docs/` oder dem Code werden nicht ins Ticket kopiert.
 - Erkenntnisse, Entscheidungen und Review-Ergebnisse kommen als Kommentar ans Ticket:
   `bd comments add <id> "..."`.
-- Beads ist im Repository versioniert (Präfix `sim`). `.beads/issues.jsonl` ist die lesbare
-  Ticket-Liste und wird mit dem Code committet. Die vollständige Historie synchronisiert
-  `bd dolt push` / `bd dolt pull` über dasselbe GitHub-Repository.
-- Das Repository ist öffentlich: Tickets und Kommentare sind für alle sichtbar.
+- Beads-Präfix `sim`. Die Tickets liegen im **privaten** Repository `derkrembold/trei`, nicht
+  im öffentlichen Simulator-Repo (sie enthalten Namen und E-Mail-Adressen):
+  - lesbare Ticket-Liste: `trei/TREI80 Teil B/beads/issues.jsonl`, erzeugt mit
+    `bd export -o "<trei>/TREI80 Teil B/beads/issues.jsonl"` und dort committet,
+  - vollständige Historie: `bd dolt push` / `bd dolt pull` (Remote ist `derkrembold/trei`).
+  `.beads/issues.jsonl` im Simulator-Ordner ist nur eine lokale Kopie und steht in `.gitignore`.
+- Jeder Agent schreibt unter eigener Kennung: Codex mit `BEADS_ACTOR=codex`, Claude mit
+  `BEADS_ACTOR=claude`. Sonst übernimmt `bd` Name und E-Mail aus der Git-Konfiguration.
 
 ## Ablauf
 

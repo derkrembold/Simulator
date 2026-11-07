@@ -153,6 +153,36 @@ async function main() {
   // Echter Countdown (2026-08-10): Ring schrumpft, Zahl zählt runter.
   // Playwrights virtuelle Uhr lässt den vollen 45-Minuten-Ablauf in einem
   // einzigen `clock.runFor()`-Aufruf simulieren.
+  // Automatischer Durchlauf (2026-11-07): 0,5 Sekunden Takt, Ableseschritte
+  // (leseWert) direkt nach einem Schritt desselben Abschnitts bekommen
+  // keinen eigenen Takt. Mit der virtuellen Uhr muss testcase_04 deshalb
+  // nach genau so vielen Takten am letzten Schritt stehen, wie es Schritte
+  // ohne diese Ableseschritte hat - mit einem Takt je Schritt wäre es dort
+  // noch lange nicht.
+  await pruefe('Replay-Play: 0,5 s Takt, Ableseschritte ohne eigenen Takt', async () => {
+    const TAKT_MS = 500;
+    const fahrplan = require(path.join(PROJEKT_ROOT, 'tests', 'visuell', 'testcase_04', 'fahrplan.json'));
+    let takte = 0;
+    fahrplan.abschnitte.forEach((abschnitt) => abschnitt.schritte.forEach((schritt, i) => {
+      if (!(schritt.funktion === 'leseWert' && i > 0)) takte += 1;
+    }));
+    const letzter = fahrplan.abschnitte.at(-1);
+    const erwartet = `${letzter.schritte.length}/${letzter.schritte.length}: ${letzter.schritte.at(-1).funktion}`;
+
+    const page = await neueSeiteMitUhr();
+    await page.locator('#handy svg g[style*="cursor"]').last().click(); // Replay-Icon
+    await page.waitForTimeout(50);
+    await page.locator('#handy svg g[style*="cursor"]').nth(0).click(); // Play: erster Takt sofort
+    await page.waitForTimeout(50);
+    await page.clock.runFor((takte - 1) * TAKT_MS + 100);
+    await page.waitForTimeout(100);
+    const texte = await page.evaluate(() => [...document.querySelectorAll('#handy svg text')].map((t) => t.textContent));
+    if (!texte.includes(erwartet)) {
+      throw new Error(`Nach ${takte} Takten erwartet "${erwartet}", gefunden ${JSON.stringify(texte)}`);
+    }
+    await page.close();
+  });
+
   await pruefe('Countdown zählt korrekt runter, ohne Sofort-Dekrement bei Play', async () => {
     const page = await neueSeiteMitUhr();
     await page.locator('#handy svg g[style*="cursor"]').nth(0).click(); // Timer-Icon

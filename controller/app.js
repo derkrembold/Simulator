@@ -1465,10 +1465,11 @@ async function start() {
   let handyZustand = 'homescreen';
   let handyLaeuft = false;
   // Fester Takt für den automatischen Fahrplan-Durchlauf (User-Vorgabe
-  // 2026-08-04: "ja. feste pause. 2 sekunden. Gibt ja den Pause button,
-  // falls zu schnell.") - `replayIntervalId` ist `null`, solange kein
+  // 2026-08-04: feste Pause, Pause-Button falls zu schnell; seit
+  // 2026-11-07 0,5 Sekunden statt 2, weil die Fahrpläne nach sim-7c6
+  // doppelt so lang sind) - `replayIntervalId` ist `null`, solange kein
   // Durchlauf läuft.
-  const REPLAY_TAKT_MS = 2000;
+  const REPLAY_TAKT_MS = 500;
   let replayIntervalId = null;
   // Timer/Self-Test-App (2026-08-10): fester Start bei 45:00 (User-Vorgabe
   // 2026-08-03, "die 45:00 ist anfangs ein fester wert"), zählt sekündlich
@@ -1567,6 +1568,22 @@ async function start() {
     renderHandy(handyHoehe);
   }
 
+  // Ein Takt beim automatischen Durchlauf: ein Schritt, danach die direkt
+  // folgenden Ableseschritte (`leseWert`) desselben Abschnitts ohne eigenen
+  // Takt - sie tun beim Replay nichts (der Wert steht schon im Display) und
+  // würden sonst ein Drittel der Laufzeit als Leerlauf kosten. Der
+  // Einzelschritt-Button bleibt bei genau einem Schritt pro Klick.
+  function fuehreNaechstenReplayTaktAus() {
+    fuehreNaechstenReplaySchrittAus();
+    while (
+      replayIndex < replaySchritte.length
+      && replaySchritte[replayIndex].funktion === 'leseWert'
+      && replaySchrittInfo[replayIndex].abschnittIndex === replaySchrittInfo[replayIndex - 1]?.abschnittIndex
+    ) {
+      fuehreNaechstenReplaySchrittAus();
+    }
+  }
+
   function renderHandy(hoehe) {
     HandyView.render(handyContainer, hoehe, handyZustand, {
       laeuft: handyLaeuft,
@@ -1621,8 +1638,8 @@ async function start() {
       onReplayPlayKlick: () => {
         if (replayIndex >= replaySchritte.length) return;
         handyLaeuft = true;
-        fuehreNaechstenReplaySchrittAus();
-        if (handyLaeuft) replayIntervalId = setInterval(fuehreNaechstenReplaySchrittAus, REPLAY_TAKT_MS);
+        fuehreNaechstenReplayTaktAus();
+        if (handyLaeuft) replayIntervalId = setInterval(fuehreNaechstenReplayTaktAus, REPLAY_TAKT_MS);
       },
       onReplayPauseKlick: () => { stoppeReplayAutomatik(); renderHandy(handyHoehe); },
       // Timer-Countdown (2026-08-10): anders als beim Replay-Auto-Loop wird

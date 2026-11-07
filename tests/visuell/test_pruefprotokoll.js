@@ -18,7 +18,7 @@
 //
 // Aufruf: node tests/visuell/test_pruefprotokoll.js
 const path = require('path');
-const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
+const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
 const { parseBauteile } = require('./generate_anlage.js');
 
 const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
@@ -105,6 +105,10 @@ async function main() {
     ], 'zs');
     erwarteGleich(`${ikMitStrich.phase} ${ikMitStrich.ik}`, 'L2 ', 'ungültiges Ik');
   });
+  await pruefe('groessterRpe: größter Wert gewinnt, ungültiger Wert bleibt sichtbar', async () => {
+    erwarteGleich(groessterRpe(['0,12', '0,40', '0,25']), '0,40', 'größter Wert');
+    erwarteGleich(groessterRpe(['0,12', '---']), '---', 'mit ---');
+  });
   await pruefe('kleinsterRiso: ungültiger Wert (---) bleibt sichtbar', async () => {
     erwarteGleich(kleinsterRiso(['>999', '---', '2']), '---', 'mit ---');
   });
@@ -112,11 +116,39 @@ async function main() {
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse, anlage, zeilen } = await berechneProtokoll(testcase);
+    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung } = await berechneProtokoll(testcase);
     anlagen[testcase] = anlage;
 
+    // Erwartete Spannungen im gesunden Netz: 230 V gegen N/PE, 400 V zwischen
+    // Außenleitern, 0 V zwischen N und PE.
+    const sollSpannung = (paar) => (paar === 'N-PE' ? '0' : /^L\d-L\d$/.test(paar) ? '400' : '230');
+    await pruefe(`${testcase}: Spannung an der Einspeisung plausibel`, async () => {
+      if (einspeisung.length === 0) throw new Error('keine Messung an der Einspeisung');
+      for (const m of einspeisung) erwarteGleich(m.wert, sollSpannung(m.paar), `Einspeisung ${m.paar}`);
+    });
+
+    await pruefe(`${testcase}: Zuordnung erkennt jede Endstelle an ihrem LS`, async () => {
+      const endstellen = (anlage.steckdosen_platzierung ?? []).length;
+      erwarteGleich(zuordnung.length, endstellen, 'Anzahl zugeordneter Endstellen');
+      for (const z of zuordnung) {
+        erwarteGleich(`${z.vorher}/${z.lsAus}/${z.lsWiederEin}`, '230/0/230', `Endstelle ${z.endstelle} (${z.sk}) vorher/LS aus/LS wieder ein`);
+      }
+    });
+
     for (const erg of ergebnisse) {
-      await pruefe(`${testcase} ${erg.sk}: Rpe (PE-Durchgang) ist 0,00Ω (RLOW-Workaround)`, async () => {
+      await pruefe(`${testcase} ${erg.sk}: Spannungsfreiheit an allen Messstellen nach dem Freischalten`, async () => {
+        // Messstellen: Abgangsklemmen (Riso) und jede Endstelle (Rpe).
+        const endstellen = (anlage.steckdosen_platzierung ?? []).filter((p) => p.sk === erg.sk).map((p) => `${p.row}-${p.col}`);
+        const orte = new Set(erg.spannungsfreiheit.map((m) => m.ort));
+        for (const ort of ['Abgangsklemmen', ...endstellen]) {
+          if (!orte.has(ort)) throw new Error(`${erg.sk}: keine Prüfung der Spannungsfreiheit an ${ort}`);
+        }
+        for (const m of erg.spannungsfreiheit) erwarteGleich(m.wert, '0', `${erg.sk} ${m.ort} ${m.paar}`);
+      });
+
+      await pruefe(`${testcase} ${erg.sk}: Rpe an jeder Endstelle gemessen, 0,00Ω (RLOW-Workaround)`, async () => {
+        const endstellen = (anlage.steckdosen_platzierung ?? []).filter((p) => p.sk === erg.sk).length;
+        erwarteGleich(erg.rpeMessungen.length, Math.max(endstellen, 1), `${erg.sk} Anzahl Rpe-Messungen`);
         erwarteGleich(erg.rpe, '0,00', `${erg.sk} Rpe`);
       });
 

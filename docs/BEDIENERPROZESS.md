@@ -41,7 +41,7 @@ sinnvoll, einem Defaultwert versehen.
 | Feld                                                                   | Pflicht | Defaultwert                       | Hinweis                                         |
 | ---------------------------------------------------------------------- | ------- | --------------------------------- | ----------------------------------------------- |
 | Prüfung nach                                                           | Ja      | DIN VDE 0105-100                  | Das Ankreuzen einer der Felder ist hier wichtig |
-| Neuanlage, Erweiterung, Änderung, Instandsetzung, Wiederholungsprüfung | Ja      | In der Regel Wiederholungsprüfung | Das Ankreuzen ist hier wichtig                  |
+| Neuanlage, Erweiterung, Änderung, Instandsetzung, Wiederholungsprüfung | Ja      | Wiederholungsprüfung              | Das Ankreuzen ist hier wichtig. Der Simulator bildet nur die Wiederholungsprüfung ab (Entscheidung zu sim-7c6). |
 | Beginn Prüfung                                                         | Ja      | Aktuelles Datum                   | Wichtig!                                        |
 | Ende Prüfung                                                           | Ja      | Aktuelle Datum                    | Wichtig!                                        |
 | Beauftragter des Auftraggebers                                         | Ja      | Kathi Katz                        |                                                 |

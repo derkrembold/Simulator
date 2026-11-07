@@ -340,7 +340,13 @@ async function messspitzeSetzen(ctx, ziel) {
     await ziel.click();
     return;
   }
-  const { bauteil, netz } = ziel;
+  const { bauteil, netz, endstelle } = ziel;
+  // `endstelle` ("Reihe-Spalte", siehe view/steckdosen.js): Kontakt dieser
+  // Endstelle statt einer Schraube im Schaltkasten.
+  if (endstelle) {
+    await ctx.page.locator(`#steckdosen [data-endstelle="${endstelle}"] [data-netz="${netz}"]`).first().click();
+    return;
+  }
   const teile = [];
   if (bauteil) teile.push(`[data-bauteil="${bauteil}"]`);
   if (netz) teile.push(`[data-netz="${netz}"]`);

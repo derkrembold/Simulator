@@ -134,7 +134,14 @@ async function main() {
     const vorher = await anzahlMessspitzen(page);
 
     await page.locator('#handy svg g[style*="cursor"]').nth(0).click(); // Play (Replay)
-    await page.waitForTimeout(2300);
+    // Warten, bis die erste Messspitze gesetzt ist, statt einer festen Zeit:
+    // der Fahrplan beginnt mit Schaltschritten (Hauptschalter, Drehknopf),
+    // die Anzahl Schritte bis zur ersten Sonde hängt vom Fahrplan ab.
+    await page.waitForFunction(
+      (anzahl) => document.querySelectorAll('#schaltkasten svg circle[r="7"]').length > anzahl,
+      vorher,
+      { timeout: 10000 }
+    ).catch(() => {});
     const nachher = await anzahlMessspitzen(page);
 
     if (nachher <= vorher) {

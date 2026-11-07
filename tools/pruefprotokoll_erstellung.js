@@ -134,46 +134,199 @@ async function trennstelleUmschalten(ctx, trennstelle) {
   for (const netz of trennstelle.netze) await messgeraet.schraubeSchalten(ctx, trennstelle.bauteil, netz);
 }
 
-async function messeRpe(testcase, sk) {
+// Startzustand eines Abschnitts. Das Werkzeug misst jeden Abschnitt in einer
+// frischen Testumgebung (Grundzustand: Hauptschalter ein), beim Replay
+// laufen dagegen alle Abschnitte nacheinander auf derselben Anlage. Liegt
+// ein Abschnitt im freigeschalteten Block (Hauptschalter aus, siehe
+// berechneProtokoll()), wird dieser Zustand hier direkt über `basis`
+// hergestellt - nicht über den Rekorder, denn im Replay ist die Anlage an
+// dieser Stelle schon freigeschaltet.
+async function starteAbschnitt(testcase, anlage, { freigeschaltet = false } = {}) {
   const ctx = await basis.starteTestUmgebung(testcase);
+  if (freigeschaltet) await basis.hebelSchalten(ctx, anlage.hauptsicherung.name);
+  return ctx;
+}
+
+// Adern an der Einspeisung: je Leiter des Hauptschalter-Eingangs die
+// Einspeiseklemme (l1_klemme ... n_klemme), falls die Anlage für diesen
+// Leiter eine hat, sonst der Eingang des Hauptschalters selbst (z.B.
+// testcase_02: nur eine N-Klemme, L1 direkt auf den Hauptschalter). PE von
+// der PE-Klemme.
+function einspeisungAdern(anlage) {
+  const adern = anlage.hauptsicherung.eingang.leitung.adern.map((ader) => {
+    const klemme = anlage[`${ader.funktion.toLowerCase()}_klemme`];
+    return klemme?.vorhanden ? klemme.eingang.leitung.adern[0] : ader;
+  });
+  // Ein 3-poliger Hauptschalter hat keinen N-Pol, N kommt dann nur über die
+  // N-Klemme.
+  if (!adern.some((a) => a.funktion === 'N') && anlage.n_klemme?.vorhanden) {
+    adern.push(anlage.n_klemme.eingang.leitung.adern[0]);
+  }
+  return {
+    aussenleiter: adern.filter((a) => a.funktion.startsWith('L')),
+    n: adern.find((a) => a.funktion === 'N'),
+    pe: anlage.pe_klemme.eingang.leitung.adern[0]
+  };
+}
+
+// Sondensätze (Schwarz/Blau/Grün) für die Spannung an der Einspeisung: je
+// Außenleiter L/N/PE (zeigt L-N, L-PE, N-PE), bei Drehstrom zusätzlich
+// L1/L2/L3 (zeigt die drei Außenleiterspannungen). Ein Sondensatz je
+// Abschnitt, weil die App die Sondenfarben in Klickreihenfolge vergibt.
+function einspeisungSondensaetze(anlage) {
+  const { aussenleiter, n, pe } = einspeisungAdern(anlage);
+  const saetze = aussenleiter.map((l) => ({
+    name: `${l.funktion}/N/PE`,
+    netze: [l.netz, n.netz, pe.netz],
+    paare: [`${l.funktion}-N`, `${l.funktion}-PE`, 'N-PE']
+  }));
+  if (aussenleiter.length === 3) {
+    saetze.push({
+      name: 'L1/L2/L3',
+      netze: aussenleiter.map((l) => l.netz),
+      paare: ['L1-L2', 'L1-L3', 'L2-L3']
+    });
+  }
+  return saetze;
+}
+
+async function leseSpannungen(ctx, paare) {
+  const werte = [];
+  for (const feld of ['uln', 'ulpe', 'unpe']) werte.push(nurZahl(await messgeraet.leseWert(ctx, feld)));
+  return paare.map((paar, i) => ({ paar, wert: werte[i] }));
+}
+
+async function messeEinspeisung(testcase, anlage, satz, { erster }) {
+  const ctx = await starteAbschnitt(testcase, anlage, { freigeschaltet: !erster });
   messgeraet.abschnittBeginnen(
-    `${sk.bezeichnung}: Rpe (PE-Durchgang)`,
-    'Vor RLOW die Anlage spannungsfrei machen (hier: PE ist ohnehin nie geschaltet, siehe KONZEPT.md "Nächste Schritte" - PE-Teilgraph).'
+    `Einspeisung ${satz.name}: Spannung prüfen`,
+    erster
+      ? 'Orientierung vor der Prüfung: Hauptschalter aus, dann an den Einspeiseklemmen messen, ob die Versorgung vorhanden und plausibel ist (230 V gegen N und PE, 400 V zwischen den Außenleitern, keine Spannung zwischen N und PE). Die eigene Anlage bleibt dabei ausgeschaltet.'
+      : 'Weiter an den Einspeiseklemmen, Hauptschalter bleibt aus.'
+  );
+  if (erster) await messgeraet.hebelSchalten(ctx, anlage.hauptsicherung.name);
+  await messgeraet.drehknopfAufModus(ctx, 'V~');
+  for (const netz of satz.netze) await messgeraet.messspitzeSetzen(ctx, { netz });
+  const spannungen = await leseSpannungen(ctx, satz.paare);
+  messgeraet.abschnittEnde();
+  await ctx.schliessen();
+  return spannungen;
+}
+
+async function schalteHauptschalter(testcase, anlage, { titel, begruendung, freigeschaltet }) {
+  const ctx = await starteAbschnitt(testcase, anlage, { freigeschaltet });
+  messgeraet.abschnittBeginnen(titel, begruendung);
+  await messgeraet.hebelSchalten(ctx, anlage.hauptsicherung.name);
+  messgeraet.abschnittEnde();
+  await ctx.schliessen();
+}
+
+// Endstellen (Dosen im Steckdosen-View) eines Stromkreises, als
+// "Reihe-Spalte" wie `data-endstelle` in view/steckdosen.js.
+function endstellenVon(anlage, sk) {
+  return (anlage.steckdosen_platzierung ?? [])
+    .filter((p) => p.sk === sk.bezeichnung)
+    .map((p) => `${p.row}-${p.col}`);
+}
+
+// Zuordnung einer Endstelle: an der Endstelle Spannung messen, den LS des
+// Stromkreises aus- und wieder einschalten. Fällt die Spannung dabei weg,
+// gehört die Endstelle zu diesem LS.
+async function messeZuordnung(testcase, anlage, sk, endstelle) {
+  const ctx = await starteAbschnitt(testcase, anlage);
+  messgeraet.abschnittBeginnen(
+    `Zuordnung Endstelle ${endstelle}: ${sk.ls.name}`,
+    `Welcher Stromkreis versorgt diese Endstelle? Spannung an der Endstelle messen, dann ${sk.ls.name} aus- und wieder einschalten. Fällt die Spannung weg, gehört die Endstelle zu ${sk.ls.name} (${sk.bezeichnung}). Für die Zuordnung den LS schalten, nicht den RCD: der schaltet die ganze Gruppe.`
+  );
+  await messgeraet.drehknopfAufModus(ctx, 'V~');
+  await messgeraet.messspitzeSetzen(ctx, { endstelle, netz: aderNetz(sk, sk.phasen[0]) }); // schwarz
+  await messgeraet.messspitzeSetzen(ctx, { endstelle, netz: aderNetz(sk, 'N') }); // blau
+  await messgeraet.messspitzeSetzen(ctx, { endstelle, netz: aderNetz(sk, 'PE') }); // grün
+  const vorher = nurZahl(await messgeraet.leseWert(ctx, 'uln'));
+  await messgeraet.hebelSchalten(ctx, sk.ls.name);
+  const lsAus = nurZahl(await messgeraet.leseWert(ctx, 'uln'));
+  await messgeraet.hebelSchalten(ctx, sk.ls.name);
+  const lsWiederEin = nurZahl(await messgeraet.leseWert(ctx, 'uln'));
+  messgeraet.abschnittEnde();
+  await ctx.schliessen();
+  return { endstelle, sk: sk.bezeichnung, vorher, lsAus, lsWiederEin };
+}
+
+// Spannungsfreiheit an den Abgangsklemmen eines Stromkreises, je
+// Außenleiter L/N/PE, bei Drehstrom zusätzlich L1/L2/L3.
+function spannungsfreiheitSondensaetze(sk) {
+  const saetze = sk.phasen.map((phase) => ({
+    name: `${phase}/N/PE`,
+    netze: [aderNetz(sk, phase), aderNetz(sk, 'N'), aderNetz(sk, 'PE')],
+    paare: [`${phase}-N`, `${phase}-PE`, 'N-PE']
+  }));
+  if (sk.phasen.length === 3) {
+    saetze.push({ name: 'L1/L2/L3', netze: sk.phasen.map((p) => aderNetz(sk, p)), paare: ['L1-L2', 'L1-L3', 'L2-L3'] });
+  }
+  return saetze;
+}
+
+// Spannungsfreiheit an einer Messstelle: an den Abgangsklemmen (vor Riso,
+// `endstelle` = null) oder an einer Endstelle (vor Rpe).
+async function messeSpannungsfreiheit(testcase, anlage, sk, satz, endstelle = null) {
+  const ctx = await starteAbschnitt(testcase, anlage, { freigeschaltet: true });
+  messgeraet.abschnittBeginnen(
+    endstelle
+      ? `${sk.bezeichnung} Endstelle ${endstelle} ${satz.name}: Spannungsfreiheit feststellen`
+      : `${sk.bezeichnung} Abgangsklemmen ${satz.name}: Spannungsfreiheit feststellen`,
+    endstelle
+      ? 'Vor Rpe an dieser Endstelle allpolig prüfen, dass keine Spannung anliegt.'
+      : 'Vor Riso an den Abgangsklemmen allpolig prüfen, dass keine Spannung anliegt. Gegen Wiedereinschalten sichern.'
+  );
+  await messgeraet.drehknopfAufModus(ctx, 'V~');
+  for (const netz of satz.netze) await messgeraet.messspitzeSetzen(ctx, endstelle ? { endstelle, netz } : { netz });
+  const spannungen = await leseSpannungen(ctx, satz.paare);
+  messgeraet.abschnittEnde();
+  await ctx.schliessen();
+  return spannungen.map((m) => ({ ...m, ort: endstelle ?? 'Abgangsklemmen' }));
+}
+
+// Rpe an einer Endstelle (PE-Kontakt der Dose gegen die PE-Klemme). Ohne
+// Endstelle (Anlage ohne Steckdosen-Platzierung) an der Abgangsklemme.
+async function messeRpe(testcase, anlage, sk, endstelle) {
+  const ctx = await starteAbschnitt(testcase, anlage, { freigeschaltet: true });
+  messgeraet.abschnittBeginnen(
+    endstelle ? `${sk.bezeichnung} Endstelle ${endstelle}: Rpe (PE-Durchgang)` : `${sk.bezeichnung}: Rpe (PE-Durchgang)`,
+    'Anlage ist freigeschaltet. Durchgang des Schutzleiters vom PE-Kontakt der Endstelle bis zur PE-Klemme im Verteiler messen.'
   );
   await messgeraet.drehknopfAufModus(ctx, 'RLOW');
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'PE') });
+  await messgeraet.messspitzeSetzen(ctx, endstelle ? { endstelle, netz: aderNetz(sk, 'PE') } : { netz: aderNetz(sk, 'PE') });
   await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' });
   const wert = await messgeraet.leseWert(ctx, 'hauptmesswert');
   messgeraet.abschnittEnde();
   await ctx.schliessen();
-  return nurZahl(wert);
+  return { endstelle: endstelle ?? null, wert: nurZahl(wert) };
 }
 
-async function messeRisoOhne(testcase, sk, gruppe, hauptschalterName, paar) {
+// Größter Rpe-Wert als Anzeigetext. Ein Wert ohne Zahl bleibt sichtbar (wie
+// bei kleinsterRiso()).
+function groessterRpe(werte) {
+  const zahl = (w) => parseFloat(String(w).replace(',', '.'));
+  const ungueltig = werte.find((w) => Number.isNaN(zahl(w)));
+  if (ungueltig !== undefined) return ungueltig;
+  return werte.reduce((max, w) => (zahl(w) > zahl(max) ? w : max));
+}
+
+async function messeRisoOhne(testcase, anlage, sk, gruppe, paar) {
   const trennstelle = naechsteTrennstelle(sk, gruppe, [paar.schwarz, paar.blau]);
 
-  const ctx = await basis.starteTestUmgebung(testcase);
+  const ctx = await starteAbschnitt(testcase, anlage, { freigeschaltet: true });
   messgeraet.abschnittBeginnen(
     `${sk.bezeichnung} ${paar.name}: Riso Verbraucher ohne`,
     trennstelle
       ? (trennstelle.istLeckageQuelle
-        ? `Vor RISO die Anlage spannungsfrei machen. Da ${trennstelle.bauteil} ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md "Riso Verbraucher ohne").`
-        : `Vor RISO die Anlage spannungsfrei machen - Schraube von ${trennstelle.bauteil} öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).`)
-      : 'Vor RISO die Anlage spannungsfrei machen (Hauptschalter aus, kein RCD auf diesem Stromkreis vorhanden).'
+        ? `Anlage ist freigeschaltet. Da ${trennstelle.bauteil} ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md "Riso Verbraucher ohne"), nach der Messung wieder eindrehen.`
+        : `Anlage ist freigeschaltet. Schraube von ${trennstelle.bauteil} öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.`)
+      : 'Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.'
   );
-  if (trennstelle) {
-    // Sicherheit (User-Vorgabe 2026-08-06, Diskussion "Freischalten zuerst"):
-    // eine Schraube wird NIE unter Spannung gelöst/eingedreht - erst den
-    // Hauptschalter aus, dann die Schraube öffnen, danach den Hauptschalter
-    // wieder ein (die eigentliche Trennstelle für RISO ist ab hier die
-    // offene Schraube selbst, siehe Begründungstext oben - der Hauptschalter
-    // schützt nur während der kurzen physischen Schrauben-Handlung).
-    await messgeraet.hebelSchalten(ctx, hauptschalterName);
-    await trennstelleUmschalten(ctx, trennstelle);
-    await messgeraet.hebelSchalten(ctx, hauptschalterName);
-  } else {
-    await messgeraet.hebelSchalten(ctx, hauptschalterName);
-  }
+  // Die Schraube wird nur bei freigeschalteter Anlage gelöst und eingedreht
+  // (User-Vorgabe 2026-08-06, "Freischalten zuerst").
+  if (trennstelle) await trennstelleUmschalten(ctx, trennstelle);
   await messgeraet.drehknopfAufModus(ctx, 'RISO');
   await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, paar.schwarz) }); // schwarz
   await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, paar.blau) }); // blau
@@ -183,26 +336,9 @@ async function messeRisoOhne(testcase, sk, gruppe, hauptschalterName, paar) {
   const { schwarz: schwarzNetz, blau: blauNetz } = await basis.platzierteMessspitzen(ctx);
   await messgeraet.testDruecken(ctx);
   const wert = await messgeraet.leseWert(ctx, 'hauptmesswert');
-  // Trennstelle wieder schließen (Schraube eindrehen/Hauptschalter zurück) -
-  // die Anlage muss für die nachfolgenden Messungen (Zi/Zs/RCD-Auslösung)
-  // wieder spannungsführend sein. `schraubeSchalten()`/`hebelSchalten()`
-  // schalten hier - wie am echten Gerät und wie beim Öffnen oben - immer nur
-  // um, unabhängig vom Zielzustand (die App entscheidet anhand des
-  // tatsächlichen Zustands, ob das ein Öffnen oder Schließen ist), deshalb
-  // hier derselbe Aufruf wie beim Öffnen (Fund 2026-08-06, User: "Ist der
-  // Grund, dass die Schraube draußen war? Sollten die nicht entfernt werden
-  // nach einem Durchgang?" - vorher blieb die Trennstelle offen, wodurch
-  // Zi/Zs/RCD-Auslösung beim Replay keinen Wert lieferten, siehe
-  // ARCHITEKTUR.md "Messspitzen-Reset pro Abschnitt").
-  if (trennstelle) {
-    // Dieselbe Sicherheits-Umklammerung wie beim Öffnen oben, jetzt fürs
-    // Wiedereindrehen.
-    await messgeraet.hebelSchalten(ctx, hauptschalterName);
-    await trennstelleUmschalten(ctx, trennstelle);
-    await messgeraet.hebelSchalten(ctx, hauptschalterName);
-  } else {
-    await messgeraet.hebelSchalten(ctx, hauptschalterName);
-  }
+  // Trennstelle wieder schließen. `schraubeSchalten()` schaltet wie am
+  // echten Gerät nur um, deshalb derselbe Aufruf wie beim Öffnen.
+  if (trennstelle) await trennstelleUmschalten(ctx, trennstelle);
   messgeraet.abschnittEnde();
   await ctx.schliessen();
   return { paar: paar.name, wert: nurZahl(wert), schwarzNetz, blauNetz };
@@ -475,101 +611,183 @@ async function berechneProtokoll(testcase) {
   // eigener Stromkreis in anlage.json), aber die Nummer selbst gehört
   // trotzdem rein.
   const zeilen = [{ zeilenIndex: 2, werte: { [SPALTE.nr]: '1' } }];
-  const ergebnisse = [];
-  let nr = 2;
-  for (const { sk, gruppe } of alleStromkreise(anlage)) {
-    console.log(`--- ${sk.bezeichnung} (${sk.ziel}) ---`);
-    const rpe = await messeRpe(testcase, sk);
-    console.log('Rpe:', rpe);
-    const risoMessungen = [];
+  const stromkreise = alleStromkreise(anlage);
+
+  // Ablauf nach Messart (Entscheidung zu sim-7c6, Wiederholungsprüfung):
+  // 1. Spannung an der Einspeisung, 2. Zuordnung der Endstellen,
+  // 3. Freischalten und Spannungsfreiheit, 4. Rpe, 5. Riso, 6. Wieder-
+  // einschalten, 7. Zi/Zs, 8. RCD-Test, 9. Drehfeld. Jede Messart läuft über
+  // alle Stromkreise, bevor die nächste beginnt.
+  const ergebnisse = stromkreise.map(({ sk, gruppe }) => ({
+    sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rcdName: gruppe.rcd?.name ?? null
+  }));
+  const ergebnisVon = (sk) => ergebnisse.find((e) => e.sk === sk.bezeichnung);
+
+  console.log('--- Einspeisung ---');
+  const einspeisung = [];
+  const saetze = einspeisungSondensaetze(anlage);
+  for (const [i, satz] of saetze.entries()) {
+    const spannungen = await messeEinspeisung(testcase, anlage, satz, { erster: i === 0 });
+    console.log(`Einspeisung ${satz.name}:`, spannungen.map((m) => `${m.paar} ${m.wert}V`).join(', '));
+    einspeisung.push(...spannungen);
+  }
+  await schalteHauptschalter(testcase, anlage, {
+    titel: 'Einspeisung: Hauptschalter wieder ein',
+    begruendung: 'Versorgung geprüft, Anlage für die Zuordnung der Endstellen wieder einschalten.',
+    freigeschaltet: true
+  });
+
+  console.log('--- Zuordnung ---');
+  const zuordnung = [];
+  for (const { sk } of stromkreise) {
+    for (const endstelle of endstellenVon(anlage, sk)) {
+      const z = await messeZuordnung(testcase, anlage, sk, endstelle);
+      console.log(`Zuordnung ${endstelle} -> ${sk.ls.name}: ${z.vorher}V, LS aus ${z.lsAus}V, LS wieder ein ${z.lsWiederEin}V`);
+      zuordnung.push(z);
+    }
+  }
+
+  console.log('--- Freischalten ---');
+  await schalteHauptschalter(testcase, anlage, {
+    titel: 'Freischalten: Hauptschalter aus',
+    begruendung: 'Für Rpe und Riso die Anlage freischalten. Der Hauptschalter bleibt bis nach den Riso-Messungen aus.',
+    freigeschaltet: false
+  });
+  for (const { sk } of stromkreise) {
+    const e = ergebnisVon(sk);
+    e.spannungsfreiheit = [];
+    // An allen Messstellen: Abgangsklemmen (Riso) und jede Endstelle (Rpe).
+    for (const endstelle of [null, ...endstellenVon(anlage, sk)]) {
+      for (const satz of spannungsfreiheitSondensaetze(sk)) {
+        e.spannungsfreiheit.push(...await messeSpannungsfreiheit(testcase, anlage, sk, satz, endstelle));
+      }
+    }
+    console.log(`${sk.bezeichnung} Spannungsfreiheit:`, e.spannungsfreiheit.map((m) => `${m.ort} ${m.paar} ${m.wert}V`).join(', '));
+  }
+
+  console.log('--- Rpe ---');
+  for (const { sk } of stromkreise) {
+    const e = ergebnisVon(sk);
+    const endstellen = endstellenVon(anlage, sk);
+    e.rpeMessungen = [];
+    for (const endstelle of (endstellen.length > 0 ? endstellen : [null])) {
+      e.rpeMessungen.push(await messeRpe(testcase, anlage, sk, endstelle));
+    }
+    e.rpe = groessterRpe(e.rpeMessungen.map((m) => m.wert));
+    console.log(`${sk.bezeichnung} Rpe:`, e.rpe);
+  }
+
+  console.log('--- Riso ---');
+  for (const { sk, gruppe } of stromkreise) {
+    const e = ergebnisVon(sk);
+    e.risoMessungen = [];
     for (const paar of risoPaare(sk)) {
-      const messung = await messeRisoOhne(testcase, sk, gruppe, anlage.hauptsicherung.name, paar);
-      console.log(`Riso ${paar.name}:`, messung.wert);
-      risoMessungen.push(messung);
+      const messung = await messeRisoOhne(testcase, anlage, sk, gruppe, paar);
+      console.log(`${sk.bezeichnung} Riso ${paar.name}:`, messung.wert);
+      e.risoMessungen.push(messung);
     }
-    const riso = kleinsterRiso(risoMessungen.map((m) => m.wert));
-    console.log('Riso Verbraucher ohne:', riso);
+    e.riso = kleinsterRiso(e.risoMessungen.map((m) => m.wert));
+  }
 
-    const werte = {
-      [SPALTE.nr]: String(nr),
-      [SPALTE.ziel]: sk.bezeichnung,
-      [SPALTE.kabelTyp]: sk.leitung.typ,
-      [SPALTE.kabelAnzahl]: String(sk.leitung.adern.length),
-      [SPALTE.kabelQuerschnitt]: String(sk.leitung.adern[0].querschnitt_mm2),
-      [SPALTE.rpe]: rpe,
-      [SPALTE.risoOhne]: riso
-    };
-    const ergebnis = { sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rpe, riso, risoMessungen, rcdName: gruppe.rcd?.name ?? null };
+  await schalteHauptschalter(testcase, anlage, {
+    titel: 'Wiedereinschalten: Hauptschalter ein',
+    begruendung: 'Rpe und Riso sind abgeschlossen, alle Trennstellen sind geschlossen. Anlage für die Messungen unter Spannung wieder einschalten.',
+    freigeschaltet: true
+  });
 
-    // Allgemeine Regel (User, 2026-07-31, in BEDIENERPROZESS.md dokumentiert):
-    // sitzt ein RCD im Stromkreis, ergibt Zs/Ik L-PE keinen Sinn (der
-    // Fehlerstrom liefe über PE, würde also den RCD auslösen) - dann wird
-    // NUR Zi/Ik L-N gemessen. OHNE RCD gibt es diese Einschränkung nicht -
-    // dort werden BEIDE Messungen gemacht (Zs/Ik L-PE UND Zi/Ik L-N).
-    // Jeder Außenleiter wird einzeln gemessen - ein Fehler auf L2 oder L3
-    // eines mehrphasigen Stromkreises fiele sonst nicht auf. Die Werte pro
-    // Außenleiter stehen in `ergebnis.aussenleiter`. In die Protokollzeile
-    // kommt der schlechteste Wert (siehe schlechtesteMessung()).
-    if (sk.messungen.zs) {
-      werte[SPALTE.ueArt] = sk.ls.char;
-      werte[SPALTE.ueIn] = String(sk.ls.in);
-      ergebnis.aussenleiter = [];
-      for (const phase of sk.phasen) {
-        const { zi, ik: ikLn } = await messeZi(testcase, sk, phase);
-        console.log(`Zi ${phase}:`, zi, 'Ik (L-N):', ikLn);
-        const messung = { phase, zi, ikLn };
-        if (!gruppe.rcd) {
-          const { zs, ik } = await messeUeberstromschutz(testcase, sk, phase);
-          console.log(`Zs ${phase}:`, zs, 'Ik:', ik);
-          messung.zs = zs;
-          messung.ik = ik;
-        }
-        ergebnis.aussenleiter.push(messung);
-      }
-      const schlechtesterZi = schlechtesteMessung(ergebnis.aussenleiter, 'zi');
-      werte[SPALTE.zi] = schlechtesterZi.zi;
-      werte[SPALTE.ikLn] = schlechtesterZi.ikLn;
-      ergebnis.zi = schlechtesterZi.zi;
-      ergebnis.ikLn = schlechtesterZi.ikLn;
+  // Allgemeine Regel (User, 2026-07-31, in BEDIENERPROZESS.md dokumentiert):
+  // sitzt ein RCD im Stromkreis, ergibt Zs/Ik L-PE keinen Sinn (der
+  // Fehlerstrom liefe über PE, würde also den RCD auslösen) - dann wird
+  // NUR Zi/Ik L-N gemessen. OHNE RCD gibt es diese Einschränkung nicht -
+  // dort werden BEIDE Messungen gemacht (Zs/Ik L-PE UND Zi/Ik L-N).
+  // Jeder Außenleiter wird einzeln gemessen - ein Fehler auf L2 oder L3
+  // eines mehrphasigen Stromkreises fiele sonst nicht auf. Die Werte pro
+  // Außenleiter stehen in `ergebnis.aussenleiter`. In die Protokollzeile
+  // kommt der schlechteste Wert (siehe schlechtesteMessung()).
+  console.log('--- Zi/Zs ---');
+  for (const { sk, gruppe } of stromkreise) {
+    if (!sk.messungen.zs) continue;
+    const e = ergebnisVon(sk);
+    e.aussenleiter = [];
+    for (const phase of sk.phasen) {
+      const { zi, ik: ikLn } = await messeZi(testcase, sk, phase);
+      console.log(`${sk.bezeichnung} Zi ${phase}:`, zi, 'Ik (L-N):', ikLn);
+      const messung = { phase, zi, ikLn };
       if (!gruppe.rcd) {
-        const schlechtesterZs = schlechtesteMessung(ergebnis.aussenleiter, 'zs');
-        werte[SPALTE.zs] = schlechtesterZs.zs;
-        werte[SPALTE.ik] = schlechtesterZs.ik;
-        ergebnis.zs = schlechtesterZs.zs;
-        ergebnis.ik = schlechtesterZs.ik;
+        const { zs, ik } = await messeUeberstromschutz(testcase, sk, phase);
+        console.log(`${sk.bezeichnung} Zs ${phase}:`, zs, 'Ik:', ik);
+        messung.zs = zs;
+        messung.ik = ik;
       }
+      e.aussenleiter.push(messung);
     }
-
-    if (sk.messungen.rcd && gruppe.rcd) {
-      const { imess, auslZeit, umess } = await messeRcd(testcase, sk, gruppe);
-      console.log('RCD Imess:', imess, 'Auslösezeit:', auslZeit, 'Umess:', umess);
-      werte[SPALTE.rcdInArt] = `${gruppe.rcd.nennstrom_a}/${gruppe.rcd.typ}`;
-      werte[SPALTE.rcdIdn] = String(gruppe.rcd.in_ma);
-      werte[SPALTE.rcdImess] = imess;
-      werte[SPALTE.rcdAuslZeit] = auslZeit;
-      werte[SPALTE.rcdUmess] = umess;
-      ergebnis.rcdImess = imess;
-      ergebnis.rcdAuslZeit = auslZeit;
-      ergebnis.rcdUmess = umess;
+    const schlechtesterZi = schlechtesteMessung(e.aussenleiter, 'zi');
+    e.zi = schlechtesterZi.zi;
+    e.ikLn = schlechtesterZi.ikLn;
+    if (!gruppe.rcd) {
+      const schlechtesterZs = schlechtesteMessung(e.aussenleiter, 'zs');
+      e.zs = schlechtesterZs.zs;
+      e.ik = schlechtesterZs.ik;
     }
+  }
 
-    zeilen.push({ zeilenIndex: 1 + nr, werte }); // rows[0]/[1] = Kopfzeilen, rows[2] = Hauptleitung
-    ergebnisse.push(ergebnis);
-    nr += 1;
+  console.log('--- RCD ---');
+  for (const { sk, gruppe } of stromkreise) {
+    if (!(sk.messungen.rcd && gruppe.rcd)) continue;
+    const e = ergebnisVon(sk);
+    const { imess, auslZeit, umess } = await messeRcd(testcase, sk, gruppe);
+    console.log(`${sk.bezeichnung} RCD Imess:`, imess, 'Auslösezeit:', auslZeit, 'Umess:', umess);
+    e.rcdImess = imess;
+    e.rcdAuslZeit = auslZeit;
+    e.rcdUmess = umess;
   }
 
   // Rechtsdrehfeld (Erproben-Prüfpunkt, gilt EINMAL pro Anlage, nicht pro
   // Stromkreis) - nur relevant, wenn irgendein Stromkreis dreiphasig ist
   // (Drehstromsteckdose).
   const erprobenPunkte = [];
-  const dreiphasig = alleStromkreise(anlage).find(({ sk }) => sk.phasen.length === 3);
+  const dreiphasig = stromkreise.find(({ sk }) => sk.phasen.length === 3);
   if (dreiphasig) {
     const phasenfolge = await messeRechtsdrehfeld(testcase, dreiphasig.sk);
     console.log('Rechtsdrehfeld:', phasenfolge);
     if (phasenfolge === '1.2.3.') erprobenPunkte.push('Rechtsdrehfeld (Drehstromsteckdosen)');
   }
 
-  return { anlage, zeilen, erprobenPunkte, ergebnisse };
+  // Protokollzeilen erst am Ende, wenn alle Messarten für jeden Stromkreis
+  // vorliegen.
+  stromkreise.forEach(({ sk, gruppe }, i) => {
+    const e = ergebnisVon(sk);
+    const nr = i + 2;
+    const werte = {
+      [SPALTE.nr]: String(nr),
+      [SPALTE.ziel]: sk.bezeichnung,
+      [SPALTE.kabelTyp]: sk.leitung.typ,
+      [SPALTE.kabelAnzahl]: String(sk.leitung.adern.length),
+      [SPALTE.kabelQuerschnitt]: String(sk.leitung.adern[0].querschnitt_mm2),
+      [SPALTE.rpe]: e.rpe,
+      [SPALTE.risoOhne]: e.riso
+    };
+    if (sk.messungen.zs) {
+      werte[SPALTE.ueArt] = sk.ls.char;
+      werte[SPALTE.ueIn] = String(sk.ls.in);
+      werte[SPALTE.zi] = e.zi;
+      werte[SPALTE.ikLn] = e.ikLn;
+      if (!gruppe.rcd) {
+        werte[SPALTE.zs] = e.zs;
+        werte[SPALTE.ik] = e.ik;
+      }
+    }
+    if (sk.messungen.rcd && gruppe.rcd) {
+      werte[SPALTE.rcdInArt] = `${gruppe.rcd.nennstrom_a}/${gruppe.rcd.typ}`;
+      werte[SPALTE.rcdIdn] = String(gruppe.rcd.in_ma);
+      werte[SPALTE.rcdImess] = e.rcdImess;
+      werte[SPALTE.rcdAuslZeit] = e.rcdAuslZeit;
+      werte[SPALTE.rcdUmess] = e.rcdUmess;
+    }
+    zeilen.push({ zeilenIndex: 1 + nr, werte }); // rows[0]/[1] = Kopfzeilen, rows[2] = Hauptleitung
+  });
+
+  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung };
 }
 
 async function main() {
@@ -606,7 +824,7 @@ async function main() {
   await ctx.schliessen();
 }
 
-module.exports = { berechneProtokoll, kleinsterRiso, schlechtesteMessung, SPALTE };
+module.exports = { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, SPALTE };
 
 // Nur bei direktem Aufruf ausführen, nicht beim require() aus
 // test_pruefprotokoll.js (analog zum Muster in generate_anlage.js).

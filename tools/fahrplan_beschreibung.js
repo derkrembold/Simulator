@@ -52,6 +52,7 @@ function feldName(feld) {
 const SONDEN_FARBEN = ['schwarz', 'blau', 'grün'];
 
 function beschreibeZiel(ziel) {
+  if (ziel?.endstelle) return `Endstelle ${ziel.endstelle} (Netz ${ziel.netz})`;
   if (ziel?.bauteil && ziel?.netz) return `${ziel.bauteil} (Netz ${ziel.netz})`;
   if (ziel?.bauteil) return ziel.bauteil;
   if (ziel?.netz) return `Netz ${ziel.netz}`;

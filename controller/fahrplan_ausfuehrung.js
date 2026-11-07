@@ -28,7 +28,13 @@ function klicke(element) {
   element?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 }
 
-function messspitzeSetzen({ bauteil, netz }) {
+// `endstelle` ("Reihe-Spalte", siehe view/steckdosen.js) setzt die Spitze an
+// einen Kontakt dieser Endstelle statt im Schaltkasten.
+function messspitzeSetzen({ bauteil, netz, endstelle }) {
+  if (endstelle) {
+    klicke(document.querySelector(`#steckdosen [data-endstelle="${endstelle}"] [data-netz="${netz}"]`));
+    return;
+  }
   const teile = ['#schaltkasten svg circle'];
   if (bauteil) teile.push(`[data-bauteil="${bauteil}"]`);
   if (netz) teile.push(`[data-netz="${netz}"]`);

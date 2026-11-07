@@ -1259,7 +1259,11 @@ die Besichtigen-Tabelle enthält alle 14 Prüfpunkte aus der .md-Vorlage.
 ### steckdosen.js
 
 **Status: Zeichnung, Popup UND Messspitzen umgesetzt** (siehe KONZEPT.md
-"Steckdosen (View-Objekt)"). Viertes View-Objekt, gerendert in `#steckdosen`,
+"Steckdosen (View-Objekt)"). Jedes Gerät liegt in einer eigenen Gruppe mit
+`data-endstelle="Reihe-Spalte"` (Rasterposition), jeder Kontakt trägt
+`data-netz` seiner Ader - so können Werkzeug und Replay eine Messspitze an
+eine bestimmte Dose setzen, auch wenn mehrere Dosen desselben Stromkreises
+dieselben Netz-IDs haben. Viertes View-Objekt, gerendert in `#steckdosen`,
 **oberhalb** von `#schaltkasten` (`index.html`: neues `<div id="steckdosen">`
 vor `<div id="schaltkasten">`, plus `#steckdosen { margin-bottom: 20px; }`
 - bewusst KEIN `display: flex; justify-content: center` wie bei Messgerät,
@@ -5036,12 +5040,40 @@ Bauteilnamen zu raten, brach an SK1 in `testcase_05`. Fix: `netz` allein
 (ohne `bauteil`) an `messspitzeSetzen()` übergeben - dafür wurde die
 Funktion in `messgeraet_steuerung.js` erweitert (siehe dort).
 
-**Pro Stromkreis, je in einem FRISCHEN `starteTestUmgebung()`-Kontext**
-(wichtiger Design-Fund, siehe unten) gemessen:
-1. **Rpe** (RLOW, Sonden am PE-Ader-Netz der Endstelle + `PE-Klemme`) -
+**Ablauf nach Messart (sim-7c6, nur Wiederholungsprüfung):** Jede Messart
+läuft über alle Stromkreise, bevor die nächste beginnt: Spannung an der
+Einspeisung (Hauptschalter aus, je ein Abschnitt pro Sondensatz L/N/PE und
+L1/L2/L3), Hauptschalter wieder ein, Zuordnung jeder Endstelle (V~ an der
+Dose, LS aus und wieder ein), Freischalten (Hauptschalter aus) und
+Spannungsfreiheit an allen Messstellen (Abgangsklemmen für Riso und jede
+Endstelle für Rpe), Rpe an jeder Endstelle, Riso an den
+Abgangsklemmen, Wiedereinschalten, Zi/Zs, RCD-Test, Drehfeld. Die
+Protokollzeilen entstehen erst am Ende aus den gesammelten Ergebnissen.
+
+**Startzustand je Abschnitt:** Das Werkzeug misst jeden Abschnitt in einem
+frischen `starteTestUmgebung()`-Kontext (Grundzustand: Hauptschalter ein),
+das Replay spielt dagegen alle Abschnitte nacheinander auf derselben Anlage
+ab. Abschnitte im freigeschalteten Block (Spannungsfreiheit, Rpe, Riso und
+die Folge-Abschnitte der Einspeisung) schaltet `starteAbschnitt()` deshalb
+vorab direkt über `basis` aus - ohne Rekorder, weil die Anlage im Replay an
+dieser Stelle schon freigeschaltet ist. Der Hauptschalter selbst wird nur in
+den eigenen Abschnitten "Freischalten"/"Wiedereinschalten" (und im ersten
+Einspeisungs-Abschnitt) aufgezeichnet. Ob das stimmt, prüft
+`test_fahrplan_ausfuehrung.js`, das den ganzen Fahrplan abspielt.
+
+**Messspitzen an Endstellen:** `messspitzeSetzen(ctx, { endstelle, netz })`
+setzt eine Spitze an einen Kontakt im Steckdosen-View
+(`#steckdosen [data-endstelle="Reihe-Spalte"] [data-netz=...]`, siehe
+"steckdosen.js"), gleich im Replay (`controller/fahrplan_ausfuehrung.js`).
+
+**Je Stromkreis, je Abschnitt in einem frischen Kontext** (wichtiger
+Design-Fund, siehe unten) gemessen:
+1. **Rpe** (RLOW, Sonden am PE-Kontakt jeder Endstelle des Stromkreises +
+   `PE-Klemme`, ins Protokoll kommt der größte Wert, `groessterRpe()`) -
    liefert in diesem Simulator immer `0,00Ω` (PE-PE-Workaround, siehe
    `berechneRlowMesswert()` in `controller/app.js` - PE ist noch nicht Teil
-   des Verbindungsgraphen).
+   des Verbindungsgraphen). Ohne Steckdosen-Platzierung an der
+   Abgangsklemme.
 2. **Riso Verbraucher ohne** (RISO, Grün immer an PE). Messpaare aus
    `risoPaare()`: jeder Außenleiter gegen N und gegen PE, bei mehrphasigen
    Stromkreisen zusätzlich jedes Außenleiter-Paar gegeneinander (L1-L2,

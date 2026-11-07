@@ -55,7 +55,12 @@ function findeAder(adern, funktion) {
 // Reihenklemmen-Schraube (siehe view/schaltkasten.js schraube()) - ruft
 // `onKlick(ader, clientX, clientY, element)` auf. Ohne `ader` (z.B. Endstelle
 // ohne passende Funktion) bleibt das Element unklickbar.
+// Kontakte tragen die Netz-ID ihrer Ader (`data-netz`), damit Werkzeug und
+// Fahrplan-Replay eine Messspitze gezielt an eine Endstelle setzen können
+// (siehe messspitzeSetzen() in tools/messgeraet_steuerung.js und
+// controller/fahrplan_ausfuehrung.js).
 function klickbar(el, ader, onKlick) {
+  if (ader?.netz) el.setAttribute('data-netz', ader.netz);
   if (!ader || !onKlick) return el;
   el.style.cursor = 'pointer';
   el.addEventListener('click', (ev) => {
@@ -352,16 +357,21 @@ export const SteckdosenView = {
       const cy = platz.row * zellePx + zellePx / 2;
       const stromkreis = findeStromkreis(anlage, platz.sk);
       const adern = stromkreis?.leitung?.adern;
+      // Eigene Gruppe je Gerät mit seiner Rasterposition (`data-endstelle` =
+      // "Reihe-Spalte"), damit mehrere Dosen desselben Stromkreises (gleiche
+      // Netz-IDs) unterscheidbar bleiben.
+      const geraet = svgEl('g', { 'data-endstelle': `${platz.row}-${platz.col}` });
+      g.appendChild(geraet);
       if (stromkreis?.endstelle === 'Steckdose') {
-        zeichneSteckdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
+        zeichneSteckdose(geraet, cx, cy, platz.rotation, adern, onSchraubeKlick);
       } else if (stromkreis?.endstelle === 'Drehstromsteckdose') {
-        zeichneDrehstromsteckdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
+        zeichneDrehstromsteckdose(geraet, cx, cy, platz.rotation, adern, onSchraubeKlick);
       } else if (stromkreis?.endstelle === '5-polige Anschlussdose') {
-        zeichneFuenfpoligeAnschlussdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
+        zeichneFuenfpoligeAnschlussdose(geraet, cx, cy, platz.rotation, adern, onSchraubeKlick);
       } else {
         // Lichtauslass (und alle anderen, noch nicht eigens gezeichneten
         // Endstellen-Typen) -> Anschlussdose mit drei Steckklemmen.
-        zeichneAnschlussdose(g, cx, cy, platz.rotation, adern, onSchraubeKlick);
+        zeichneAnschlussdose(geraet, cx, cy, platz.rotation, adern, onSchraubeKlick);
       }
     }
   }

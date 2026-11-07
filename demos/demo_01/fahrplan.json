@@ -2,8 +2,833 @@
   "anlage": "tests/visuell/../../demos/demo_01/anlage.json",
   "abschnitte": [
     {
-      "titel": "SK1: Rpe (PE-Durchgang)",
-      "begruendung": "Vor RLOW die Anlage spannungsfrei machen (hier: PE ist ohnehin nie geschaltet, siehe KONZEPT.md \"Nächste Schritte\" - PE-Teilgraph).",
+      "titel": "Einspeisung L1/N/PE: Spannung prüfen",
+      "begruendung": "Orientierung vor der Prüfung: Hauptschalter aus, dann an den Einspeiseklemmen messen, ob die Versorgung vorhanden und plausibel ist (230 V gegen N und PE, 400 V zwischen den Außenleitern, keine Spannung zwischen N und PE). Die eigene Anlage bleibt dabei ausgeschaltet.",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N1"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N4"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N5"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "0V"
+        }
+      ]
+    },
+    {
+      "titel": "Einspeisung L2/N/PE: Spannung prüfen",
+      "begruendung": "Weiter an den Einspeiseklemmen, Hauptschalter bleibt aus.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N2"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N4"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N5"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "0V"
+        }
+      ]
+    },
+    {
+      "titel": "Einspeisung L3/N/PE: Spannung prüfen",
+      "begruendung": "Weiter an den Einspeiseklemmen, Hauptschalter bleibt aus.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N3"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N4"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N5"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "0V"
+        }
+      ]
+    },
+    {
+      "titel": "Einspeisung L1/L2/L3: Spannung prüfen",
+      "begruendung": "Weiter an den Einspeiseklemmen, Hauptschalter bleibt aus.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N1"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N2"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N3"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "400V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "400V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "400V"
+        }
+      ]
+    },
+    {
+      "titel": "Einspeisung: Hauptschalter wieder ein",
+      "begruendung": "Versorgung geprüft, Anlage für die Zuordnung der Endstellen wieder einschalten.",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "Zuordnung Endstelle 0-0: LS1",
+      "begruendung": "Welcher Stromkreis versorgt diese Endstelle? Spannung an der Endstelle messen, dann LS1 aus- und wieder einschalten. Fällt die Spannung weg, gehört die Endstelle zu LS1 (SK1). Für die Zuordnung den LS schalten, nicht den RCD: der schaltet die ganze Gruppe.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-0",
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-0",
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-0",
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "LS1"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "LS1"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        }
+      ]
+    },
+    {
+      "titel": "Zuordnung Endstelle 1-0: LS1",
+      "begruendung": "Welcher Stromkreis versorgt diese Endstelle? Spannung an der Endstelle messen, dann LS1 aus- und wieder einschalten. Fällt die Spannung weg, gehört die Endstelle zu LS1 (SK1). Für die Zuordnung den LS schalten, nicht den RCD: der schaltet die ganze Gruppe.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "1-0",
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "1-0",
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "1-0",
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "LS1"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "LS1"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        }
+      ]
+    },
+    {
+      "titel": "Zuordnung Endstelle 0-1: LS2",
+      "begruendung": "Welcher Stromkreis versorgt diese Endstelle? Spannung an der Endstelle messen, dann LS2 aus- und wieder einschalten. Fällt die Spannung weg, gehört die Endstelle zu LS2 (SK2). Für die Zuordnung den LS schalten, nicht den RCD: der schaltet die ganze Gruppe.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-1",
+              "netz": "N48"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-1",
+              "netz": "N49"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-1",
+              "netz": "N52"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "LS2"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "LS2"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "230V"
+        }
+      ]
+    },
+    {
+      "titel": "Freischalten: Hauptschalter aus",
+      "begruendung": "Für Rpe und Riso die Anlage freischalten. Der Hauptschalter bleibt bis nach den Riso-Messungen aus.",
+      "schritte": [
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "Hauptschalter"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK1 Abgangsklemmen L1/N/PE: Spannungsfreiheit feststellen",
+      "begruendung": "Vor Riso an den Abgangsklemmen allpolig prüfen, dass keine Spannung anliegt. Gegen Wiedereinschalten sichern.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "0V"
+        }
+      ]
+    },
+    {
+      "titel": "SK1 Endstelle 0-0 L1/N/PE: Spannungsfreiheit feststellen",
+      "begruendung": "Vor Rpe an dieser Endstelle allpolig prüfen, dass keine Spannung anliegt.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-0",
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-0",
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-0",
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "0V"
+        }
+      ]
+    },
+    {
+      "titel": "SK1 Endstelle 1-0 L1/N/PE: Spannungsfreiheit feststellen",
+      "begruendung": "Vor Rpe an dieser Endstelle allpolig prüfen, dass keine Spannung anliegt.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "1-0",
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "1-0",
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "1-0",
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "0V"
+        }
+      ]
+    },
+    {
+      "titel": "SK2 Abgangsklemmen L1/N/PE: Spannungsfreiheit feststellen",
+      "begruendung": "Vor Riso an den Abgangsklemmen allpolig prüfen, dass keine Spannung anliegt. Gegen Wiedereinschalten sichern.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N48"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N49"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N52"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "0V"
+        }
+      ]
+    },
+    {
+      "titel": "SK2 Endstelle 0-1 L1/N/PE: Spannungsfreiheit feststellen",
+      "begruendung": "Vor Rpe an dieser Endstelle allpolig prüfen, dass keine Spannung anliegt.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-1",
+              "netz": "N48"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-1",
+              "netz": "N49"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-1",
+              "netz": "N52"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uln"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "ulpe"
+          ],
+          "ergebnis": "0V"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "unpe"
+          ],
+          "ergebnis": "0V"
+        }
+      ]
+    },
+    {
+      "titel": "SK1 Endstelle 0-0: Rpe (PE-Durchgang)",
+      "begruendung": "Anlage ist freigeschaltet. Durchgang des Schutzleiters vom PE-Kontakt der Endstelle bis zur PE-Klemme im Verteiler messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -16,6 +841,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "0-0",
               "netz": "N47"
             }
           ],
@@ -40,28 +866,92 @@
       ]
     },
     {
-      "titel": "SK1 L1-N: Riso Verbraucher ohne",
-      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "titel": "SK1 Endstelle 1-0: Rpe (PE-Durchgang)",
+      "begruendung": "Anlage ist freigeschaltet. Durchgang des Schutzleiters vom PE-Kontakt der Endstelle bis zur PE-Klemme im Verteiler messen.",
       "schritte": [
         {
-          "funktion": "hebelSchalten",
+          "funktion": "drehknopfAufModus",
           "argumente": [
-            "Hauptschalter"
+            "RLOW"
           ],
           "ergebnis": null
         },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "1-0",
+              "netz": "N47"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:0,00Ω"
+        }
+      ]
+    },
+    {
+      "titel": "SK2 Endstelle 0-1: Rpe (PE-Durchgang)",
+      "begruendung": "Anlage ist freigeschaltet. Durchgang des Schutzleiters vom PE-Kontakt der Endstelle bis zur PE-Klemme im Verteiler messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RLOW"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "0-1",
+              "netz": "N52"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:0,00Ω"
+        }
+      ]
+    },
+    {
+      "titel": "SK1 L1-N: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von RCD1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
+      "schritte": [
         {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD1",
             "N40"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
           ],
           "ergebnis": null
         },
@@ -112,24 +1002,10 @@
           "ergebnis": "R:>999MΩ"
         },
         {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
-        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD1",
             "N40"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
           ],
           "ergebnis": null
         }
@@ -137,27 +1013,13 @@
     },
     {
       "titel": "SK1 L1-PE: Riso Verbraucher ohne",
-      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von RCD1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
         {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD1",
             "N40"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
           ],
           "ergebnis": null
         },
@@ -208,20 +1070,155 @@
           "ergebnis": "R:>999MΩ"
         },
         {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
-        {
           "funktion": "schraubeSchalten",
           "argumente": [
             "RCD1",
             "N40"
           ],
           "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK2 L1-N: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von RCD1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
+      "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N41"
+          ],
+          "ergebnis": null
         },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N48"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N49"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N41"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK2 L1-PE: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von RCD1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
+      "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N41"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N48"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N52"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "RCD1",
+            "N41"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "Wiedereinschalten: Hauptschalter ein",
+      "begruendung": "Rpe und Riso sind abgeschlossen, alle Trennstellen sind geschlossen. Anlage für die Messungen unter Spannung wieder einschalten.",
+      "schritte": [
         {
           "funktion": "hebelSchalten",
           "argumente": [
@@ -294,6 +1291,72 @@
             "isc"
           ],
           "ergebnis": "Isc:279,7A"
+        }
+      ]
+    },
+    {
+      "titel": "SK2: Zi (L-N)",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/10A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZI"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "lsTyp",
+            "B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "bemessungsstrom",
+            "10A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N48"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N49"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,14Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:1478,6A"
         }
       ]
     },
@@ -383,302 +1446,6 @@
             "RCD1"
           ],
           "ergebnis": null
-        }
-      ]
-    },
-    {
-      "titel": "SK2: Rpe (PE-Durchgang)",
-      "begruendung": "Vor RLOW die Anlage spannungsfrei machen (hier: PE ist ohnehin nie geschaltet, siehe KONZEPT.md \"Nächste Schritte\" - PE-Teilgraph).",
-      "schritte": [
-        {
-          "funktion": "drehknopfAufModus",
-          "argumente": [
-            "RLOW"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "netz": "N52"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "bauteil": "PE-Klemme"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "leseWert",
-          "argumente": [
-            "hauptmesswert"
-          ],
-          "ergebnis": "R:0,00Ω"
-        }
-      ]
-    },
-    {
-      "titel": "SK2 L1-N: Riso Verbraucher ohne",
-      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
-      "schritte": [
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "schraubeSchalten",
-          "argumente": [
-            "RCD1",
-            "N41"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "drehknopfAufModus",
-          "argumente": [
-            "RISO"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "netz": "N48"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "netz": "N49"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "bauteil": "PE-Klemme"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "testDruecken",
-          "argumente": [],
-          "ergebnis": null
-        },
-        {
-          "funktion": "leseWert",
-          "argumente": [
-            "hauptmesswert"
-          ],
-          "ergebnis": "R:>999MΩ"
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "schraubeSchalten",
-          "argumente": [
-            "RCD1",
-            "N41"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        }
-      ]
-    },
-    {
-      "titel": "SK2 L1-PE: Riso Verbraucher ohne",
-      "begruendung": "Vor RISO die Anlage spannungsfrei machen - Schraube von RCD1 öffnen (nicht nur den Hauptschalter, sonst blieben Geschwister-Stromkreise auf derselben Sammelschiene erreichbar und könnten die Messung verfälschen).",
-      "schritte": [
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "schraubeSchalten",
-          "argumente": [
-            "RCD1",
-            "N41"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "drehknopfAufModus",
-          "argumente": [
-            "RISO"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "netz": "N48"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "netz": "N52"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "bauteil": "PE-Klemme"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "testDruecken",
-          "argumente": [],
-          "ergebnis": null
-        },
-        {
-          "funktion": "leseWert",
-          "argumente": [
-            "hauptmesswert"
-          ],
-          "ergebnis": "R:>999MΩ"
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "schraubeSchalten",
-          "argumente": [
-            "RCD1",
-            "N41"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "Hauptschalter"
-          ],
-          "ergebnis": null
-        }
-      ]
-    },
-    {
-      "titel": "SK2: Zi (L-N)",
-      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/10A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
-      "schritte": [
-        {
-          "funktion": "drehknopfAufModus",
-          "argumente": [
-            "ZI"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "stelleEin",
-          "argumente": [
-            "lsTyp",
-            "B"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "stelleEin",
-          "argumente": [
-            "bemessungsstrom",
-            "10A"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "netz": "N48"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "messspitzeSetzen",
-          "argumente": [
-            {
-              "netz": "N49"
-            }
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "testDruecken",
-          "argumente": [],
-          "ergebnis": null
-        },
-        {
-          "funktion": "leseWert",
-          "argumente": [
-            "hauptmesswert"
-          ],
-          "ergebnis": "Z:0,14Ω"
-        },
-        {
-          "funktion": "leseWert",
-          "argumente": [
-            "isc"
-          ],
-          "ergebnis": "Isc:1478,6A"
         }
       ]
     },

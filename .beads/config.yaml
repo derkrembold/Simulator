@@ -72,6 +72,6 @@
 # - github.token    → use GITHUB_TOKEN env var instead
 
 sync:
-    remote: "git+https://github.com/derkrembold/Simulator.git"
+    # remote: "git+https://github.com/derkrembold/Simulator.git"
 export:
     auto: true

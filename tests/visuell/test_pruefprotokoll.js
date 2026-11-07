@@ -18,7 +18,7 @@
 //
 // Aufruf: node tests/visuell/test_pruefprotokoll.js
 const path = require('path');
-const { berechneProtokoll, kleinsterRiso } = require('../../tools/pruefprotokoll_erstellung.js');
+const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
 const { parseBauteile } = require('./generate_anlage.js');
 
 const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
@@ -26,6 +26,13 @@ const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', '
 // Sollwerte Zi je Außenleiter, siehe Kopfkommentar Punkt 2.
 const ZI_JE_AUSSENLEITER = {
   'testcase_05 SK1': { L1: '0,54', L2: '0,67', L3: '0,63' }
+};
+
+// Erwartete Protokollzeile bei Drehstrom: der schlechteste Außenleiter, hier
+// L2 mit dem höchsten Zi aus ZI_JE_AUSSENLEITER, samt seinem Ik
+// (docs/KONZEPT.md: Isc 309,0A).
+const ZEILE_SCHLECHTESTER_WERT = {
+  'testcase_05 SK1': { zi: '0,67', ikLn: '309,0' }
 };
 
 const anlagen = {};
@@ -74,6 +81,30 @@ async function main() {
     erwarteGleich(kleinsterRiso(['>999', '0,8']), '0,8', 'Komma-Wert');
     erwarteGleich(kleinsterRiso(['>999', '>999']), '>999', 'nur >999');
   });
+  await pruefe('schlechtesteMessung: höchstes Z gewinnt, Ik kommt vom selben Außenleiter', async () => {
+    const messungen = [
+      { phase: 'L1', zi: '0,54', ikLn: '383,3' },
+      { phase: 'L2', zi: '0,67', ikLn: '309,0' },
+      { phase: 'L3', zi: '0,63', ikLn: '328,6' }
+    ];
+    const m = schlechtesteMessung(messungen, 'zi');
+    erwarteGleich(`${m.phase} ${m.zi} ${m.ikLn}`, 'L2 0,67 309,0', 'schlechtester Außenleiter');
+    erwarteGleich(schlechtesteMessung([{ phase: 'L1', zs: '0,5', ik: '460,0' }, { phase: 'L2', zs: '0,5', ik: '460,0' }], 'zs').phase, 'L1', 'Gleichstand');
+  });
+  await pruefe('schlechtesteMessung: ungültige Messung auf L2/L3 bleibt sichtbar', async () => {
+    const zMitStrich = schlechtesteMessung([
+      { phase: 'L1', zi: '0,54', ikLn: '383,3' },
+      { phase: 'L2', zi: '---', ikLn: '---' },
+      { phase: 'L3', zi: '0,63', ikLn: '328,6' }
+    ], 'zi');
+    erwarteGleich(`${zMitStrich.phase} ${zMitStrich.zi}`, 'L2 ---', 'ungültiges Zi');
+    const ikMitStrich = schlechtesteMessung([
+      { phase: 'L1', zs: '0,90', ik: '255,6' },
+      { phase: 'L2', zs: '0,40', ik: '' },
+      { phase: 'L3', zs: '0,60', ik: '383,3' }
+    ], 'zs');
+    erwarteGleich(`${ikMitStrich.phase} ${ikMitStrich.ik}`, 'L2 ', 'ungültiges Ik');
+  });
   await pruefe('kleinsterRiso: ungültiger Wert (---) bleibt sichtbar', async () => {
     erwarteGleich(kleinsterRiso(['>999', '---', '2']), '---', 'mit ---');
   });
@@ -81,7 +112,7 @@ async function main() {
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse, anlage } = await berechneProtokoll(testcase);
+    const { ergebnisse, anlage, zeilen } = await berechneProtokoll(testcase);
     anlagen[testcase] = anlage;
 
     for (const erg of ergebnisse) {
@@ -139,6 +170,25 @@ async function main() {
               erwartePositiv(parseKomma(m.zs), `${erg.sk} ${m.phase} Zs`);
               erwartePositiv(parseKomma(m.ik), `${erg.sk} ${m.phase} Ik(L-PE)`);
             }
+          }
+        });
+      }
+
+      // Die Protokollzeile (nicht nur `ergebnis`) muss bei mehrphasigen
+      // Stromkreisen den schlechtesten Außenleiter zeigen.
+      if (erg.aussenleiter?.length > 1) {
+        await pruefe(`${testcase} ${erg.sk}: Protokollzeile zeigt den schlechtesten Außenleiter`, async () => {
+          const zeile = zeilen.find((z) => z.werte[SPALTE.ziel] === erg.sk);
+          if (!zeile) throw new Error(`${erg.sk}: keine Protokollzeile gefunden`);
+          const zi = schlechtesteMessung(erg.aussenleiter, 'zi');
+          erwarteGleich(`${zeile.werte[SPALTE.zi]} / ${zeile.werte[SPALTE.ikLn]}`, `${zi.zi} / ${zi.ikLn}`, `${erg.sk} Zi/Ik in der Zeile`);
+          if (!erg.rcdName) {
+            const zs = schlechtesteMessung(erg.aussenleiter, 'zs');
+            erwarteGleich(`${zeile.werte[SPALTE.zs]} / ${zeile.werte[SPALTE.ik]}`, `${zs.zs} / ${zs.ik}`, `${erg.sk} Zs/Ik in der Zeile`);
+          }
+          const fest = ZEILE_SCHLECHTESTER_WERT[`${testcase} ${erg.sk}`];
+          if (fest) {
+            erwarteGleich(`${zeile.werte[SPALTE.zi]} / ${zeile.werte[SPALTE.ikLn]}`, `${fest.zi} / ${fest.ikLn}`, `${erg.sk} Zi/Ik laut docs/KONZEPT.md`);
           }
         });
       }

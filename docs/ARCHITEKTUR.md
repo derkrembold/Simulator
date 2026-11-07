@@ -5083,8 +5083,10 @@ Funktion in `messgeraet_steuerung.js` erweitert (siehe dort).
    `sk.messungen.zs`. Zi (L-N) und, ohne RCD, Zs (L-PE) werden für **jeden
    Außenleiter** in `sk.phasen` einzeln gemessen, je in einem eigenen
    Abschnitt (Titel z.B. `SK1 L2: Zi (L-N)`). Die Werte pro Außenleiter
-   liefert `berechneProtokoll()` in `ergebnis.aussenleiter`; die
-   Protokollzeile zeigt vorerst den ersten Außenleiter.
+   liefert `berechneProtokoll()` in `ergebnis.aussenleiter`. In die
+   Protokollzeile kommt der schlechteste Außenleiter
+   (`schlechtesteMessung()`): höchstes Zi bzw. Zs samt dem Ik desselben
+   Außenleiters, für Zi und Zs getrennt bestimmt.
 4. **RCD** (FI/RCD, Fehlerstrom/Typ vorher gesetzt) - nur wenn
    `sk.messungen.rcd`. **Wichtig:** `Umess` (Live-Spannungsanzeige) wird VOR
    `testDruecken()` gelesen, nicht danach - ein erfolgreicher RCD-Test löst

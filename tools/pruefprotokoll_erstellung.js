@@ -115,6 +115,21 @@ function kleinsterRiso(werte) {
   return werte.reduce((min, w) => (alsZahl(w) < alsZahl(min) ? w : min));
 }
 
+// Messung des Außenleiters mit der höchsten Schleifenimpedanz (`groesse` =
+// 'zi' oder 'zs'). Ihr Ik gehört zum selben Außenleiter, weil Ik aus Z
+// berechnet wird - deshalb wird die ganze Messung zurückgegeben, nicht nur
+// der Z-Wert. Bei Gleichstand gewinnt der erste Außenleiter. Ist bei einem
+// Außenleiter Z oder Ik keine Zahl (z.B. "---", Messung fehlgeschlagen),
+// wird dessen Messung zurückgegeben, damit der Fehler im Protokoll
+// sichtbar bleibt (wie bei kleinsterRiso()).
+function schlechtesteMessung(messungen, groesse) {
+  const ikFeld = groesse === 'zi' ? 'ikLn' : 'ik';
+  const zahl = (w) => parseFloat(String(w).replace(',', '.'));
+  const ungueltig = messungen.find((m) => Number.isNaN(zahl(m[groesse])) || Number.isNaN(zahl(m[ikFeld])));
+  if (ungueltig) return ungueltig;
+  return messungen.reduce((schlechteste, m) => (zahl(m[groesse]) > zahl(schlechteste[groesse]) ? m : schlechteste));
+}
+
 async function trennstelleUmschalten(ctx, trennstelle) {
   for (const netz of trennstelle.netze) await messgeraet.schraubeSchalten(ctx, trennstelle.bauteil, netz);
 }
@@ -493,8 +508,8 @@ async function berechneProtokoll(testcase) {
     // dort werden BEIDE Messungen gemacht (Zs/Ik L-PE UND Zi/Ik L-N).
     // Jeder Außenleiter wird einzeln gemessen - ein Fehler auf L2 oder L3
     // eines mehrphasigen Stromkreises fiele sonst nicht auf. Die Werte pro
-    // Außenleiter stehen in `ergebnis.aussenleiter`, die Protokollzeile
-    // zeigt den ersten Außenleiter.
+    // Außenleiter stehen in `ergebnis.aussenleiter`. In die Protokollzeile
+    // kommt der schlechteste Wert (siehe schlechtesteMessung()).
     if (sk.messungen.zs) {
       werte[SPALTE.ueArt] = sk.ls.char;
       werte[SPALTE.ueIn] = String(sk.ls.in);
@@ -511,16 +526,17 @@ async function berechneProtokoll(testcase) {
         }
         ergebnis.aussenleiter.push(messung);
       }
-      const erster = ergebnis.aussenleiter[0];
-      werte[SPALTE.zi] = erster.zi;
-      werte[SPALTE.ikLn] = erster.ikLn;
-      ergebnis.zi = erster.zi;
-      ergebnis.ikLn = erster.ikLn;
+      const schlechtesterZi = schlechtesteMessung(ergebnis.aussenleiter, 'zi');
+      werte[SPALTE.zi] = schlechtesterZi.zi;
+      werte[SPALTE.ikLn] = schlechtesterZi.ikLn;
+      ergebnis.zi = schlechtesterZi.zi;
+      ergebnis.ikLn = schlechtesterZi.ikLn;
       if (!gruppe.rcd) {
-        werte[SPALTE.zs] = erster.zs;
-        werte[SPALTE.ik] = erster.ik;
-        ergebnis.zs = erster.zs;
-        ergebnis.ik = erster.ik;
+        const schlechtesterZs = schlechtesteMessung(ergebnis.aussenleiter, 'zs');
+        werte[SPALTE.zs] = schlechtesterZs.zs;
+        werte[SPALTE.ik] = schlechtesterZs.ik;
+        ergebnis.zs = schlechtesterZs.zs;
+        ergebnis.ik = schlechtesterZs.ik;
       }
     }
 
@@ -590,7 +606,7 @@ async function main() {
   await ctx.schliessen();
 }
 
-module.exports = { berechneProtokoll, kleinsterRiso };
+module.exports = { berechneProtokoll, kleinsterRiso, schlechtesteMessung, SPALTE };
 
 // Nur bei direktem Aufruf ausführen, nicht beim require() aus
 // test_pruefprotokoll.js (analog zum Muster in generate_anlage.js).

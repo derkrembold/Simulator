@@ -85,6 +85,8 @@ function beschreibeSchritt(schritt, sondenZaehler) {
       return `Schraube von ${a} (Netz ${b}) mit dem Schraubendreher lösen bzw. wieder eindrehen.`;
     case 'testDruecken':
       return 'TEST-Taste drücken.';
+    case 'calDruecken':
+      return 'CAL-Taste drücken.';
     case 'leseWert':
       return `Anzeige ablesen (${feldName(a)}): ${formatiereErgebnis(schritt.ergebnis)}`;
     case 'protokollEintragen':

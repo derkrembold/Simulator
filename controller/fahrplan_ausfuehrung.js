@@ -189,6 +189,21 @@ function aktuelleZone(felder) {
   return felder.findIndex((t) => t.getAttribute('fill') === '#ffffff');
 }
 
+// Ansicht umschalten (z.B. ZI <-> ΔU): Titel (Zone 0) auswählen, dann ▲ -
+// wie `wechsleAnsicht()` in tools/messgeraet_steuerung.js.
+function wechsleAnsicht() {
+  let felder = zoneFelder();
+  for (let i = 0; i < felder.length && aktuelleZone(felder) !== 0; i++) {
+    klicke([...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent === '◄►'));
+    felder = zoneFelder();
+  }
+  klicke([...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent === '▲'));
+}
+
+function calDruecken() {
+  klicke([...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent === 'CAL'));
+}
+
 // `feld` = Schlüssel aus FELD_WERTELISTEN (bei fester Werteliste ist `wert`
 // einer der Listeneinträge, exakter String, z.B. "C" oder "20A"). Anders
 // als `tools/messgeraet_steuerung.js`s gleichnamige Playwright-Funktion
@@ -263,6 +278,10 @@ export function fuehreSchrittAus(schritt) {
     hebelSchalten(schritt.argumente[0]);
   } else if (schritt.funktion === 'stelleEin') {
     stelleEin(schritt.argumente[0], schritt.argumente[1]);
+  } else if (schritt.funktion === 'wechsleAnsicht') {
+    wechsleAnsicht();
+  } else if (schritt.funktion === 'calDruecken') {
+    calDruecken();
   } else if (schritt.funktion === 'protokollEintragen') {
     protokollEintragen(schritt.argumente[0], schritt.argumente[1]);
   } else if (schritt.funktion === 'protokollAnkreuzen') {

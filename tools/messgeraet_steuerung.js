@@ -119,6 +119,11 @@ async function testDruecken(ctx) {
   await ctx.page.getByText('TEST', { exact: true }).click();
 }
 
+// CAL-Taste: in der ΔU-Ansicht von ZI misst sie Zref (sim-liq).
+async function calDruecken(ctx) {
+  await ctx.page.getByText('CAL', { exact: true }).click();
+}
+
 // --- Baustein 2: Drehknopf ---
 
 const MODUS_REIHENFOLGE = ['RLOW', 'RISO', 'ZI', 'ZS', 'FI/RCD', 'V~'];
@@ -564,6 +569,7 @@ module.exports = {
   hebelSchalten,
   schraubeSchalten,
   testDruecken,
+  calDruecken,
   displayTexte,
   ampelFarben,
   kastenDurchgestrichen

@@ -606,12 +606,13 @@ async function start() {
     return schwarzLebt && blauLebt ? 230 : 0;
   }
 
-  // Feste Basisimpedanz der Trafostation/Einspeisung (siehe KONZEPT.md
-  // "Konfigurierbare Parameter" - `vorimpedanz`), die bei jeder ZI/ZS-
-  // Berechnung automatisch mit einfließt (reale Schleifenimpedanz ist nie 0,
-  // auch ohne jeden Fehler-Widerstand auf dem Pfad). Noch ein fester
-  // Konstantenwert, kein Netzplan-Feld (analog zu rlowKalibrierterWiderstand).
-  const ZI_VORIMPEDANZ = 0.14;
+  // Basisimpedanz der Trafostation/Einspeisung (Vorimpedanz Zv, siehe
+  // KONZEPT.md "Konfigurierbare Parameter" - `vorimpedanz`), die bei jeder
+  // ZI/ZS-Berechnung und bei der Zref-Messung (CAL) automatisch mit
+  // einfließt (reale Schleifenimpedanz ist nie 0, auch ohne jeden
+  // Fehler-Widerstand auf dem Pfad). Aus `anlage.json` (`vorimpedanz_ohm`),
+  // ohne Eintrag 0,14 Ω (sim-liq).
+  const ZI_VORIMPEDANZ = anlage.vorimpedanz_ohm ?? 0.14;
 
   // ZI-Messwert, ausgelöst über die TEST-Taste - wie bei RISO nicht
   // kontinuierlich. `null` = noch kein gültiger TEST-Klick (Platzhalter
@@ -639,6 +640,25 @@ async function start() {
     if (!pfadL || !pfadN) return;
 
     ziMesswert = berechneWiderstand(graph, pfadL) + berechneWiderstand(graph, pfadN) + ZI_VORIMPEDANZ;
+    renderMessgeraet();
+  }
+
+  // CAL-Taste in der ΔU-Ansicht von ZI (sim-liq): misst die
+  // Referenzimpedanz Zref an den Messspitzen (Referenzstelle nach dem
+  // Hauptschalter, Schwarz L, Blau N) genauso wie ziTestKlick() und
+  // speichert sie für die Spannungsfall-Messung. In anderen Modi/Ansichten
+  // ohne Wirkung.
+  function calKlick() {
+    if (messgeraetZustand.funktion !== 'ZI' || !titelZeigtLabel || !graph) return;
+    const schwarzAder = messspitzenAderNachFarbe('schwarz');
+    const blauAder = messspitzenAderNachFarbe('blau');
+    if (!schwarzAder || !blauAder) return;
+    if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return;
+    if (blauAder.funktion !== 'N') return;
+    const pfadL = findePfadZurEinspeisung(schwarzAder.funktion, schwarzAder);
+    const pfadN = findePfadZurEinspeisung('N', blauAder);
+    if (!pfadL || !pfadN) return;
+    ziZref = berechneWiderstand(graph, pfadL) + berechneWiderstand(graph, pfadN) + ZI_VORIMPEDANZ;
     renderMessgeraet();
   }
 
@@ -954,10 +974,12 @@ async function start() {
   // dieselben Variablen wie in der normalen Zl-Ansicht (siehe oben) - eine
   // Änderung in der einen Ansicht gilt auch in der anderen.
   let ziSpannungsfallProzent = 4.0;
-  // ZI, ΔU-Ansicht, Zone 2 (zwischen den Strichen): Referenzimpedanz - noch
-  // nicht per ◄►/▲▼ auswählbar, aber als Variable gehalten (siehe
-  // Kommentar-Konvention bei anderen Defaults in dieser Datei).
-  let ziZref = 0.1;
+  // ZI, ΔU-Ansicht, Zone 2 (zwischen den Strichen): Referenzimpedanz Zref
+  // in Ω, gemessen mit der CAL-Taste (calKlick()), `null` = noch nicht
+  // gemessen (Anzeige "___"). Bleibt wie am echten Gerät gespeichert, bis
+  // erneut CAL gedrückt wird - wird deshalb NICHT in
+  // setzeBearbeitungenZurueck() zurückgesetzt.
+  let ziZref = null;
   // ZS: gleicher Mechanismus wie bei ZI (Zl ↔ ΔU), aber eigene Variablen -
   // LS-Typ/Bemessungsstrom/Abschaltzeit von ZS und ZI sind unabhängig
   // voneinander (unterschiedliche Messungen, kein gemeinsamer LS
@@ -1082,12 +1104,12 @@ async function start() {
         // Zone 2 (zwischen den Strichen): vier links ausgerichtete Zeilen
         // statt des sonst üblichen zentralen Hauptmesswerts - ΔU/Isc/Z noch
         // keine echten Werte (Platzhalter ___, wie sonst nach TEST-Klick),
-        // Zref hat schon jetzt einen (weiterhin veränderbaren) Startwert.
+        // Zref nach der CAL-Messung.
         zustand.hauptwertZeilen = [
           'ΔU: ___%',
           'Isc:___A',
           'Z:___Ω',
-          `Zref: ${ziZref.toFixed(1).replace('.', ',')}Ω`
+          `Zref: ${ziZref === null ? '___' : ziZref.toFixed(2).replace('.', ',')}Ω`
         ];
         // Isc/Lim (siehe normale Zl-Ansicht) gehören hier nicht mehr hin -
         // ΔU hat eigene Zeilen zwischen den Strichen stattdessen.
@@ -1226,7 +1248,6 @@ async function start() {
     ziBemessungsstromIndex = ZI_BEMESSUNGSSTROEME.indexOf('16A');
     ziAbschaltzeitIndex = ZI_ABSCHALTZEITEN.indexOf('0,4s');
     ziSpannungsfallProzent = 4.0;
-    ziZref = 0.1;
     zsLsTypIndex = ZI_LS_TYPEN.indexOf('B');
     zsBemessungsstromIndex = ZI_BEMESSUNGSSTROEME.indexOf('16A');
     zsAbschaltzeitIndex = ZI_ABSCHALTZEITEN.indexOf('0,4s');
@@ -1311,7 +1332,8 @@ async function start() {
       },
       auf: () => { aendereAusgewaehltesFeld(1); },
       ab: () => { aendereAusgewaehltesFeld(-1); },
-      test: testKlick
+      test: testKlick,
+      cal: calKlick
     });
   }
 

@@ -116,8 +116,15 @@ async function main() {
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege } = await berechneProtokoll(testcase);
+    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref } = await berechneProtokoll(testcase);
     anlagen[testcase] = anlage;
+
+    // sim-liq: Zref nach dem Hauptschalter = Vorimpedanz (keine Fehler-
+    // widerstände vor dem Hauptschalter in den Testcases).
+    await pruefe(`${testcase}: Zref am Verteiler = Vorimpedanz`, async () => {
+      const soll = (anlage.vorimpedanz_ohm ?? 0.14).toFixed(2).replace('.', ',');
+      erwarteGleich(zref, soll, 'Zref');
+    });
 
     // sim-nt2: Das Replay trägt genau die Werte ein, die auch in der PDF
     // stehen - außer dem Kabeltyp, der in der Anlage nicht ablesbar ist.

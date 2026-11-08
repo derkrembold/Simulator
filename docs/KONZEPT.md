@@ -382,9 +382,12 @@ welcher Wert gerade ausgewählt ist.
   nach rechts (rechtsbündig statt wie sonst mittig in der Reihe – sonst wären es 4 mittige
   Werte, was nicht mehr ins Display passt). Über dem unteren Strich verschwinden `Isc`/`Lim`
   (die gehören zur normalen "Zl"-Ansicht). Zwischen den Strichen stehen stattdessen vier
-  links ausgerichtete Zeilen: `ΔU: ___%`, `Isc:___A`, `Z:___Ω`, `Zref: 0,1Ω` (noch keine
-  echten Werte außer Zref, das schon einen Startwert hat – alle vier sind Variablen). Die
-  Messpunkte (unter dem Strich) bleiben unverändert. Toggle zurück zu "Zl" wie gehabt.
+  links ausgerichtete Zeilen: `ΔU: ___%`, `Isc:___A`, `Z:___Ω`, `Zref: ___Ω`. **Zref**
+  (sim-liq): Messspitzen an der Referenzstelle nach dem Hauptschalter (L, N, PE), dann
+  **CAL** - misst wie Zi (Vorimpedanz + Pfad bis zur Messstelle) und speichert den Wert
+  im Gerät, auch über Moduswechsel hinweg, bis erneut CAL gedrückt wird. CAL wirkt nur in
+  der ΔU-Ansicht. ΔU/Isc/Z folgen mit sim-lgf. Die Messpunkte (unter dem Strich) bleiben
+  unverändert. Toggle zurück zu "Zl" wie gehabt.
 - **ZI, Spannungsfall (`4,0%`) ausgewählt** (nur in der ΔU-Ansicht sichtbar): ändert den
   Wert in 0,5%-Schritten, nach unten geklemmt bei 0%.
 - **ZI, LS-Typ ausgewählt:** wandert durch B/C/D/K/Z (siehe
@@ -783,9 +786,10 @@ auf 0V, keine Phasenfolge-Anzeige mehr).
 
 - **`vorimpedanz`** – feste Basisimpedanz der Trafostation/Einspeisung, die bei jeder
   Zi/Zs-Berechnung automatisch mit einfließt (reale Schleifenimpedanz ist nie 0, auch
-  ohne jeden Fehler). **Umgesetzt für ZI:** fester Wert `0,14Ω`
-  (`ZI_VORIMPEDANZ` in `controller/app.js`) - noch kein Netzplan-Feld, analog
-  zu `rlowKalibrierterWiderstand` bei RLOW.
+  ohne jeden Fehler). **Umgesetzt für ZI, ZS und Zref:** aus `anlage.json`
+  (`vorimpedanz_ohm`), ohne Eintrag `0,14Ω` (`ZI_VORIMPEDANZ` in
+  `controller/app.js`, sim-liq). Einstellbar über die Anforderung einer Demo
+  folgt mit sim-puv.
 - **Messspannung (RISO)** – Prüfspannung für die Isolationswiderstandsmessung, am
   Messgerät per ▲/▼ wählbar (Feld muss vorher über ◄► ausgewählt sein). Gültige
   Werte nach VDE 0100-600/IEC 61557-2: 50V, 100V, 250V, 500V, 1000V. Default

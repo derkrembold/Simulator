@@ -2752,6 +2752,68 @@
       ]
     },
     {
+      "titel": "Zref am Verteiler",
+      "begruendung": "Für die Spannungsfallmessung die Referenzimpedanz Zref direkt nach dem Hauptschalter messen: Drehknopf auf ZI, Unterfunktion ΔU, Messspitzen auf L, N und PE, Taste CAL. Zref bleibt im Messgerät gespeichert. Danach zurück zur normalen ZI-Ansicht.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZI"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N9"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N4"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "calDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "zref"
+          ],
+          "ergebnis": "Zref: 0,14Ω"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "SK1 L1: Zi (L-N)",
       "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
       "schritte": [

@@ -4027,8 +4027,14 @@ Neu in `app.js`:
   Wird von RISO nicht gebraucht (das nutzt `istSpannungFuehrend()`, das nur
   einen Boolean statt des Pfad-Arrays braucht), aber von ZI, wo aus dem Pfad
   ja noch die Fehlertabelle summiert werden muss.
-- `ZI_VORIMPEDANZ = 0.14` - feste Basisimpedanz (siehe KONZEPT.md
-  "Konfigurierbare Parameter"), noch kein Netzplan-Feld.
+- `ZI_VORIMPEDANZ` - Basisimpedanz (siehe KONZEPT.md "Konfigurierbare
+  Parameter") aus `anlage.vorimpedanz_ohm`, Default 0,14 Ω (sim-liq). Fließt
+  auch in Zref ein: `calKlick()` misst in der ΔU-Ansicht an den
+  Messspitzen wie `ziTestKlick()` und speichert `ziZref` (nicht in
+  `setzeBearbeitungenZurueck()` zurückgesetzt). Werkzeug/Replay:
+  `calDruecken()`, `wechsleAnsicht()`; im Fahrplan der Abschnitt "Zref am
+  Verteiler" direkt nach dem Wiedereinschalten (`messeZref()` in
+  `tools/pruefprotokoll_erstellung.js`).
 - `ziMesswert` - State-Variable wie `risoMesswert`, startet `null`
   (Platzhalter `Z:---Ω` aus `zustandFuerFunktion()`). Reset an denselben
   beiden Stellen wie `risoMesswert`/`risoAmpel` (Messspitzen-Änderung im

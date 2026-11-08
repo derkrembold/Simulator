@@ -213,6 +213,41 @@ async function messeEinspeisung(testcase, anlage, satz, { erster }) {
   return spannungen;
 }
 
+// Referenzstelle für Zref: Ausgang des Hauptschalters (L1 bzw. erster
+// Außenleiter, N). Ein 3-poliger Hauptschalter hat keinen N-Pol, N dann
+// wie an der Einspeisung (N-Klemme).
+function zrefAdern(anlage) {
+  const ausgang = anlage.hauptsicherung.ausgang.leitung.adern;
+  return {
+    l: ausgang.find((a) => a.funktion.startsWith('L')),
+    n: ausgang.find((a) => a.funktion === 'N') ?? einspeisungAdern(anlage).n
+  };
+}
+
+// Zref für die Spannungsfallmessung (sim-liq, Ablauf aus der Anleitung des
+// Messgeräts): ZI, Unterfunktion ΔU, Messspitzen nach dem Hauptschalter auf
+// L, N und PE, CAL. Danach zurück zur normalen ZI-Ansicht, damit die
+// folgenden Zi-Abschnitte (auch im Replay) in derselben Ansicht beginnen.
+async function messeZref(testcase, anlage) {
+  const { l, n } = zrefAdern(anlage);
+  const ctx = await starteAbschnitt(testcase, anlage);
+  messgeraet.abschnittBeginnen(
+    'Zref am Verteiler',
+    'Für die Spannungsfallmessung die Referenzimpedanz Zref direkt nach dem Hauptschalter messen: Drehknopf auf ZI, Unterfunktion ΔU, Messspitzen auf L, N und PE, Taste CAL. Zref bleibt im Messgerät gespeichert. Danach zurück zur normalen ZI-Ansicht.'
+  );
+  await messgeraet.drehknopfAufModus(ctx, 'ZI');
+  await messgeraet.wechsleAnsicht(ctx);
+  await messgeraet.messspitzeSetzen(ctx, { netz: l.netz }); // schwarz
+  await messgeraet.messspitzeSetzen(ctx, { netz: n.netz }); // blau
+  await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
+  await messgeraet.calDruecken(ctx);
+  const zref = nurZahl(await messgeraet.leseWert(ctx, 'zref'));
+  await messgeraet.wechsleAnsicht(ctx);
+  messgeraet.abschnittEnde();
+  await ctx.schliessen();
+  return zref;
+}
+
 async function schalteHauptschalter(testcase, anlage, { titel, begruendung, freigeschaltet }) {
   const ctx = await starteAbschnitt(testcase, anlage, { freigeschaltet });
   messgeraet.abschnittBeginnen(titel, begruendung);
@@ -767,6 +802,10 @@ async function berechneProtokoll(testcase) {
     freigeschaltet: true
   });
 
+  console.log('--- Zref ---');
+  const zref = await messeZref(testcase, anlage);
+  console.log('Zref:', zref);
+
   // Allgemeine Regel (User, 2026-07-31, in BEDIENERPROZESS.md dokumentiert):
   // sitzt ein RCD im Stromkreis, ergibt Zs/Ik L-PE keinen Sinn (der
   // Fehlerstrom liefe über PE, würde also den RCD auslösen) - dann wird
@@ -862,7 +901,7 @@ async function berechneProtokoll(testcase) {
     }))
   ];
 
-  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege };
+  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref };
 }
 
 async function main() {

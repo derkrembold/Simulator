@@ -324,7 +324,7 @@ async function main() {
     erwarte(texte, 'ΔU: ___%', 'ΔU-Ansicht Zone-2-Zeile ΔU');
     erwarte(texte, 'Isc:___A', 'ΔU-Ansicht Zone-2-Zeile Isc');
     erwarte(texte, 'Z:___Ω', 'ΔU-Ansicht Zone-2-Zeile Z');
-    erwarte(texte, 'Zref: 0,1Ω', 'ΔU-Ansicht Zone-2-Zeile Zref');
+    erwarte(texte, 'Zref: ___Ω', 'ΔU-Ansicht Zone-2-Zeile Zref (vor der ersten CAL-Messung)');
     erwarteNicht(texte, 'Lim: 160,0A', 'ΔU-Ansicht zeigt kein Isc/Lim über dem Strich');
     await page.close();
   });

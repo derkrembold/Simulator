@@ -132,17 +132,22 @@ async function main() {
         }
 
         if (schritt.funktion === 'protokollAnkreuzen') {
-          const angekreuzt = await page.evaluate((punkt) => {
+          const angekreuzt = await page.evaluate(({ punkt, ergebnis }) => {
             const zeile = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((z) => z.cells[0]?.textContent === punkt);
-            return zeile?.querySelector('.pf-cb-zelle .pf-cb')?.textContent;
-          }, schritt.argumente[0]);
+            return zeile?.querySelectorAll('.pf-cb-zelle .pf-cb')[ergebnis === 'n.i.O.' ? 1 : 0]?.textContent;
+          }, { punkt: schritt.argumente[0], ergebnis: schritt.argumente[1] });
           if (angekreuzt !== '☒') {
             throw new Error(`${schritt.abschnittTitel}: "${schritt.argumente[0]}" nicht angekreuzt (gefunden "${angekreuzt}")`);
           }
         }
 
         if (schritt.funktion === 'stelleEin') {
-          const zielWert = schritt.argumente[1];
+          // Freie Zahlenwerte (z.B. Spannungsfall 3.5) erscheinen im Display
+          // mit Dezimalkomma und Einheit ("3,5%").
+          const ZAHL_EINHEITEN = { spannungsfall: '%' };
+          const zielWert = typeof schritt.argumente[1] === 'number'
+            ? `${schritt.argumente[1].toFixed(1).replace('.', ',')}${ZAHL_EINHEITEN[schritt.argumente[0]] ?? ''}`
+            : schritt.argumente[1];
           const texte = await displayTexte(page);
           if (!texte.includes(zielWert)) {
             throw new Error(`${schritt.abschnittTitel}: stelleEin("${schritt.argumente[0]}", "${zielWert}") - Zielwert nicht im Display gefunden (${JSON.stringify(texte)})`);
@@ -177,6 +182,28 @@ async function main() {
     }, { punkt, schritte });
     erwarteGleich(await zustandNach(['ankreuzen', 'ankreuzen']), '☒ ☒', 'zweimal ankreuzen');
     erwarteGleich(await zustandNach(['klick', 'klick', 'ankreuzen']), '☐ ☒ ☒', 'erst von Hand angekreuzt, dann ankreuzen');
+    await page.close();
+  });
+
+  // Codex-Review zu sim-lgf: Ergebniswechsel ist eindeutig (Gegenkreuz wird
+  // entfernt), Wiederholung bleibt stabil. Zustand als "i.O. n.i.O.".
+  await pruefe('protokollAnkreuzen: i.O. -> n.i.O. und zurück entfernt das Gegenkreuz', async () => {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/testcase_05/anlage.json`);
+    await page.waitForSelector('#protokoll .pf-tabelle');
+    const zustaende = await page.evaluate(async () => {
+      const { fuehreSchrittAus } = await import('/controller/fahrplan_ausfuehrung.js');
+      const punkt = 'Überprüfung Spannungsfall';
+      const zeile = () => [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((z) => z.cells[0]?.textContent === punkt);
+      const zustand = () => [...zeile().querySelectorAll('.pf-cb-zelle .pf-cb')].map((k) => k.textContent).join('');
+      const ergebnisse = [];
+      for (const ergebnis of ['i.O.', 'n.i.O.', 'n.i.O.', 'i.O.']) {
+        fuehreSchrittAus({ funktion: 'protokollAnkreuzen', argumente: [punkt, ergebnis] });
+        ergebnisse.push(zustand());
+      }
+      return ergebnisse.join(' ');
+    });
+    erwarteGleich(zustaende, '☒☐ ☐☒ ☐☒ ☒☐', 'Kreuze nach i.O., n.i.O., n.i.O., i.O.');
     await page.close();
   });
 

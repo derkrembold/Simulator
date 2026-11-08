@@ -386,8 +386,12 @@ welcher Wert gerade ausgewählt ist.
   (sim-liq): Messspitzen an der Referenzstelle nach dem Hauptschalter (L, N, PE), dann
   **CAL** - misst wie Zi (Vorimpedanz + Pfad bis zur Messstelle) und speichert den Wert
   im Gerät, auch über Moduswechsel hinweg, bis erneut CAL gedrückt wird. CAL wirkt nur in
-  der ΔU-Ansicht. ΔU/Isc/Z folgen mit sim-lgf. Die Messpunkte (unter dem Strich) bleiben
-  unverändert. Toggle zurück zu "Zl" wie gehabt.
+  der ΔU-Ansicht. **TEST** in der ΔU-Ansicht (sim-lgf) misst Z an der Messstelle wie
+  Zi und zeigt `Z`, `Isc` und `ΔU % = (Z - Zref) · In / 230 V · 100` (In = eingestellter
+  Bemessungsstrom); ohne Zref bleibt ΔU `___`. Ampel: ΔU bis einschließlich zum
+  eingestellten Grenzwert grün, darüber rot. Ein TEST in der Zl-Ansicht setzt keinen
+  ΔU-Wert. Die Messpunkte (unter dem Strich) bleiben unverändert. Toggle zurück zu "Zl"
+  wie gehabt.
 - **ZI, Spannungsfall (`4,0%`) ausgewählt** (nur in der ΔU-Ansicht sichtbar): ändert den
   Wert in 0,5%-Schritten, nach unten geklemmt bei 0%.
 - **ZI, LS-Typ ausgewählt:** wandert durch B/C/D/K/Z (siehe

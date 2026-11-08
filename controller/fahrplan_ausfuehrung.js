@@ -214,7 +214,36 @@ function calDruecken() {
 // gerade aktiven Ansicht (z.B. ZI "standard" vs. "ΔU") und ohne eigene
 // Zone-Tabelle. Kein Fund (Feld in dieser Ansicht nicht sichtbar/settable,
 // oder freier Zahlenwert - siehe FELD_WERTELISTEN oben) -> No-op.
+// Freie Zahlenwerte (wie MESSGERAET_MODI `schritt` in
+// tools/messgeraet_steuerung.js): Zone über die Einheit im Text finden,
+// dann ▲/▼ in festen Schritten.
+const ZAHL_FELDER = {
+  spannungsfall: { einheit: '%', schritt: 0.5 }
+};
+
+function stelleZahlEin(feld, wert) {
+  const { einheit, schritt } = ZAHL_FELDER[feld];
+  const istZahlFeld = (t) => t.textContent.endsWith(einheit) && !Number.isNaN(parseFloat(t.textContent.replace(',', '.')));
+  let felder = zoneFelder();
+  const zielZoneIndex = felder.findIndex(istZahlFeld);
+  if (zielZoneIndex === -1) return;
+  for (let i = 0; i < felder.length && aktuelleZone(felder) !== zielZoneIndex; i++) {
+    klicke([...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent === '◄►'));
+    felder = zoneFelder();
+  }
+  const aktuell = parseFloat(felder[zielZoneIndex].textContent.replace(',', '.'));
+  const klicks = Math.round((Number(wert) - aktuell) / schritt);
+  const pfeil = klicks > 0 ? '▲' : '▼';
+  for (let i = 0; i < Math.abs(klicks); i++) {
+    klicke([...document.querySelectorAll('#messgeraet svg text')].find((t) => t.textContent === pfeil));
+  }
+}
+
 function stelleEin(feld, wert) {
+  if (ZAHL_FELDER[feld]) {
+    stelleZahlEin(feld, wert);
+    return;
+  }
   const werteliste = FELD_WERTELISTEN[feld];
   if (!werteliste) return;
 
@@ -259,10 +288,15 @@ function protokollEintragen({ zeile, spalte }, wert) {
 // Setzt das Kreuz nur, wenn es noch fehlt: ein Klick schaltet zwischen leer
 // und angekreuzt um (view/protokoll.js), ein schon gesetztes Kreuz (zweiter
 // Replay-Durchlauf, vom Benutzer gesetzt) würde sonst wieder entfernt.
-function protokollAnkreuzen(punkt) {
+function protokollAnkreuzen(punkt, ergebnis = 'i.O.') {
   const zeile = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((z) => z.cells[0]?.textContent === punkt);
-  const kaestchen = zeile?.querySelector('.pf-cb-zelle .pf-cb');
-  if (kaestchen && kaestchen.textContent !== '☒') klicke(kaestchen);
+  const kaestchen = [...(zeile?.querySelectorAll('.pf-cb-zelle .pf-cb') ?? [])];
+  const index = ergebnis === 'n.i.O.' ? 1 : 0;
+  // Gegenkreuz (z.B. i.O. bei Ergebnis n.i.O.) entfernen, damit das
+  // Ergebnis eindeutig ist; das gewünschte Kreuz nur setzen, wenn es fehlt.
+  kaestchen.forEach((k, i) => {
+    if ((i === index) !== (k.textContent === '☒')) klicke(k);
+  });
 }
 
 export function fuehreSchrittAus(schritt) {
@@ -285,6 +319,6 @@ export function fuehreSchrittAus(schritt) {
   } else if (schritt.funktion === 'protokollEintragen') {
     protokollEintragen(schritt.argumente[0], schritt.argumente[1]);
   } else if (schritt.funktion === 'protokollAnkreuzen') {
-    protokollAnkreuzen(schritt.argumente[0]);
+    protokollAnkreuzen(schritt.argumente[0], schritt.argumente[1]);
   }
 }

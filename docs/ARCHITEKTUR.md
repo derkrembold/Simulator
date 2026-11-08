@@ -4035,6 +4035,21 @@ Neu in `app.js`:
   `calDruecken()`, `wechsleAnsicht()`; im Fahrplan der Abschnitt "Zref am
   Verteiler" direkt nach dem Wiedereinschalten (`messeZref()` in
   `tools/pruefprotokoll_erstellung.js`).
+- Spannungsfall (sim-lgf): `ziTestKlick()` schreibt in der ΔU-Ansicht nach
+  `ziDeltaUZ` statt `ziMesswert`; die Anzeige rechnet daraus mit `ziZref`
+  und dem Bemessungsstrom ΔU % (`berechneSpannungsfall()` in
+  `model/spannungsfall.js`, auf zwei Stellen gerundet), Ampel gegen
+  `ziSpannungsfallProzent`. Bewertet wird der angezeigte, gerundete Wert -
+  dasselbe liest das Werkzeug ab, Ampel und Protokoll stimmen deshalb auch
+  am Grenzwert überein. Im
+  Fahrplan misst `messeZi()` mit denselben Messspitzen nach Zi auch ΔU
+  (Grenzwert `SPANNUNGSFALL_GRENZWERT_PROZENT` = 3,5 %, eingestellt per
+  `stelleEin('spannungsfall', 3.5)`, im Replay über `ZAHL_FELDER`).
+  Das Werkzeug stellt Zref in jeder frischen Testumgebung vorab
+  unaufgezeichnet her (`bereiteZrefVor()`: CAL, dann Messgerät aus/ein).
+  Ergebnis: Erproben "Überprüfung Spannungsfall" i.O., wenn kein
+  Außenleiter über dem Grenzwert liegt, sonst n.i.O.
+  (`protokollAnkreuzen(punkt, ergebnis)`, entfernt ein Gegenkreuz).
 - `ziMesswert` - State-Variable wie `risoMesswert`, startet `null`
   (Platzhalter `Z:---Ω` aus `zustandFuerFunktion()`). Reset an denselben
   beiden Stellen wie `risoMesswert`/`risoAmpel` (Messspitzen-Änderung im

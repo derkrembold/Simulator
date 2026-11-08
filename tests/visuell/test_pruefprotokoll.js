@@ -116,11 +116,29 @@ async function main() {
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref } = await berechneProtokoll(testcase);
+    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref, erprobenPunkte } = await berechneProtokoll(testcase);
     anlagen[testcase] = anlage;
 
     // sim-liq: Zref nach dem Hauptschalter = Vorimpedanz (keine Fehler-
     // widerstände vor dem Hauptschalter in den Testcases).
+    // sim-lgf: ΔU je Außenleiter = (Zi - Zref) * In / 230 V * 100 und das
+    // Erproben-Kreuz "Überprüfung Spannungsfall" passend zum Grenzwert 3,5 %.
+    await pruefe(`${testcase}: Spannungsfall je Außenleiter nach Formel, Erproben-Kreuz passend`, async () => {
+      const zahl = (w) => parseFloat(String(w).replace(',', '.'));
+      const sks = alleStromkreiseAus(anlage);
+      const alle = [];
+      for (const erg of ergebnisse) {
+        const sk = sks.find((s) => s.bezeichnung === erg.sk);
+        for (const m of erg.aussenleiter ?? []) {
+          const soll = ((zahl(m.zi) - zahl(zref)) * sk.ls.in / 230) * 100;
+          if (Math.abs(zahl(m.deltaU) - soll) > 0.011) throw new Error(`${erg.sk} ${m.phase}: ΔU ${m.deltaU}, nach Formel ${soll.toFixed(2)}`);
+          alle.push(zahl(m.deltaU));
+        }
+      }
+      const punkt = erprobenPunkte.find((p) => p.punkt === 'Überprüfung Spannungsfall');
+      erwarteGleich(punkt?.ergebnis, alle.every((w) => w <= 3.5) ? 'i.O.' : 'n.i.O.', 'Erproben Spannungsfall');
+    });
+
     await pruefe(`${testcase}: Zref am Verteiler = Vorimpedanz`, async () => {
       const soll = (anlage.vorimpedanz_ohm ?? 0.14).toFixed(2).replace('.', ',');
       erwarteGleich(zref, soll, 'Zref');

@@ -546,14 +546,18 @@ async function protokollEintragen(ctx, { zeile, spalte }, wert) {
 }
 
 // Kreuzt bei einem Prüfpunkt (Label in der ersten Zelle, z.B. in der
-// Erproben-Tabelle) die erste Ankreuz-Spalte (i.O.) an - nur wenn noch
-// nicht angekreuzt, weil ein Klick umschaltet.
-async function protokollAnkreuzen(ctx, punkt) {
-  await ctx.page.evaluate((punkt) => {
+// Erproben-Tabelle) i.O. (erste Ankreuz-Spalte) oder n.i.O. (zweite) an und
+// entfernt ein Gegenkreuz - jeweils nur, wo nötig, weil ein Klick umschaltet.
+async function protokollAnkreuzen(ctx, punkt, ergebnis = 'i.O.') {
+  await ctx.page.evaluate(({ punkt, ergebnis }) => {
     const zeile = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((z) => z.cells[0]?.textContent === punkt);
-    const kaestchen = zeile?.querySelector('.pf-cb-zelle .pf-cb');
-    if (kaestchen && kaestchen.textContent !== '☒') kaestchen.click();
-  }, punkt);
+    const kaestchen = [...(zeile?.querySelectorAll('.pf-cb-zelle .pf-cb') ?? [])];
+    const index = ergebnis === 'n.i.O.' ? 1 : 0;
+    // Gegenkreuz entfernen, gewünschtes Kreuz nur setzen, wenn es fehlt.
+    kaestchen.forEach((k, i) => {
+      if ((i === index) !== (k.textContent === '☒')) k.click();
+    });
+  }, { punkt, ergebnis });
 }
 
 module.exports = {

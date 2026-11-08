@@ -1,5 +1,6 @@
-// Tests für die Zref-Messung mit der CAL-Taste (sim-liq) und die
-// Vorimpedanz aus anlage.json. Aufruf: node tests/visuell/test_zref.js
+// Tests für die Zref-Messung mit der CAL-Taste (sim-liq), die Vorimpedanz
+// aus anlage.json und den Spannungsfall ΔU (sim-lgf). Aufruf: node
+// tests/visuell/test_zref.js
 //
 // Bedient das Messgerät über dieselben Schritte wie das Fahrplan-Replay
 // (fuehreSchrittAus() aus controller/fahrplan_ausfuehrung.js), damit die
@@ -186,6 +187,104 @@ async function main() {
       { funktion: 'wechsleAnsicht', argumente: [] }
     ]);
     erwarteGleich(await displayText(page, 'Zref:'), 'Zref: 0,14Ω', 'Anzeige nach Moduswechsel');
+    await page.close();
+  });
+
+  // --- Spannungsfall ΔU (sim-lgf) ---
+  const ampel = (page) => page.evaluate(() =>
+    [...document.querySelectorAll('#messgeraet svg rect')]
+      .filter((r) => r.getAttribute('width') === '6' && r.getAttribute('height') === '190')
+      .map((r) => r.getAttribute('fill')));
+  const zahl = (text, label, einheit) => parseFloat(text.replace(label, '').replace(einheit, '').replace(',', '.'));
+  // An SK2 in der ΔU-Ansicht TEST (Bemessungsstrom wählbar).
+  const deltaUAnSk2 = (bemessungsstrom) => [
+    { funktion: 'drehknopfAufModus', argumente: ['ZI'] },
+    { funktion: 'stelleEin', argumente: ['bemessungsstrom', bemessungsstrom] },
+    { funktion: 'wechsleAnsicht', argumente: [] },
+    { funktion: 'messspitzeSetzen', argumente: [{ netz: netzVon(SK2, 'L1') }] },
+    { funktion: 'messspitzeSetzen', argumente: [{ netz: netzVon(SK2, 'N') }] },
+    { funktion: 'messspitzeSetzen', argumente: [{ bauteil: 'PE-Klemme' }] },
+    { funktion: 'testDruecken', argumente: [] }
+  ];
+
+  // Zref messen, dann Messgerät aus/ein: entfernt die CAL-Messspitzen (wie
+  // frische Sonden zwischen zwei Replay-Abschnitten), Zref bleibt
+  // gespeichert.
+  async function zrefUndNeueSonden(page) {
+    await schritte(page, zrefMessen);
+    await page.getByText('ON/OFF', { exact: true }).click();
+    await page.getByText('ON/OFF', { exact: true }).click();
+  }
+
+  // Codex-Review zu sim-lgf: Ampel und Protokoll bewerten denselben,
+  // angezeigten (auf zwei Stellen gerundeten) Wert - auch knapp am Grenzwert.
+  await pruefe('berechneSpannungsfall: Bewertung des angezeigten Werts knapp am Grenzwert', async () => {
+    const page = await neueSeite();
+    const ergebnisse = await page.evaluate(async () => {
+      const { berechneSpannungsfall } = await import('/model/spannungsfall.js');
+      return [
+        berechneSpannungsfall(0.6437, 0.14, 16, 3.5), // 3,504 % -> 3,50 %
+        berechneSpannungsfall(0.6439, 0.14, 16, 3.5), // 3,506 % -> 3,51 %
+        berechneSpannungsfall(0.67, 0.14, 20, 3.5) // 4,61 %
+      ].map((e) => `${e.prozent}:${e.io}`);
+    });
+    erwarteGleich(ergebnisse.join(' '), '3.5:true 3.51:false 4.61:false', 'Ergebnisse');
+    await page.close();
+  });
+
+  await pruefe('ΔU = (Z - Zref) * In / 230 V * 100, Isc und Z in der ΔU-Ansicht', async () => {
+    const page = await neueSeite();
+    await zrefUndNeueSonden(page);
+    await schritte(page, deltaUAnSk2('20A'));
+    const z = zahl(await displayText(page, 'Z:'), 'Z:', 'Ω');
+    const deltaU = zahl(await displayText(page, 'ΔU:'), 'ΔU:', '%');
+    const isc = zahl(await displayText(page, 'Isc:'), 'Isc:', 'A');
+    erwarteGleich(Math.round(deltaU * 100) / 100, Math.round(((z - 0.14) * 20 / 230) * 10000) / 100, 'ΔU');
+    erwarteGleich(Math.round(isc * 10) / 10, Math.round((0.9 * 230 / z) * 10) / 10, 'Isc');
+    await page.close();
+  });
+
+  await pruefe('ΔU-Ampel: über dem Grenzwert rot, darunter grün', async () => {
+    const messe = async (bemessungsstrom) => {
+      const page = await neueSeite();
+      await zrefUndNeueSonden(page);
+      await schritte(page, deltaUAnSk2(bemessungsstrom));
+      const ergebnis = { deltaU: await displayText(page, 'ΔU:'), ampel: (await ampel(page)).join() };
+      await page.close();
+      return ergebnis;
+    };
+    // Grenzwert-Default 4,0 %: SK2 mit 16 A ca. 3,7 % (grün), mit 20 A ca. 4,6 % (rot).
+    const klein = await messe('16A');
+    const gross = await messe('20A');
+    // Beide Leuchten müssen umspringen: unter dem Grenzwert rechts (grün)
+    // an und links aus, darüber umgekehrt.
+    const [linksKlein, rechtsKlein] = klein.ampel.split(',');
+    const [linksGross, rechtsGross] = gross.ampel.split(',');
+    if (linksKlein === linksGross || rechtsKlein === rechtsGross) {
+      throw new Error(`Ampel springt nicht um: ${klein.deltaU} -> ${klein.ampel}, ${gross.deltaU} -> ${gross.ampel}`);
+    }
+  });
+
+  await pruefe('ΔU ohne Zref: ΔU bleibt ___, Z wird angezeigt', async () => {
+    const page = await neueSeite();
+    await schritte(page, deltaUAnSk2('16A'));
+    erwarteGleich(await displayText(page, 'ΔU:'), 'ΔU: ___%', 'ΔU ohne Zref');
+    if ((await displayText(page, 'Z:')) === 'Z:___Ω') throw new Error('Z fehlt trotz TEST');
+    await page.close();
+  });
+
+  await pruefe('TEST in der Zl-Ansicht setzt keinen ΔU-Wert', async () => {
+    const page = await neueSeite();
+    await zrefUndNeueSonden(page);
+    await schritte(page, [
+      { funktion: 'drehknopfAufModus', argumente: ['ZI'] },
+      { funktion: 'messspitzeSetzen', argumente: [{ netz: netzVon(SK2, 'L1') }] },
+      { funktion: 'messspitzeSetzen', argumente: [{ netz: netzVon(SK2, 'N') }] },
+      { funktion: 'messspitzeSetzen', argumente: [{ bauteil: 'PE-Klemme' }] },
+      { funktion: 'testDruecken', argumente: [] },
+      { funktion: 'wechsleAnsicht', argumente: [] }
+    ]);
+    erwarteGleich(await displayText(page, 'ΔU:'), 'ΔU: ___%', 'ΔU nach TEST in Zl');
     await page.close();
   });
 

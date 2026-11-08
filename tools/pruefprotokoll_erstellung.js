@@ -408,11 +408,41 @@ async function messeUeberstromschutz(testcase, sk, phase) {
 // Zi (L-N-Schleifenimpedanz statt L-PE wie bei Zs) - Modus ZI, nur Schwarz
 // (L)/Blau (N) nötig, PE spielt hier keine Rolle (siehe ziTestKlick() in
 // controller/app.js).
-async function messeZi(testcase, sk, phase) {
+// Grenzwert für den Spannungsfall (docs/BEDIENERPROZESS.md "Überprüfung
+// Spannungsfall": unter 3,5 %), wird am Messgerät in der ΔU-Ansicht
+// eingestellt (Ampel) und entscheidet i.O./n.i.O. im Protokoll.
+const SPANNUNGSFALL_GRENZWERT_PROZENT = 3.5;
+
+// Zi und, mit denselben Messspitzen, der Spannungsfall ΔU (sim-lgf): nach
+// der Zi-Messung in die ΔU-Ansicht wechseln, Grenzwert einstellen, TEST.
+// ΔU braucht das vorher per CAL gemessene Zref (Abschnitt "Zref am
+// Verteiler"). Danach zurück zur Zl-Ansicht.
+// Stellt in einer frischen Testumgebung den Zustand her, den das Replay
+// nach dem Abschnitt "Zref am Verteiler" hat: Zref im Messgerät
+// gespeichert. Direkt über `basis` (nicht aufgezeichnet). Danach Messgerät
+// aus und wieder ein - das entfernt die Hilfs-Messspitzen und setzt die
+// Einstellungen zurück, Zref bleibt gespeichert (controller/app.js
+// setzeBearbeitungenZurueck()). `ctx` wird auf diesen Stand nachgeführt.
+async function bereiteZrefVor(ctx, anlage) {
+  const grundwerte = { ...ctx.werte };
+  const { l, n } = zrefAdern(anlage);
+  await basis.drehknopfAufModus(ctx, 'ZI');
+  await basis.wechsleAnsicht(ctx);
+  await basis.messspitzeSetzen(ctx, { netz: l.netz });
+  await basis.messspitzeSetzen(ctx, { netz: n.netz });
+  await basis.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' });
+  await basis.calDruecken(ctx);
+  await ctx.page.getByText('ON/OFF', { exact: true }).click();
+  await ctx.page.getByText('ON/OFF', { exact: true }).click();
+  Object.assign(ctx, { modus: 'ZI', ansicht: 'standard', zone: 0, werte: grundwerte });
+}
+
+async function messeZi(testcase, anlage, sk, phase) {
   const ctx = await basis.starteTestUmgebung(testcase);
+  await bereiteZrefVor(ctx, anlage);
   messgeraet.abschnittBeginnen(
-    `${messstelle(sk, phase)}: Zi (L-N)`,
-    `Anlage normal energisiert - LS-Typenschild (${sk.ls.char}/${sk.ls.in}A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.`
+    `${messstelle(sk, phase)}: Zi (L-N) und Spannungsfall`,
+    `Anlage normal energisiert - LS-Typenschild (${sk.ls.char}/${sk.ls.in}A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen. Mit denselben Messspitzen in die ΔU-Ansicht wechseln, Grenzwert ${String(SPANNUNGSFALL_GRENZWERT_PROZENT).replace('.', ',')} % einstellen und mit TEST den Spannungsfall gegenüber Zref messen.`
   );
   await messgeraet.drehknopfAufModus(ctx, 'ZI');
   await messgeraet.stelleEin(ctx, 'lsTyp', sk.ls.char);
@@ -422,9 +452,14 @@ async function messeZi(testcase, sk, phase) {
   await messgeraet.testDruecken(ctx);
   const zi = await messgeraet.leseWert(ctx, 'hauptmesswert');
   const ik = await messgeraet.leseWert(ctx, 'isc');
+  await messgeraet.wechsleAnsicht(ctx);
+  await messgeraet.stelleEin(ctx, 'spannungsfall', SPANNUNGSFALL_GRENZWERT_PROZENT);
+  await messgeraet.testDruecken(ctx);
+  const deltaU = await messgeraet.leseWert(ctx, 'deltaU');
+  await messgeraet.wechsleAnsicht(ctx);
   messgeraet.abschnittEnde();
   await ctx.schliessen();
-  return { zi: nurZahl(zi), ik: nurZahl(ik) };
+  return { zi: nurZahl(zi), ik: nurZahl(ik), deltaU: nurZahl(deltaU) };
 }
 
 async function messeRcd(testcase, sk, gruppe) {
@@ -555,12 +590,14 @@ async function fuelleKopfdaten(page, anlage) {
 // Kreuzt i.O. bei den genannten Prüfpunkten in der Erproben-Tabelle an
 // (erste Ankreuz-Spalte, siehe pruefpunktTabelle() in view/protokoll.js -
 // Prüfpunkt-Label steht in der ersten Zelle jeder Zeile).
+// `punkte` = [{ punkt, ergebnis: 'i.O.' | 'n.i.O.' }] - erste bzw. zweite
+// Ankreuz-Spalte.
 async function fuelleErproben(page, punkte) {
   await page.evaluate((punkte) => {
     const zeilen = [...document.querySelectorAll('#protokoll .pf-tabelle tr')];
-    for (const punkt of punkte) {
+    for (const { punkt, ergebnis } of punkte) {
       const zeile = zeilen.find((z) => z.cells[0]?.textContent === punkt);
-      zeile?.querySelector('.pf-cb-zelle .pf-cb')?.click();
+      zeile?.querySelectorAll('.pf-cb-zelle .pf-cb')[ergebnis === 'n.i.O.' ? 1 : 0]?.click();
     }
   }, punkte);
 }
@@ -821,9 +858,9 @@ async function berechneProtokoll(testcase) {
     const e = ergebnisVon(sk);
     e.aussenleiter = [];
     for (const phase of sk.phasen) {
-      const { zi, ik: ikLn } = await messeZi(testcase, sk, phase);
-      console.log(`${sk.bezeichnung} Zi ${phase}:`, zi, 'Ik (L-N):', ikLn);
-      const messung = { phase, zi, ikLn };
+      const { zi, ik: ikLn, deltaU } = await messeZi(testcase, anlage, sk, phase);
+      console.log(`${sk.bezeichnung} Zi ${phase}:`, zi, 'Ik (L-N):', ikLn, 'ΔU:', deltaU);
+      const messung = { phase, zi, ikLn, deltaU };
       if (!gruppe.rcd) {
         const { zs, ik } = await messeUeberstromschutz(testcase, sk, phase);
         console.log(`${sk.bezeichnung} Zs ${phase}:`, zs, 'Ik:', ik);
@@ -876,17 +913,29 @@ async function berechneProtokoll(testcase) {
   // Rechtsdrehfeld (Erproben-Prüfpunkt, gilt EINMAL pro Anlage, nicht pro
   // Stromkreis) - nur relevant, wenn irgendein Stromkreis dreiphasig ist
   // (Drehstromsteckdose).
+  // Erproben-Punkte: [{ punkt, ergebnis: 'i.O.' | 'n.i.O.' }].
   const erprobenPunkte = [];
+  // Spannungsfall (sim-lgf): i.O., wenn an keinem Stromkreis/Außenleiter
+  // der Grenzwert überschritten ist. Ein ungültiger Wert ("___") zählt als
+  // nicht i.O.
+  const alleDeltaU = ergebnisse.flatMap((e) => (e.aussenleiter ?? []).map((m) => m.deltaU));
+  if (alleDeltaU.length > 0) {
+    const zahl = (w) => parseFloat(String(w).replace(',', '.'));
+    const io = alleDeltaU.every((w) => !Number.isNaN(zahl(w)) && zahl(w) <= SPANNUNGSFALL_GRENZWERT_PROZENT);
+    console.log('Spannungsfall:', alleDeltaU.join(' / '), io ? 'i.O.' : 'n.i.O.');
+    erprobenPunkte.push({ punkt: 'Überprüfung Spannungsfall', ergebnis: io ? 'i.O.' : 'n.i.O.' });
+  }
   const dreiphasig = stromkreise.find(({ sk }) => sk.phasen.length === 3);
   if (dreiphasig) {
     const phasenfolge = await messeRechtsdrehfeld(testcase, dreiphasig.sk);
     console.log('Rechtsdrehfeld:', phasenfolge);
-    if (phasenfolge === '1.2.3.') erprobenPunkte.push('Rechtsdrehfeld (Drehstromsteckdosen)');
+    if (phasenfolge === '1.2.3.') erprobenPunkte.push({ punkt: 'Rechtsdrehfeld (Drehstromsteckdosen)', ergebnis: 'i.O.' });
   }
   if (erprobenPunkte.length > 0) {
     const ctx = await basis.starteTestUmgebung(testcase);
-    messgeraet.abschnittBeginnen('Protokoll: Erproben ankreuzen', 'Rechtsdrehfeld gemessen (1.2.3.), unter Erproben i.O. ankreuzen.');
-    for (const punkt of erprobenPunkte) await messgeraet.protokollAnkreuzen(ctx, punkt);
+    messgeraet.abschnittBeginnen('Protokoll: Erproben ankreuzen',
+      `Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über ${String(SPANNUNGSFALL_GRENZWERT_PROZENT).replace('.', ',')} % liegt, sonst n.i.O.; Rechtsdrehfeld i.O. bei 1.2.3.`);
+    for (const { punkt, ergebnis } of erprobenPunkte) await messgeraet.protokollAnkreuzen(ctx, punkt, ergebnis);
     messgeraet.abschnittEnde();
     await ctx.schliessen();
   }

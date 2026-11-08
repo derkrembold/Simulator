@@ -2441,8 +2441,8 @@
       ]
     },
     {
-      "titel": "SK1 L1: Zi (L-N)",
-      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "titel": "SK1 L1: Zi (L-N) und Spannungsfall",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen. Mit denselben Messspitzen in die ΔU-Ansicht wechseln, Grenzwert 3,5 % einstellen und mit TEST den Spannungsfall gegenüber Zref messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -2503,6 +2503,36 @@
             "isc"
           ],
           "ergebnis": "Isc:405,9A"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "spannungsfall",
+            3.5
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "deltaU"
+          ],
+          "ergebnis": "ΔU: 2,57%"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
         }
       ]
     },
@@ -2582,8 +2612,8 @@
       ]
     },
     {
-      "titel": "SK1 L2: Zi (L-N)",
-      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "titel": "SK1 L2: Zi (L-N) und Spannungsfall",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen. Mit denselben Messspitzen in die ΔU-Ansicht wechseln, Grenzwert 3,5 % einstellen und mit TEST den Spannungsfall gegenüber Zref messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -2644,6 +2674,36 @@
             "isc"
           ],
           "ergebnis": "Isc:350,8A"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "spannungsfall",
+            3.5
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "deltaU"
+          ],
+          "ergebnis": "ΔU: 3,13%"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
         }
       ]
     },
@@ -2723,8 +2783,8 @@
       ]
     },
     {
-      "titel": "SK1 L3: Zi (L-N)",
-      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "titel": "SK1 L3: Zi (L-N) und Spannungsfall",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen. Mit denselben Messspitzen in die ΔU-Ansicht wechseln, Grenzwert 3,5 % einstellen und mit TEST den Spannungsfall gegenüber Zref messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -2785,6 +2845,36 @@
             "isc"
           ],
           "ergebnis": "Isc:450,0A"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "spannungsfall",
+            3.5
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "deltaU"
+          ],
+          "ergebnis": "ΔU: 2,23%"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
         }
       ]
     },
@@ -2864,8 +2954,8 @@
       ]
     },
     {
-      "titel": "SK2: Zi (L-N)",
-      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "titel": "SK2: Zi (L-N) und Spannungsfall",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/16A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen. Mit denselben Messspitzen in die ΔU-Ansicht wechseln, Grenzwert 3,5 % einstellen und mit TEST den Spannungsfall gegenüber Zref messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -2926,12 +3016,42 @@
             "isc"
           ],
           "ergebnis": "Isc:766,7A"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "spannungsfall",
+            3.5
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "deltaU"
+          ],
+          "ergebnis": "ΔU: 0,90%"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
         }
       ]
     },
     {
-      "titel": "SK3: Zi (L-N)",
-      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/10A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen.",
+      "titel": "SK3: Zi (L-N) und Spannungsfall",
+      "begruendung": "Anlage normal energisiert - LS-Typenschild (B/10A) am Messgerät einstellen, dann L-N-Schleifenimpedanz messen. Mit denselben Messspitzen in die ΔU-Ansicht wechseln, Grenzwert 3,5 % einstellen und mit TEST den Spannungsfall gegenüber Zref messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -2992,6 +3112,36 @@
             "isc"
           ],
           "ergebnis": "Isc:627,3A"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "spannungsfall",
+            3.5
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "deltaU"
+          ],
+          "ergebnis": "ΔU: 0,83%"
+        },
+        {
+          "funktion": "wechsleAnsicht",
+          "argumente": [],
+          "ergebnis": null
         }
       ]
     },
@@ -3522,12 +3672,21 @@
     },
     {
       "titel": "Protokoll: Erproben ankreuzen",
-      "begruendung": "Rechtsdrehfeld gemessen (1.2.3.), unter Erproben i.O. ankreuzen.",
+      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O. bei 1.2.3.",
       "schritte": [
         {
           "funktion": "protokollAnkreuzen",
           "argumente": [
-            "Rechtsdrehfeld (Drehstromsteckdosen)"
+            "Überprüfung Spannungsfall",
+            "i.O."
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollAnkreuzen",
+          "argumente": [
+            "Rechtsdrehfeld (Drehstromsteckdosen)",
+            "i.O."
           ],
           "ergebnis": null
         }

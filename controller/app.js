@@ -7,6 +7,7 @@ import { SchraubendreherView } from '../view/schraubendreher.js';
 import { HandyView } from '../view/handy.js';
 import { fuehreSchrittAus } from './fahrplan_ausfuehrung.js';
 import { pruefeProtokoll } from './protokoll_check.js';
+import { berechneSpannungsfall } from '../model/spannungsfall.js';
 import { Popup } from '../view/popup.js';
 import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
@@ -295,6 +296,7 @@ async function start() {
       risoMesswert = null;
       risoAmpel = null;
       ziMesswert = null;
+      ziDeltaUZ = null;
       zsMesswert = null;
       fircdMesswert = null;
       fircdAmpel = null;
@@ -618,6 +620,10 @@ async function start() {
   // kontinuierlich. `null` = noch kein gültiger TEST-Klick (Platzhalter
   // bleibt stehen), sonst der berechnete Z-Wert in Ω.
   let ziMesswert = null;
+  // Z-Wert der ΔU-Ansicht (sim-lgf): eigener TEST-gebundener Messwert, damit
+  // ein in der Zl-Ansicht gemessenes Z nicht ohne eigenes TEST als
+  // Spannungsfall erscheint. Reset an denselben Stellen wie ziMesswert.
+  let ziDeltaUZ = null;
 
   function ziTestKlick() {
     if (messgeraetZustand.funktion !== 'ZI' || !graph) return;
@@ -639,7 +645,11 @@ async function start() {
     const pfadN = findePfadZurEinspeisung('N', blauAder);
     if (!pfadL || !pfadN) return;
 
-    ziMesswert = berechneWiderstand(graph, pfadL) + berechneWiderstand(graph, pfadN) + ZI_VORIMPEDANZ;
+    const z = berechneWiderstand(graph, pfadL) + berechneWiderstand(graph, pfadN) + ZI_VORIMPEDANZ;
+    // In der ΔU-Ansicht misst TEST den Spannungsfall an der Messstelle
+    // (sim-lgf), sonst die Schleifenimpedanz Zl.
+    if (titelZeigtLabel) ziDeltaUZ = z;
+    else ziMesswert = z;
     renderMessgeraet();
   }
 
@@ -1089,28 +1099,37 @@ async function start() {
       // lassen. Wird die Spannung später wieder hergestellt, bleibt der
       // Platzhalter bestehen, bis erneut TEST gedrückt wird (explizite
       // User-Vorgabe).
-      if (ziSpannung === 0) ziMesswert = null;
+      if (ziSpannung === 0) { ziMesswert = null; ziDeltaUZ = null; }
       if (titelZeigtLabel) {
         // ΔU-Ansicht (Spannungsfall): eigenständiger Titel statt Zl. LS-Typ
         // und Bemessungsstrom bleiben in der mittleren Reihe, die
         // Abschaltzeit rutscht ganz nach rechts (titelWertRechts) - sonst
-        // wären es 4 mittige Werte, was nicht mehr ins Display passt. Der
-        // Hauptmesswert (zwischen den Strichen) bleibt hier bewusst leer -
-        // kommt erst in einem späteren Schritt dazu.
+        // wären es 4 mittige Werte, was nicht mehr ins Display passt.
         zustand.titel = 'ΔU';
         const spannungsfallText = `${ziSpannungsfallProzent.toFixed(1).replace('.', ',')}%`;
         zustand.titelWerte = [spannungsfallText, ziTitelWerte[0], ziTitelWerte[1]];
         zustand.titelWertRechts = ziTitelWerte[2];
         // Zone 2 (zwischen den Strichen): vier links ausgerichtete Zeilen
-        // statt des sonst üblichen zentralen Hauptmesswerts - ΔU/Isc/Z noch
-        // keine echten Werte (Platzhalter ___, wie sonst nach TEST-Klick),
-        // Zref nach der CAL-Messung.
+        // statt des sonst üblichen zentralen Hauptmesswerts. Z und Isc nach
+        // TEST in dieser Ansicht, Zref nach CAL (calKlick()). ΔU braucht
+        // beide (sim-lgf), berechnet und bewertet in
+        // model/spannungsfall.js (In = eingestellter Bemessungsstrom). Ampel:
+        // angezeigter Wert bis einschließlich zum eingestellten Grenzwert
+        // grün, darüber rot.
+        const komma = (wert, stellen) => wert.toFixed(stellen).replace('.', ',');
+        const spannungsfall = ziDeltaUZ !== null && ziZref !== null
+          ? berechneSpannungsfall(ziDeltaUZ, ziZref, parseFloat(ziTitelWerte[1]), ziSpannungsfallProzent)
+          : null;
         zustand.hauptwertZeilen = [
-          'ΔU: ___%',
-          'Isc:___A',
-          'Z:___Ω',
-          `Zref: ${ziZref === null ? '___' : ziZref.toFixed(2).replace('.', ',')}Ω`
+          `ΔU: ${spannungsfall === null ? '___' : komma(spannungsfall.prozent, 2)}%`,
+          `Isc:${ziDeltaUZ === null ? '___' : komma((0.9 * 230) / ziDeltaUZ, 1)}A`,
+          `Z:${ziDeltaUZ === null ? '___' : komma(ziDeltaUZ, 2)}Ω`,
+          `Zref: ${ziZref === null ? '___' : komma(ziZref, 2)}Ω`
         ];
+        if (spannungsfall !== null) {
+          zustand.leuchteLinksAn = !spannungsfall.io;
+          zustand.leuchteRechtsAn = spannungsfall.io;
+        }
         // Isc/Lim (siehe normale Zl-Ansicht) gehören hier nicht mehr hin -
         // ΔU hat eigene Zeilen zwischen den Strichen stattdessen.
         zustand.nebenwertLinks = null;
@@ -1244,6 +1263,7 @@ async function start() {
     risoMesswert = null;
     risoAmpel = null;
     ziMesswert = null;
+    ziDeltaUZ = null;
     ziLsTypIndex = ZI_LS_TYPEN.indexOf('B');
     ziBemessungsstromIndex = ZI_BEMESSUNGSSTROEME.indexOf('16A');
     ziAbschaltzeitIndex = ZI_ABSCHALTZEITEN.indexOf('0,4s');

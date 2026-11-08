@@ -63,6 +63,9 @@ function sorgeFuerCss() {
     }
     .pf-feld-schmal { flex: 0 0 50px; min-width: 50px; }
     .pf-feld:focus { outline: none; border-bottom: 1px solid #000; background: #fffef0; }
+    /* Prüfprotokoll-Check (sim-0bn, controller/protokoll_check.js): falsches
+       oder fehlendes Feld, Ankreuz-Gruppe oder Ankreuz-Zelle. */
+    .pf-fehler, .pf-feld.pf-fehler, .pf-feld.pf-fehler:focus { background: #ffd2d2; outline: 2px solid #d00000; }
     .pf-textarea {
       width: 100%;
       box-sizing: border-box;

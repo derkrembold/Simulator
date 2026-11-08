@@ -102,7 +102,7 @@ function zeichneNotchUndMikrofon(g) {
   }));
 }
 
-function zeichneHomescreen(g, { onTimerIconKlick, onReplayIconKlick, replayVerfuegbar } = {}) {
+function zeichneHomescreen(g, { onTimerIconKlick, onReplayIconKlick, replayVerfuegbar, checkVerfuegbar, onCheckIconKlick } = {}) {
   // Bildschirm (weiß). Höhe endet VOR dem unteren Rand der Umrandung - der
   // dunkle Rand (#333333, siehe zeichneGehaeuse()) bleibt dort sichtbar,
   // damit der Mikrofon-Schlitz auf dunklem statt weißem Grund liegt
@@ -159,6 +159,32 @@ function zeichneHomescreen(g, { onTimerIconKlick, onReplayIconKlick, replayVerfu
     fill: 'none', stroke: '#000000', 'stroke-width': 2.156,
     d: 'm 128.11286,21.111819 a 3.9447436,3.944757 0 0 1 3.81513,3.05879 3.9447436,3.944757 0 0 1 -2.09162,4.420022 3.9447436,3.944757 0 0 1 -4.78435,-1.010638 3.9447436,3.944757 0 0 1 -0.12535,-4.888332'
   }));
+
+  // Icon 3: Check-App (sim-0bn, Entwurf v1 von Claude, keine Vorlage):
+  // grünes Feld mit weißem Häkchen, in einer zweiten Reihe mittig - drei
+  // Icons passen nicht nebeneinander in den Bildschirm. Gleiche Größe und
+  // Eckenradien wie die Vorlage-Icons. Nur gezeichnet, wenn
+  // `checkVerfuegbar`. Im DOM VOR dem Replay-Icon, damit das Replay-Icon
+  // das letzte klickbare Element des Homescreens bleibt (Tests greifen
+  // es per `.last()`).
+  if (checkVerfuegbar) {
+    const iconHoehe = 16.033417 * ICON_SKALIERUNG;
+    const icon3X = SCREEN_X + (SCREEN_BREITE - ICON_BREITE) / 2;
+    const icon3Y = ICON_Y + iconHoehe + 4;
+    const icon3Gruppe = svgEl('g', {
+      transform: `translate(${icon3X},${icon3Y}) scale(${ICON_SKALIERUNG})`,
+      style: onCheckIconKlick ? 'cursor:pointer' : ''
+    });
+    if (onCheckIconKlick) icon3Gruppe.addEventListener('click', onCheckIconKlick);
+    g.appendChild(icon3Gruppe);
+    icon3Gruppe.appendChild(svgEl('rect', {
+      fill: '#1e9e3e', width: 19.341904, height: 16.033417, x: 0, y: 0, rx: 3.5629842, ry: 4.3264704
+    }));
+    icon3Gruppe.appendChild(svgEl('path', {
+      fill: 'none', stroke: '#ffffff', 'stroke-width': 2.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+      d: 'M 5.2,8.4 8.4,11.6 14.4,4.6'
+    }));
+  }
 
   // Icon 2: Replay-App (weißes Feld mit schwarzer Umrandung, Pfad aus vier
   // Knoten - Sinnbild für den Fahrplan als Route durch mehrere Messpunkte).
@@ -583,6 +609,65 @@ function zeichneTimerBereit(g, {
   schliessenGruppe.appendChild(schliessenText);
 }
 
+// Check-App (sim-0bn, Entwurf von Claude ohne Vorlage): gleiche Lage wie
+// die Timer-App (schwarzer Bildschirm, X oben rechts, Button unten), Button
+// grün mit Häkchen wie das Homescreen-Icon. `checkErgebnis` = null (noch
+// nicht geprüft) oder { anzahl } (rot markierte Felder im Protokoll).
+function zeichneCheckBereit(g, { onSchliessenKlick, onCheckPruefenKlick, checkErgebnis = null } = {}) {
+  const gruppe = svgEl('g', { transform: `translate(${TIMER_BEREIT_DX},${TIMER_BEREIT_DY})` });
+  g.appendChild(gruppe);
+
+  gruppe.appendChild(svgEl('rect', {
+    fill: '#000000', width: SCREEN_BREITE, height: APP_SCREEN_HOEHE,
+    x: 115.65977, y: 199.87042, rx: 4.3264818, ry: 4.835474
+  }));
+
+  const zeilen = ['Protokoll prüfen'];
+  if (checkErgebnis) {
+    zeilen.push(checkErgebnis.anzahl === 0 ? 'Alles richtig' : `${checkErgebnis.anzahl} ${checkErgebnis.anzahl === 1 ? 'Feld' : 'Felder'} rot`);
+  } else {
+    zeilen.push('Häkchen drücken');
+  }
+  zeilen.forEach((inhalt, i) => {
+    const text = svgEl('text', {
+      x: 140.09, y: 228 + i * 9, fill: i === 1 && checkErgebnis ? (checkErgebnis.anzahl === 0 ? '#3ad35f' : '#ff5a5a') : '#ffffff',
+      'font-size': '4.6px', 'text-anchor': 'middle'
+    });
+    text.textContent = inhalt;
+    gruppe.appendChild(text);
+  });
+
+  // Prüfen-Button: gleiche Lage/Größe wie der Play-Button der Timer-App.
+  const knopf = svgEl('g', {
+    transform: 'matrix(0.86516855,0,0,0.92857142,28.47526,19.069227)',
+    style: onCheckPruefenKlick ? 'cursor:pointer' : ''
+  });
+  if (onCheckPruefenKlick) knopf.addEventListener('click', onCheckPruefenKlick);
+  gruppe.appendChild(knopf);
+  knopf.appendChild(svgEl('rect', {
+    fill: '#1e9e3e', width: 22.650387, height: 17.814907,
+    x: 116.81491, y: 263.40616, rx: 4.1182542, ry: 4.659276
+  }));
+  knopf.appendChild(svgEl('path', {
+    fill: 'none', stroke: '#ffffff', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
+    d: 'm 123.0,272.6 3.9,3.9 7.0,-8.0'
+  }));
+
+  const schliessenGruppe = svgEl('g', {
+    transform: 'translate(87.14711,160.54285)',
+    style: onSchliessenKlick ? 'cursor:pointer' : ''
+  });
+  if (onSchliessenKlick) schliessenGruppe.addEventListener('click', onSchliessenKlick);
+  gruppe.appendChild(schliessenGruppe);
+  schliessenGruppe.appendChild(svgEl('circle', { fill: '#666666', cx: 69.04763, cy: 56.184998, r: 5.2172227 }));
+  const schliessenText = svgEl('text', {
+    x: 65.883194, y: 59.367714, fill: '#ffffff', 'font-size': '7.45064px',
+    transform: 'scale(1.010187,0.98991573)'
+  });
+  schliessenText.textContent = 'X';
+  schliessenGruppe.appendChild(schliessenText);
+}
+
 export const HandyView = {
   // `anzeigeHoehe`: reale Zielhöhe in px - analog zu SchraubendreherView,
   // damit beide Bauteile derselben Messgerät-Höhe folgen. `zustand`:
@@ -642,6 +727,8 @@ export const HandyView = {
       zeichneReplayBereit(g, callbacks);
     } else if (zustand === 'timer-bereit') {
       zeichneTimerBereit(g, callbacks);
+    } else if (zustand === 'check-bereit') {
+      zeichneCheckBereit(g, callbacks);
     } else {
       zeichneHomescreen(g, callbacks);
     }

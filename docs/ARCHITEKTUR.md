@@ -1887,6 +1887,33 @@ stellt `R:0,60Ω` wieder her; Lösen einer PE-Klemme-Schraube stürzt nicht ab
 (kein PE-Teilgraph); Lösen einer UNBETEILIGTEN Schraube (`LS2`, anderer
 Stromkreis) lässt eine laufende Messung unverändert (Isolation).
 
+### protokoll_check.js (sim-0bn)
+
+Prüfprotokoll-Check, ausgelöst über die Check-App im Handy (grünes Icon in
+der zweiten Reihe des Homescreens, Bildschirm `check-bereit` mit
+Prüfen-Button, Entwurf ohne Vorlage: `docs/referenz/check_icon_v1.png`,
+`check_app_v1.png`). `pruefeProtokoll(wurzel, { fahrplan, heute })`
+entfernt alte Markierungen, prüft und markiert Abweichungen mit der Klasse
+`pf-fehler` (CSS in view/protokoll.js), Rückgabe `{ anzahl }`.
+
+- **Regeln** für alles außerhalb der Messtabelle: `model/protokoll_soll.js`,
+  übernommen aus `docs/referenz/Pflichtfelder.md` (Arten fest, datum,
+  pflicht, auswahl, einsAus, kreuz, nio, angekreuzt, messgeraet).
+  `test_protokoll_check.js` prüft, dass jeder Eintrag der Markdown-Datei
+  eine Regel hat.
+- **Messtabelle**: Sollwerte aus den `protokollEintragen`-Schritten des
+  Fahrplans (dieselben Werte wie beim Replay). Die Benutzerzeilen werden
+  den Stromkreisen über die beste Gesamtzuordnung zugeordnet (`ordneZu()`,
+  Punkte = gleiche Messwerte), die Reihenfolge der Zeilen ist also egal.
+  Nr. und Bezeichnung müssen nur ausgefüllt sein. Ausgefüllte Zeilen ohne
+  passenden Stromkreis werden rot.
+- **Vergleich**: Zahlen streng, Komma/Punkt gleich, Einheit hinter der Zahl
+  egal (`gleicherWert()`); Text ohne Groß-/Kleinschreibung, Leerzeichen,
+  Satzzeichen, "Straße" = "Str." (`normalisiereText()`); Datum T.M.JJJJ.
+  Leer ist falsch, wenn es einen Sollwert gibt. Den richtigen Wert verrät
+  der Check nicht.
+- Ohne Fahrplan prüft der Check nur die Regeln.
+
 ### handy.js (2026-08-03)
 
 **Status: erster Schritt umgesetzt** (User-Vorgabe: "wenn du anfängst, bitte

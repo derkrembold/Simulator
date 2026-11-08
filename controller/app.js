@@ -6,6 +6,7 @@ import { SteckdosenView } from '../view/steckdosen.js';
 import { SchraubendreherView } from '../view/schraubendreher.js';
 import { HandyView } from '../view/handy.js';
 import { fuehreSchrittAus } from './fahrplan_ausfuehrung.js';
+import { pruefeProtokoll } from './protokoll_check.js';
 import { Popup } from '../view/popup.js';
 import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
 
@@ -1463,6 +1464,10 @@ async function start() {
   // `handyLaeuft` zurückgesetzt, damit eine App beim erneuten Öffnen immer
   // wieder im "bereit"-Zustand startet.
   let handyZustand = 'homescreen';
+  // Ergebnis des letzten Prüfprotokoll-Checks ({ anzahl } rot markierter
+  // Felder) oder null, solange in der geöffneten Check-App nicht geprüft
+  // wurde.
+  let checkErgebnis = null;
   let handyLaeuft = false;
   // Fester Takt für den automatischen Fahrplan-Durchlauf (User-Vorgabe
   // 2026-08-04: feste Pause, Pause-Button falls zu schnell; seit
@@ -1592,10 +1597,25 @@ async function start() {
       // gibt es auch keinen replay app icon auf dem Handy und nichts kann
       // gestartet werden."
       replayVerfuegbar: fahrplan !== null,
+      // Check-App (sim-0bn): immer verfügbar - ohne Fahrplan prüft sie nur
+      // die Felder außerhalb der Messtabelle.
+      checkVerfuegbar: true,
+      checkErgebnis,
       // Jeder Navigations-Punkt stoppt BEIDE Automatiken (nicht nur die zur
       // Zielansicht passende) - Sicherheitsnetz, falls z.B. der Timer lief
       // und man währenddessen zu Replay wechselt (oder umgekehrt), statt
       // sich auf "kann eh nicht laufen" zu verlassen.
+      onCheckIconKlick: () => {
+        handyZustand = 'check-bereit';
+        stoppeReplayAutomatik();
+        stoppeTimerAutomatik();
+        checkErgebnis = null;
+        renderHandy(handyHoehe);
+      },
+      onCheckPruefenKlick: () => {
+        checkErgebnis = pruefeProtokoll(protokollContainer, { fahrplan });
+        renderHandy(handyHoehe);
+      },
       onTimerIconKlick: () => {
         handyZustand = 'timer-bereit';
         stoppeReplayAutomatik();

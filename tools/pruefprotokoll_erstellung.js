@@ -545,7 +545,7 @@ function baueKopfdatenWerte(anlage) {
       { label: 'Ende Prüfung', wert: heute },
       { label: 'Beauftragter des Auftraggebers', wert: 'Kathi Katz' },
       { label: 'Prüfer', wert: 'Max Mustermann' },
-      { label: 'Netzbetreiber', wert: 'Stadtwerke Stuttgart' }
+      { label: 'Netzbetreiber', wert: 'Stuttgart Netze GmbH' }
     ],
     // Netz/V ist die allgemeine Netzspannung (Außenleiter/Stern), ein
     // testcase-übergreifend fester Standardwert laut BEDIENERPROZESS.md

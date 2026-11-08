@@ -1,11 +1,11 @@
 ## Kopfdaten
 * Nr. - 1
 * Blatt - 1 - von - 1 
-* Auftraggeber - ETZ Krefelderstr. 12 70376 Stuttgart
-* Kunden-Nr. - 1234
-* Auftrag-Nr. - 1234
+* Auftraggeber - ETZ Krefelderstr. 12 70376 Stuttgart (Leerzeichen, Zeilenumbrüche, Groß/klein egal)
+* Kunden-Nr. - beliebige Zahl (z.B. 1234)
+* Auftrag-Nr. - beliebige Zahl (z.B. 1234)
 * Auftragnehmer - beliebiger Name und Adresse, Hauptsache es steht etwas drin (z.B. Max Mustermann, Musterstraße 1, 12345 Musterstadt)
-* Anlage - 1
+* Anlage - beliebige Zahl (z.B. 1)
 * Standort - Krefelderstr. 12
 * Prüfung nach - DIN VDE 0105-100
 * Art der Prüfung - Wiederholungsprüfung
@@ -17,7 +17,7 @@
 ## Netz
 * Netz - 400 / 230
 * Netzform - TN-C-S
-* Betreiber - Stadtwerke Stuttgart
+* Betreiber - Stuttgart Netze GmbH (zuständiger Verteilnetzbetreiber für die Krefelder Straße 12)
 
 ## Besichtigen
 * Auswahl der Betriebsmittel - kreuz muss stehen
@@ -32,6 +32,7 @@
 * Schutzpotentialausgleich - kreuz muss stehen
 * Zusätzl. örtl. Potentialausgleich - kreuz muss stehen
 * Dokumentation - n.i.o
+* Gebäudesystemtechnik - kein Kreuz (es ist keine eingebaut, weder i.O. noch n.i.O.)
 
 ## Erproben
 * Funktionsprüfung der Anlage - kreuz muss stehen
@@ -39,7 +40,7 @@
 * Funktion der Schutz-, Sicherheits- und Überwachungseinrichtungen - kreuz muss stehen
 * Rechtsdrehfeld (Drehstromsteckdosen) - kreuz muss stehen
 * Überprüfung Spannungsfall - kreuz muss stehen
-* Gebäudesystemtechnik - kreuz muss stehen
+* Gebäudesystemtechnik - kein Kreuz (es ist keine eingebaut, weder i.O. noch n.i.O.)
 
 ## Durchgängigkeit Potentialausgleich nachgewiesen
 + Hauptschutzleiter - angekreuzt
@@ -56,14 +57,25 @@
 * Prüf-Plakette angebracht - kreuz muss stehen bei ja oder nein
 * Nächster Prüftermin - Termin muss drinstehen
 
+## Abschluss – Auftraggeber
++ Anlage vollständig übernommen - angekreuzt
++ Zustandsbericht erhalten - angekreuzt
+Ort, Datum und Unterschrift des Auftraggebers werden nicht geprüft.
+
 ## Abschluss – Prüfer
 + Anlage entspricht den anerkannten Regeln der Elektrotechnik - kreuz muss bei einen der beiden stehen
 * Ort -70376 Stuttgart
 * Datum - aktuelles Datum
 * Unterschrift - Ohne Unterschrift ist man durchgefallen, hier muss einfach nur der Name rein
 
+## Seite 2 – Mängel
+* Mängel - es muss Text drinstehen, der Inhalt wird nicht geprüft
 
+## Seite 2 – Beurteilung
+* Beurteilung - es muss Text drinstehen, der Inhalt wird nicht geprüft
 
-
-
-
+## Seite 2 – Abschluss
++ Anlage vollständig übernommen - angekreuzt
++ Zustandsbericht erhalten - angekreuzt
++ Anlage entspricht anerkannten Regeln - kreuz muss bei einem der beiden stehen
+* Ort / Datum / Unterschrift (Prüfer) - 70376 Stuttgart, aktuelles Datum und Unterschrift (beliebiger Text); der Prüfer unterschreibt immer, der Auftraggeber nicht

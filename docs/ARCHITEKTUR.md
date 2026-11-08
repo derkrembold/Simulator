@@ -1898,7 +1898,10 @@ entfernt alte Markierungen, prüft und markiert Abweichungen mit der Klasse
 
 - **Regeln** für alles außerhalb der Messtabelle: `model/protokoll_soll.js`,
   übernommen aus `docs/referenz/Pflichtfelder.md` (Arten fest, datum,
-  pflicht, auswahl, einsAus, kreuz, nio, angekreuzt, messgeraet).
+  pflicht, auswahl, einsAus, kreuz, nio, angekreuzt, messgeraet, sowie seit
+  sim-5tx zahl, keinKreuz, option, text, ortDatumUnterschrift). Geprüft
+  werden auch Seite 2 (Mängel, Beurteilung, Abschluss) und die Kreuze im
+  Abschluss des Auftraggebers; Unterschrift und Ort/Datum nur beim Prüfer.
   `test_protokoll_check.js` prüft, dass jeder Eintrag der Markdown-Datei
   eine Regel hat.
 - **Messtabelle**: Sollwerte aus den `protokollEintragen`-Schritten des
@@ -5279,7 +5282,7 @@ den PDF-Output selbst angeschaut:**
    Ankreuzfelder, Netzbetreiber) kommt 1:1 aus der Doku. Beginn/Ende Prüfung
    nutzen das aktuelle Datum statt eines festen Werts. Nebenbei einen
    Tippfehler in BEDIENERPROZESS.md gefunden und behoben ("Stattwerte" ->
-   "Stadtwerke Stuttgart"). Textfelder werden per Label-Text im DOM
+   "Stadtwerke Stuttgart"; seit sim-5tx "Stuttgart Netze GmbH"). Textfelder werden per Label-Text im DOM
    gefunden (`.pf-zeile` -> `.pf-label`), Ankreuzfelder per `.click()` auf
    den passenden `.pf-cboption`/`.pf-cb` (echter Klick, nicht nur
    `textContent` gesetzt - konsistent mit dem Rest des Tools, das immer

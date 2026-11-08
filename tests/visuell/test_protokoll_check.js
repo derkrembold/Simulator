@@ -82,6 +82,8 @@ async function fuelleRichtig(page) {
       const ab = abschnitt(r.abschnitt);
       if (r.art === 'kreuz' || r.art === 'angekreuzt') { tzeile(ab, r.label).querySelectorAll('.pf-cb')[0].click(); continue; }
       if (r.art === 'nio') { tzeile(ab, r.label).querySelectorAll('.pf-cb')[1].click(); continue; }
+      if (r.art === 'keinKreuz') continue;
+      if (r.art === 'text') { setze(ab.querySelector('input.pf-feld'), 'Keine'); continue; }
       if (r.art === 'messgeraet') {
         const z = ab.querySelectorAll('table.pf-tabelle tr')[1];
         r.werte.forEach((w, i) => setze(z.cells[i + 1].querySelector('input'), w));
@@ -93,8 +95,16 @@ async function fuelleRichtig(page) {
         [...z.querySelectorAll('.pf-cboption')].find((o) => o.textContent.replace(/[☐☒]/g, '').trim() === r.wert).querySelector('.pf-cb').click();
       } else if (r.art === 'einsAus') {
         [...z.querySelectorAll('.pf-cboption')].filter((o) => o.querySelector('.pf-cb'))[0].querySelector('.pf-cb').click();
+      } else if (r.art === 'option') {
+        z.querySelector('.pf-cboption .pf-cb').click();
+      } else if (r.art === 'fest' && r.alternativen) {
+        setze(felder[0], r.alternativen[0]);
       } else if (r.art === 'fest') {
         (r.werte ?? [r.wert]).forEach((w, i) => setze(felder[i], w));
+      } else if (r.art === 'zahl') {
+        felder.forEach((f) => setze(f, '1234'));
+      } else if (r.art === 'ortDatumUnterschrift') {
+        felder.forEach((f) => setze(f, `${r.ort}, ${heute}, Max Mustermann`));
       } else if (r.art === 'datum') {
         felder.forEach((f) => setze(f, heute));
       } else if (r.art === 'pflicht') {
@@ -181,7 +191,17 @@ async function main() {
         gleicheZahl: [m.gleicherWert('400,0', '400'), m.gleicherWert('400.0', '400'), m.gleicherWert('400 V', '400')],
         strasse: m.normalisiereText('ETZ Krefelder Straße 12, 70376 Stuttgart') === m.normalisiereText('ETZ Krefelderstr. 12 70376 Stuttgart'),
         datum: [m.istHeute('7.11.2026', heute), m.istHeute('07.11.26', heute), m.istHeute('8.11.2026', heute)],
-        zuordnung: m.ordneZu([[1, 3, 0], [3, 0, 0]])
+        zuordnung: m.ordneZu([[1, 3, 0], [3, 0, 0]]),
+        // Codex-Review zu sim-5tx: Datum mit zu langem Jahr, Ziffernrest als
+        // "Unterschrift", gültige Formate mit echter Unterschrift.
+        ortDatumUnterschrift: [
+          '70376 Stuttgart, 07.11.20260',
+          '70376 Stuttgart, 07.11.2026',
+          '70376 Stuttgart, 07.11.2026 0',
+          '70376 Stuttgart, 7.11.2026, Max Mustermann',
+          'Max Mustermann 07.11.26 70376 Stuttgart',
+          '70376 Stuttgart, 17.11.2026 Max'
+        ].map((t) => m.enthaeltOrtDatumUnterschrift(t, '70376 Stuttgart', heute))
       };
     });
     await pruefe('gleicherWert: Komma/Punkt gleich, Einheit ignoriert, Zahlen streng', async () => {
@@ -194,6 +214,9 @@ async function main() {
     });
     await pruefe('normalisiereText: Straße = Str., Satzzeichen egal', async () => erwarteGleich(ergebnis.strasse, true, 'Adresse'));
     await pruefe('istHeute: T.M.JJJJ und TT.MM.JJ', async () => erwarteGleich(ergebnis.datum.join(), 'true,true,false', 'Datum'));
+    await pruefe('enthaeltOrtDatumUnterschrift: zu langes Jahr und Ziffernrest sind keine Unterschrift', async () => {
+      erwarteGleich(ergebnis.ortDatumUnterschrift.join(), 'false,false,false,true,true,false', 'Fälle');
+    });
     await pruefe('ordneZu: beste Gesamtzuordnung statt erste passende Zeile', async () => erwarteGleich(ergebnis.zuordnung.join(), '1,0', 'Zuordnung'));
     await page.close();
   }
@@ -280,6 +303,57 @@ async function main() {
       const text = o.textContent.replace(/[☐☒]/g, '').trim();
       if (text === 'TN-C-S' || text === 'TN-S') o.querySelector('.pf-cb').click();
     });
+  }, async (e) => erwarteGleich(e.rot, 1, 'rote Felder'));
+
+  // --- sim-5tx: Findings aus dem Test mit der Check-App ---
+  await fall('Kunden-Nr., Auftrag-Nr., Anlage: beliebige Zahl ist richtig', () => {
+    const feld = (label) => [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === label);
+    feld('Kunden-Nr.').querySelector('input').value = '987';
+    feld('Auftrag-Nr.').querySelector('input').value = '42';
+    feld('Anlage').querySelector('textarea').value = '7';
+  }, async (e) => erwarteGleich(e.rot, 0, 'rote Felder'));
+
+  await fall('Kunden-Nr. ohne Zahl: rot', () => {
+    [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Kunden-Nr.').querySelector('input').value = 'abc';
+  }, async (e) => erwarteGleich(e.rot, 1, 'rote Felder'));
+
+  await fall('Adresse mit Zeilenumbruch und anderer Schreibweise: nicht rot', () => {
+    [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Auftraggeber')
+      .querySelector('textarea').value = 'etz\nKrefelder Straße 12\n70376  stuttgart';
+  }, async (e) => erwarteGleich(e.rot, 0, 'rote Felder'));
+
+  await fall('Netzbetreiber "Stuttgart Netze" richtig, "Stadtwerke Stuttgart" rot', () => {
+    [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Netzbetreiber')
+      .querySelector('input').value = 'Stadtwerke Stuttgart';
+  }, async (e, page) => {
+    erwarteGleich(e.rot, 1, 'rote Felder bei Stadtwerke Stuttgart');
+    await page.evaluate(() => {
+      [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Netzbetreiber')
+        .querySelector('input').value = 'stuttgart netze';
+    });
+    erwarteGleich((await pruefeUeberHandy(page)).rot, 0, 'rote Felder bei stuttgart netze');
+  });
+
+  await fall('Gebäudesystemtechnik angekreuzt: rot (keine eingebaut)', () => {
+    const z = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].filter((x) => x.cells[0]?.textContent === 'Gebäudesystemtechnik');
+    z[0].querySelectorAll('.pf-cb')[0].click(); // Besichtigen i.O.
+    z[1].querySelectorAll('.pf-cb')[1].click(); // Erproben n.i.O.
+  }, async (e) => erwarteGleich(e.rot, 4, 'rote Kästchen (je Zeile beide)'));
+
+  await fall('Seite 2 Mängel leer: rot', () => {
+    const ab = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Mängel');
+    ab.querySelectorAll('input').forEach((i) => { i.value = ''; });
+  }, async (e) => erwarteGleich(e.rot, 11, 'rote Linien (alle 11 der leeren Mängel-Tabelle)'));
+
+  await fall('Zustandsbericht auf Seite 1 nicht angekreuzt: rot', () => {
+    const ab = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Abschluss – Auftraggeber');
+    [...ab.querySelectorAll('.pf-zeile')].find((z) => z.textContent.includes('Zustandsbericht erhalten')).querySelector('.pf-cb').click();
+  }, async (e) => erwarteGleich(e.rot, 1, 'rote Felder'));
+
+  await fall('Seite 2 Prüfer ohne Stuttgart: rot; Auftraggeber-Unterschrift wird nicht geprüft', () => {
+    const ab = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Abschluss');
+    const z = [...ab.querySelectorAll('.pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Ort / Datum / Unterschrift (Prüfer)');
+    z.querySelector('input').value = `${new Date().toLocaleDateString('de-DE')} Max Mustermann`;
   }, async (e) => erwarteGleich(e.rot, 1, 'rote Felder'));
 
   await fall('Erneutes Prüfen nach Korrektur: Markierung verschwindet', new Function(`${zelle(3, 12)}.value = '0,99';`), async (e, page) => {

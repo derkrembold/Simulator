@@ -57,6 +57,22 @@ export function istHeute(text, heute) {
   return Number(treffer[1]) === heute.getDate() && Number(treffer[2]) === heute.getMonth() + 1 && jahr === heute.getFullYear();
 }
 
+// Ein Feld "Ort / Datum / Unterschrift": enthält den Ort (normalisiert, z.B.
+// "70376 Stuttgart"), das heutige Datum (T.M.JJJJ oder TT.MM.JJ) und
+// darüber hinaus eine Unterschrift. Das Datum darf nicht von weiteren
+// Ziffern umgeben sein ("08.11.20260" ist kein Datum), und als Unterschrift
+// zählt nur ein Rest mit Buchstaben - übrig gebliebene Ziffern eines
+// falschen Datums sind keine Unterschrift (Codex-Review zu sim-5tx).
+export function enthaeltOrtDatumUnterschrift(text, ort, heute) {
+  const roh = String(text ?? '');
+  const datum = roh.match(/(?<!\d)\d{1,2}\.\d{1,2}\.(\d{4}|\d{2})(?!\d)/);
+  if (!datum || !istHeute(datum[0], heute)) return false;
+  const ohneDatum = normalisiereText(roh.replace(datum[0], ' '));
+  const ortNorm = normalisiereText(ort);
+  if (!ohneDatum.includes(ortNorm)) return false;
+  return /[a-zäöü]/.test(ohneDatum.replace(ortNorm, ''));
+}
+
 // Beste Gesamtzuordnung Sollzeile -> Benutzerzeile: `bewertung[i][j]` =
 // Punkte, wenn Sollzeile i der Benutzerzeile j zugeordnet wird. Jede
 // Benutzerzeile höchstens einmal. Liefert je Sollzeile den Index der
@@ -115,15 +131,23 @@ function pruefeRegel(wurzel, regel, heute, markiere) {
   const abschnitt = findeAbschnitt(wurzel, regel.abschnitt);
   if (!abschnitt) return;
 
-  if (['kreuz', 'nio', 'angekreuzt'].includes(regel.art)) {
+  if (['kreuz', 'nio', 'angekreuzt', 'keinKreuz'].includes(regel.art)) {
     const zeile = findeTabellenzeile(abschnitt, regel.label);
     if (!zeile) return;
     const zellen = [...zeile.querySelectorAll('.pf-cb-zelle')];
     const [io, nio] = zellen.map(angekreuzt);
     const richtig = regel.art === 'kreuz' ? io !== nio
       : regel.art === 'nio' ? nio && !io
-        : io;
+        : regel.art === 'keinKreuz' ? !io && !nio
+          : io;
     if (!richtig) zellen.forEach(markiere);
+    return;
+  }
+
+  // Seite 2: Linien-Tabelle, mindestens eine ausgefüllte Zeile.
+  if (regel.art === 'text') {
+    const felder = [...abschnitt.querySelectorAll('input.pf-feld')];
+    if (!felder.some((f) => f.value.trim() !== '')) felder.forEach(markiere);
     return;
   }
 
@@ -139,6 +163,13 @@ function pruefeRegel(wurzel, regel, heute, markiere) {
   const zeile = findeZeile(abschnitt, regel.label);
   if (!zeile) return;
 
+  // Einzelne Ankreuz-Option (z.B. "Zustandsbericht erhalten").
+  if (regel.art === 'option') {
+    const kaestchen = zeile.querySelector('.pf-cboption .pf-cb');
+    if (kaestchen?.textContent !== '☒') markiere(zeile.querySelector('.pf-cboption') ?? zeile);
+    return;
+  }
+
   if (regel.art === 'auswahl' || regel.art === 'einsAus') {
     const an = optionen(zeile).filter((o) => o.an);
     const richtig = regel.art === 'auswahl'
@@ -153,6 +184,12 @@ function pruefeRegel(wurzel, regel, heute, markiere) {
     felder.filter((f) => f.value.trim() === '').forEach(markiere);
   } else if (regel.art === 'datum') {
     felder.filter((f) => !istHeute(f.value, heute)).forEach(markiere);
+  } else if (regel.art === 'zahl') {
+    felder.filter((f) => zahlwert(f.value) === null).forEach(markiere);
+  } else if (regel.art === 'ortDatumUnterschrift') {
+    felder.filter((f) => !enthaeltOrtDatumUnterschrift(f.value, regel.ort, heute)).forEach(markiere);
+  } else if (regel.art === 'fest' && regel.alternativen) {
+    felder.filter((f) => !regel.alternativen.some((a) => gleicherWert(f.value, a))).forEach(markiere);
   } else if (regel.art === 'fest') {
     const sollWerte = regel.werte ?? [regel.wert];
     // gleicherWert(): Zahlen (z.B. Netz 400/230, Kunden-Nr.) numerisch,

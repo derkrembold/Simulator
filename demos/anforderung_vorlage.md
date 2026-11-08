@@ -58,6 +58,10 @@ Phase bleibt dann leer.
 
 Fehler Zuleitung (Ω): optionaler Widerstand auf der Leitung zur Endstelle, leer = 0 Ω.
 
+Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
+Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:
+Steckdose, Lichtauslass; 3-polig: Drehstromsteckdose, 5-polige Anschlussdose).
+
 Die Dosen werden automatisch angeordnet: je Block von höchstens 3 Stromkreisen eine Reihe mit
 je einer Dose pro Stromkreis, weitere Dosen darunter. Der nächste Block beginnt in einer
 neuen Reihe (mehr als 3 Spalten passen nicht in die Breite des Schaltkastens).

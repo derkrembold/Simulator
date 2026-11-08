@@ -316,9 +316,14 @@ function parseSteckdosenPlatzierung(abschnitt) {
     zellen.slice(1).forEach((zelle, col) => { // erste Zelle = Zeilen-Label ("Reihe n")
       const wert = bereinige(zelle);
       if (!wert) return;
-      const treffer = wert.match(/^(SK\d+)(?:@(\d+))?$/);
+      // "SK1", "SK1@90" oder mit eigenem Typ der Dose "SK1:Lichtauslass@90"
+      // (sim-lfi: gemischte Endstellen in einem Stromkreis). Ohne Typ gilt
+      // der Typ des Stromkreises.
+      const treffer = wert.match(/^(SK\d+)(?::([^@]+?))?(?:@(\d+))?$/);
       if (!treffer) return;
-      platzierungen.push({ row, col, sk: treffer[1], rotation: treffer[2] ? parseInt(treffer[2], 10) : 0 });
+      const platz = { row, col, sk: treffer[1], rotation: treffer[3] ? parseInt(treffer[3], 10) : 0 };
+      if (treffer[2]) platz.endstelle = treffer[2].trim();
+      platzierungen.push(platz);
     });
   });
   return platzierungen;

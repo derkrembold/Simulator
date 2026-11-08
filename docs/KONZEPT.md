@@ -915,11 +915,14 @@ jede Zelle entweder `–` (leer) oder eine SK-Nummer trägt, optional mit
 Zusatzspalten/-zeilen ("Spalte 1"/"Reihe 1" usw.) sorgen nur dafür, dass die
 bedeutungslose Markdown-Kopfzeile nicht über den echten SK-Werten fett
 erscheint. Mehrfaches Vorkommen derselben SK-Nummer = mehrere
-Steckdosen/Anschlussdosen an derselben Endstelle. Der Endstellen-**Typ**
-(Steckdose vs. Anschlussdose) steht **nicht** in dieser Tabelle, sondern wird
-beim Rendern über die SK-Nummer in der schon vorhandenen `## Stromkreise`-
-Tabelle nachgeschlagen (`stromkreis.endstelle`, `"Steckdose"` oder
-`"Lichtauslass"`) - keine Redundanz.
+Steckdosen/Anschlussdosen an derselben Endstelle (elektrisch ein
+Anschlusspunkt). Der Endstellen-**Typ** kommt normalerweise aus der
+`## Stromkreise`-Tabelle (`stromkreis.endstelle`). **Gemischte Endstellen
+(sim-lfi):** eine Zelle kann den Typ der einzelnen Dose tragen, z.B.
+`SK1:Lichtauslass` (auch mit Rotation, `SK1:Lichtauslass@90`) - dann gilt
+dieser Typ für diese Dose (`platz.endstelle` in `anlage.json`). In der
+Demo-Anforderung: Endstelle `Steckdose + Lichtauslass`, Anzahl Dosen
+`2 + 1`; der erste Typ ist der Haupttyp des Stromkreises.
 
 `generate_anlage.js` (`parseSteckdosenPlatzierung()`) parst diese Tabelle in
 `anlage.steckdosen_platzierung` (Array aus `{row, col, sk, rotation}`) - kein

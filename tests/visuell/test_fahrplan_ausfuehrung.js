@@ -43,6 +43,9 @@ const { chromium } = require('playwright');
 const PROJEKT_ROOT = path.resolve(__dirname, '..', '..');
 const MIME_TYPEN = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml' };
 const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
+// Abgespielte Anlagen: alle Testcases, dazu demo_06 (gemischte Endstellen,
+// sim-lfi) - Pfad relativ zum Projektordner.
+const ANLAGEN = [...TESTCASES.map((t) => `tests/visuell/${t}`), 'demos/demo_06'];
 
 function starteServer() {
   return new Promise((resolve) => {
@@ -84,8 +87,9 @@ async function main() {
   const port = server.address().port;
   const browser = await chromium.launch();
 
-  for (const testcase of TESTCASES) {
-    const fahrplan = require(path.join(PROJEKT_ROOT, 'tests', 'visuell', testcase, 'fahrplan.json'));
+  for (const anlagePfad of ANLAGEN) {
+    const testcase = path.basename(anlagePfad);
+    const fahrplan = require(path.join(PROJEKT_ROOT, anlagePfad, 'fahrplan.json'));
     const flach = [];
     fahrplan.abschnitte.forEach((abschnitt) => abschnitt.schritte.forEach((schritt) => flach.push({ ...schritt, abschnittTitel: abschnitt.titel })));
 
@@ -94,7 +98,7 @@ async function main() {
       const fehler = [];
       page.on('pageerror', (e) => fehler.push(String(e)));
 
-      await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/${testcase}/anlage.json`);
+      await page.goto(`http://localhost:${port}/index.html?anlage=${anlagePfad}/anlage.json`);
       await page.waitForSelector('#schraubendreher svg');
       await page.getByText('ON/OFF', { exact: true }).click();
       await page.waitForTimeout(100);

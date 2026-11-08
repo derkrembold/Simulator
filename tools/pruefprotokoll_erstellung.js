@@ -686,11 +686,17 @@ const ENDSTELLEN_MEHRZAHL = {
 // (Entscheidung zu sim-nt2): Position des LS im Verteiler von links und
 // Art/Anzahl der zugeordneten Endstellen, z.B. "LS1: 2 Steckdosen". Auf den
 // Geräten steht nur das Typenschild, SK-Namen sieht der Benutzer nicht.
+// Bei gemischten Endstellen (sim-lfi) je Typ in Reihenfolge des ersten
+// Auftretens, z.B. "LS1: 2 Steckdosen, 1 Lichtauslass".
 function stromkreisBezeichnung(anlage, sk, position) {
-  const anzahl = endstellenVon(anlage, sk).length;
-  if (anzahl === 0) return `LS${position}`;
-  const art = anzahl === 1 ? sk.endstelle : (ENDSTELLEN_MEHRZAHL[sk.endstelle] ?? sk.endstelle);
-  return `LS${position}: ${anzahl} ${art}`;
+  const typen = (anlage.steckdosen_platzierung ?? [])
+    .filter((p) => p.sk === sk.bezeichnung)
+    .map((p) => p.endstelle ?? sk.endstelle);
+  if (typen.length === 0) return `LS${position}`;
+  const anzahlJeTyp = new Map();
+  for (const typ of typen) anzahlJeTyp.set(typ, (anzahlJeTyp.get(typ) ?? 0) + 1);
+  const teile = [...anzahlJeTyp].map(([typ, anzahl]) => `${anzahl} ${anzahl === 1 ? typ : (ENDSTELLEN_MEHRZAHL[typ] ?? typ)}`);
+  return `LS${position}: ${teile.join(', ')}`;
 }
 
 // Eigener Abschnitt, der die gerade gemessenen Werte ins Prüfprotokoll

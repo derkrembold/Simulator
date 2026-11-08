@@ -1263,7 +1263,8 @@ die Besichtigen-Tabelle enthält alle 14 Prüfpunkte aus der .md-Vorlage.
 `data-endstelle="Reihe-Spalte"` (Rasterposition), jeder Kontakt trägt
 `data-netz` seiner Ader - so können Werkzeug und Replay eine Messspitze an
 eine bestimmte Dose setzen, auch wenn mehrere Dosen desselben Stromkreises
-dieselben Netz-IDs haben. Viertes View-Objekt, gerendert in `#steckdosen`,
+dieselben Netz-IDs haben. Der Typ je Dose ist `platz.endstelle`, sonst
+`stromkreis.endstelle` (gemischte Endstellen, sim-lfi; Beispiel demo_06). Viertes View-Objekt, gerendert in `#steckdosen`,
 **oberhalb** von `#schaltkasten` (`index.html`: neues `<div id="steckdosen">`
 vor `<div id="schaltkasten">`, plus `#steckdosen { margin-bottom: 20px; }`
 - bewusst KEIN `display: flex; justify-content: center` wie bei Messgerät,

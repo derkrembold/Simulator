@@ -39,6 +39,25 @@ const ERLAUBT = {
   janein: ['ja', 'nein']
 };
 
+// Endstellen eines Stromkreises (sim-lfi): "Endstelle" ist ein Typ oder eine
+// Mischung "Steckdose + Lichtauslass", "Anzahl Dosen" entsprechend eine Zahl
+// oder "2 + 1". Liefert die Typen je Dose in Reihenfolge, z.B.
+// ['Steckdose', 'Steckdose', 'Lichtauslass'], oder einen Fehlertext.
+function dosenTypen(endstelleRoh, dosenRoh) {
+  const typen = String(endstelleRoh ?? '').split('+').map((t) => t.trim());
+  const anzahlen = String(dosenRoh ?? '').split('+').map((a) => a.trim());
+  if (typen.length !== anzahlen.length) {
+    return { fehler: `Endstelle "${endstelleRoh}" und Anzahl Dosen "${dosenRoh}" haben unterschiedlich viele Teile` };
+  }
+  const liste = [];
+  for (const [i, typ] of typen.entries()) {
+    const anzahl = Number(anzahlen[i]);
+    if (!Number.isInteger(anzahl) || anzahl < 1) return { fehler: `Anzahl Dosen "${dosenRoh}" ungültig (je Teil eine Zahl ab 1)` };
+    for (let k = 0; k < anzahl; k++) liste.push(typ);
+  }
+  return { typen: liste };
+}
+
 // Leiterquerschnitt (mm²) nach Nennstrom - gilt für Hauptschalterseite und Stromkreise.
 function querschnittFuerStrom(ampere) {
   const stufen = [[10, 1.5], [16, 2.5], [25, 4], [32, 6], [50, 10], [63, 16]];
@@ -90,20 +109,27 @@ function parseAnforderung(text) {
     abklemmen: z.Abklemmen
   }));
 
-  const stromkreise = leseTabelle(finde('Stromkreise') ?? '').filter((z) => z.Stromkreis).map((z) => ({
-    name: z.Stromkreis,
-    gruppe: z.Gruppe,
-    ziel: z.Ziel,
-    endstelle: z.Endstelle,
-    dosen: zahl(z['Anzahl Dosen']),
-    lsPole: zahl(z['LS Pole']),
-    lsChar: z['LS Char.'],
-    lsA: zahl(z['LS (A)']),
-    phase: z.Phase || null,
-    zi: z.Zi, zs: z.Zs, rcd: z.RCD,
-    fehlerRoh: z['Fehler Zuleitung (Ω)'] ?? '',
-    fehler: z['Fehler Zuleitung (Ω)'] ? zahl(z['Fehler Zuleitung (Ω)']) : null
-  }));
+  const stromkreise = leseTabelle(finde('Stromkreise') ?? '').filter((z) => z.Stromkreis).map((z) => {
+    const { typen, fehler } = dosenTypen(z.Endstelle, z['Anzahl Dosen']);
+    return {
+      name: z.Stromkreis,
+      gruppe: z.Gruppe,
+      ziel: z.Ziel,
+      // Haupttyp (erster Typ) für die Stromkreis-Tabelle in bauteile.md, die
+      // einzelnen Dosen in `dosenTypen`.
+      endstelle: typen?.[0] ?? z.Endstelle,
+      dosenTypen: typen ?? [],
+      dosenFehler: fehler ?? null,
+      dosen: typen?.length ?? null,
+      lsPole: zahl(z['LS Pole']),
+      lsChar: z['LS Char.'],
+      lsA: zahl(z['LS (A)']),
+      phase: z.Phase || null,
+      zi: z.Zi, zs: z.Zs, rcd: z.RCD,
+      fehlerRoh: z['Fehler Zuleitung (Ω)'] ?? '',
+      fehler: z['Fehler Zuleitung (Ω)'] ? zahl(z['Fehler Zuleitung (Ω)']) : null
+    };
+  });
 
   return {
     name: kopfdaten.Name,
@@ -154,17 +180,22 @@ function pruefeAnforderung(anf) {
     muss(aus(s.lsPole, ERLAUBT.lsPole), `Stromkreis ${n}: LS Pole "${s.lsPole}" ungültig (erlaubt: ${liste(ERLAUBT.lsPole)})`);
     muss(aus(s.lsChar, ERLAUBT.lsCharakteristik), `Stromkreis ${n}: LS Charakteristik "${s.lsChar}" ungültig (erlaubt: ${liste(ERLAUBT.lsCharakteristik)})`);
     muss(aus(s.lsA, ERLAUBT.lsNennstrom), `Stromkreis ${n}: LS (A) "${s.lsA}" ungültig (erlaubt: ${liste(ERLAUBT.lsNennstrom)})`);
+    muss(!s.dosenFehler, `Stromkreis ${n}: ${s.dosenFehler}`);
     muss(Number.isInteger(s.dosen) && s.dosen >= 1, `Stromkreis ${n}: Anzahl Dosen muss eine Zahl ab 1 sein`);
     for (const [feld, wert] of [['Zi', s.zi], ['Zs', s.zs], ['RCD', s.rcd]]) {
       muss(aus(wert, ERLAUBT.janein), `Stromkreis ${n}: ${feld} "${wert}" ungültig (ja/nein)`);
     }
     muss(s.fehlerRoh === '' || (s.fehler !== null && s.fehler >= 0), `Stromkreis ${n}: Fehler Zuleitung "${s.fehlerRoh}" ungültig (leer oder eine Zahl ab 0)`);
     if (s.lsPole === 3) {
-      muss(aus(s.endstelle, ERLAUBT.endstelleDreiphasig), `Stromkreis ${n}: Endstelle "${s.endstelle}" passt nicht zu einem 3-poligen LS (erlaubt: ${liste(ERLAUBT.endstelleDreiphasig)})`);
+      for (const typ of new Set(s.dosenTypen)) {
+        muss(aus(typ, ERLAUBT.endstelleDreiphasig), `Stromkreis ${n}: Endstelle "${typ}" passt nicht zu einem 3-poligen LS (erlaubt: ${liste(ERLAUBT.endstelleDreiphasig)})`);
+      }
       muss(!s.phase, `Stromkreis ${n}: bei 3-poligem LS muss Phase leer bleiben`);
       muss(anf.hsPole === 3, `Stromkreis ${n}: 3-poliger LS braucht einen 3-poligen Hauptschalter`);
     } else if (s.lsPole === 1) {
-      muss(aus(s.endstelle, ERLAUBT.endstelleEinphasig), `Stromkreis ${n}: Endstelle "${s.endstelle}" passt nicht zu einem 1-poligen LS (erlaubt: ${liste(ERLAUBT.endstelleEinphasig)})`);
+      for (const typ of new Set(s.dosenTypen)) {
+        muss(aus(typ, ERLAUBT.endstelleEinphasig), `Stromkreis ${n}: Endstelle "${typ}" passt nicht zu einem 1-poligen LS (erlaubt: ${liste(ERLAUBT.endstelleEinphasig)})`);
+      }
       muss(aus(s.phase, ERLAUBT.phase), `Stromkreis ${n}: Phase "${s.phase}" ungültig (erlaubt: ${liste(ERLAUBT.phase)})`);
       muss(anf.hsPole === 3 || s.phase === 'L1', `Stromkreis ${n}: bei 2-poligem Hauptschalter ist nur Phase L1 möglich`);
     }
@@ -491,7 +522,10 @@ function schreibeBauteile(anf, modell) {
     const block = sks.slice(b, b + MAX_DOSEN_SPALTEN);
     const reihen = Math.max(...block.map((s) => s.dosen));
     for (let r = 0; r < reihen; r++) {
-      const zellen = Array.from({ length: spalten }, (_, i) => (block[i] && r < block[i].dosen ? block[i].name : '–'));
+      // Weicht der Typ der Dose vom Haupttyp des Stromkreises ab, steht er
+      // in der Zelle ("SK1:Lichtauslass", sim-lfi).
+      const zelle = (s) => (s.dosenTypen[r] === s.endstelle ? s.name : `${s.name}:${s.dosenTypen[r]}`);
+      const zellen = Array.from({ length: spalten }, (_, i) => (block[i] && r < block[i].dosen ? zelle(block[i]) : '–'));
       zeilen.push(`| Reihe ${++reihenNr} | ${zellen.join(' | ')} |`);
     }
   }

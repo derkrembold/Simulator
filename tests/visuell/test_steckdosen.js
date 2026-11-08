@@ -195,6 +195,21 @@ async function main() {
     await page.close();
   });
 
+  // sim-lfi: gemischte Endstellen in einem Stromkreis - jede Dose wird mit
+  // ihrem eigenen Typ gezeichnet (Platzierung "SK1:Lichtauslass").
+  await pruefe('Steckdosen: demo_06 - SK1 mit zwei Steckdosen und einem Lichtauslass (gemischte Typen)', async () => {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    await page.goto(`http://localhost:${port}/index.html?anlage=demos/demo_06/anlage.json`);
+    await page.waitForSelector('#steckdosen svg [data-endstelle]');
+    const typen = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#steckdosen [data-endstelle]')]
+      .map((g) => [g.getAttribute('data-endstelle'), g.querySelectorAll('rect[rx]').length === 2 ? 'Steckdose' : 'Anschlussdose'])));
+    const erwartet = { '0-0': 'Steckdose', '1-0': 'Steckdose', '2-0': 'Anschlussdose', '0-1': 'Anschlussdose' };
+    if (JSON.stringify(typen, Object.keys(erwartet)) !== JSON.stringify(erwartet)) {
+      throw new Error(`Typen je Dose: ${JSON.stringify(typen)}, erwartet ${JSON.stringify(erwartet)}`);
+    }
+    await page.close();
+  });
+
   await pruefe('Steckdosen: testcase_01 - Anschlussdose (SK2) hat drei Steckklemmen in Blau/Grün/Schwarz', async () => {
     const page = await seiteMitTestcase('testcase_01');
     const farben = await page.evaluate(() => {

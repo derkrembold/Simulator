@@ -362,11 +362,13 @@ export const SteckdosenView = {
       // Netz-IDs) unterscheidbar bleiben.
       const geraet = svgEl('g', { 'data-endstelle': `${platz.row}-${platz.col}` });
       g.appendChild(geraet);
-      if (stromkreis?.endstelle === 'Steckdose') {
+      // Typ je Dose (`platz.endstelle`, sim-lfi), sonst der des Stromkreises.
+      const typ = platz.endstelle ?? stromkreis?.endstelle;
+      if (typ === 'Steckdose') {
         zeichneSteckdose(geraet, cx, cy, platz.rotation, adern, onSchraubeKlick);
-      } else if (stromkreis?.endstelle === 'Drehstromsteckdose') {
+      } else if (typ === 'Drehstromsteckdose') {
         zeichneDrehstromsteckdose(geraet, cx, cy, platz.rotation, adern, onSchraubeKlick);
-      } else if (stromkreis?.endstelle === '5-polige Anschlussdose') {
+      } else if (typ === '5-polige Anschlussdose') {
         zeichneFuenfpoligeAnschlussdose(geraet, cx, cy, platz.rotation, adern, onSchraubeKlick);
       } else {
         // Lichtauslass (und alle anderen, noch nicht eigens gezeichneten

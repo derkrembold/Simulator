@@ -191,6 +191,29 @@ pruefe('Fehlerwiderstand auf der Zuleitung landet in der Fehlertabelle von graph
   bedingung(werte.length === 1 && werte[0] === 0.45, `Fehlertabelle: ${JSON.stringify(ergebnis.graph.fehlertabelle)}`);
 });
 
+// sim-lfi: gemischte Endstellen in einem Stromkreis.
+pruefe('Gemischte Endstellen: Steckdose + Lichtauslass (2 + 1) ergibt drei Dosen mit eigenem Typ', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    gruppen: [{ id: 'G1', rcdPole: 2 }],
+    stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', endstelle: 'Steckdose + Lichtauslass', dosen: '2 + 1' }]
+  }));
+  const sk = ergebnis.anlage.hutschienen.flatMap((h) => h.gruppen).flatMap((g) => g.stromkreise)[0];
+  const typen = ergebnis.anlage.steckdosen_platzierung.filter((p) => p.sk === 'SK1').map((p) => p.endstelle ?? sk.endstelle);
+  bedingung(sk.endstelle === 'Steckdose', `Haupttyp: ${sk.endstelle}`);
+  bedingung(typen.join() === 'Steckdose,Steckdose,Lichtauslass', `Typen je Dose: ${typen.join()}`);
+  pruefeErreichbarkeit(ergebnis);
+});
+
+// Codex-Review zu sim-lfi: die erzeugte demo_06 trägt im Fahrplan die
+// gemischte Bezeichnung ins Protokoll ein.
+pruefe('demo_06: Protokoll-Bezeichnung "LS1: 2 Steckdosen, 1 Lichtauslass"', () => {
+  const fahrplan = require(path.join(__dirname, '..', '..', 'demos', 'demo_06', 'fahrplan.json'));
+  const bezeichnungen = fahrplan.abschnitte.flatMap((a) => a.schritte)
+    .filter((s) => s.funktion === 'protokollEintragen' && s.argumente[0].spalte === 1)
+    .map((s) => s.argumente[1]);
+  bedingung(bezeichnungen.join(' | ') === 'LS1: 2 Steckdosen, 1 Lichtauslass | LS2: 1 Lichtauslass', `Bezeichnungen: ${bezeichnungen.join(' | ')}`);
+});
+
 // --- Prüfregeln: die Anforderung muss mit einer klaren Meldung abgelehnt werden ---
 
 function lehntAb(name, text, erwartet) {
@@ -204,6 +227,16 @@ const basis = {
   gruppen: [{ id: 'G1', rcdPole: 2 }],
   stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
 };
+
+lehntAb('Gemischte Endstellen: Anzahl passt nicht zu den Typen', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', endstelle: 'Steckdose + Lichtauslass', dosen: '2' }]
+}), 'unterschiedlich viele Teile');
+
+lehntAb('Gemischte Endstellen: Drehstromsteckdose an einem 1-poligen LS', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', endstelle: 'Steckdose + Drehstromsteckdose', dosen: '1 + 1' }]
+}), 'Endstelle "Drehstromsteckdose" passt nicht zu einem 1-poligen LS');
 
 pruefe('Prüfregel: gültige Anforderung ohne Meldungen', () => {
   const fehler = pruefeAnforderung(parseAnforderung(baueAnforderung(basis)));

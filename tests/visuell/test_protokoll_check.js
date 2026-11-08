@@ -143,9 +143,9 @@ async function main() {
   const port = server.address().port;
   const browser = await chromium.launch();
 
-  async function neueSeite() {
+  async function neueSeite(testcase = TESTCASE) {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
-    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/${TESTCASE}/anlage.json`);
+    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/${testcase}/anlage.json`);
     await page.waitForSelector('#protokoll .pf-tabelle');
     await page.waitForSelector('#handy svg');
     return page;
@@ -222,9 +222,9 @@ async function main() {
   }
 
   // --- Check im Protokoll ---
-  async function fall(name, verfaelschen, pruefen) {
+  async function fall(name, verfaelschen, pruefen, testcase = TESTCASE) {
     await pruefe(name, async () => {
-      const page = await neueSeite();
+      const page = await neueSeite(testcase);
       await fuelleRichtig(page);
       if (verfaelschen) await page.evaluate(verfaelschen);
       const ergebnis = await pruefeUeberHandy(page);
@@ -322,16 +322,20 @@ async function main() {
       .querySelector('textarea').value = 'etz\nKrefelder Straße 12\n70376  stuttgart';
   }, async (e) => erwarteGleich(e.rot, 0, 'rote Felder'));
 
-  await fall('Netzbetreiber "Stuttgart Netze" richtig, "Stadtwerke Stuttgart" rot', () => {
+  // sim-ha0: Stadtwerke Stuttgart ist ebenfalls richtig.
+  await fall('Netzbetreiber "Stadtwerke Stuttgart" und "stuttgart netze" richtig, anderer Betreiber rot', () => {
     [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Netzbetreiber')
       .querySelector('input').value = 'Stadtwerke Stuttgart';
   }, async (e, page) => {
-    erwarteGleich(e.rot, 1, 'rote Felder bei Stadtwerke Stuttgart');
-    await page.evaluate(() => {
+    erwarteGleich(e.rot, 0, 'rote Felder bei Stadtwerke Stuttgart');
+    const setze = (wert) => page.evaluate((w) => {
       [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Netzbetreiber')
-        .querySelector('input').value = 'stuttgart netze';
-    });
+        .querySelector('input').value = w;
+    }, wert);
+    await setze('stuttgart netze');
     erwarteGleich((await pruefeUeberHandy(page)).rot, 0, 'rote Felder bei stuttgart netze');
+    await setze('Netze BW');
+    erwarteGleich((await pruefeUeberHandy(page)).rot, 1, 'rote Felder bei Netze BW');
   });
 
   await fall('Gebäudesystemtechnik angekreuzt: rot (keine eingebaut)', () => {
@@ -355,6 +359,61 @@ async function main() {
     const z = [...ab.querySelectorAll('.pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Ort / Datum / Unterschrift (Prüfer)');
     z.querySelector('input').value = `${new Date().toLocaleDateString('de-DE')} Max Mustermann`;
   }, async (e) => erwarteGleich(e.rot, 1, 'rote Felder'));
+
+  // --- sim-ha0: Findings aus demo_06 ---
+  await fall('Anlage mit Buchstaben richtig, leer rot', () => {
+    [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Anlage')
+      .querySelector('textarea').value = 'A1';
+  }, async (e, page) => {
+    erwarteGleich(e.rot, 0, 'rote Felder bei A1');
+    await page.evaluate(() => {
+      [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Anlage')
+        .querySelector('textarea').value = '';
+    });
+    erwarteGleich((await pruefeUeberHandy(page)).rot, 1, 'rote Felder bei leerer Anlage');
+  });
+
+  await fall('Ort ohne Postleitzahl: Seite 1 und Seite 2 richtig, Trennzeichen egal', () => {
+    const heute = new Date().toLocaleDateString('de-DE');
+    const prueferAb = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Abschluss – Prüfer');
+    [...prueferAb.querySelectorAll('.pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Ort').querySelector('input').value = 'Stuttgart';
+    const ab = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Abschluss');
+    [...ab.querySelectorAll('.pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Ort / Datum / Unterschrift (Prüfer)')
+      .querySelector('input').value = `Stuttgart ${heute} rambo`;
+  }, async (e, page) => {
+    erwarteGleich(e.rot, 0, 'rote Felder ohne PLZ');
+    // Weitere Schreibweisen im kombinierten Feld; ohne Unterschrift rot.
+    for (const [vorlage, soll] of [['Stuttgart; {d}; rambo', 0], ['Stuttgart / {d} / rambo', 0], ['70376 Stuttgart, {d}, rambo', 0], ['70376 Stuttgart {d}', 1]]) {
+      await page.evaluate((v) => {
+        const ab = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Abschluss');
+        [...ab.querySelectorAll('.pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Ort / Datum / Unterschrift (Prüfer)')
+          .querySelector('input').value = v.replace('{d}', new Date().toLocaleDateString('de-DE'));
+      }, vorlage);
+      erwarteGleich((await pruefeUeberHandy(page)).rot, soll, `rote Felder bei "${vorlage}"`);
+    }
+  });
+
+  await fall('Rechtsdrehfeld leer bei Anlage mit Drehstromsteckdose: rot', () => {
+    const z = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((x) => x.cells[0]?.textContent === 'Rechtsdrehfeld (Drehstromsteckdosen)');
+    z.querySelectorAll('.pf-cb')[0].click();
+  }, async (e) => erwarteGleich(e.rot, 2, 'rote Kästchen'));
+
+  await fall('Rechtsdrehfeld leer bei Anlage ohne Drehstrom-Endstelle (testcase_01): nicht rot', () => {
+    const z = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((x) => x.cells[0]?.textContent === 'Rechtsdrehfeld (Drehstromsteckdosen)');
+    z.querySelectorAll('.pf-cb')[0].click();
+  }, async (e) => erwarteGleich(e.rot, 0, 'rote Felder'), 'testcase_01');
+
+  await pruefe('hatDrehstromEndstelle: testcase_05 und _06 ja, testcase_01 nein', async () => {
+    const page = await neueSeite();
+    const ergebnis = await page.evaluate(async () => {
+      const { hatDrehstromEndstelle } = await import('/model/protokoll_soll.js');
+      const lade = async (tc) => (await fetch(`/tests/visuell/${tc}/anlage.json`)).json();
+      return [hatDrehstromEndstelle(await lade('testcase_05')), hatDrehstromEndstelle(await lade('testcase_06')), hatDrehstromEndstelle(await lade('testcase_01')),
+        hatDrehstromEndstelle({ hutschienen: [], steckdosen_platzierung: [{ endstelle: '5-polige Anschlussdose' }] })].join();
+    });
+    erwarteGleich(ergebnis, 'true,true,false,true', 'Drehstrom-Endstelle');
+    await page.close();
+  });
 
   await fall('Erneutes Prüfen nach Korrektur: Markierung verschwindet', new Function(`${zelle(3, 12)}.value = '0,99';`), async (e, page) => {
     erwarteGleich(e.rot, 1, 'rote Felder vor Korrektur');

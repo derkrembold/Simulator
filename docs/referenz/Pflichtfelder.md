@@ -5,7 +5,7 @@
 * Kunden-Nr. - beliebige Zahl (z.B. 1234)
 * Auftrag-Nr. - beliebige Zahl (z.B. 1234)
 * Auftragnehmer - beliebiger Name und Adresse, Hauptsache es steht etwas drin (z.B. Max Mustermann, Musterstraße 1, 12345 Musterstadt)
-* Anlage - beliebige Zahl (z.B. 1)
+* Anlage - beliebiger Text aus Buchstaben und/oder Zahlen, Hauptsache es steht etwas drin (z.B. 1 oder A1)
 * Standort - Krefelderstr. 12
 * Prüfung nach - DIN VDE 0105-100
 * Art der Prüfung - Wiederholungsprüfung
@@ -17,7 +17,7 @@
 ## Netz
 * Netz - 400 / 230
 * Netzform - TN-C-S
-* Betreiber - Stuttgart Netze GmbH (zuständiger Verteilnetzbetreiber für die Krefelder Straße 12)
+* Betreiber - Stuttgart Netze GmbH (zuständiger Verteilnetzbetreiber für die Krefelder Straße 12); Stadtwerke Stuttgart ist auch richtig
 
 ## Besichtigen
 * Auswahl der Betriebsmittel - kreuz muss stehen
@@ -38,7 +38,7 @@
 * Funktionsprüfung der Anlage - kreuz muss stehen
 * FI-Schutzschalter (RCD) - kreuz muss stehen
 * Funktion der Schutz-, Sicherheits- und Überwachungseinrichtungen - kreuz muss stehen
-* Rechtsdrehfeld (Drehstromsteckdosen) - kreuz muss stehen
+* Rechtsdrehfeld (Drehstromsteckdosen) - kreuz muss stehen, wenn die Anlage eine Drehstromsteckdose oder Herdanschlussdose hat; sonst wird es nicht geprüft und darf leer bleiben
 * Überprüfung Spannungsfall - kreuz muss stehen
 * Gebäudesystemtechnik - kein Kreuz (es ist keine eingebaut, weder i.O. noch n.i.O.)
 
@@ -64,7 +64,7 @@ Ort, Datum und Unterschrift des Auftraggebers werden nicht geprüft.
 
 ## Abschluss – Prüfer
 + Anlage entspricht den anerkannten Regeln der Elektrotechnik - kreuz muss bei einen der beiden stehen
-* Ort -70376 Stuttgart
+* Ort - Stuttgart (Postleitzahl 70376 davor erlaubt, aber nicht nötig)
 * Datum - aktuelles Datum
 * Unterschrift - Ohne Unterschrift ist man durchgefallen, hier muss einfach nur der Name rein
 
@@ -78,4 +78,4 @@ Ort, Datum und Unterschrift des Auftraggebers werden nicht geprüft.
 + Anlage vollständig übernommen - angekreuzt
 + Zustandsbericht erhalten - angekreuzt
 + Anlage entspricht anerkannten Regeln - kreuz muss bei einem der beiden stehen
-* Ort / Datum / Unterschrift (Prüfer) - 70376 Stuttgart, aktuelles Datum und Unterschrift (beliebiger Text); der Prüfer unterschreibt immer, der Auftraggeber nicht
+* Ort / Datum / Unterschrift (Prüfer) - Stuttgart (PLZ erlaubt, nicht nötig), aktuelles Datum und Unterschrift (beliebiger Text), Trennzeichen egal; der Prüfer unterschreibt immer, der Auftraggeber nicht

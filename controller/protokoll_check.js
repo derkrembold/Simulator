@@ -127,7 +127,8 @@ const angekreuzt = (zelle) => zelle?.querySelector('.pf-cb')?.textContent === '�
 
 // --- Regeln prüfen ---
 
-function pruefeRegel(wurzel, regel, heute, markiere) {
+function pruefeRegel(wurzel, regel, heute, drehstrom, markiere) {
+  if (regel.nurMitDrehstrom && !drehstrom) return;
   const abschnitt = findeAbschnitt(wurzel, regel.abschnitt);
   if (!abschnitt) return;
 
@@ -266,8 +267,9 @@ function pruefeMesstabelle(wurzel, fahrplan, markiere) {
 // --- Einstieg ---
 
 // Entfernt alte Markierungen, prüft neu und liefert die Anzahl der rot
-// markierten Felder.
-export function pruefeProtokoll(wurzel, { fahrplan = null, heute = new Date() } = {}) {
+// markierten Felder. `drehstrom` = Anlage hat eine Drehstrom-Endstelle
+// (hatDrehstromEndstelle()); ohne gilt das Rechtsdrehfeld als nicht nötig.
+export function pruefeProtokoll(wurzel, { fahrplan = null, heute = new Date(), drehstrom = true } = {}) {
   wurzel.querySelectorAll('.pf-fehler').forEach((el) => el.classList.remove('pf-fehler'));
   let anzahl = 0;
   const markiere = (el) => {
@@ -275,7 +277,7 @@ export function pruefeProtokoll(wurzel, { fahrplan = null, heute = new Date() } 
     el.classList.add('pf-fehler');
     anzahl += 1;
   };
-  for (const regel of PROTOKOLL_REGELN) pruefeRegel(wurzel, regel, heute, markiere);
+  for (const regel of PROTOKOLL_REGELN) pruefeRegel(wurzel, regel, heute, drehstrom, markiere);
   if (fahrplan) pruefeMesstabelle(wurzel, fahrplan, markiere);
   return { anzahl };
 }

@@ -18,7 +18,7 @@
 //
 // Aufruf: node tests/visuell/test_pruefprotokoll.js
 const path = require('path');
-const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
+const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
 const { parseBauteile } = require('./generate_anlage.js');
 
 const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
@@ -111,6 +111,32 @@ async function main() {
   });
   await pruefe('kleinsterRiso: ungültiger Wert (---) bleibt sichtbar', async () => {
     erwarteGleich(kleinsterRiso(['>999', '---', '2']), '---', 'mit ---');
+  });
+
+  // sim-f7j: Ohne RCD ist der LS selbst die Trennstelle. Sonst misst Riso
+  // über die Sammelschiene die Elektronik eines RCD Typ B einer anderen
+  // Gruppe mit (demo_08 SK4: 13 MΩ statt >999).
+  await pruefe('naechsteTrennstelle: AFDD-LS, Gruppen-RCD, ohne RCD der LS', async () => {
+    const ls = (afdd) => ({
+      name: 'LS4', afdd,
+      eingang: { leitung: { adern: [{ funktion: 'L1', netz: 'N1' }, { funktion: 'L2', netz: 'N2' }, { funktion: 'N', netz: 'N9' }] } }
+    });
+    const sk = (afdd) => ({ phasen: ['L1', 'L2'], ls: ls(afdd) });
+    const text = (t) => `${t.bauteil} ${t.netze.join('/')} ${t.istLeckageQuelle}`;
+    erwarteGleich(text(naechsteTrennstelle(sk(false), {}, ['L1', 'N'])), 'LS4 N1 false', 'ohne RCD');
+    erwarteGleich(text(naechsteTrennstelle(sk(true), { rcd: { name: 'RCD1', typ: 'A' } }, ['L1', 'L2'])), 'LS4 N1/N2 true', 'AFDD');
+    erwarteGleich(text(naechsteTrennstelle(sk(false), { rcd: { name: 'RCD1', typ: 'B' } }, ['L2', 'PE'])), 'RCD1 N2 true', 'RCD Typ B');
+  });
+
+  // sim-f7j, integriert: demo_08 hat einen Stromkreis ohne RCD (SK4, L1-L3)
+  // und auf L1 einen RCD Typ B einer anderen Gruppe (G1). Ohne geöffneten
+  // LS ergab Riso auf L1 die 13 MΩ der Typ-B-Elektronik.
+  await pruefe('demo_08 SK4 (ohne RCD, RCD Typ B auf derselben Phase): Riso überall >999MΩ', async () => {
+    const { ergebnisse } = await berechneProtokoll('../../demos/demo_08');
+    const sk4 = ergebnisse.find((e) => e.sk === 'SK4');
+    const nichtUnendlich = sk4.risoMessungen.filter((m) => m.wert !== '>999');
+    if (nichtUnendlich.length > 0) throw new Error(`Riso: ${JSON.stringify(nichtUnendlich)}`);
+    erwarteGleich(sk4.riso, '>999', 'Riso im Protokoll');
   });
 
   for (const testcase of TESTCASES) {

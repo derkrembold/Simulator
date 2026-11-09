@@ -55,7 +55,8 @@ function aderNetz(sk, funktion) {
 }
 
 // Nächstgelegene Trennstelle zwischen Endstelle und Einspeisung (der LS
-// selbst, falls AFDD-Kombigerät, sonst das Gruppen-RCD) - deren Schraube
+// selbst, falls AFDD-Kombigerät oder die Gruppe keinen RCD hat, sonst das
+// Gruppen-RCD) - deren Schraube
 // MUSS vor RISO geöffnet werden, UNABHÄNGIG davon, ob dieses konkrete
 // Bauteil selbst Typ B/AFDD ist. Grund (Fund vom 2026-07-31, beim
 // Verallgemeinern auf testcase_05): der Hauptschalter allein reicht NICHT
@@ -83,7 +84,10 @@ function naechsteTrennstelle(sk, gruppe, phasen) {
     const istTypBOderAfdd = gruppe.rcd.typ === 'B' || gruppe.rcd.typ === 'B+';
     return { bauteil: gruppe.rcd.name, netze, istLeckageQuelle: istTypBOderAfdd };
   }
-  return null;
+  // Ohne RCD trennt nur der LS den Stromkreis von der Sammelschiene. Sonst
+  // erreicht die Sonde über die Sammelschiene einen RCD Typ B/AFDD einer
+  // anderen Gruppe und misst dessen Elektronik mit (sim-f7j).
+  return { bauteil: sk.ls.name, netze, istLeckageQuelle: false };
 }
 
 // Riso-Messpaare (Schwarz/Blau): jeder Außenleiter gegen N und gegen PE,
@@ -993,7 +997,7 @@ async function main() {
   await ctx.schliessen();
 }
 
-module.exports = { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, SPALTE };
+module.exports = { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE };
 
 // Nur bei direktem Aufruf ausführen, nicht beim require() aus
 // test_pruefprotokoll.js (analog zum Muster in generate_anlage.js).

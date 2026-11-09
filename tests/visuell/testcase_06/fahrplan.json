@@ -1585,8 +1585,16 @@
     },
     {
       "titel": "SK1 L1-N: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N9"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -1632,13 +1640,29 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N9"
+          ],
+          "ergebnis": null
         }
       ]
     },
     {
       "titel": "SK1 L2-N: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N10"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -1684,13 +1708,29 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N10"
+          ],
+          "ergebnis": null
         }
       ]
     },
     {
       "titel": "SK1 L3-N: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N11"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -1736,13 +1776,29 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N11"
+          ],
+          "ergebnis": null
         }
       ]
     },
     {
       "titel": "SK1 L1-PE: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N9"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -1788,13 +1844,29 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N9"
+          ],
+          "ergebnis": null
         }
       ]
     },
     {
       "titel": "SK1 L2-PE: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N10"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -1840,13 +1912,29 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N10"
+          ],
+          "ergebnis": null
         }
       ]
     },
     {
       "titel": "SK1 L3-PE: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N11"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -1892,13 +1980,37 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N11"
+          ],
+          "ergebnis": null
         }
       ]
     },
     {
       "titel": "SK1 L1-L2: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N9"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N10"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -1944,13 +2056,45 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N9"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N10"
+          ],
+          "ergebnis": null
         }
       ]
     },
     {
       "titel": "SK1 L1-L3: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N9"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N11"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -1996,13 +2140,45 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N9"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N11"
+          ],
+          "ergebnis": null
         }
       ]
     },
     {
       "titel": "SK1 L2-L3: Riso Verbraucher ohne",
-      "begruendung": "Anlage ist freigeschaltet, kein RCD auf diesem Stromkreis - an den Abgangsklemmen messen.",
+      "begruendung": "Anlage ist freigeschaltet. Schraube von LS1 öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.",
       "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N10"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N11"
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "drehknopfAufModus",
           "argumente": [
@@ -2048,6 +2224,22 @@
             "hauptmesswert"
           ],
           "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N10"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "LS1",
+            "N11"
+          ],
+          "ergebnis": null
         }
       ]
     },

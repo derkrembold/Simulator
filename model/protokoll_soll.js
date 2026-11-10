@@ -51,7 +51,7 @@ export const PROTOKOLL_REGELN = [
   { abschnitt: K, label: 'Auftrag-Nr.', art: 'zahl' },
   { abschnitt: K, label: 'Auftragnehmer', art: 'pflicht' },
   { abschnitt: K, label: 'Anlage', art: 'pflicht' },
-  { abschnitt: K, label: 'Standort', art: 'fest', wert: 'Krefelderstr. 12' },
+  { abschnitt: K, label: 'Standort', art: 'pflicht' },
   { abschnitt: K, label: 'Prüfung nach', art: 'auswahl', wert: 'DIN VDE 0105-100' },
   { abschnitt: K, label: 'Art der Prüfung', art: 'auswahl', wert: 'Wiederholungsprüfung' },
   { abschnitt: K, label: 'Beginn Prüfung', art: 'datum' },

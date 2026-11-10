@@ -6,7 +6,7 @@
 * Auftrag-Nr. - beliebige Zahl (z.B. 1234)
 * Auftragnehmer - beliebiger Name und Adresse, Hauptsache es steht etwas drin (z.B. Max Mustermann, Musterstraße 1, 12345 Musterstadt)
 * Anlage - beliebiger Text aus Buchstaben und/oder Zahlen, Hauptsache es steht etwas drin (z.B. 1 oder A1)
-* Standort - Krefelderstr. 12
+* Standort - beliebiger Text aus Buchstaben und/oder Zahlen, Hauptsache es steht etwas drin (z.B. Krefelderstr. 12 oder Raum 7)
 * Prüfung nach - DIN VDE 0105-100
 * Art der Prüfung - Wiederholungsprüfung
 * Beginn Prüfung - aktuelles Datum

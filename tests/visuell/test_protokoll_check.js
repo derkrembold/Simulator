@@ -373,6 +373,19 @@ async function main() {
     erwarteGleich((await pruefeUeberHandy(page)).rot, 1, 'rote Felder bei leerer Anlage');
   });
 
+  // sim-mml: Standort darf beliebigen Text enthalten, muss aber ausgefüllt sein.
+  await fall('Standort mit beliebigem Text richtig, leer rot', () => {
+    const z = [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Standort');
+    z.querySelector('input.pf-feld, textarea').value = 'Raum 7, 2. OG';
+  }, async (e, page) => {
+    erwarteGleich(e.rot, 0, 'rote Felder bei Raum 7, 2. OG');
+    await page.evaluate(() => {
+      const z = [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Standort');
+      z.querySelector('input.pf-feld, textarea').value = '';
+    });
+    erwarteGleich((await pruefeUeberHandy(page)).rot, 1, 'rote Felder bei leerem Standort');
+  });
+
   await fall('Ort ohne Postleitzahl: Seite 1 und Seite 2 richtig, Trennzeichen egal', () => {
     const heute = new Date().toLocaleDateString('de-DE');
     const prueferAb = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Abschluss – Prüfer');

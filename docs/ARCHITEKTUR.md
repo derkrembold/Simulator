@@ -1903,7 +1903,7 @@ entfernt alte Markierungen, prüft und markiert Abweichungen mit der Klasse
   sim-5tx zahl, keinKreuz, option, text, ortDatumUnterschrift). Geprüft
   werden auch Seite 2 (Mängel, Beurteilung, Abschluss) und die Kreuze im
   Abschluss des Auftraggebers; Unterschrift und Ort/Datum nur beim Prüfer.
-  Seit sim-ha0: Anlage nur Pflicht, Ort ohne Postleitzahl, Stadtwerke
+  Seit sim-ha0: Anlage nur Pflicht (seit sim-mml auch Standort), Ort ohne Postleitzahl, Stadtwerke
   Stuttgart als Netzbetreiber zulässig. Das Rechtsdrehfeld (Regel mit
   `nurMitDrehstrom`) wird nur geprüft, wenn die Anlage eine
   Drehstromsteckdose oder 5-polige Anschlussdose hat

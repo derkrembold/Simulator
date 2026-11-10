@@ -6,6 +6,8 @@
 //   node tools/demo_erstellung.js <demo>           erzeugt alles aus demos/<demo>/anforderung.md
 //   node tools/demo_erstellung.js <demo> --nur-modell
 //                                                  nur netzplan.md, bauteile.md, anlage.json, graph.json
+//   node tools/demo_erstellung.js testcase_NN      erzeugt einen Testcase neu, der aus einer Demo entstanden ist
+//                                                  (tests/visuell/testcase_NN/anforderung.md)
 //
 // Schritte: Anforderung prüfen -> netzplan.md + bauteile.md schreiben -> generate_anlage.js
 // (anlage.json, graph.json) -> Verdrahtungsprüfung gegen das gerenderte Bild -> fahrplan.json
@@ -19,6 +21,7 @@ const generator = require('../tests/visuell/generate_anlage.js');
 const PROJEKT_ROOT = path.resolve(__dirname, '..');
 const DEMOS_ORDNER = path.join(PROJEKT_ROOT, 'demos');
 const VORLAGE = path.join(DEMOS_ORDNER, 'anforderung_vorlage.md');
+const TESTCASES_ORDNER = path.join(PROJEKT_ROOT, 'tests', 'visuell');
 
 const MAX_TE_PRO_HUTSCHIENE = 16;
 const FARBE = { L1: 'schwarz', L2: 'braun', L3: 'grau', N: 'blau', PE: 'gn-ge' };
@@ -573,7 +576,8 @@ function main() {
     console.error('Beispiel: node tools/demo_erstellung.js demo_02 --neu');
     process.exit(1);
   }
-  const ordner = path.join(DEMOS_ORDNER, demo);
+  // Testcases, die aus einer Demo entstanden sind (sim-qlp), liegen unter tests/visuell/.
+  const ordner = /^testcase_\d+$/.test(demo) ? path.join(TESTCASES_ORDNER, demo) : path.join(DEMOS_ORDNER, demo);
   const anforderungPfad = path.join(ordner, 'anforderung.md');
 
   if (flags.includes('--neu')) {
@@ -603,7 +607,7 @@ function main() {
   if (flags.includes('--nur-modell')) return;
 
   // Die Werkzeuge in tools/ erwarten den Pfad relativ zu tests/visuell/.
-  const werkzeugName = path.relative(path.join(PROJEKT_ROOT, 'tests', 'visuell'), ordner).replace(/\\/g, '/');
+  const werkzeugName = path.relative(TESTCASES_ORDNER, ordner).replace(/\\/g, '/');
   const schritte = [
     ['Verdrahtungsprüfung (alle Stromkreise und Phasen)', ['tools/pfad_zur_einspeisung.js', werkzeugName, '--alle']],
     ['Fahrplan und Prüfprotokoll', ['tools/pruefprotokoll_erstellung.js', werkzeugName]],
@@ -616,7 +620,8 @@ function main() {
       process.exit(1);
     }
   }
-  console.log(`\nFertig. Ansehen: http://localhost:3000/?anlage=demos/${demo}/anlage.json (npx serve)`);
+  const anlageUrl = path.relative(PROJEKT_ROOT, path.join(ordner, 'anlage.json')).replace(/\\/g, '/');
+  console.log(`\nFertig. Ansehen: http://localhost:3000/?anlage=${anlageUrl} (npx serve)`);
 }
 
 module.exports = { parseAnforderung, pruefeAnforderung, erzeugeModell, ERLAUBT };

@@ -60,7 +60,7 @@ Simulator/
 |
 |-- demos/                   <- Demo-Anlagen, getrennt von den Testcases (tools/demo_erstellung.js)
 |   |-- anforderung_vorlage.md
-|   +-- demo_01/
+|   +-- demo_04/
 |
 |-- docs/                    <- Konzept, Architektur, Referenz
 |   |-- KONZEPT.md
@@ -1264,7 +1264,7 @@ die Besichtigen-Tabelle enthält alle 14 Prüfpunkte aus der .md-Vorlage.
 `data-netz` seiner Ader - so können Werkzeug und Replay eine Messspitze an
 eine bestimmte Dose setzen, auch wenn mehrere Dosen desselben Stromkreises
 dieselben Netz-IDs haben. Der Typ je Dose ist `platz.endstelle`, sonst
-`stromkreis.endstelle` (gemischte Endstellen, sim-lfi; Beispiel demo_06). Viertes View-Objekt, gerendert in `#steckdosen`,
+`stromkreis.endstelle` (gemischte Endstellen, sim-lfi; Beispiel testcase_07). Viertes View-Objekt, gerendert in `#steckdosen`,
 **oberhalb** von `#schaltkasten` (`index.html`: neues `<div id="steckdosen">`
 vor `<div id="schaltkasten">`, plus `#steckdosen { margin-bottom: 20px; }`
 - bewusst KEIN `display: flex; justify-content: center` wie bei Messgerät,
@@ -5655,8 +5655,16 @@ Eingebunden in `package.json`s `test`-Skript, direkt nach
 **Zweck:** erzeugt eine Demo-Anlage aus einer einfachen Anforderung, statt `netzplan.md` und
 `bauteile.md` von Hand zu schreiben (siehe Ticket sim-m31). Demos liegen unter `demos/demo_NN/`
 und nicht unter `tests/visuell/`, weil `run_tests.js` jeden Unterordner von `tests/visuell/` als
-Testcase mitprüft und der Testlauf nicht wachsen soll. `demos/demo_01` ist die von Hand gebaute
-Referenz (ohne Skill), aus der der Skill abgeleitet wurde.
+Testcase mitprüft und der Testlauf nicht wachsen soll. Die von Hand gebaute Anlage zur ausgefüllten
+Vorlage (früher `demos/demo_01`, aus der der Skill abgeleitet wurde) liegt als Referenz in
+`tests/visuell/referenz/vorlage_anlage.json`; `run_tests.js` prüft nur Ordner `testcase_NN`.
+
+Eine Demo, die als festes Prüfstück dienen soll, wird zum Testcase (sim-qlp): Ordner nach
+`tests/visuell/testcase_NN/` verschieben, Kopf der `anforderung.md` anpassen und mit
+`node tools/demo_erstellung.js testcase_NN` neu erzeugen (das Werkzeug liest dann
+`tests/visuell/testcase_NN/anforderung.md`). Danach `anlage.svg` als Referenzbild rendern und den
+Testcase in die `TESTCASES`-Listen von `test_pruefprotokoll.js` und `test_fahrplan_ausfuehrung.js`
+aufnehmen. So entstanden `testcase_07` (aus demo_06) und `testcase_08` (aus demo_08).
 
 ```
 node tools/demo_erstellung.js demo_02 --neu        # legt demos/demo_02/anforderung.md aus der Vorlage an
@@ -5713,15 +5721,15 @@ einem relativen Namen wie `../../demos/demo_02` laufen sie ohne Codeänderung au
 Pages ist es nicht geprüft.
 
 **Test:** `tests/visuell/test_demo_erstellung.js` (Teil von `npm test`, ohne Browser, in
-Temp-Ordnern): Die Vorlage erzeugt dieselbe `anlage.json` wie die von Hand gebaute `demos/demo_01`
-(verglichen ohne Netz-IDs); zweite Gruppe mit 4-poligem RCD Typ B; dritte Gruppe wandert auf eine
+Temp-Ordnern): Die Vorlage erzeugt dieselbe `anlage.json` wie die von Hand gebaute Referenz
+`tests/visuell/referenz/vorlage_anlage.json` (verglichen ohne Netz-IDs); zweite Gruppe mit 4-poligem RCD Typ B; dritte Gruppe wandert auf eine
 zweite Hutschiene; 3-poliger LS ohne RCD (wie testcase_06); 4-poliger RCD mit 3-poligem LS und
 Drehstromsteckdose (wie testcase_05); 2-poliger Hauptschalter (wie testcase_01); Fehlerwiderstand
 in `graph.json`; vierzehn abgelehnte Anforderungen mit der erwarteten Meldung (u. a. `SK01`,
 `16abc`, negativer oder unlesbarer Fehlerwiderstand, unlesbare RCD-Polzahl, die nicht still als
 `ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
 `istSpannungFuehrend()` mit der Einspeisung verbunden sein. Zusätzlich prüft der Test im headless
-Browser, dass bei den eingecheckten `demos/demo_01` und `demos/demo_02` alle Pfade im Graphen und
+Browser, dass bei `demos/demo_04`, `testcase_07` und `testcase_08` alle Pfade im Graphen und
 im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).
 
 **Review (Codex, Ticket sim-m31):** Drei Befunde umgesetzt. Stromkreisnamen müssen kanonisch sein

@@ -1,4 +1,4 @@
-# Netzplan – demo_08
+# Netzplan – testcase_08
 
 Aus `anforderung.md` erzeugt (`tools/demo_erstellung.js`), nicht von Hand ändern.
 

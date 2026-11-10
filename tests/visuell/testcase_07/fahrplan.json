@@ -1,5 +1,5 @@
 {
-  "anlage": "tests/visuell/../../demos/demo_06/anlage.json",
+  "anlage": "tests/visuell/testcase_07/anlage.json",
   "abschnitte": [
     {
       "titel": "Einspeisung L1/N/PE: Spannung prüfen",
@@ -2070,7 +2070,7 @@
     },
     {
       "titel": "Protokoll: Überstromschutz eintragen",
-      "begruendung": "Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild sowie Zi/Ik und, ohne RCD, Zs/Ik eintragen. Bei Drehstrom der schlechteste Außenleiter.",
+      "begruendung": "Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild eintragen, dazu mit RCD Zi/Ik L-N, ohne RCD Zs/Ik L-PE. Bei Drehstrom der schlechteste Außenleiter.",
       "schritte": [
         {
           "funktion": "protokollEintragen",

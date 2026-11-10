@@ -42,10 +42,9 @@ const { chromium } = require('playwright');
 
 const PROJEKT_ROOT = path.resolve(__dirname, '..', '..');
 const MIME_TYPEN = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml' };
-const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
-// Abgespielte Anlagen: alle Testcases, dazu demo_06 (gemischte Endstellen,
-// sim-lfi) - Pfad relativ zum Projektordner.
-const ANLAGEN = [...TESTCASES.map((t) => `tests/visuell/${t}`), 'demos/demo_06'];
+const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06', 'testcase_07', 'testcase_08'];
+// Abgespielte Anlagen, Pfad relativ zum Projektordner.
+const ANLAGEN = TESTCASES.map((t) => `tests/visuell/${t}`);
 
 function starteServer() {
   return new Promise((resolve) => {

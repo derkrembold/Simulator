@@ -940,14 +940,16 @@ async function berechneProtokoll(testcase) {
       e.ik = schlechtesterZs.ik;
     }
   }
+  // Mit RCD kommt Zi/Ik L-N ins Protokoll, ohne RCD Zs/Ik L-PE (sim-1jl).
+  // Zi wird ohne RCD trotzdem gemessen, weil der Spannungsfall es braucht.
   stromkreise.forEach(({ sk, gruppe }, i) => {
     if (!sk.messungen.zs) return;
     const e = ergebnisVon(sk);
-    Object.assign(protokoll[i].werte, { ueArt: sk.ls.char, ueIn: String(sk.ls.in), zi: e.zi, ikLn: e.ikLn });
-    if (!gruppe.rcd) Object.assign(protokoll[i].werte, { zs: e.zs, ik: e.ik });
+    Object.assign(protokoll[i].werte, { ueArt: sk.ls.char, ueIn: String(sk.ls.in) },
+      gruppe.rcd ? { zi: e.zi, ikLn: e.ikLn } : { zs: e.zs, ik: e.ik });
   });
   protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Überstromschutz eintragen',
-    'Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild sowie Zi/Ik und, ohne RCD, Zs/Ik eintragen. Bei Drehstrom der schlechteste Außenleiter.',
+    'Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild eintragen, dazu mit RCD Zi/Ik L-N, ohne RCD Zs/Ik L-PE. Bei Drehstrom der schlechteste Außenleiter.',
     eintraegeFuer(['ueArt', 'ueIn', 'zs', 'ik', 'zi', 'ikLn'])));
 
   console.log('--- RCD ---');

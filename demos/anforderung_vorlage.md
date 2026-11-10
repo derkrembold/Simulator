@@ -5,7 +5,8 @@ Werte ändern, dann `node tools/demo_erstellung.js demo_NN`. Netz-IDs, Leiterque
 Hutschienen, Farben und die Prüfwerte des RCD werden vom Werkzeug abgeleitet und hier nicht
 eingetragen.
 
-Ausgefüllt ist das Beispiel **demo_01**.
+Ausgefüllt ist ein Beispiel. Die von Hand gebaute Anlage dazu liegt in
+`tests/visuell/referenz/vorlage_anlage.json`.
 
 ## Erlaubte Werte
 

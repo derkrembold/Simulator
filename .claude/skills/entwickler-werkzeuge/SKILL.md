@@ -182,6 +182,7 @@ mehr in der Anforderung. Nutzen, statt `netzplan.md` von Hand zu schreiben.
 ```
 node tools/demo_erstellung.js demo_02 --neu    # Anforderung aus der Vorlage anlegen
 node tools/demo_erstellung.js demo_02          # alles erzeugen und die Verdrahtung prüfen
+node tools/demo_erstellung.js testcase_07      # Testcase neu erzeugen, der aus einer Demo entstanden ist
 ```
 
 Details, Prüfregeln und Grenzen: `docs/ARCHITEKTUR.md`, Abschnitt `tools/demo_erstellung.js`.

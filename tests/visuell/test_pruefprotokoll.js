@@ -1,5 +1,5 @@
 // Regressionstest für tools/pruefprotokoll_erstellung.js: prüft die von
-// berechneProtokoll() gelieferten Messwerte für ALLE SECHS Testcases gegen
+// berechneProtokoll() gelieferten Messwerte für ALLE Testcases gegen
 // unabhängige Referenzwerte, statt nur "läuft ohne Exception durch" zu
 // prüfen (das wäre zirkulär - die App würde nur gegen sich selbst
 // verglichen). Zwei Referenzquellen:
@@ -17,18 +17,20 @@
 //      Plausibilitätsprüfung statt exaktem Wert.
 //
 // Aufruf: node tests/visuell/test_pruefprotokoll.js
+const fs = require('fs');
 const path = require('path');
 const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
 const { parseBauteile } = require('./generate_anlage.js');
 
-const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
+const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06', 'testcase_07', 'testcase_08'];
 
 // Querschnitt der Zuleitung an der Einspeisung (sim-aon), unabhängig vom
 // Code aus den Anlagen abgelesen: testcase_02/03 führen die Zuleitung direkt
 // auf den Hauptschalter (10 mm²), die anderen über Einspeiseklemmen bzw.
 // mit 16 mm² auf den Hauptschalter.
 const HAUPTLEITUNG_QUERSCHNITT = {
-  testcase_01: '16', testcase_02: '10', testcase_03: '10', testcase_04: '16', testcase_05: '16', testcase_06: '16'
+  testcase_01: '16', testcase_02: '10', testcase_03: '10', testcase_04: '16', testcase_05: '16', testcase_06: '16',
+  testcase_07: '16', testcase_08: '16'
 };
 
 // Sollwerte Zi je Außenleiter, siehe Kopfkommentar Punkt 2.
@@ -42,6 +44,11 @@ const ZI_JE_AUSSENLEITER = {
 const ZEILE_SCHLECHTESTER_WERT = {
   'testcase_05 SK1': { zi: '0,67', ikLn: '309,0' }
 };
+
+// Mehrphasige Stromkreise erzeugter Testcases mit Fehlerwiderstand nur auf
+// dem ersten Außenleiter (tools/demo_erstellung.js), abgelesen aus
+// graph.json: testcase_08 SK4 hat 0,3 Ω auf L1 (N36), L2/L3 fehlerfrei.
+const FEHLER_NUR_ERSTER_AUSSENLEITER = ['testcase_08 SK4'];
 
 const anlagen = {};
 
@@ -123,7 +130,7 @@ async function main() {
 
   // sim-f7j: Ohne RCD ist der LS selbst die Trennstelle. Sonst misst Riso
   // über die Sammelschiene die Elektronik eines RCD Typ B einer anderen
-  // Gruppe mit (demo_08 SK4: 13 MΩ statt >999).
+  // Gruppe mit (testcase_08 SK4: 13 MΩ statt >999).
   await pruefe('naechsteTrennstelle: AFDD-LS, Gruppen-RCD, ohne RCD der LS', async () => {
     const ls = (afdd) => ({
       name: 'LS4', afdd,
@@ -136,22 +143,23 @@ async function main() {
     erwarteGleich(text(naechsteTrennstelle(sk(false), { rcd: { name: 'RCD1', typ: 'B' } }, ['L2', 'PE'])), 'RCD1 N2 true', 'RCD Typ B');
   });
 
-  // sim-f7j, integriert: demo_08 hat einen Stromkreis ohne RCD (SK4, L1-L3)
-  // und auf L1 einen RCD Typ B einer anderen Gruppe (G1). Ohne geöffneten
-  // LS ergab Riso auf L1 die 13 MΩ der Typ-B-Elektronik.
-  await pruefe('demo_08 SK4 (ohne RCD, RCD Typ B auf derselben Phase): Riso überall >999MΩ', async () => {
-    const { ergebnisse } = await berechneProtokoll('../../demos/demo_08');
-    const sk4 = ergebnisse.find((e) => e.sk === 'SK4');
-    const nichtUnendlich = sk4.risoMessungen.filter((m) => m.wert !== '>999');
-    if (nichtUnendlich.length > 0) throw new Error(`Riso: ${JSON.stringify(nichtUnendlich)}`);
-    erwarteGleich(sk4.riso, '>999', 'Riso im Protokoll');
-  });
-
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
     const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref, erprobenPunkte, hauptleitungZs } = await berechneProtokoll(testcase);
     anlagen[testcase] = anlage;
+
+    // sim-f7j, integriert: testcase_08 (früher demo_08) hat einen Stromkreis
+    // ohne RCD (SK4, L1-L3) und auf L1 einen RCD Typ B einer anderen Gruppe
+    // (G1). Ohne geöffneten LS ergab Riso auf L1 die 13 MΩ der Typ-B-Elektronik.
+    if (testcase === 'testcase_08') {
+      await pruefe('testcase_08 SK4 (ohne RCD, RCD Typ B auf derselben Phase): Riso überall >999MΩ', async () => {
+        const sk4 = ergebnisse.find((e) => e.sk === 'SK4');
+        const nichtUnendlich = sk4.risoMessungen.filter((m) => m.wert !== '>999');
+        if (nichtUnendlich.length > 0) throw new Error(`Riso: ${JSON.stringify(nichtUnendlich)}`);
+        erwarteGleich(sk4.riso, '>999', 'Riso im Protokoll');
+      });
+    }
 
     // sim-liq: Zref nach dem Hauptschalter = Vorimpedanz (keine Fehler-
     // widerstände vor dem Hauptschalter in den Testcases).
@@ -208,7 +216,9 @@ async function main() {
         const ziel = zeile.werte[SPALTE.ziel];
         if (!ziel.startsWith(`LS${i + 1}`)) throw new Error(`${erg.sk}: Bezeichnung "${ziel}" beginnt nicht mit LS${i + 1}`);
         const anzahl = (anlage.steckdosen_platzierung ?? []).filter((p) => p.sk === erg.sk).length;
-        if (anzahl > 0 && !ziel.includes(`: ${anzahl} `)) throw new Error(`${erg.sk}: Bezeichnung "${ziel}" nennt nicht ${anzahl} Endstellen`);
+        // Gemischte Endstellen nennen je Typ eine Anzahl ("2 Steckdosen, 1 Lichtauslass").
+        const genannt = (ziel.split(': ')[1] ?? '').split(', ').reduce((summe, teil) => summe + (parseInt(teil, 10) || 0), 0);
+        if (anzahl > 0 && genannt !== anzahl) throw new Error(`${erg.sk}: Bezeichnung "${ziel}" nennt nicht ${anzahl} Endstellen`);
       });
     });
 
@@ -305,9 +315,10 @@ async function main() {
         await pruefe(`${testcase} ${erg.sk}: Protokollzeile zeigt den schlechtesten Außenleiter`, async () => {
           const zeile = zeilen.find((z) => z.zeilenIndex === erg.zeilenIndex);
           if (!zeile) throw new Error(`${erg.sk}: keine Protokollzeile gefunden`);
-          const zi = schlechtesteMessung(erg.aussenleiter, 'zi');
-          erwarteGleich(`${zeile.werte[SPALTE.zi]} / ${zeile.werte[SPALTE.ikLn]}`, `${zi.zi} / ${zi.ikLn}`, `${erg.sk} Zi/Ik in der Zeile`);
-          if (!erg.rcdName) {
+          if (erg.rcdName) {
+            const zi = schlechtesteMessung(erg.aussenleiter, 'zi');
+            erwarteGleich(`${zeile.werte[SPALTE.zi]} / ${zeile.werte[SPALTE.ikLn]}`, `${zi.zi} / ${zi.ikLn}`, `${erg.sk} Zi/Ik in der Zeile`);
+          } else {
             const zs = schlechtesteMessung(erg.aussenleiter, 'zs');
             erwarteGleich(`${zeile.werte[SPALTE.zs]} / ${zeile.werte[SPALTE.ik]}`, `${zs.zs} / ${zs.ik}`, `${erg.sk} Zs/Ik in der Zeile`);
           }
@@ -325,14 +336,22 @@ async function main() {
         });
       }
 
-      // Die Fehlertabellen der Testcases geben jedem Außenleiter eigene
-      // Widerstände. Gleiche Werte auf allen Außenleitern hießen, dass
-      // dreimal derselbe Leiter gemessen wurde.
-      if (erg.aussenleiter?.length > 1) {
+      // Die Fehlertabellen der von Hand gebauten Testcases geben jedem
+      // Außenleiter eigene Widerstände. Gleiche Werte auf allen Außenleitern
+      // hießen, dass dreimal derselbe Leiter gemessen wurde. Aus einer
+      // Anforderung erzeugte Testcases haben den Fehler nur auf dem ersten
+      // Außenleiter; welche Stromkreise das betrifft, steht in
+      // FEHLER_NUR_ERSTER_AUSSENLEITER.
+      const nurErster = FEHLER_NUR_ERSTER_AUSSENLEITER.includes(`${testcase} ${erg.sk}`);
+      const erzeugt = fs.existsSync(path.join(ordner, 'anforderung.md'));
+      if (erg.aussenleiter?.length > 1 && (nurErster || !erzeugt)) {
         await pruefe(`${testcase} ${erg.sk}: Zi/Zs unterscheiden sich je Außenleiter`, async () => {
           for (const groesse of erg.rcdName ? ['zi'] : ['zi', 'zs']) {
             const werte = erg.aussenleiter.map((m) => m[groesse]);
-            if (new Set(werte).size !== werte.length) {
+            if (nurErster) {
+              const [erster, ...rest] = werte.map(parseKomma);
+              if (!rest.every((w) => erster > w)) throw new Error(`${erg.sk} ${groesse}: erster Außenleiter nicht am höchsten (${werte.join(' / ')})`);
+            } else if (new Set(werte).size !== werte.length) {
               throw new Error(`${erg.sk} ${groesse}: gleiche Werte auf mehreren Außenleitern (${werte.join(' / ')})`);
             }
           }
@@ -343,6 +362,16 @@ async function main() {
         await pruefe(`${testcase} ${erg.sk}: Zs/Ik(L-PE) sind plausible positive Zahlen`, async () => {
           erwartePositiv(parseKomma(erg.zs), `${erg.sk} Zs`);
           erwartePositiv(parseKomma(erg.ik), `${erg.sk} Ik(L-PE)`);
+        });
+      }
+
+      if (erg.messungen.zs) {
+        await pruefe(`${testcase} ${erg.sk}: Protokollzeile enthält ${erg.rcdName ? 'nur Zi/Ik L-N' : 'nur Zs/Ik L-PE'} (sim-1jl)`, async () => {
+          const zeile = zeilen.find((z) => z.zeilenIndex === erg.zeilenIndex);
+          if (!zeile) throw new Error(`${erg.sk}: keine Protokollzeile gefunden`);
+          const [soll, leer] = erg.rcdName ? [['zi', 'ikLn'], ['zs', 'ik']] : [['zs', 'ik'], ['zi', 'ikLn']];
+          for (const spalte of soll) erwartePositiv(parseKomma(zeile.werte[SPALTE[spalte]]), `${erg.sk} ${spalte} in der Zeile`);
+          for (const spalte of leer) erwarteGleich(zeile.werte[SPALTE[spalte]] ?? '', '', `${erg.sk} ${spalte} in der Zeile`);
         });
       }
     }

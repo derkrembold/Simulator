@@ -197,9 +197,9 @@ async function main() {
 
   // sim-lfi: gemischte Endstellen in einem Stromkreis - jede Dose wird mit
   // ihrem eigenen Typ gezeichnet (Platzierung "SK1:Lichtauslass").
-  await pruefe('Steckdosen: demo_06 - SK1 mit zwei Steckdosen und einem Lichtauslass (gemischte Typen)', async () => {
+  await pruefe('Steckdosen: testcase_07 - SK1 mit zwei Steckdosen und einem Lichtauslass (gemischte Typen)', async () => {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
-    await page.goto(`http://localhost:${port}/index.html?anlage=demos/demo_06/anlage.json`);
+    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/testcase_07/anlage.json`);
     await page.waitForSelector('#steckdosen svg [data-endstelle]');
     const typen = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#steckdosen [data-endstelle]')]
       .map((g) => [g.getAttribute('data-endstelle'), g.querySelectorAll('rect[rx]').length === 2 ? 'Steckdose' : 'Anschlussdose'])));

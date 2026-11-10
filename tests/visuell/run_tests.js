@@ -126,7 +126,7 @@ async function main() {
   const page = await browser.newPage();
 
   const testcases = fs.readdirSync(TESTCASE_ORDNER, { withFileTypes: true })
-    .filter((eintrag) => eintrag.isDirectory())
+    .filter((eintrag) => eintrag.isDirectory() && /^testcase_\d+$/.test(eintrag.name))
     .map((eintrag) => eintrag.name)
     .sort();
 

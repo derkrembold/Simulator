@@ -3570,7 +3570,7 @@
     },
     {
       "titel": "Protokoll: Überstromschutz eintragen",
-      "begruendung": "Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild sowie Zi/Ik und, ohne RCD, Zs/Ik eintragen. Bei Drehstrom der schlechteste Außenleiter.",
+      "begruendung": "Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild eintragen, dazu mit RCD Zi/Ik L-N, ohne RCD Zs/Ik L-PE. Bei Drehstrom der schlechteste Außenleiter.",
       "schritte": [
         {
           "funktion": "protokollEintragen",
@@ -3617,30 +3617,6 @@
               "spaltenName": "Ik L-PE (A)"
             },
             "492,9"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 3,
-              "spalte": 12,
-              "spaltenName": "Zi (Ω)"
-            },
-            "0,59"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 3,
-              "spalte": 13,
-              "spaltenName": "Ik L-N (A)"
-            },
-            "350,8"
           ],
           "ergebnis": null
         },

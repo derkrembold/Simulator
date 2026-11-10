@@ -2380,6 +2380,8 @@ tests/visuell/
   testcase_04/   ← 3-poliger Hauptschalter (L1+L2+L3, kein N), 4-poliger RCD auf allen 3 Phasen
   testcase_05/   ← Gruppe G1: 3-poliger LS (EINE Komponente statt drei einpoliger) hinter 4-poligem RCD, Drehstromsteckdose als Endstelle; Gruppe G2: 2-poliger RCD + 2x "LS mit AFDD"-Kombigerät (beide auf derselben Hutschiene)
   testcase_06/   ← Gruppe G1: 3-poliger LS OHNE RCD, 5-polige Anschlussdose; Gruppe G2: 2-poliger RCD + 2x 1-poliger LS (beide auf derselben Hutschiene)
+  testcase_07/   ← aus Anforderung erzeugt (früher demo_06): gemischte Endstellen, Steckdosen + Lichtauslass in einem Stromkreis
+  testcase_08/   ← aus Anforderung erzeugt (früher demo_08): 3-poliger LS ohne RCD mit 5-poliger Anschlussdose, daneben RCD Typ B auf L1
   ...
 ```
 

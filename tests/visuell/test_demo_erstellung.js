@@ -9,7 +9,8 @@ const { istSpannungFuehrend } = require('./generate_anlage.js');
 
 const PROJEKT_ROOT = path.resolve(__dirname, '..', '..');
 const VORLAGE = path.join(PROJEKT_ROOT, 'demos', 'anforderung_vorlage.md');
-const DEMO_01 = path.join(PROJEKT_ROOT, 'demos', 'demo_01');
+// Von Hand gebaute Anlage zur ausgefüllten Vorlage (früher demos/demo_01, sim-qlp).
+const VORLAGE_ANLAGE = path.join(__dirname, 'referenz', 'vorlage_anlage.json');
 
 let alleBestanden = true;
 
@@ -83,10 +84,10 @@ function pruefeErreichbarkeit({ anlage, graph }) {
   }
 }
 
-pruefe('Vorlage erzeugt dieselbe Anlage wie die von Hand gebaute demo_01 (ohne Netz-IDs)', () => {
+pruefe('Vorlage erzeugt dieselbe Anlage wie die von Hand gebaute Referenz (ohne Netz-IDs)', () => {
   const ergebnis = erzeuge(fs.readFileSync(VORLAGE, 'utf8'));
-  const hand = JSON.parse(fs.readFileSync(path.join(DEMO_01, 'anlage.json'), 'utf8'));
-  bedingung(ohneNetzIds(ergebnis.anlage) === ohneNetzIds(hand), 'anlage.json weicht von demos/demo_01 ab');
+  const hand = JSON.parse(fs.readFileSync(VORLAGE_ANLAGE, 'utf8'));
+  bedingung(ohneNetzIds(ergebnis.anlage) === ohneNetzIds(hand), 'anlage.json weicht von tests/visuell/referenz/vorlage_anlage.json ab');
   pruefeErreichbarkeit(ergebnis);
 });
 
@@ -204,10 +205,10 @@ pruefe('Gemischte Endstellen: Steckdose + Lichtauslass (2 + 1) ergibt drei Dosen
   pruefeErreichbarkeit(ergebnis);
 });
 
-// Codex-Review zu sim-lfi: die erzeugte demo_06 trägt im Fahrplan die
-// gemischte Bezeichnung ins Protokoll ein.
-pruefe('demo_06: Protokoll-Bezeichnung "LS1: 2 Steckdosen, 1 Lichtauslass"', () => {
-  const fahrplan = require(path.join(__dirname, '..', '..', 'demos', 'demo_06', 'fahrplan.json'));
+// Codex-Review zu sim-lfi: die erzeugte Anlage testcase_07 (früher demo_06)
+// trägt im Fahrplan die gemischte Bezeichnung ins Protokoll ein.
+pruefe('testcase_07: Protokoll-Bezeichnung "LS1: 2 Steckdosen, 1 Lichtauslass"', () => {
+  const fahrplan = require(path.join(__dirname, 'testcase_07', 'fahrplan.json'));
   const bezeichnungen = fahrplan.abschnitte.flatMap((a) => a.schritte)
     .filter((s) => s.funktion === 'protokollEintragen' && s.argumente[0].spalte === 1)
     .map((s) => s.argumente[1]);
@@ -332,14 +333,14 @@ pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
   bedingung(vorwaerts === rueckwaerts, `Tabelle hängt von der Kantenreihenfolge ab:\n${vorwaerts}\n${rueckwaerts}`);
 });
 
-// Verdrahtung der eingecheckten Demos: jeder Pfad Endstelle -> Einspeisung (alle Stromkreise und
+// Verdrahtung der eingecheckten, aus Anforderungen erzeugten Anlagen: jeder Pfad Endstelle -> Einspeisung (alle Stromkreise und
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['demo_01', 'demo_02', 'demo_04']) {
-    const name = `Verdrahtung ${demo}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
+  for (const demo of ['../../demos/demo_04', 'testcase_07', 'testcase_08']) {
+    const name = `Verdrahtung ${path.basename(demo)}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
-      const { abweichungen, geprueft } = await pruefeVerdrahtung(`../../demos/${demo}`);
+      const { abweichungen, geprueft } = await pruefeVerdrahtung(demo);
       bedingung(geprueft > 0, 'keine Pfade geprüft');
       bedingung(abweichungen.length === 0, abweichungen.join('; '));
       console.log(`${name}: PASS (${geprueft} Pfade)`);

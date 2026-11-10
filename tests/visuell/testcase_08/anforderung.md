@@ -1,11 +1,10 @@
-# Anforderung – demo_08
+# Anforderung – testcase_08
 
-Vorlage für eine neue Demo-Anlage. Anlegen mit `node tools/demo_erstellung.js demo_NN --neu`,
-Werte ändern, dann `node tools/demo_erstellung.js demo_NN`. Netz-IDs, Leiterquerschnitte, Klemmen,
+Testcase, entstanden aus der Demo-Anlage demo_08 (sim-qlp): 5-polige Anschlussdose an einem
+3-poligen LS ohne RCD, daneben ein RCD Typ B auf L1 (sim-f7j). Nach einer Änderung neu erzeugen
+mit `node tools/demo_erstellung.js testcase_08`. Netz-IDs, Leiterquerschnitte, Klemmen,
 Hutschienen, Farben und die Prüfwerte des RCD werden vom Werkzeug abgeleitet und hier nicht
 eingetragen.
-
-Ausgefüllt ist das Beispiel **demo_08**.
 
 ## Erlaubte Werte
 

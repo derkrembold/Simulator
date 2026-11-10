@@ -891,7 +891,7 @@
     },
     {
       "titel": "Protokoll: Stromkreise eintragen",
-      "begruendung": "Nach der Zuordnung je Stromkreis eine Zeile anlegen: Nummer, Bezeichnung (Position des LS von links und zugeordnete Endstellen), Aderanzahl und Querschnitt der abgehenden Leitung.",
+      "begruendung": "Nach der Zuordnung je Stromkreis eine Zeile anlegen: Nummer, Bezeichnung (Position des LS von links und zugeordnete Endstellen), Aderanzahl und Querschnitt der abgehenden Leitung. In der Zeile Hauptleitung Aderanzahl und Querschnitt der Zuleitung an der Einspeisung.",
       "schritte": [
         {
           "funktion": "protokollEintragen",
@@ -902,6 +902,30 @@
               "spaltenName": "Nr."
             },
             "1"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 2,
+              "spalte": 3,
+              "spaltenName": "Leitung Anzahl Adern"
+            },
+            "5"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 2,
+              "spalte": 4,
+              "spaltenName": "Leitung Querschnitt (mm²)"
+            },
+            "16"
           ],
           "ergebnis": null
         },
@@ -5239,6 +5263,213 @@
         {
           "funktion": "wechsleAnsicht",
           "argumente": [],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "Hauptleitung L1: Schleifenimpedanz (Zs)",
+      "begruendung": "An der Einspeisung, wo die Zuleitung von außen ankommt, die Schleifenimpedanz L-PE messen: Drehknopf auf ZS, Messspitzen auf den Außenleiter, N und PE, TEST.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZS"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N1"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N4"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,14Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:1478,6A"
+        }
+      ]
+    },
+    {
+      "titel": "Hauptleitung L2: Schleifenimpedanz (Zs)",
+      "begruendung": "An der Einspeisung, wo die Zuleitung von außen ankommt, die Schleifenimpedanz L-PE messen: Drehknopf auf ZS, Messspitzen auf den Außenleiter, N und PE, TEST.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZS"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N2"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N4"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,14Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:1478,6A"
+        }
+      ]
+    },
+    {
+      "titel": "Hauptleitung L3: Schleifenimpedanz (Zs)",
+      "begruendung": "An der Einspeisung, wo die Zuleitung von außen ankommt, die Schleifenimpedanz L-PE messen: Drehknopf auf ZS, Messspitzen auf den Außenleiter, N und PE, TEST.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "ZS"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N3"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N4"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "Z:0,14Ω"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "isc"
+          ],
+          "ergebnis": "Isc:1478,6A"
+        }
+      ]
+    },
+    {
+      "titel": "Protokoll: Hauptleitung Zs eintragen",
+      "begruendung": "In der Zeile Hauptleitung Zs und Ik L-PE eintragen, bei Drehstrom der schlechteste Außenleiter.",
+      "schritte": [
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 2,
+              "spalte": 10,
+              "spaltenName": "Zs (Ω)"
+            },
+            "0,14"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 2,
+              "spalte": 11,
+              "spaltenName": "Ik L-PE (A)"
+            },
+            "1478,6"
+          ],
           "ergebnis": null
         }
       ]

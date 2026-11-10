@@ -207,14 +207,14 @@ const SPALTE_NR = 0;
 const SPALTE_ZIEL = 1;
 const HAUPTLEITUNG_ZEILE = 2;
 
-// Sollzeilen aus den protokollEintragen-Schritten: [{ zeile, werte: { spalte: wert } }].
+// Sollzeilen aus den protokollEintragen-Schritten: [{ zeile, werte: { spalte: wert } }],
+// inklusive der Hauptleitung (Zeile HAUPTLEITUNG_ZEILE).
 export function sollZeilenAusFahrplan(fahrplan) {
   const zeilen = new Map();
   for (const abschnitt of fahrplan?.abschnitte ?? []) {
     for (const schritt of abschnitt.schritte) {
       if (schritt.funktion !== 'protokollEintragen') continue;
       const [{ zeile, spalte }, wert] = schritt.argumente;
-      if (zeile === HAUPTLEITUNG_ZEILE) continue;
       if (!zeilen.has(zeile)) zeilen.set(zeile, {});
       zeilen.get(zeile)[spalte] = wert;
     }
@@ -224,8 +224,23 @@ export function sollZeilenAusFahrplan(fahrplan) {
 
 function pruefeMesstabelle(wurzel, fahrplan, markiere) {
   const tabelle = wurzel.querySelector('.pf-scroll table');
-  const soll = sollZeilenAusFahrplan(fahrplan);
-  if (!tabelle || soll.length === 0) return;
+  const alleSoll = sollZeilenAusFahrplan(fahrplan);
+  if (!tabelle || alleSoll.length === 0) return;
+
+  // Hauptleitung (sim-aon): feste Zeile, keine Zuordnung. Nr. muss nur
+  // ausgefüllt sein, Kabel und Zs/Ik müssen passen; fehlt Zs, wird es rot.
+  const hauptleitung = alleSoll.find((s) => s.zeile === HAUPTLEITUNG_ZEILE);
+  if (hauptleitung) {
+    const zellen = [...tabelle.rows[HAUPTLEITUNG_ZEILE].cells].map((c) => c.querySelector('input'));
+    for (const [spalte, sollWert] of Object.entries(hauptleitung.werte)) {
+      const input = zellen[Number(spalte)];
+      if (!input) continue;
+      const richtig = Number(spalte) === SPALTE_NR ? input.value.trim() !== '' : gleicherWert(input.value, sollWert);
+      if (!richtig) markiere(input);
+    }
+  }
+  const soll = alleSoll.filter((s) => s.zeile !== HAUPTLEITUNG_ZEILE);
+  if (soll.length === 0) return;
 
   // Benutzerzeilen: alle Datenzeilen nach der Hauptleitung.
   const benutzer = [...tabelle.rows].slice(HAUPTLEITUNG_ZEILE + 1).map((zeile) => ({

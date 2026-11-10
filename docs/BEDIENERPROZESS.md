@@ -150,7 +150,7 @@ Der eigentliche Kern der Prüfung - eine Zeile PRO Stromkreis. Anders als
 oben kein fester Defaultwert, sondern eine Quelle (Anlagedaten oder
 Messgerät-Skill), da die Werte je Stromkreis unterschiedlich sind.
 
-Die erste Reihe betrifft immer die Hauptleitung. Bei Hauptleitung sind Überstrom und RCD nicht relevant.
+Die erste Reihe betrifft immer die Hauptleitung. Bei Hauptleitung sind Überstrom und RCD nicht relevant. Eingetragen werden Nr., Aderanzahl und Querschnitt der Zuleitung an der Einspeisung sowie Zs und Ik L-PE, gemessen dort, wo die Stromzufuhr von außen kommt (Einspeiseklemme bzw. Eingang des Hauptschalters), je Außenleiter, eingetragen der schlechteste Wert. Fehlt Zs, ist das Feld im Check rot (sim-aon).
 
 | Spalte                             | Pflicht                 | Quelle                                     | Hinweis                                                                                                                                                |
 | ---------------------------------- | ----------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |

@@ -409,6 +409,43 @@ async function messeUeberstromschutz(testcase, sk, phase) {
   return { zs: nurZahl(zs), ik: nurZahl(ik) };
 }
 
+// Zs der Hauptleitung (sim-aon): dort messen, wo die Stromzufuhr von außen
+// kommt (Einspeiseklemme bzw. Eingang des Hauptschalters, siehe
+// einspeisungAdern()), L-PE je Außenleiter. Die Einspeisung führt immer
+// Spannung, der Zustand des Hauptschalters spielt keine Rolle.
+async function messeHauptleitungZs(testcase, anlage, ader) {
+  const { n } = einspeisungAdern(anlage);
+  const ctx = await starteAbschnitt(testcase, anlage);
+  messgeraet.abschnittBeginnen(
+    `Hauptleitung ${ader.funktion}: Schleifenimpedanz (Zs)`,
+    'An der Einspeisung, wo die Zuleitung von außen ankommt, die Schleifenimpedanz L-PE messen: Drehknopf auf ZS, Messspitzen auf den Außenleiter, N und PE, TEST.'
+  );
+  await messgeraet.drehknopfAufModus(ctx, 'ZS');
+  await messgeraet.messspitzeSetzen(ctx, { netz: ader.netz }); // schwarz
+  await messgeraet.messspitzeSetzen(ctx, { netz: n.netz }); // blau
+  await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
+  await messgeraet.testDruecken(ctx);
+  const zs = await messgeraet.leseWert(ctx, 'hauptmesswert');
+  const ik = await messgeraet.leseWert(ctx, 'isc');
+  messgeraet.abschnittEnde();
+  await ctx.schliessen();
+  return { phase: ader.funktion, zs: nurZahl(zs), ik: nurZahl(ik) };
+}
+
+// Kabelangaben der Hauptleitung (Zuleitung von außen): Aderanzahl aus
+// Außenleitern, N und PE an der Einspeisung, Querschnitt des kleinsten
+// Außenleiters.
+function hauptleitungKabel(anlage) {
+  const { aussenleiter, n, pe } = einspeisungAdern(anlage);
+  const adern = [...aussenleiter, n, pe].filter(Boolean);
+  const querschnitt = Math.min(...aussenleiter.map((a) => a.querschnitt_mm2));
+  return {
+    kabelTyp: anlage.hauptsicherung.eingang.leitung.typ,
+    kabelAnzahl: String(adern.length),
+    kabelQuerschnitt: String(querschnitt).replace('.', ',')
+  };
+}
+
 // Zi (L-N-Schleifenimpedanz statt L-PE wie bei Zs) - Modus ZI, nur Schwarz
 // (L)/Blau (N) nötig, PE spielt hier keine Rolle (siehe ziTestKlick() in
 // controller/app.js).
@@ -733,10 +770,10 @@ async function trageEin(testcase, titel, begruendung, eintraege) {
 async function berechneProtokoll(testcase) {
   const anlage = require(path.join(PROJEKT_ROOT, 'tests', 'visuell', testcase, 'anlage.json'));
 
-  // Hauptleitung ist Nr. 1 - hier nicht automatisiert vermessen (kein
-  // eigener Stromkreis in anlage.json), aber die Nummer selbst gehört
-  // trotzdem rein.
+  // Hauptleitung ist Nr. 1 (kein eigener Stromkreis in anlage.json): Kabel
+  // und Zs an der Einspeisung (sim-aon).
   const HAUPTLEITUNG_ZEILE = 2;
+  const hauptleitung = { zeile: HAUPTLEITUNG_ZEILE, werte: { nr: '1', ...hauptleitungKabel(anlage) } };
   const stromkreise = alleStromkreise(anlage);
   // Protokollwerte je Stromkreis (Schlüssel aus SPALTE), werden nach jeder
   // Messart ergänzt und eingetragen. Zeile rows[3] ff., Nr. ab 2.
@@ -748,7 +785,8 @@ async function berechneProtokoll(testcase) {
   // Ablauf nach Messart (Entscheidung zu sim-7c6, Wiederholungsprüfung):
   // 1. Spannung an der Einspeisung, 2. Zuordnung der Endstellen,
   // 3. Freischalten und Spannungsfreiheit, 4. Rpe, 5. Riso, 6. Wieder-
-  // einschalten, 7. Zi/Zs, 8. RCD-Test, 9. Drehfeld. Jede Messart läuft über
+  // einschalten, 7. Zref, Zs der Hauptleitung, Zi/Zs, 8. RCD-Test,
+  // 9. Drehfeld. Jede Messart läuft über
   // alle Stromkreise, bevor die nächste beginnt.
   const ergebnisse = stromkreise.map(({ sk, gruppe }, i) => ({
     sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rcdName: gruppe.rcd?.name ?? null,
@@ -792,8 +830,9 @@ async function berechneProtokoll(testcase) {
   // Kabeltyp (NYM) wird nicht eingetragen: in der Anlage nicht ablesbar
   // (Entscheidung zu sim-0bn/sim-nt2), steht aber in der PDF.
   protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Stromkreise eintragen',
-    'Nach der Zuordnung je Stromkreis eine Zeile anlegen: Nummer, Bezeichnung (Position des LS von links und zugeordnete Endstellen), Aderanzahl und Querschnitt der abgehenden Leitung.',
-    [{ zeile: HAUPTLEITUNG_ZEILE, spalte: 'nr', wert: '1' }, ...eintraegeFuer(['nr', 'ziel', 'kabelAnzahl', 'kabelQuerschnitt'])]));
+    'Nach der Zuordnung je Stromkreis eine Zeile anlegen: Nummer, Bezeichnung (Position des LS von links und zugeordnete Endstellen), Aderanzahl und Querschnitt der abgehenden Leitung. In der Zeile Hauptleitung Aderanzahl und Querschnitt der Zuleitung an der Einspeisung.',
+    [...['nr', 'kabelAnzahl', 'kabelQuerschnitt'].map((spalte) => ({ zeile: HAUPTLEITUNG_ZEILE, spalte, wert: hauptleitung.werte[spalte] })),
+      ...eintraegeFuer(['nr', 'ziel', 'kabelAnzahl', 'kabelQuerschnitt'])]));
 
   console.log('--- Freischalten ---');
   await schalteHauptschalter(testcase, anlage, {
@@ -862,6 +901,19 @@ async function berechneProtokoll(testcase) {
   // eines mehrphasigen Stromkreises fiele sonst nicht auf. Die Werte pro
   // Außenleiter stehen in `ergebnis.aussenleiter`. In die Protokollzeile
   // kommt der schlechteste Wert (siehe schlechtesteMessung()).
+  console.log('--- Zs Hauptleitung ---');
+  const hauptleitungZs = [];
+  for (const ader of einspeisungAdern(anlage).aussenleiter) {
+    const messung = await messeHauptleitungZs(testcase, anlage, ader);
+    console.log(`Hauptleitung Zs ${messung.phase}:`, messung.zs, 'Ik:', messung.ik);
+    hauptleitungZs.push(messung);
+  }
+  const schlechtesterHauptleitungZs = schlechtesteMessung(hauptleitungZs, 'zs');
+  Object.assign(hauptleitung.werte, { zs: schlechtesterHauptleitungZs.zs, ik: schlechtesterHauptleitungZs.ik });
+  protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Hauptleitung Zs eintragen',
+    'In der Zeile Hauptleitung Zs und Ik L-PE eintragen, bei Drehstrom der schlechteste Außenleiter.',
+    ['zs', 'ik'].map((spalte) => ({ zeile: HAUPTLEITUNG_ZEILE, spalte, wert: hauptleitung.werte[spalte] }))));
+
   console.log('--- Zi/Zs ---');
   for (const { sk, gruppe } of stromkreise) {
     if (!sk.messungen.zs) continue;
@@ -953,14 +1005,13 @@ async function berechneProtokoll(testcase) {
   // Zeilen für die PDF (fuelleProtokoll()) aus denselben Werten wie die
   // Protokoll-Einträge im Fahrplan, inklusive Kabeltyp.
   const zeilen = [
-    { zeilenIndex: HAUPTLEITUNG_ZEILE, werte: { [SPALTE.nr]: '1' } },
-    ...protokoll.map(({ zeile, werte }) => ({
+    ...[hauptleitung, ...protokoll].map(({ zeile, werte }) => ({
       zeilenIndex: zeile,
       werte: Object.fromEntries(Object.entries(werte).filter(([, w]) => w !== undefined).map(([k, w]) => [SPALTE[k], w]))
     }))
   ];
 
-  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref };
+  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs };
 }
 
 async function main() {

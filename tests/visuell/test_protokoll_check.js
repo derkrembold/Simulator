@@ -428,6 +428,16 @@ async function main() {
     await page.close();
   });
 
+  // sim-aon: Zeile Hauptleitung (Zeile 2) wird geprüft.
+  await fall('Hauptleitung ohne Zs: rot', new Function(`${zelle(2, 10)}.value = '';`), async (e, page) => {
+    erwarteGleich(e.rot, 1, 'rote Felder');
+    erwarteGleich(await page.evaluate(new Function(`return ${zelle(2, 10)}.classList.contains('pf-fehler');`)), true, 'Zs-Zelle rot');
+  });
+
+  await fall('Hauptleitung mit falschem Querschnitt: rot', new Function(`${zelle(2, 4)}.value = '10';`), async (e) => {
+    erwarteGleich(e.rot, 1, 'rote Felder');
+  });
+
   await fall('Erneutes Prüfen nach Korrektur: Markierung verschwindet', new Function(`${zelle(3, 12)}.value = '0,99';`), async (e, page) => {
     erwarteGleich(e.rot, 1, 'rote Felder vor Korrektur');
     await page.evaluate(new Function(`${zelle(3, 12)}.value = '0,67';`));

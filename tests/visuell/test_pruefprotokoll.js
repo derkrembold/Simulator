@@ -23,6 +23,14 @@ const { parseBauteile } = require('./generate_anlage.js');
 
 const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06'];
 
+// Querschnitt der Zuleitung an der Einspeisung (sim-aon), unabhängig vom
+// Code aus den Anlagen abgelesen: testcase_02/03 führen die Zuleitung direkt
+// auf den Hauptschalter (10 mm²), die anderen über Einspeiseklemmen bzw.
+// mit 16 mm² auf den Hauptschalter.
+const HAUPTLEITUNG_QUERSCHNITT = {
+  testcase_01: '16', testcase_02: '10', testcase_03: '10', testcase_04: '16', testcase_05: '16', testcase_06: '16'
+};
+
 // Sollwerte Zi je Außenleiter, siehe Kopfkommentar Punkt 2.
 const ZI_JE_AUSSENLEITER = {
   'testcase_05 SK1': { L1: '0,54', L2: '0,67', L3: '0,63' }
@@ -142,7 +150,7 @@ async function main() {
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref, erprobenPunkte } = await berechneProtokoll(testcase);
+    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref, erprobenPunkte, hauptleitungZs } = await berechneProtokoll(testcase);
     anlagen[testcase] = anlage;
 
     // sim-liq: Zref nach dem Hauptschalter = Vorimpedanz (keine Fehler-
@@ -163,6 +171,20 @@ async function main() {
       }
       const punkt = erprobenPunkte.find((p) => p.punkt === 'Überprüfung Spannungsfall');
       erwarteGleich(punkt?.ergebnis, alle.every((w) => w <= 3.5) ? 'i.O.' : 'n.i.O.', 'Erproben Spannungsfall');
+    });
+
+    // sim-aon: Hauptleitung mit Kabel der Einspeisung und Zs je Außenleiter
+    // = Vorimpedanz (keine Fehlerwiderstände vor der Einspeisung).
+    await pruefe(`${testcase}: Hauptleitung mit Aderanzahl, Querschnitt und Zs = Vorimpedanz`, async () => {
+      const soll = (anlage.vorimpedanz_ohm ?? 0.14).toFixed(2).replace('.', ',');
+      erwarteGleich(hauptleitungZs.length, anlage.hauptsicherung.polig === 3 ? 3 : 1, 'Anzahl Zs-Messungen');
+      for (const m of hauptleitungZs) erwarteGleich(m.zs, soll, `Zs ${m.phase}`);
+      const zeile = zeilen.find((z) => z.zeilenIndex === 2).werte;
+      const dreiphasig = anlage.hauptsicherung.polig === 3;
+      erwarteGleich(zeile[SPALTE.kabelAnzahl], dreiphasig ? '5' : '3', 'Aderanzahl');
+      erwarteGleich(zeile[SPALTE.kabelQuerschnitt], HAUPTLEITUNG_QUERSCHNITT[testcase], 'Querschnitt');
+      erwarteGleich(zeile[SPALTE.zs], soll, 'Zs im Protokoll');
+      if (!zeile[SPALTE.ik]) throw new Error('Ik fehlt');
     });
 
     await pruefe(`${testcase}: Zref am Verteiler = Vorimpedanz`, async () => {

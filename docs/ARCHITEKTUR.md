@@ -5253,7 +5253,8 @@ besonders relevant in Simulation", bleibt leer); Zi/Ik L-N bei
 nie durchprobiert - aktuell würde dafür ein eigener `messeZiLn()`-artiger
 Pfad fehlen, falls das je gebraucht wird, ist aber vom bestehenden
 `messeZi()` nur eine kleine Erweiterung); Befüllung der Hauptleitungs-Zeile
-selbst (Rpe/Riso/Zs/etc. für die Hauptleitung, aktuell nur ihre Nr.); die
+selbst (Rpe/Riso für die Hauptleitung; seit sim-aon werden Nr., Aderanzahl,
+Querschnitt und Zs/Ik eingetragen, siehe unten); die
 beiden Fahrplan-Renderer (PDF/Replay aus `fahrplan.json`).
 
 **Drei PDF-Feinschliffe direkt im Anschluss (2026-07-31), User hatte sich
@@ -5532,6 +5533,17 @@ als auch früher schon bei anderen Bauteilen), unterschiedliche
 Hauptschalter-Namen. Das Werkzeug ist damit nicht mehr nur an ein bis zwei
 Beispielen erprobt, sondern über die volle Bandbreite der im Projekt
 vorhandenen Testcase-Varianten.
+
+
+**Hauptleitung (sim-aon):** `hauptleitungKabel()` liefert Aderanzahl
+(Außenleiter, N und PE an der Einspeisung) und den Querschnitt des
+kleinsten Außenleiters an der Einspeisung (`einspeisungAdern()`: Einspeise-
+klemme, sonst Eingang des Hauptschalters). `messeHauptleitungZs()` misst
+nach dem Wiedereinschalten und Zref je Außenleiter Zs/Ik L-PE an derselben
+Stelle; ins Protokoll (Zeile 2) kommt der schlechteste Wert. Ohne Fehler-
+widerstand vor der Einspeisung ist Zs = Vorimpedanz. Der Check
+(`controller/protokoll_check.js`) prüft Zeile 2 direkt gegen die
+Fahrplan-Werte (ohne Zuordnung), Nr. muss nur ausgefüllt sein.
 
 ### `tools/fahrplan_beschreibung.js` (2026-08-03)
 

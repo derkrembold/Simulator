@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { parseAnforderung, pruefeAnforderung, erzeugeModell } = require('../../tools/demo_erstellung.js');
-const { istSpannungFuehrend } = require('./generate_anlage.js');
+const { istSpannungFuehrend, findePfad, berechneWiderstand } = require('./generate_anlage.js');
 
 const PROJEKT_ROOT = path.resolve(__dirname, '..', '..');
 const VORLAGE = path.join(PROJEKT_ROOT, 'demos', 'anforderung_vorlage.md');
@@ -35,9 +35,12 @@ function tempOrdner() {
 }
 
 // Baut einen Anforderungstext aus Daten, damit die Tests nicht von der Textform der Vorlage abhängen.
-function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise }) {
-  const g = gruppen.map((x) => `| ${x.id} | ${x.rcdPole} | ${x.typ ?? 'A'} | ${x.fehlerstrom ?? 30} | ${x.nennstrom ?? 40} | ${x.selektiv ?? 'nein'} | ${x.abklemmen ?? 'nein'} |`).join('\n');
-  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | nein | ja | ja | ${x.fehler ?? ''} |`).join('\n');
+// `anlage` ergänzt Zeilen der Anlage-Tabelle (z.B. Vorimpedanz), `fehlerSpalte` ersetzt den
+// Kopf der Stromkreis-Fehlerspalten (für die Meldung zur alten Spalte).
+function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise, anlage = {}, fehlerSpalte = 'Fehler L (Ω) | Fehler N (Ω)' }) {
+  const g = gruppen.map((x) => `| ${x.id} | ${x.rcdPole} | ${x.typ ?? 'A'} | ${x.fehlerstrom ?? 30} | ${x.nennstrom ?? 40} | ${x.selektiv ?? 'nein'} | ${x.abklemmen ?? 'nein'} | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
+  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | nein | ja | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
+  const zusatz = Object.entries(anlage).map(([feld, wert]) => `\n| ${feld} | ${wert} |`).join('');
   return `# Anforderung – test
 
 ## Anlage
@@ -48,18 +51,18 @@ function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise }) {
 | Beschreibung | Test |
 | Netzform | TN-S |
 | Hauptschalter Pole | ${hsPole} |
-| Hauptschalter (A) | ${hsA} |
+| Hauptschalter (A) | ${hsA} |${zusatz}
 
 ## Gruppen
 
-| Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen |
-| --- | --- | --- | --- | --- | --- | --- |
+| Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen | Fehler L (Ω) | Fehler N (Ω) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
 ${g}
 
 ## Stromkreise
 
-| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi | Zs | RCD | Fehler Zuleitung (Ω) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi | Zs | RCD | ${fehlerSpalte} |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 ${s}
 `;
 }
@@ -186,10 +189,49 @@ pruefe('2-poliger Hauptschalter (wie testcase_01): keine L-/N-Klemmen, alle Ader
 pruefe('Fehlerwiderstand auf der Zuleitung landet in der Fehlertabelle von graph.json', () => {
   const ergebnis = erzeuge(baueAnforderung({
     gruppen: [{ id: 'G1', rcdPole: 2 }],
-    stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehler: '0,45' }]
+    stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehlerL: '0,45' }]
   }));
   const werte = Object.values(ergebnis.graph.fehlertabelle);
   bedingung(werte.length === 1 && werte[0] === 0.45, `Fehlertabelle: ${JSON.stringify(ergebnis.graph.fehlertabelle)}`);
+});
+
+// sim-vdo: Fehler an Stromkreis (L und N, je Außenleiter), Gruppe (RCD-Ausgang) und
+// Einspeisung. Erwartet ist die Summe der Fehler auf dem Pfad von der Endstelle zur
+// Einspeisung, so wie die App sie für Zi (L + N) und Zs (nur L) aufsummiert.
+pruefe('Fehler an Stromkreis, Gruppe und Einspeisung summieren sich je Ader richtig', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    anlage: { 'Vorimpedanz (Ω)': '0,2', 'Fehler Einspeisung L (Ω)': '0 / 0,05 / 0', 'Fehler Einspeisung N (Ω)': '0,02' },
+    gruppen: [{ id: 'G1', rcdPole: 4, fehlerL: '0,1', fehlerN: '0,03' }],
+    stromkreise: [
+      { name: 'SK1', gruppe: 'G1', phase: 'L1', fehlerL: '0,2', fehlerN: '0,15' },
+      { name: 'SK2', gruppe: 'G1', phase: 'L2' },
+      { name: 'SK3', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', fehlerL: '0,1 / 0,2 / 0,3' }
+    ]
+  }));
+  const { graph, modell, anlage } = ergebnis;
+  const summe = (sk, k, funktion) => {
+    const netz = modell.netze.find((n) => n.pins.some((p) => p.pin === `Endstelle_${sk}.i${k}`)).id;
+    return berechneWiderstand(graph, findePfad(graph, funktion, graph.einspeisung[funktion], netz));
+  };
+  const soll = [
+    ['SK1', 1, 'L1', 0.3], ['SK1', 2, 'N', 0.2],
+    ['SK2', 1, 'L2', 0.05], ['SK2', 2, 'N', 0.05],
+    ['SK3', 1, 'L1', 0.2], ['SK3', 2, 'L2', 0.25], ['SK3', 3, 'L3', 0.3], ['SK3', 4, 'N', 0.05]
+  ];
+  for (const [sk, k, funktion, wert] of soll) {
+    const ist = summe(sk, k, funktion);
+    bedingung(Math.abs(ist - wert) < 1e-9, `${sk} ${funktion}: Fehlersumme ${ist}, erwartet ${wert}`);
+  }
+  bedingung(anlage.vorimpedanz_ohm === 0.2, `vorimpedanz_ohm: ${anlage.vorimpedanz_ohm}`);
+  pruefeErreichbarkeit(ergebnis);
+});
+
+pruefe('Ohne Vorimpedanz in der Anforderung bleibt anlage.json ohne vorimpedanz_ohm', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    gruppen: [{ id: 'G1', rcdPole: 2 }],
+    stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+  }));
+  bedingung(!('vorimpedanz_ohm' in ergebnis.anlage), 'vorimpedanz_ohm gesetzt');
 });
 
 // sim-lfi: gemischte Endstellen in einem Stromkreis.
@@ -303,13 +345,47 @@ lehntAb('LS-Ampere mit angehängtem Text (16abc)', baueAnforderung({
 
 lehntAb('negativer Fehlerwiderstand', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 2 }],
-  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehler: '-5' }]
-}), 'Fehler Zuleitung "-5" ungültig');
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehlerL: '-5' }]
+}), 'Fehler L (Ω) "-5" ungültig');
 
 lehntAb('Fehlerwiderstand mit Text', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 2 }],
-  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehler: '0,3x' }]
-}), 'Fehler Zuleitung "0,3x" ungültig');
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehlerN: '0,3x' }]
+}), 'Fehler N (Ω) "0,3x" ungültig');
+
+lehntAb('zwei Fehlerwerte an einem 3-poligen LS', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 'ohne' }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', fehlerL: '0,1 / 0,2' }]
+}), '2 Werte, an dieser Stelle gibt es 3 Außenleiter');
+
+lehntAb('drei Fehlerwerte an einem 1-poligen LS', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehlerL: '0,1 / 0,2 / 0,3' }]
+}), '3 Werte, an dieser Stelle gibt es 1 Außenleiter');
+
+lehntAb('Gruppen-Fehler bei einer Gruppe ohne RCD', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 'ohne', fehlerN: '0,1' }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+}), 'ohne RCD gibt es keinen Gruppen-Fehler');
+
+lehntAb('Fehler Einspeisung je Außenleiter bei 2-poligem Hauptschalter', baueAnforderung({
+  hsPole: 2,
+  anlage: { 'Fehler Einspeisung L (Ω)': '0,1 / 0 / 0' },
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+}), 'Fehler Einspeisung L (Ω) "0,1 / 0 / 0": 3 Werte');
+
+lehntAb('Vorimpedanz 0', baueAnforderung({
+  anlage: { 'Vorimpedanz (Ω)': '0' },
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+}), 'Vorimpedanz (Ω) "0" ungültig');
+
+lehntAb('alte Spalte Fehler Zuleitung', baueAnforderung({
+  fehlerSpalte: 'Fehler Zuleitung (Ω) | Fehler N (Ω)',
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+}), 'heißt jetzt "Fehler L (Ω)"');
 
 // Ein unlesbarer RCD-Wert darf nicht still als "ohne RCD" gelten.
 lehntAb('unlesbare RCD-Polzahl (abc) wird nicht als "ohne" gelesen', baueAnforderung({

@@ -36,15 +36,18 @@ RCD-Nennstrom größer als jeder LS, eine Hutschiene höchstens 16 TE.
 | Netzform             | TN-S                                                                    |
 | Hauptschalter Pole   | 3                                                                       |
 | Hauptschalter (A)    | 35                                                                      |
+| Vorimpedanz (Ω)      |                                                                         |
+| Fehler Einspeisung L (Ω) |                                                                     |
+| Fehler Einspeisung N (Ω) |                                                                     |
 
 ## Gruppen
 
 Eine Gruppe ist ein RCD mit den dahinter liegenden LS. `ohne` bei RCD Pole = LS direkt am
 Hauptschalter.
 
-| Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen |
-| ------ | -------- | ------- | ---------------- | ----------------- | -------- | --------- |
-| G1     | 2        | A       | 30               | 40                | nein     | nein      |
+| Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen | Fehler L (Ω) | Fehler N (Ω) |
+| ------ | -------- | ------- | ---------------- | ----------------- | -------- | --------- | ------------ | ------------ |
+| G1     | 2        | A       | 30               | 40                | nein     | nein      |              |              |
 
 ## Stromkreise
 
@@ -52,12 +55,10 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs   | RCD  | Fehler Zuleitung (Ω) |
-| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ---- | ---- | -------------------- |
-| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | nein | ja   | ja   |                      |
-| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L1    | nein | ja   | ja   |                      |
-
-Fehler Zuleitung (Ω): optionaler Widerstand auf der Leitung zur Endstelle, leer = 0 Ω.
+| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs   | RCD  | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ---- | ---- | ------------ | ------------ |
+| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | nein | ja   | ja   |              |              |
+| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L1    | nein | ja   | ja   |              |              |
 
 Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
 Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:
@@ -66,3 +67,19 @@ Steckdose, Lichtauslass; 3-polig: Drehstromsteckdose, 5-polige Anschlussdose).
 Die Dosen werden automatisch angeordnet: je Block von höchstens 3 Stromkreisen eine Reihe mit
 je einer Dose pro Stromkreis, weitere Dosen darunter. Der nächste Block beginnt in einer
 neuen Reihe (mehr als 3 Spalten passen nicht in die Breite des Schaltkastens).
+
+## Fehlerwiderstände
+
+Alle Fehlerfelder sind optional, leer = kein Fehler. Eine Zahl gilt für den ersten
+Außenleiter, `0,1 / 0 / 0,3` gibt je Außenleiter L1 / L2 / L3 einen Wert (nur wo es drei
+Außenleiter gibt: 3-poliger Hauptschalter, 4-poliger RCD, 3-poliger LS).
+
+| Wo                         | Sitzt auf                                   | Wirkung                                                       |
+| -------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| Stromkreis, Fehler L       | Zuleitung Reihenklemme -> Endstelle         | Zi, Zs und ΔU dieses Stromkreises steigen                     |
+| Stromkreis, Fehler N       | N-Zuleitung zur Endstelle                   | Zi und ΔU steigen, Zs bleibt gleich                           |
+| Gruppe, Fehler L / N       | Ausgang des RCD (z.B. lose Klemme)          | wie oben, für alle Stromkreise der Gruppe                     |
+| Anlage, Fehler Einspeisung | Zuleitung von außen bis zum Hauptschalter   | Zs der Hauptleitung und alle Zi/Zs steigen; Zref wird auf L1 und N gemessen, ΔU steigt deshalb nur bei einem Fehler auf L2/L3 |
+| Anlage, Vorimpedanz        | Netz vor der Anlage (leer = 0,14 Ω)         | ein Gesamtwert, der einmal zu jedem Zi, Zs und Zref addiert wird; ΔU bleibt gleich |
+
+Gruppen ohne RCD haben keine Gruppen-Fehler, dort den Fehler am Stromkreis eintragen.

@@ -1,0 +1,299 @@
+{
+  "fehlertabelle": {
+    "N2": 0.1,
+    "N4": 0.05,
+    "N15": 0.1,
+    "N23": 0.15,
+    "N24": 0.15,
+    "N32": 0.3,
+    "N37": 0.2,
+    "N48": 0.25,
+    "N49": 0.3
+  },
+  "einspeisung": {
+    "L1": "N1",
+    "L2": "N2",
+    "L3": "N3",
+    "N": "N4"
+  },
+  "L1": {
+    "knoten": [
+      "N1",
+      "N6",
+      "N9",
+      "N16",
+      "N19",
+      "N23",
+      "N24",
+      "N25",
+      "N26",
+      "N27",
+      "N31",
+      "N40",
+      "N43",
+      "N46"
+    ],
+    "kanten": [
+      {
+        "von": "N6",
+        "nach": "N9",
+        "bauteil": "Hauptschalter",
+        "geschlossen": true
+      },
+      {
+        "von": "N1",
+        "nach": "N6",
+        "bauteil": "L1-Klemme",
+        "geschlossen": true
+      },
+      {
+        "von": "N9",
+        "nach": "N16",
+        "bauteil": "RCD1",
+        "geschlossen": true
+      },
+      {
+        "von": "N16",
+        "nach": "N19",
+        "bauteil": "LS1",
+        "geschlossen": true
+      },
+      {
+        "von": "N9",
+        "nach": "N23",
+        "bauteil": "RCD2",
+        "geschlossen": true
+      },
+      {
+        "von": "N9",
+        "nach": "N24",
+        "bauteil": "RCD2",
+        "geschlossen": true
+      },
+      {
+        "von": "N23",
+        "nach": "N25",
+        "bauteil": "LS4",
+        "geschlossen": true
+      },
+      {
+        "von": "N24",
+        "nach": "N26",
+        "bauteil": "LS5",
+        "geschlossen": true
+      },
+      {
+        "von": "N9",
+        "nach": "N27",
+        "bauteil": "LS6",
+        "geschlossen": true
+      },
+      {
+        "von": "N19",
+        "nach": "N31",
+        "bauteil": "Reihenklemme_L_SK1",
+        "geschlossen": true
+      },
+      {
+        "von": "N25",
+        "nach": "N40",
+        "bauteil": "Reihenklemme_L_SK4",
+        "geschlossen": true
+      },
+      {
+        "von": "N26",
+        "nach": "N43",
+        "bauteil": "Reihenklemme_L_SK5",
+        "geschlossen": true
+      },
+      {
+        "von": "N27",
+        "nach": "N46",
+        "bauteil": "Reihenklemme_L1_SK6",
+        "geschlossen": true
+      }
+    ]
+  },
+  "L2": {
+    "knoten": [
+      "N2",
+      "N7",
+      "N10",
+      "N17",
+      "N20",
+      "N28",
+      "N34",
+      "N47"
+    ],
+    "kanten": [
+      {
+        "von": "N7",
+        "nach": "N10",
+        "bauteil": "Hauptschalter",
+        "geschlossen": true
+      },
+      {
+        "von": "N2",
+        "nach": "N7",
+        "bauteil": "L2-Klemme",
+        "geschlossen": true
+      },
+      {
+        "von": "N10",
+        "nach": "N17",
+        "bauteil": "RCD1",
+        "geschlossen": true
+      },
+      {
+        "von": "N17",
+        "nach": "N20",
+        "bauteil": "LS2",
+        "geschlossen": true
+      },
+      {
+        "von": "N10",
+        "nach": "N28",
+        "bauteil": "LS6",
+        "geschlossen": true
+      },
+      {
+        "von": "N20",
+        "nach": "N34",
+        "bauteil": "Reihenklemme_L_SK2",
+        "geschlossen": true
+      },
+      {
+        "von": "N28",
+        "nach": "N47",
+        "bauteil": "Reihenklemme_L2_SK6",
+        "geschlossen": true
+      }
+    ]
+  },
+  "L3": {
+    "knoten": [
+      "N3",
+      "N8",
+      "N11",
+      "N18",
+      "N21",
+      "N29",
+      "N37",
+      "N48"
+    ],
+    "kanten": [
+      {
+        "von": "N8",
+        "nach": "N11",
+        "bauteil": "Hauptschalter",
+        "geschlossen": true
+      },
+      {
+        "von": "N3",
+        "nach": "N8",
+        "bauteil": "L3-Klemme",
+        "geschlossen": true
+      },
+      {
+        "von": "N11",
+        "nach": "N18",
+        "bauteil": "RCD1",
+        "geschlossen": true
+      },
+      {
+        "von": "N18",
+        "nach": "N21",
+        "bauteil": "LS3",
+        "geschlossen": true
+      },
+      {
+        "von": "N11",
+        "nach": "N29",
+        "bauteil": "LS6",
+        "geschlossen": true
+      },
+      {
+        "von": "N21",
+        "nach": "N37",
+        "bauteil": "Reihenklemme_L_SK3",
+        "geschlossen": true
+      },
+      {
+        "von": "N29",
+        "nach": "N48",
+        "bauteil": "Reihenklemme_L3_SK6",
+        "geschlossen": true
+      }
+    ]
+  },
+  "N": {
+    "knoten": [
+      "N4",
+      "N12",
+      "N15",
+      "N22",
+      "N32",
+      "N35",
+      "N38",
+      "N41",
+      "N44",
+      "N49"
+    ],
+    "kanten": [
+      {
+        "von": "N4",
+        "nach": "N12",
+        "bauteil": "N-Klemme",
+        "geschlossen": true
+      },
+      {
+        "von": "N12",
+        "nach": "N15",
+        "bauteil": "RCD1",
+        "geschlossen": true
+      },
+      {
+        "von": "N12",
+        "nach": "N22",
+        "bauteil": "RCD2",
+        "geschlossen": true
+      },
+      {
+        "von": "N15",
+        "nach": "N32",
+        "bauteil": "Reihenklemme_N_SK1",
+        "geschlossen": true
+      },
+      {
+        "von": "N15",
+        "nach": "N35",
+        "bauteil": "Reihenklemme_N_SK2",
+        "geschlossen": true
+      },
+      {
+        "von": "N15",
+        "nach": "N38",
+        "bauteil": "Reihenklemme_N_SK3",
+        "geschlossen": true
+      },
+      {
+        "von": "N22",
+        "nach": "N41",
+        "bauteil": "Reihenklemme_N_SK4",
+        "geschlossen": true
+      },
+      {
+        "von": "N22",
+        "nach": "N44",
+        "bauteil": "Reihenklemme_N_SK5",
+        "geschlossen": true
+      },
+      {
+        "von": "N12",
+        "nach": "N49",
+        "bauteil": "Reihenklemme_N_SK6",
+        "geschlossen": true
+      }
+    ]
+  }
+}

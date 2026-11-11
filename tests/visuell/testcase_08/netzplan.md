@@ -139,12 +139,12 @@ Hutschiene dieses Netz stammt.
 
 ## Fehlertabelle
 
-Fehler-Widerstand auf der Zuleitung zur Endstelle - Netze ohne Eintrag gelten als 0Ω.
+Fehler-Widerstände aus der Anforderung - Netze ohne Eintrag gelten als 0Ω.
 
-| Netz | Widerstand (Ω) |
-| ---- | --------------- |
-| N27 | 0,1 |
-| N30 | 0,2 |
-| N33 | 0,15 |
-| N36 | 0,3 |
+| Netz | Widerstand (Ω) | Ort |
+| ---- | --------------- | --- |
+| N27 | 0,1 | SK1 Zuleitung L1 |
+| N30 | 0,2 | SK2 Zuleitung L2 |
+| N33 | 0,15 | SK3 Zuleitung L2 |
+| N36 | 0,3 | SK4 Zuleitung L1 |
 

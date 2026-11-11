@@ -792,8 +792,8 @@ auf 0V, keine Phasenfolge-Anzeige mehr).
   Zi/Zs-Berechnung automatisch mit einfließt (reale Schleifenimpedanz ist nie 0, auch
   ohne jeden Fehler). **Umgesetzt für ZI, ZS und Zref:** aus `anlage.json`
   (`vorimpedanz_ohm`), ohne Eintrag `0,14Ω` (`ZI_VORIMPEDANZ` in
-  `controller/app.js`, sim-liq). Einstellbar über die Anforderung einer Demo
-  folgt mit sim-puv.
+  `controller/app.js`, sim-liq). Einstellbar über die Zeile `Vorimpedanz (Ω)` in
+  der Anforderung einer Demo (sim-vdo, Beispiel testcase_09).
 - **Messspannung (RISO)** – Prüfspannung für die Isolationswiderstandsmessung, am
   Messgerät per ▲/▼ wählbar (Feld muss vorher über ◄► ausgewählt sein). Gültige
   Werte nach VDE 0100-600/IEC 61557-2: 50V, 100V, 250V, 500V, 1000V. Default
@@ -2382,6 +2382,7 @@ tests/visuell/
   testcase_06/   ← Gruppe G1: 3-poliger LS OHNE RCD, 5-polige Anschlussdose; Gruppe G2: 2-poliger RCD + 2x 1-poliger LS (beide auf derselben Hutschiene)
   testcase_07/   ← aus Anforderung erzeugt (früher demo_06): gemischte Endstellen, Steckdosen + Lichtauslass in einem Stromkreis
   testcase_08/   ← aus Anforderung erzeugt (früher demo_08): 3-poliger LS ohne RCD mit 5-poliger Anschlussdose, daneben RCD Typ B auf L1
+  testcase_09/   ← aus Anforderung erzeugt (sim-vdo): Fehler an Einspeisung, RCD-Ausgang (L und N) und Stromkreisen (L, N, je Außenleiter), Vorimpedanz 0,2 Ω
   ...
 ```
 

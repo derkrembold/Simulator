@@ -403,6 +403,8 @@ function generiereAnlage(ordner) {
     netzform: kopfdaten['Netzform'],
     spannung_einspeisung: parseInt(kopfdaten['Spannung Einspeisung'], 10),
     spannung_stromkreise: parseInt(kopfdaten['Spannung Stromkreise'], 10),
+    // Vorimpedanz der Einspeisung (sim-vdo); ohne Eintrag rechnet die App mit 0,14 Ω.
+    ...(kopfdaten['Vorimpedanz'] ? { vorimpedanz_ohm: parseFloat(kopfdaten['Vorimpedanz'].replace(',', '.')) } : {}),
 
     // Raster für das Steckdosen-View-Objekt oberhalb des Schaltkastens (siehe
     // view/steckdosen.js und die "## Steckdosen (Platzierung)"-Tabelle in

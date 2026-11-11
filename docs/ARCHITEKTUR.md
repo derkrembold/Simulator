@@ -5674,10 +5674,11 @@ node tools/demo_erstellung.js demo_02 --nur-modell # nur netzplan.md, bauteile.m
 
 **Eingabe:** `demos/demo_NN/anforderung.md`, kopiert aus `demos/anforderung_vorlage.md`. Drei
 Tabellen mit festen Auswahlwerten (die erlaubten Werte stehen oben in der Vorlage, Quelle:
-`docs/referenz/bauteilwerte.md`): **Anlage** (Name, Netzform, Hauptschalter 2/3-polig und Ampere),
-**Gruppen** (RCD Pole 2/4/`ohne`, Typ, Fehlerstrom, Nennstrom, Selektiv, Abklemmen), **Stromkreise**
-(Gruppe, Ziel, Endstelle, Anzahl Dosen, LS Pole 1/3, Charakteristik, Ampere, Phase, Zi/Zs/RCD,
-optional Fehler Zuleitung in Ω). Eine neue Gruppe ist eine zusätzliche Zeile in `Gruppen` plus die
+`docs/referenz/bauteilwerte.md`): **Anlage** (Name, Netzform, Hauptschalter 2/3-polig und Ampere,
+optional Vorimpedanz und Fehler Einspeisung L/N), **Gruppen** (RCD Pole 2/4/`ohne`, Typ,
+Fehlerstrom, Nennstrom, Selektiv, Abklemmen, optional Fehler L/N), **Stromkreise** (Gruppe, Ziel,
+Endstelle, Anzahl Dosen, LS Pole 1/3, Charakteristik, Ampere, Phase, Zi/Zs/RCD, optional Fehler
+L/N in Ω). Eine neue Gruppe ist eine zusätzliche Zeile in `Gruppen` plus die
 Stromkreise mit dieser Gruppen-ID.
 
 **Ablauf:** Anforderung parsen und prüfen (alle Meldungen auf einmal) -> `netzplan.md` und
@@ -5702,6 +5703,20 @@ Stromkreisen eine Reihe mit einer Dose je Stromkreis, weitere Dosen darunter; de
 ist 640 px breit, eine Zelle 190 px, mehr als 3 Spalten ragen über den Rand), Spannung der Stromkreise (400 V, wenn ein Stromkreis
 dreiphasig ist, sonst 230 V).
 
+**Fehlerwiderstände (sim-vdo):** Die Fehler aus der Anforderung landen in der Fehlertabelle von
+`netzplan.md` (Spalten Netz, Widerstand, Ort) und damit in `graph.fehlertabelle`. Eine Zahl gilt
+für den ersten Außenleiter, `a / b / c` je Außenleiter. Stromkreis-Fehler sitzen auf der Zuleitung
+Reihenklemme -> Endstelle (L je Außenleiter, N), Gruppen-Fehler am RCD-Ausgang (L: auf jeder Ader
+vom RCD zu einem LS derselbe Wert, damit jeder Stromkreis ihn einmal sieht; N: auf der
+gemeinsamen N-Ader der Gruppe), Fehler Einspeisung auf den Netzen Einspeisung -> Hauptschalter bzw.
+L-/N-Klemme, also vor der Zref-Messstelle. Die App zählt für Zi L- und N-Pfad, für Zs nur den L-Pfad
+(kein PE-Teilgraph, siehe sim-0cf); Zref wird auf L1 und N gemessen, ein Einspeisungsfehler auf L2/L3
+geht deshalb in den Spannungsfall ein. Die Vorimpedanz steht als Zeile `Vorimpedanz` in den
+Kopfdaten von `bauteile.md`, `generate_anlage.js` übernimmt sie als `anlage.vorimpedanz_ohm`
+(ohne Eintrag kein Feld, die App rechnet dann mit 0,14 Ω). Beispiel mit allen Fehlerorten:
+`tests/visuell/testcase_09`, Sollwerte von Hand in `tests/visuell/test_pruefprotokoll.js`
+(`SOLL_FEHLERORTE`).
+
 **Prüfregeln:** gültige Werte je Feld; Gruppe und Phase existieren; 2-poliger RCD höchstens 2 LS,
 nur 1-polig und alle auf derselben Phase; 4-poliger RCD höchstens 6 LS, 3-poliger Hauptschalter
 und Stromkreise auf L1, L2 und L3; RCD-Nennstrom größer als jeder LS; Gruppe ohne RCD genau ein
@@ -5711,8 +5726,7 @@ nur Phase L1; höchstens 16 TE je Gruppe.
 
 **Bewusste Grenzen der ersten Fassung:** kein AFDD-Kombigerät; mehr als ein Stromkreis in einer
 Gruppe ohne RCD nicht möglich; die Netzform (TN-S, TN-C-S, TT) ist nur eine Beschriftung, der
-Generator unterscheidet sie nicht; ein Fehlerwiderstand pro Stromkreis (auf der ersten
-Phasen-Zuleitung zur Endstelle).
+Generator unterscheidet sie nicht; Fehler auf PE und Isolationsfehler sind nicht möglich (sim-0cf).
 
 **Pfade für Demos:** Die Werkzeuge in `tools/` bilden den Pfad als `tests/visuell/<name>`. Mit
 einem relativen Namen wie `../../demos/demo_02` laufen sie ohne Codeänderung auch für `demos/`
@@ -5725,9 +5739,11 @@ Temp-Ordnern): Die Vorlage erzeugt dieselbe `anlage.json` wie die von Hand gebau
 `tests/visuell/referenz/vorlage_anlage.json` (verglichen ohne Netz-IDs); zweite Gruppe mit 4-poligem RCD Typ B; dritte Gruppe wandert auf eine
 zweite Hutschiene; 3-poliger LS ohne RCD (wie testcase_06); 4-poliger RCD mit 3-poligem LS und
 Drehstromsteckdose (wie testcase_05); 2-poliger Hauptschalter (wie testcase_01); Fehlerwiderstand
-in `graph.json`; vierzehn abgelehnte Anforderungen mit der erwarteten Meldung (u. a. `SK01`,
-`16abc`, negativer oder unlesbarer Fehlerwiderstand, unlesbare RCD-Polzahl, die nicht still als
-`ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
+in `graph.json`; Fehler an Stromkreis, Gruppe und Einspeisung ergeben je Ader die richtige Summe
+auf dem Pfad zur Einspeisung, Vorimpedanz in `anlage.json` (sim-vdo); abgelehnte Anforderungen mit
+der erwarteten Meldung (u. a. `SK01`, `16abc`, negativer oder unlesbarer Fehlerwiderstand, falsche
+Anzahl Werte je Außenleiter, Gruppen-Fehler ohne RCD, Vorimpedanz 0, alte Spalte
+`Fehler Zuleitung (Ω)`, unlesbare RCD-Polzahl, die nicht still als `ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
 `istSpannungFuehrend()` mit der Einspeisung verbunden sein. Zusätzlich prüft der Test im headless
 Browser, dass bei `demos/demo_04`, `testcase_07` und `testcase_08` alle Pfade im Graphen und
 im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).

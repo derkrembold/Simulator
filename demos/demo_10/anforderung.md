@@ -53,15 +53,16 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel              | Endstelle                   | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD | Fehler Zuleitung (Ω) |
-| ---------- | ------ | ----------------- | --------------------------- | ------------ | ------- | -------- | ------ | ----- | ---- | --- | --- | -------------------- |
-| SK1        | G1     | Keller, Drehstrom | Drehstromsteckdose           | 1            | 3       | B        | 16     |        | nein | ja  | ja  | 0.3                  |
-| SK2        | G2     | Keller, Licht     | Lichtauslass + Steckdose    | 1 + 1        | 1       | B        | 10     | L1    | nein | ja  | ja  | 0.4                  |
-| SK3        | G2     | Keller, Licht     | Lichtauslass + Lichtauslass | 1 + 1        | 1       | B        | 10     | L2    | nein | ja  | ja  | 0.2                  |
-| SK4        | G2     | Keller, Steckdose | Steckdose + Steckdose       | 1 + 1        | 1       | B        | 10     | L3    | nein | ja  | ja  | 0.1                  |
-| SK5        | G2     | Keller, Steckdose | Steckdose + Steckdose       | 1 + 1        | 1       | B        | 16     | L3    | nein | ja  | ja  | 0.4                  |
+| Stromkreis | Gruppe | Ziel              | Endstelle                   | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ----------------- | --------------------------- | ------------ | ------- | -------- | ------ | ----- | ---- | --- | --- | -------------------- | ------------ |
+| SK1        | G1     | Keller, Drehstrom | Drehstromsteckdose           | 1            | 3       | B        | 16     |        | nein | ja  | ja  | 0.3                  |              |
+| SK2        | G2     | Keller, Licht     | Lichtauslass + Steckdose    | 1 + 1        | 1       | B        | 10     | L1    | nein | ja  | ja  | 0.4                  |              |
+| SK3        | G2     | Keller, Licht     | Lichtauslass + Lichtauslass | 1 + 1        | 1       | B        | 10     | L2    | nein | ja  | ja  | 0.2                  |              |
+| SK4        | G2     | Keller, Steckdose | Steckdose + Steckdose       | 1 + 1        | 1       | B        | 10     | L3    | nein | ja  | ja  | 0.1                  |              |
+| SK5        | G2     | Keller, Steckdose | Steckdose + Steckdose       | 1 + 1        | 1       | B        | 16     | L3    | nein | ja  | ja  | 0.4                  |              |
 
-Fehler Zuleitung (Ω): optionaler Widerstand auf der Leitung zur Endstelle, leer = 0 Ω.
+Fehler L (Ω) / Fehler N (Ω): optionale Fehlerwiderstände, leer = kein Fehler. Weitere Fehlerorte
+(Gruppe, Einspeisung, Vorimpedanz) siehe demos/anforderung_vorlage.md, Abschnitt Fehlerwiderstände.
 
 Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
 Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:

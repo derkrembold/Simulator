@@ -22,7 +22,7 @@ const path = require('path');
 const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
 const { parseBauteile } = require('./generate_anlage.js');
 
-const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06', 'testcase_07', 'testcase_08'];
+const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06', 'testcase_07', 'testcase_08', 'testcase_09'];
 
 // Querschnitt der Zuleitung an der Einspeisung (sim-aon), unabhängig vom
 // Code aus den Anlagen abgelesen: testcase_02/03 führen die Zuleitung direkt
@@ -30,7 +30,25 @@ const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', '
 // mit 16 mm² auf den Hauptschalter.
 const HAUPTLEITUNG_QUERSCHNITT = {
   testcase_01: '16', testcase_02: '10', testcase_03: '10', testcase_04: '16', testcase_05: '16', testcase_06: '16',
-  testcase_07: '16', testcase_08: '16'
+  testcase_07: '16', testcase_08: '16', testcase_09: '16'
+};
+
+// sim-vdo: Sollwerte für testcase_09, von Hand aus der Fehlertabelle in
+// tests/visuell/testcase_09/netzplan.md gerechnet (Vorimpedanz 0,2 Ω).
+// Zs = Vorimpedanz + Fehler auf dem L-Pfad, Zi = Zs + Fehler auf dem N-Pfad,
+// Zref = Zi am Hauptschalter-Ausgang auf L1.
+//   Einspeisung L2 0,1, Einspeisung N 0,05, RCD1 Ausgang N 0,1,
+//   RCD2 Ausgang L1 0,15, SK1 N 0,3, SK3 L3 0,2, SK6 L3 0,25, SK6 N 0,3.
+const SOLL_FEHLERORTE = {
+  testcase_09: {
+    hauptleitungZs: { L1: '0,20', L2: '0,30', L3: '0,20' },
+    zref: '0,25',
+    zi: {
+      'SK1 L1': '0,65', 'SK2 L2': '0,45', 'SK3 L3': '0,55', 'SK4 L1': '0,40', 'SK5 L1': '0,40',
+      'SK6 L1': '0,55', 'SK6 L2': '0,65', 'SK6 L3': '0,80'
+    },
+    zs: { 'SK6 L1': '0,20', 'SK6 L2': '0,30', 'SK6 L3': '0,45' }
+  }
 };
 
 // Sollwerte Zi je Außenleiter, siehe Kopfkommentar Punkt 2.
@@ -183,22 +201,39 @@ async function main() {
 
     // sim-aon: Hauptleitung mit Kabel der Einspeisung und Zs je Außenleiter
     // = Vorimpedanz (keine Fehlerwiderstände vor der Einspeisung).
-    await pruefe(`${testcase}: Hauptleitung mit Aderanzahl, Querschnitt und Zs = Vorimpedanz`, async () => {
+    await pruefe(`${testcase}: Hauptleitung mit Aderanzahl, Querschnitt und Zs = Vorimpedanz plus Fehler Einspeisung`, async () => {
       const soll = (anlage.vorimpedanz_ohm ?? 0.14).toFixed(2).replace('.', ',');
       erwarteGleich(hauptleitungZs.length, anlage.hauptsicherung.polig === 3 ? 3 : 1, 'Anzahl Zs-Messungen');
-      for (const m of hauptleitungZs) erwarteGleich(m.zs, soll, `Zs ${m.phase}`);
+      const sollJePhase = SOLL_FEHLERORTE[testcase]?.hauptleitungZs;
+      for (const m of hauptleitungZs) erwarteGleich(m.zs, sollJePhase?.[m.phase] ?? soll, `Zs ${m.phase}`);
       const zeile = zeilen.find((z) => z.zeilenIndex === 2).werte;
       const dreiphasig = anlage.hauptsicherung.polig === 3;
       erwarteGleich(zeile[SPALTE.kabelAnzahl], dreiphasig ? '5' : '3', 'Aderanzahl');
       erwarteGleich(zeile[SPALTE.kabelQuerschnitt], HAUPTLEITUNG_QUERSCHNITT[testcase], 'Querschnitt');
-      erwarteGleich(zeile[SPALTE.zs], soll, 'Zs im Protokoll');
+      const schlechtester = sollJePhase ? Object.values(sollJePhase).sort().pop() : soll;
+      erwarteGleich(zeile[SPALTE.zs], schlechtester, 'Zs im Protokoll');
       if (!zeile[SPALTE.ik]) throw new Error('Ik fehlt');
     });
 
-    await pruefe(`${testcase}: Zref am Verteiler = Vorimpedanz`, async () => {
+    await pruefe(`${testcase}: Zref am Verteiler = Vorimpedanz plus Fehler Einspeisung`, async () => {
       const soll = (anlage.vorimpedanz_ohm ?? 0.14).toFixed(2).replace('.', ',');
-      erwarteGleich(zref, soll, 'Zref');
+      erwarteGleich(zref, SOLL_FEHLERORTE[testcase]?.zref ?? soll, 'Zref');
     });
+
+    const fehlerorte = SOLL_FEHLERORTE[testcase];
+    if (fehlerorte) {
+      await pruefe(`${testcase}: Zi und Zs je Außenleiter passen zu den Fehlerorten (sim-vdo)`, async () => {
+        for (const erg of ergebnisse) {
+          for (const m of erg.aussenleiter ?? []) {
+            const schluessel = `${erg.sk} ${m.phase}`;
+            if (fehlerorte.zi[schluessel]) erwarteGleich(m.zi, fehlerorte.zi[schluessel], `${schluessel} Zi`);
+            if (fehlerorte.zs[schluessel]) erwarteGleich(m.zs, fehlerorte.zs[schluessel], `${schluessel} Zs`);
+          }
+        }
+        erwarteGleich(Object.keys(fehlerorte.zi).length + Object.keys(fehlerorte.zs).length,
+          ergebnisse.flatMap((e) => (e.aussenleiter ?? []).flatMap((m) => [m.zi, m.zs].filter(Boolean))).length, 'Anzahl geprüfter Werte');
+      });
+    }
 
     // sim-nt2: Das Replay trägt genau die Werte ein, die auch in der PDF
     // stehen - außer dem Kabeltyp, der in der Anlage nicht ablesbar ist.

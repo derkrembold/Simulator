@@ -53,15 +53,16 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel                | Endstelle              | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD | Fehler Zuleitung (Ω) |
-| ---------- | ------ | ------------------- | ---------------------- | ------------ | ------- | -------- | ------ | ----- | ---- | --- | --- | -------------------- |
-| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose              | 2            | 1       | B        | 16     | L1    | nein | ja  | ja  |                      |
-| SK2        | G1     | Licht Zimmer 1      | Lichtauslass           | 1            | 1       | B        | 10     | L1    | nein | ja  | ja  |                      |
-| SK3        | G2     | Steckdosen Zimmer 2 | Steckdose              | 2            | 1       | B        | 16     | L2    | nein | ja  | ja  |                      |
-| SK4        | G2     | Licht Zimmer 2      | Lichtauslass           | 1            | 1       | B        | 10     | L2    | nein | ja  | ja  |                      |
-| SK5        | G3     | Kueche              | 5-polige Anschlussdose | 1            | 3       | B        | 16     |       | nein | ja  | ja  |                      |
+| Stromkreis | Gruppe | Ziel                | Endstelle              | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ------------------- | ---------------------- | ------------ | ------- | -------- | ------ | ----- | ---- | --- | --- | -------------------- | ------------ |
+| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose              | 2            | 1       | B        | 16     | L1    | nein | ja  | ja  |                      |              |
+| SK2        | G1     | Licht Zimmer 1      | Lichtauslass           | 1            | 1       | B        | 10     | L1    | nein | ja  | ja  |                      |              |
+| SK3        | G2     | Steckdosen Zimmer 2 | Steckdose              | 2            | 1       | B        | 16     | L2    | nein | ja  | ja  |                      |              |
+| SK4        | G2     | Licht Zimmer 2      | Lichtauslass           | 1            | 1       | B        | 10     | L2    | nein | ja  | ja  |                      |              |
+| SK5        | G3     | Kueche              | 5-polige Anschlussdose | 1            | 3       | B        | 16     |       | nein | ja  | ja  |                      |              |
 
-Fehler Zuleitung (Ω): optionaler Widerstand auf der Leitung zur Endstelle, leer = 0 Ω.
+Fehler L (Ω) / Fehler N (Ω): optionale Fehlerwiderstände, leer = kein Fehler. Weitere Fehlerorte
+(Gruppe, Einspeisung, Vorimpedanz) siehe demos/anforderung_vorlage.md, Abschnitt Fehlerwiderstände.
 
 Die Dosen werden automatisch angeordnet: je Block von höchstens 3 Stromkreisen eine Reihe mit
 je einer Dose pro Stromkreis, weitere Dosen darunter. Der nächste Block beginnt in einer

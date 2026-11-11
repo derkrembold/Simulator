@@ -93,6 +93,26 @@ function zahl(wert) {
   return parseFloat(text.replace(',', '.'));
 }
 
+// Fehlerwiderstände (sim-vdo): leer = kein Fehler, eine Zahl = erster
+// Außenleiter, "a / b / c" = je Außenleiter L1 / L2 / L3. `werte` ist null,
+// wenn ein Teil keine Zahl ist.
+function leseFehler(roh) {
+  const text = String(roh ?? '').trim();
+  if (text === '') return { roh: text, werte: [] };
+  const werte = text.split('/').map((t) => zahl(t));
+  return { roh: text, werte: werte.includes(null) ? null : werte };
+}
+
+// Prüft einen Fehlerwert gegen die Anzahl der Außenleiter an dieser Stelle.
+function pruefeFehler(fehler, aussenleiter, ort, muss) {
+  muss(fehler.werte !== null && fehler.werte.every((w) => w >= 0),
+    `${ort} "${fehler.roh}" ungültig (leer, eine Zahl ab 0 oder je Außenleiter "a / b / c")`);
+  if (fehler.werte && fehler.werte.length > 1) {
+    muss(fehler.werte.length === aussenleiter,
+      `${ort} "${fehler.roh}": ${fehler.werte.length} Werte, an dieser Stelle gibt es ${aussenleiter} Außenleiter (eine Zahl oder ${aussenleiter} Werte)`);
+  }
+}
+
 function parseAnforderung(text) {
   const abschnitte = text.split(/^## /m).slice(1);
   const finde = (name) => abschnitte.find((a) => a.startsWith(name));
@@ -109,7 +129,9 @@ function parseAnforderung(text) {
     fehlerstrom: zahl(z['Fehlerstrom (mA)']),
     nennstrom: zahl(z['RCD Nennstrom (A)']),
     selektiv: z.Selektiv,
-    abklemmen: z.Abklemmen
+    abklemmen: z.Abklemmen,
+    fehlerL: leseFehler(z['Fehler L (Ω)']),
+    fehlerN: leseFehler(z['Fehler N (Ω)'])
   }));
 
   const stromkreise = leseTabelle(finde('Stromkreise') ?? '').filter((z) => z.Stromkreis).map((z) => {
@@ -129,8 +151,9 @@ function parseAnforderung(text) {
       lsA: zahl(z['LS (A)']),
       phase: z.Phase || null,
       zi: z.Zi, zs: z.Zs, rcd: z.RCD,
-      fehlerRoh: z['Fehler Zuleitung (Ω)'] ?? '',
-      fehler: z['Fehler Zuleitung (Ω)'] ? zahl(z['Fehler Zuleitung (Ω)']) : null
+      altesFehlerFeld: 'Fehler Zuleitung (Ω)' in z,
+      fehlerL: leseFehler(z['Fehler L (Ω)']),
+      fehlerN: leseFehler(z['Fehler N (Ω)'])
     };
   });
 
@@ -140,6 +163,10 @@ function parseAnforderung(text) {
     netzform: kopfdaten.Netzform,
     hsPole: zahl(kopfdaten['Hauptschalter Pole']),
     hsA: zahl(kopfdaten['Hauptschalter (A)']),
+    vorimpedanzRoh: (kopfdaten['Vorimpedanz (Ω)'] ?? '').trim(),
+    vorimpedanz: zahl(kopfdaten['Vorimpedanz (Ω)']),
+    einspeisungFehlerL: leseFehler(kopfdaten['Fehler Einspeisung L (Ω)']),
+    einspeisungFehlerN: leseFehler(kopfdaten['Fehler Einspeisung N (Ω)']),
     gruppen,
     stromkreise
   };
@@ -157,6 +184,10 @@ function pruefeAnforderung(anf) {
   muss(aus(anf.netzform, ERLAUBT.netzform), `Anlage: Netzform "${anf.netzform}" ungültig (erlaubt: ${liste(ERLAUBT.netzform)})`);
   muss(aus(anf.hsPole, ERLAUBT.hauptschalterPole), `Anlage: Hauptschalter Pole "${anf.hsPole}" ungültig (erlaubt: ${liste(ERLAUBT.hauptschalterPole)})`);
   muss(anf.hsA > 0, 'Anlage: Hauptschalter (A) fehlt oder ist keine Zahl');
+  muss(anf.vorimpedanzRoh === '' || anf.vorimpedanz > 0, `Anlage: Vorimpedanz (Ω) "${anf.vorimpedanzRoh}" ungültig (leer = 0,14 oder eine Zahl größer 0)`);
+  const aussenleiterHS = anf.hsPole === 3 ? 3 : 1;
+  pruefeFehler(anf.einspeisungFehlerL, aussenleiterHS, 'Anlage: Fehler Einspeisung L (Ω)', muss);
+  pruefeFehler(anf.einspeisungFehlerN, 1, 'Anlage: Fehler Einspeisung N (Ω)', muss);
   muss(anf.gruppen.length > 0, 'Gruppen: mindestens eine Gruppe nötig');
   muss(anf.stromkreise.length > 0, 'Stromkreise: mindestens ein Stromkreis nötig');
 
@@ -164,7 +195,12 @@ function pruefeAnforderung(anf) {
   for (const g of anf.gruppen) {
     muss(!gruppenIds.has(g.id), `Gruppe ${g.id}: doppelt vergeben`);
     gruppenIds.add(g.id);
-    if (g.ohneRcd) continue;
+    if (g.ohneRcd) {
+      muss(g.fehlerL.roh === '' && g.fehlerN.roh === '', `Gruppe ${g.id}: ohne RCD gibt es keinen Gruppen-Fehler, den Fehler am Stromkreis angeben`);
+      continue;
+    }
+    pruefeFehler(g.fehlerL, g.rcdPole === 4 ? 3 : 1, `Gruppe ${g.id}: Fehler L (Ω)`, muss);
+    pruefeFehler(g.fehlerN, 1, `Gruppe ${g.id}: Fehler N (Ω)`, muss);
     muss(aus(g.rcdPole, ERLAUBT.rcdPole), `Gruppe ${g.id}: RCD Pole "${g.rcdPoleRoh}" ungültig (erlaubt: ${liste(ERLAUBT.rcdPole)} oder ohne)`);
     muss(aus(g.typ, ERLAUBT.rcdTyp), `Gruppe ${g.id}: RCD Typ "${g.typ}" ungültig (erlaubt: ${liste(ERLAUBT.rcdTyp)})`);
     muss(aus(g.fehlerstrom, ERLAUBT.fehlerstrom), `Gruppe ${g.id}: Fehlerstrom "${g.fehlerstrom}" ungültig (erlaubt: ${liste(ERLAUBT.fehlerstrom)})`);
@@ -188,7 +224,9 @@ function pruefeAnforderung(anf) {
     for (const [feld, wert] of [['Zi', s.zi], ['Zs', s.zs], ['RCD', s.rcd]]) {
       muss(aus(wert, ERLAUBT.janein), `Stromkreis ${n}: ${feld} "${wert}" ungültig (ja/nein)`);
     }
-    muss(s.fehlerRoh === '' || (s.fehler !== null && s.fehler >= 0), `Stromkreis ${n}: Fehler Zuleitung "${s.fehlerRoh}" ungültig (leer oder eine Zahl ab 0)`);
+    muss(!s.altesFehlerFeld, `Stromkreis ${n}: die Spalte "Fehler Zuleitung (Ω)" heißt jetzt "Fehler L (Ω)", dazu gibt es "Fehler N (Ω)" (siehe demos/anforderung_vorlage.md)`);
+    pruefeFehler(s.fehlerL, s.lsPole === 3 ? 3 : 1, `Stromkreis ${n}: Fehler L (Ω)`, muss);
+    pruefeFehler(s.fehlerN, 1, `Stromkreis ${n}: Fehler N (Ω)`, muss);
     if (s.lsPole === 3) {
       for (const typ of new Set(s.dosenTypen)) {
         muss(aus(typ, ERLAUBT.endstelleDreiphasig), `Stromkreis ${n}: Endstelle "${typ}" passt nicht zu einem 3-poligen LS (erlaubt: ${liste(ERLAUBT.endstelleDreiphasig)})`);
@@ -268,6 +306,13 @@ function baueModell(anf) {
 
   const bond = (tabelle) => neuesNetz(tabelle, 'PE', 16, { farbe: 'blank', kabeltyp: null });
 
+  // Fehlerwiderstände (sim-vdo) für die Fehlertabelle in netzplan.md. Ein
+  // Wert 0 oder ein fehlender Wert ist kein Fehler.
+  const fehlerNetze = [];
+  const fehlerAuf = (netz, widerstand, ort) => {
+    if (widerstand > 0) fehlerNetze.push({ netz: netz.id, widerstand, ort });
+  };
+
   // Hutschienen: H1 = Hauptschalter + Klemmen, dann Gruppen (je bis 16 TE), zuletzt Reihenklemmen.
   const schienen = [];
   for (const g of anf.gruppen) {
@@ -302,6 +347,12 @@ function baueModell(anf) {
   const peEin = neuesNetz('H1', 'PE', qEin);
   anPin(peEin, 'H1', 'Einspeisung.PE');
   anPin(peEin, 'H1', 'PE-Klemme.io1');
+  // Fehler an der Einspeisung liegen vor der Zref-Messstelle (Hauptschalter-
+  // Ausgang): Zs der Hauptleitung und alle Zi/Zs auf diesem Leiter steigen.
+  // Zref wird auf L1 und N gemessen, ein Fehler auf L1 oder N steckt also auch
+  // in Zref und hebt sich im ΔU auf, ein Fehler auf L2/L3 erhöht ΔU.
+  phasenHS.forEach((p, k) => fehlerAuf(einspeisung[p], anf.einspeisungFehlerL.werte[k], `Einspeisung ${p}`));
+  fehlerAuf(nEin, anf.einspeisungFehlerN.werte[0], 'Einspeisung N');
 
   const hsAus = {};
   let nUngeschaltet;
@@ -355,11 +406,16 @@ function baueModell(anf) {
         anPin(nUngeschaltet, tab, `${rcdName}.i${rcdPhasen.length + 1}`);
         gruppeN = neuesNetz(tab, 'N', Math.max(...gruppenSks.map((s) => s.q)));
         anPin(gruppeN, tab, `${rcdName}.o${rcdPhasen.length + 1}`);
+        fehlerAuf(gruppeN, g.fehlerN.werte[0], `${rcdName} Ausgang N`);
         for (const s of gruppenSks) {
           s.phasen.forEach((p, j) => {
             const zweig = neuesNetz(tab, p, s.q);
             anPin(zweig, tab, `${rcdName}.o${rcdPhasen.indexOf(p) + 1}`);
             anPin(zweig, tab, `LS${s.nr}.i${j + 1}`);
+            // Gruppen-Fehler am RCD-Ausgang: jeder LS hat eine eigene Ader
+            // vom RCD, jede bekommt den Wert, damit jeder Stromkreis ihn
+            // genau einmal sieht.
+            fehlerAuf(zweig, g.fehlerL.werte[rcdPhasen.indexOf(p)], `${rcdName} Ausgang ${p} (zu LS${s.nr})`);
           });
         }
       } else {
@@ -382,7 +438,6 @@ function baueModell(anf) {
 
   // Reihenklemmen und Endstellen
   const bondR = bond(tabelleReihenklemmen);
-  const fehlerNetze = [];
   sks.forEach((s, index) => {
     const tab = tabelleReihenklemmen;
     const mehrphasig = s.phasen.length > 1;
@@ -394,7 +449,7 @@ function baueModell(anf) {
       const ende = neuesNetz(tab, p, s.q);
       anPin(ende, tab, `${rk}.o1`);
       anPin(ende, tab, `Endstelle_SK${s.nr}.i${j + 1}`);
-      if (j === 0 && s.fehler) fehlerNetze.push({ netz: ende.id, widerstand: s.fehler });
+      fehlerAuf(ende, s.fehlerL.werte[j], `SK${s.nr} Zuleitung ${p}`);
     });
     s.reihenklemmen.push(`Reihenklemme_N_SK${s.nr}`, `Reihenklemme_PE_SK${s.nr}`);
 
@@ -402,6 +457,7 @@ function baueModell(anf) {
     const nEnde = neuesNetz(tab, 'N', s.q);
     anPin(nEnde, tab, `Reihenklemme_N_SK${s.nr}.o1`);
     anPin(nEnde, tab, `Endstelle_SK${s.nr}.i${s.phasen.length + 1}`);
+    fehlerAuf(nEnde, s.fehlerN.werte[0], `SK${s.nr} Zuleitung N`);
 
     if (index === 0) anPin(zubringer, tab, `Reihenklemme_PE_SK${s.nr}.io1`);
     const peEnde = neuesNetz(tab, 'PE', s.q);
@@ -463,9 +519,9 @@ function schreibeNetzplan(anf, modell, demoName) {
 
   if (fehlerNetze.length > 0) {
     zeilen.push('## Fehlertabelle', '');
-    zeilen.push('Fehler-Widerstand auf der Zuleitung zur Endstelle - Netze ohne Eintrag gelten als 0Ω.', '');
-    zeilen.push('| Netz | Widerstand (Ω) |', '| ---- | --------------- |');
-    for (const f of fehlerNetze) zeilen.push(`| ${f.netz} | ${String(f.widerstand).replace('.', ',')} |`);
+    zeilen.push('Fehler-Widerstände aus der Anforderung - Netze ohne Eintrag gelten als 0Ω.', '');
+    zeilen.push('| Netz | Widerstand (Ω) | Ort |', '| ---- | --------------- | --- |');
+    for (const f of fehlerNetze) zeilen.push(`| ${f.netz} | ${String(f.widerstand).replace('.', ',')} | ${f.ort} |`);
     zeilen.push('');
   }
   return zeilen.join('\n') + '\n';
@@ -540,6 +596,7 @@ function schreibeBauteile(anf, modell) {
   zeilen.push(`| Netzform | ${anf.netzform} | – |`);
   zeilen.push('| Spannung Einspeisung | 400 | V |');
   zeilen.push(`| Spannung Stromkreise | ${sks.some((s) => s.lsPole === 3) ? 400 : 230} | V |`);
+  if (anf.vorimpedanz !== null) zeilen.push(`| Vorimpedanz | ${String(anf.vorimpedanz).replace('.', ',')} | Ω |`);
   return zeilen.join('\n') + '\n';
 }
 

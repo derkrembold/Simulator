@@ -53,15 +53,16 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel   | Endstelle                | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD  | Fehler Zuleitung (Ω) |
-| ---------- | ------ | ------ | ------------------------ | ------------ | ------- | -------- | ------ | ----- | ---- | --- | ---- | -------------------- |
-| SK1        | G1     | Kueche | Steckdose + Lichtauslass | 1 + 1        | 1       | B        | 16     | L1    | nein | ja  | ja   | 0,1                  |
-| SK2        | G2     | Kueche | Lichtauslass + Steckdose | 1 + 1        | 1       | B        | 10     | L2    | nein | ja  | ja   | 0,2                  |
-| SK3        | G2     | Kueche | Steckdose                | 2            | 1       | B        | 10     | L2    | nein | ja  | ja   | 0,15                 |
-| SK4        | G3     | Kueche | 5-polige Anschlussdose   | 1            | 3       | B        | 16     |       | nein | ja  | nein | 0,3                  |
+| Stromkreis | Gruppe | Ziel   | Endstelle                | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD  | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ------ | ------------------------ | ------------ | ------- | -------- | ------ | ----- | ---- | --- | ---- | -------------------- | ------------ |
+| SK1        | G1     | Kueche | Steckdose + Lichtauslass | 1 + 1        | 1       | B        | 16     | L1    | nein | ja  | ja   | 0,1                  |              |
+| SK2        | G2     | Kueche | Lichtauslass + Steckdose | 1 + 1        | 1       | B        | 10     | L2    | nein | ja  | ja   | 0,2                  |              |
+| SK3        | G2     | Kueche | Steckdose                | 2            | 1       | B        | 10     | L2    | nein | ja  | ja   | 0,15                 |              |
+| SK4        | G3     | Kueche | 5-polige Anschlussdose   | 1            | 3       | B        | 16     |       | nein | ja  | nein | 0,3                  |              |
 
 
-Fehler Zuleitung (Ω): optionaler Widerstand auf der Leitung zur Endstelle, leer = 0 Ω.
+Fehler L (Ω) / Fehler N (Ω): optionale Fehlerwiderstände, leer = kein Fehler. Weitere Fehlerorte
+(Gruppe, Einspeisung, Vorimpedanz) siehe demos/anforderung_vorlage.md, Abschnitt Fehlerwiderstände.
 
 Die Dosen werden automatisch angeordnet: je Block von höchstens 3 Stromkreisen eine Reihe mit
 je einer Dose pro Stromkreis, weitere Dosen darunter. Der nächste Block beginnt in einer

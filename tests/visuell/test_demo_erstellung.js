@@ -39,7 +39,7 @@ function tempOrdner() {
 // Kopf der Stromkreis-Fehlerspalten (für die Meldung zur alten Spalte).
 function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise, anlage = {}, fehlerSpalte = 'Fehler L (Ω) | Fehler N (Ω)' }) {
   const g = gruppen.map((x) => `| ${x.id} | ${x.rcdPole} | ${x.typ ?? 'A'} | ${x.fehlerstrom ?? 30} | ${x.nennstrom ?? 40} | ${x.selektiv ?? 'nein'} | ${x.abklemmen ?? 'nein'} | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
-  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | nein | ja | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
+  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
   const zusatz = Object.entries(anlage).map(([feld, wert]) => `\n| ${feld} | ${wert} |`).join('');
   return `# Anforderung – test
 
@@ -61,8 +61,8 @@ ${g}
 
 ## Stromkreise
 
-| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi | Zs | RCD | ${fehlerSpalte} |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | ${fehlerSpalte} |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 ${s}
 `;
 }
@@ -380,6 +380,13 @@ lehntAb('Vorimpedanz 0', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 2 }],
   stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
 }), 'Vorimpedanz (Ω) "0" ungültig');
+
+// sim-r65: Zi/Zs folgen aus der Anlage, alte Spalten werden nicht still ignoriert.
+lehntAb('alte Spalte Zs', baueAnforderung({
+  fehlerSpalte: 'Fehler L (Ω) | Fehler N (Ω) | Zs',
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+}), 'die Spalten "Zi" und "Zs" entfallen');
 
 lehntAb('alte Spalte Fehler Zuleitung', baueAnforderung({
   fehlerSpalte: 'Fehler Zuleitung (Ω) | Fehler N (Ω)',

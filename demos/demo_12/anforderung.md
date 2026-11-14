@@ -57,14 +57,14 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel                               | Endstelle                   | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD | Fehler L (Ω) | Fehler N (Ω) |
-| ---------- | ------ | ---------------------------------- | --------------------------- | ------------ | ------- | -------- | ------ | ----- | ---- | --- | --- | ------------ | ------------ |
-| SK1        | G1     | Schlafzimmer 1 Steckdosen          | Steckdose + Steckdose       | 1+1          | 1       | B        | 16     | L1    | nein | ja  | ja  | 0,05         | 0,07         |
-| SK2        | G1     | Schlafzimmer 1 Licht               | Lichtauslass + Lichtauslass | 1+1          | 1       | B        | 10     | L1    | nein | ja  | ja  | 0,07         | 0,05         |
-| SK3        | G2     | Schlafzimmer 2 Steckdose und Licht | Steckdose + Lichtauslass    | 1+1          | 1       | B        | 10     | L2    | nein | ja  | ja  | 0,05         | 0,07         |
-| SK4        | G2     | Schlafzimmer 2 Steckdose und Licht | Steckdose + Lichtauslass    | 1+1          | 1       | B        | 10     | L2    | nein | ja  | ja  | 0,07         | 0,05         |
-| SK5        | G3     | Garage Drehstrom                   | Drehstromsteckdose          | 1            | 3       | C        | 16     |       | nein | ja  | ja  | 0,4          | 0,2          |
-| SK6        | G3     | Garage Licht und Steckdose         | Lichtauslass + Steckdose    | 1+1          | 1       | B        | 10     | L3    | nein | ja  | ja  | 0,05         | 0,07         |
+| Stromkreis | Gruppe | Ziel                               | Endstelle                   | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ---------------------------------- | --------------------------- | ------------ | ------- | -------- | ------ | ----- | --- | ------------ | ------------ |
+| SK1        | G1     | Schlafzimmer 1 Steckdosen          | Steckdose + Steckdose       | 1+1          | 1       | B        | 16     | L1    | ja  | 0,05         | 0,07         |
+| SK2        | G1     | Schlafzimmer 1 Licht               | Lichtauslass + Lichtauslass | 1+1          | 1       | B        | 10     | L1    | ja  | 0,07         | 0,05         |
+| SK3        | G2     | Schlafzimmer 2 Steckdose und Licht | Steckdose + Lichtauslass    | 1+1          | 1       | B        | 10     | L2    | ja  | 0,05         | 0,07         |
+| SK4        | G2     | Schlafzimmer 2 Steckdose und Licht | Steckdose + Lichtauslass    | 1+1          | 1       | B        | 10     | L2    | ja  | 0,07         | 0,05         |
+| SK5        | G3     | Garage Drehstrom                   | Drehstromsteckdose          | 1            | 3       | C        | 16     |       | ja  | 0,4          | 0,2          |
+| SK6        | G3     | Garage Licht und Steckdose         | Lichtauslass + Steckdose    | 1+1          | 1       | B        | 10     | L3    | ja  | 0,05         | 0,07         |
 
 Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
 Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:

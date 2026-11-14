@@ -364,8 +364,10 @@ function parseBauteile(ordner) {
         }));
     } else if (abschnitt.startsWith('Stromkreise')) {
       ergebnis.stromkreise = leseMarkdownTabelle(abschnitt).map((z) => {
-        const [zi, zs, rcd] = z['Messungen (zi/zs/rcd)'].split('/').map((s) => s.trim() === 'ja');
-        return { nr: z.Stromkreis.trim(), ziel: z.Ziel.trim(), endstelle: z.Endstelle.trim(), zi, zs, rcd };
+        // Zi/Zs folgen aus der Anlage (mit RCD Zi, ohne RCD Zi und Zs, sim-r65),
+        // nur der RCD-Test ist je Stromkreis wählbar.
+        const rcd = bereinige(z['RCD-Test (ja/nein)']) === 'ja';
+        return { nr: z.Stromkreis.trim(), ziel: z.Ziel.trim(), endstelle: z.Endstelle.trim(), rcd };
       });
     } else if (abschnitt.startsWith('Anlage')) {
       for (const zeile of leseMarkdownTabelle(abschnitt)) {
@@ -564,7 +566,7 @@ function generiereAnlage(ordner) {
         endstelle: sk.endstelle,
         leitung: { typ: leitungKabeltyp ?? 'NYM-J', adern: leitungAdern },
         reihenklemmen_eingang: reihenklemmenEingang,
-        messungen: { zi: sk.zi, zs: sk.zs, rcd: sk.rcd }
+        messungen: { rcd: sk.rcd }
       };
     });
 

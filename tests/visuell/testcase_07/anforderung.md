@@ -50,10 +50,10 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs   | RCD  | Fehler L (Ω) | Fehler N (Ω) |
-| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ---- | ---- | -------------------- | ------------ |
-| SK1        | G1     | Zimmer 1            | Steckdose + Lichtauslass | 2 + 1 | 1    | B        | 16     | L1    | nein | ja   | ja   |                      |              |
-| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L1    | nein | ja   | ja   |                      |              |
+| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD  | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | -------------------- | ------------ |
+| SK1        | G1     | Zimmer 1            | Steckdose + Lichtauslass | 2 + 1 | 1    | B        | 16     | L1    | ja   |                      |              |
+| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L1    | ja   |                      |              |
 
 Fehler L (Ω) / Fehler N (Ω): optionale Fehlerwiderstände, leer = kein Fehler. Weitere Fehlerorte
 (Gruppe, Einspeisung, Vorimpedanz) siehe demos/anforderung_vorlage.md, Abschnitt Fehlerwiderstände.

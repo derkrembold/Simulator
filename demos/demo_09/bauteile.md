@@ -38,12 +38,12 @@ Aus `anforderung.md` erzeugt (`tools/demo_erstellung.js`), nicht von Hand änder
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Werkstatt | Steckdose | nein / ja / ja |
-| SK2 | Werkstatt | Steckdose | nein / ja / ja |
-| SK3 | Werkstatt | Drehstromsteckdose | nein / ja / ja |
-| SK4 | Werkstatt | 5-polige Anschlussdose | nein / ja / ja |
+| SK1 | Werkstatt | Steckdose | ja |
+| SK2 | Werkstatt | Steckdose | ja |
+| SK3 | Werkstatt | Drehstromsteckdose | ja |
+| SK4 | Werkstatt | 5-polige Anschlussdose | ja |
 
 ## Steckdosen (Platzierung)
 

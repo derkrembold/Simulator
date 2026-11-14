@@ -56,12 +56,12 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel                    | Endstelle                | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD | Fehler L (Ω) | Fehler N (Ω) |
-| ---------- | ------ | ----------------------- | ------------------------ | ------------ | ------- | -------- | ------ | ----- | ---- | --- | --- | ------------ | ------------ |
-| SK1        | G1     | Schlafzimmer 1 Steckdosen | Steckdose + Steckdose    | 1 + 1        | 1       | B        | 16     | L1    | nein | ja  | ja  | 0.2          | 0.3          |
-| SK2        | G1     | Schlafzimmer 1 Licht      | Lichtauslass + Steckdose | 1 + 1        | 1       | B        | 10     | L1    | nein | ja  | ja  | 0.25         | 0.25         |
-| SK3        | G2     | Schlafzimmer 2 Steckdosen | Steckdose + Steckdose    | 1 + 1        | 1       | B        | 16     | L2    | nein | ja  | ja  | 0.21         | 0.32         |
-| SK4        | G2     | Schlafzimmer 2 Licht      | Lichtauslass + Steckdose | 1 + 1        | 1       | B        | 10     | L2    | nein | ja  | ja  | 0.27         | 0.19         |
+| Stromkreis | Gruppe | Ziel                    | Endstelle                | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ----------------------- | ------------------------ | ------------ | ------- | -------- | ------ | ----- | --- | ------------ | ------------ |
+| SK1        | G1     | Schlafzimmer 1 Steckdosen | Steckdose + Steckdose    | 1 + 1        | 1       | B        | 16     | L1    | ja  | 0.2          | 0.3          |
+| SK2        | G1     | Schlafzimmer 1 Licht      | Lichtauslass + Steckdose | 1 + 1        | 1       | B        | 10     | L1    | ja  | 0.25         | 0.25         |
+| SK3        | G2     | Schlafzimmer 2 Steckdosen | Steckdose + Steckdose    | 1 + 1        | 1       | B        | 16     | L2    | ja  | 0.21         | 0.32         |
+| SK4        | G2     | Schlafzimmer 2 Licht      | Lichtauslass + Steckdose | 1 + 1        | 1       | B        | 10     | L2    | ja  | 0.27         | 0.19         |
 
 Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
 Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:

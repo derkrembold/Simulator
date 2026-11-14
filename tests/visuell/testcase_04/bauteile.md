@@ -32,11 +32,11 @@ Verdrahtung nicht ableitbar sind.
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Steckdosen Zimmer 1 (L1) | Steckdose | nein / ja / ja |
-| SK2 | Steckdosen Zimmer 2 (L2) | Steckdose | nein / ja / ja |
-| SK3 | Steckdosen Zimmer 3 (L3) | Steckdose | nein / ja / ja |
+| SK1 | Steckdosen Zimmer 1 (L1) | Steckdose | ja |
+| SK2 | Steckdosen Zimmer 2 (L2) | Steckdose | ja |
+| SK3 | Steckdosen Zimmer 3 (L3) | Steckdose | ja |
 
 ## Steckdosen (Platzierung)
 

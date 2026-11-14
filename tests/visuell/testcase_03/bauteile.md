@@ -44,14 +44,14 @@ Verdrahtung nicht ableitbar sind.
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Steckdosen Zimmer 1 | Steckdose | nein / ja / ja |
-| SK2 | Licht Zimmer 1 | Lichtauslass | nein / ja / ja |
-| SK3 | Steckdosen Zimmer 2 | Steckdose | nein / ja / ja |
-| SK4 | Steckdosen Zimmer 3 | Steckdose | nein / ja / ja |
-| SK5 | Steckdosen Zimmer 4 | Steckdose | nein / ja / ja |
-| SK6 | Licht Zimmer 2 | Lichtauslass | nein / ja / ja |
+| SK1 | Steckdosen Zimmer 1 | Steckdose | ja |
+| SK2 | Licht Zimmer 1 | Lichtauslass | ja |
+| SK3 | Steckdosen Zimmer 2 | Steckdose | ja |
+| SK4 | Steckdosen Zimmer 3 | Steckdose | ja |
+| SK5 | Steckdosen Zimmer 4 | Steckdose | ja |
+| SK6 | Licht Zimmer 2 | Lichtauslass | ja |
 
 ## Steckdosen (Platzierung)
 

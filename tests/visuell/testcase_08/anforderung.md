@@ -53,12 +53,12 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel   | Endstelle                | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs  | RCD  | Fehler L (Ω) | Fehler N (Ω) |
-| ---------- | ------ | ------ | ------------------------ | ------------ | ------- | -------- | ------ | ----- | ---- | --- | ---- | -------------------- | ------------ |
-| SK1        | G1     | Kueche | Steckdose + Lichtauslass | 1 + 1        | 1       | B        | 16     | L1    | nein | ja  | ja   | 0,1                  |              |
-| SK2        | G2     | Kueche | Lichtauslass + Steckdose | 1 + 1        | 1       | B        | 10     | L2    | nein | ja  | ja   | 0,2                  |              |
-| SK3        | G2     | Kueche | Steckdose                | 2            | 1       | B        | 10     | L2    | nein | ja  | ja   | 0,15                 |              |
-| SK4        | G3     | Kueche | 5-polige Anschlussdose   | 1            | 3       | B        | 16     |       | nein | ja  | nein | 0,3                  |              |
+| Stromkreis | Gruppe | Ziel   | Endstelle                | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD  | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ------ | ------------------------ | ------------ | ------- | -------- | ------ | ----- | ---- | -------------------- | ------------ |
+| SK1        | G1     | Kueche | Steckdose + Lichtauslass | 1 + 1        | 1       | B        | 16     | L1    | ja   | 0,1                  |              |
+| SK2        | G2     | Kueche | Lichtauslass + Steckdose | 1 + 1        | 1       | B        | 10     | L2    | ja   | 0,2                  |              |
+| SK3        | G2     | Kueche | Steckdose                | 2            | 1       | B        | 10     | L2    | ja   | 0,15                 |              |
+| SK4        | G3     | Kueche | 5-polige Anschlussdose   | 1            | 3       | B        | 16     |       | nein | 0,3                  |              |
 
 
 Fehler L (Ω) / Fehler N (Ω): optionale Fehlerwiderstände, leer = kein Fehler. Weitere Fehlerorte

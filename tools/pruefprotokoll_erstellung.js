@@ -915,8 +915,8 @@ async function berechneProtokoll(testcase) {
     ['zs', 'ik'].map((spalte) => ({ zeile: HAUPTLEITUNG_ZEILE, spalte, wert: hauptleitung.werte[spalte] }))));
 
   console.log('--- Zi/Zs ---');
+  // Jeder Stromkreis: Zi (für ΔU), ohne RCD zusätzlich Zs (sim-r65).
   for (const { sk, gruppe } of stromkreise) {
-    if (!sk.messungen.zs) continue;
     const e = ergebnisVon(sk);
     e.aussenleiter = [];
     for (const phase of sk.phasen) {
@@ -943,7 +943,6 @@ async function berechneProtokoll(testcase) {
   // Mit RCD kommt Zi/Ik L-N ins Protokoll, ohne RCD Zs/Ik L-PE (sim-1jl).
   // Zi wird ohne RCD trotzdem gemessen, weil der Spannungsfall es braucht.
   stromkreise.forEach(({ sk, gruppe }, i) => {
-    if (!sk.messungen.zs) return;
     const e = ergebnisVon(sk);
     Object.assign(protokoll[i].werte, { ueArt: sk.ls.char, ueIn: String(sk.ls.in) },
       gruppe.rcd ? { zi: e.zi, ikLn: e.ikLn } : { zs: e.zs, ik: e.ik });

@@ -214,7 +214,7 @@ Netz N48):
     `docs/referenz/herdanschlussdose_vorlage.svg`) wurde auf `5-polige
     Anschlussdose` umgestellt - analog zu testcase_05s Vorgehen bei der
     Drehstromsteckdose.
-12. **Messungen (zi/zs/rcd) = nein/ja/nein**: `zi` nicht relevant (kein RCD
+12. **Messungen (zi/zs/rcd) = nein/ja/nein** (seit sim-r65 nur noch die Spalte "RCD-Test (ja/nein)", Zi/Zs folgen aus der Anlage): `zi` nicht relevant (kein RCD
     in der Gruppe), `zs` relevant (normale Abschaltbedingung über den LS),
     `rcd` nein (es gibt kein RCD auf dem Pfad zu diesem Stromkreis - FI/RCD
     sollte hier keinen RCD finden, Ampel rot, analog dem in KONZEPT.md
@@ -236,6 +236,6 @@ Netz N48):
     auf H3, direkt neben SK1s Reihenklemmen. Bekommen ihr PE **nicht** über
     eine eigene Zubringerader, sondern ausschließlich über den lokalen
     Hutschienen-Bond (N51) - analog testcase_01 Annahme 4.
-17. **Messungen (zi/zs/rcd) für SK2/SK3 = nein/ja/ja** - analog testcase_01
+17. **Messungen (zi/zs/rcd) für SK2/SK3 = nein/ja/ja** (seit sim-r65 nur noch die Spalte "RCD-Test (ja/nein)", Zi/Zs folgen aus der Anlage) - analog testcase_01
     SK1/SK2 (dort ebenfalls hinter einem RCD, aber `zs` statt `zi` als
     repräsentative Messung gewählt).

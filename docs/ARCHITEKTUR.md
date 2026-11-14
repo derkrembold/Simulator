@@ -5075,8 +5075,8 @@ neu erzeugt UND committet werden (kein automatischer CI-Schritt).
 Stromkreis (`hutschienen[].gruppen[].stromkreise[]`) bereits alles
 Nötige strukturiert: `ziel` (Zielbezeichnung), `leitung.adern` (Kabeltyp/
 Querschnitt/Anzahl an der Endstelle), `ls` (LS-Charakteristik/In,
-Ein-/Ausgangsnetz je Phase), `messungen: {zi, zs, rcd}` (welche Messungen
-nötig sind). Die RCD-Gruppendaten (`gruppen[].rcd`: Name/Typ/IΔN/Nennstrom)
+Ein-/Ausgangsnetz je Phase), `messungen: {rcd}` (ob der RCD-Test nötig ist; Zi/Zs
+folgen aus der Anlage, sim-r65). Die RCD-Gruppendaten (`gruppen[].rcd`: Name/Typ/IΔN/Nennstrom)
 gelten für alle Stromkreise der Gruppe gemeinsam.
 
 **Scope (Stand 2026-07-31, verifiziert an ALLEN SECHS Testcases
@@ -5182,8 +5182,8 @@ Design-Fund, siehe unten) gemessen:
      ein Stromkreis GAR KEIN RCD hat, wird ersatzweise der Hauptschalter
      geöffnet (reiner Spannungsfrei-Zweck, kein Trennungs-Bedarf).
 3. **Überstromschutz** (ZS, LS-Typ/Bemessungsstrom vorher per `stelleEin()`
-   gesetzt) - Anlage normal energisiert, kein Abklemmen nötig. Nur wenn
-   `sk.messungen.zs`. Zi (L-N) und, ohne RCD, Zs (L-PE) werden für **jeden
+   gesetzt) - Anlage normal energisiert, kein Abklemmen nötig. Für jeden
+   Stromkreis (seit sim-r65 ohne Flag). Zi (L-N) und, ohne RCD, Zs (L-PE) werden für **jeden
    Außenleiter** in `sk.phasen` einzeln gemessen, je in einem eigenen
    Abschnitt (Titel z.B. `SK1 L2: Zi (L-N)`). Die Werte pro Außenleiter
    liefert `berechneProtokoll()` in `ergebnis.aussenleiter`. In die
@@ -5677,9 +5677,12 @@ Tabellen mit festen Auswahlwerten (die erlaubten Werte stehen oben in der Vorlag
 `docs/referenz/bauteilwerte.md`): **Anlage** (Name, Netzform, Hauptschalter 2/3-polig und Ampere,
 optional Vorimpedanz und Fehler Einspeisung L/N), **Gruppen** (RCD Pole 2/4/`ohne`, Typ,
 Fehlerstrom, Nennstrom, Selektiv, Abklemmen, optional Fehler L/N), **Stromkreise** (Gruppe, Ziel,
-Endstelle, Anzahl Dosen, LS Pole 1/3, Charakteristik, Ampere, Phase, Zi/Zs/RCD, optional Fehler
+Endstelle, Anzahl Dosen, LS Pole 1/3, Charakteristik, Ampere, Phase, RCD-Test ja/nein, optional Fehler
 L/N in Ω). Eine neue Gruppe ist eine zusätzliche Zeile in `Gruppen` plus die
 Stromkreise mit dieser Gruppen-ID.
+Zi und Zs sind keine Spalten mehr (sim-r65): Mit RCD wird Zi gemessen und eingetragen, ohne RCD
+Zi und Zs, eingetragen und geprüft wird dann Zs. Eine Anforderung mit den alten Spalten `Zi`/`Zs`
+wird mit einer Meldung abgelehnt.
 
 **Ablauf:** Anforderung parsen und prüfen (alle Meldungen auf einmal) -> `netzplan.md` und
 `bauteile.md` schreiben (Netz-IDs fortlaufend vergeben) -> `generate_anlage.js`

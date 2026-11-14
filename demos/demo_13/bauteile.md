@@ -34,13 +34,13 @@ Aus `anforderung.md` erzeugt (`tools/demo_erstellung.js`), nicht von Hand änder
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Küche Steckdosen | Steckdose | nein / ja / ja |
-| SK2 | Küche Licht | Lichtauslass | nein / ja / ja |
-| SK3 | Waschküche Steckdose | Steckdose | nein / ja / nein |
-| SK4 | Flur Licht | Lichtauslass | nein / ja / ja |
-| SK5 | Flur Steckdose | Steckdose | nein / ja / ja |
+| SK1 | Küche Steckdosen | Steckdose | ja |
+| SK2 | Küche Licht | Lichtauslass | ja |
+| SK3 | Waschküche Steckdose | Steckdose | nein |
+| SK4 | Flur Licht | Lichtauslass | ja |
+| SK5 | Flur Steckdose | Steckdose | ja |
 
 ## Steckdosen (Platzierung)
 

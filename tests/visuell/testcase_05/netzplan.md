@@ -253,5 +253,5 @@ N-Ausgang exakt 0,07Ω ergibt:
     beide (da LS2/LS3 den N-Pol selbst schalten, siehe Annahme 13/14) - PE
     weiterhin nur über den lokalen Hutschienen-Bond (`N51`), analog
     testcase_01/06 Annahme 4.
-16. **Messungen (zi/zs/rcd) für SK2/SK3 = nein/ja/ja** - analog testcase_06
+16. **Messungen (zi/zs/rcd) für SK2/SK3 = nein/ja/ja** (seit sim-r65 nur noch die Spalte "RCD-Test (ja/nein)", Zi/Zs folgen aus der Anlage) - analog testcase_06
     SK2/SK3 (RCD2 auf dem Pfad, `zs` als repräsentative Messung gewählt).

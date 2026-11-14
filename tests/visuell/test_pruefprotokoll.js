@@ -328,7 +328,7 @@ async function main() {
         });
       }
 
-      if (erg.messungen.zs) {
+      {
         await pruefe(`${testcase} ${erg.sk}: Zi/Zs für jeden Außenleiter (${erg.phasen.join('/')}) gemessen`, async () => {
           if (!erg.aussenleiter) throw new Error(`${erg.sk}: keine Messwerte pro Außenleiter geliefert`);
           const gemessen = erg.aussenleiter.map((m) => m.phase).join('/');
@@ -400,7 +400,7 @@ async function main() {
         });
       }
 
-      if (erg.messungen.zs) {
+      {
         await pruefe(`${testcase} ${erg.sk}: Protokollzeile enthält ${erg.rcdName ? 'nur Zi/Ik L-N' : 'nur Zs/Ik L-PE'} (sim-1jl)`, async () => {
           const zeile = zeilen.find((z) => z.zeilenIndex === erg.zeilenIndex);
           if (!zeile) throw new Error(`${erg.sk}: keine Protokollzeile gefunden`);

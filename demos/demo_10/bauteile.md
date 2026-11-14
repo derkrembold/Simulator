@@ -40,13 +40,13 @@ Aus `anforderung.md` erzeugt (`tools/demo_erstellung.js`), nicht von Hand änder
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Keller, Drehstrom | Drehstromsteckdose | nein / ja / ja |
-| SK2 | Keller, Licht | Lichtauslass | nein / ja / ja |
-| SK3 | Keller, Licht | Lichtauslass | nein / ja / ja |
-| SK4 | Keller, Steckdose | Steckdose | nein / ja / ja |
-| SK5 | Keller, Steckdose | Steckdose | nein / ja / ja |
+| SK1 | Keller, Drehstrom | Drehstromsteckdose | ja |
+| SK2 | Keller, Licht | Lichtauslass | ja |
+| SK3 | Keller, Licht | Lichtauslass | ja |
+| SK4 | Keller, Steckdose | Steckdose | ja |
+| SK5 | Keller, Steckdose | Steckdose | ja |
 
 ## Steckdosen (Platzierung)
 

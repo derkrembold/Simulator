@@ -24,10 +24,10 @@ Verdrahtung nicht ableitbar sind (Nennstrom, Typ, Charakteristik, ...).
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Steckdosen Zimmer 1 | Steckdose | nein / ja / ja |
-| SK2 | Licht Zimmer 1 | Lichtauslass | nein / ja / ja |
+| SK1 | Steckdosen Zimmer 1 | Steckdose | ja |
+| SK2 | Licht Zimmer 1 | Lichtauslass | ja |
 
 ## Steckdosen (Platzierung)
 

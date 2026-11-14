@@ -48,14 +48,14 @@ Aus `anforderung.md` erzeugt (`tools/demo_erstellung.js`), nicht von Hand änder
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Steckdosen Zimmer 1 | Steckdose | nein / ja / ja |
-| SK2 | Licht Zimmer 1 | Lichtauslass | nein / ja / ja |
-| SK3 | Steckdosen Zimmer 2 | Steckdose | nein / ja / ja |
-| SK4 | Licht Zimmer 2 | Lichtauslass | nein / ja / ja |
-| SK5 | Keller | Drehstromsteckdose | nein / ja / ja |
-| SK6 | Kueche | 5-polige Anschlussdose | nein / ja / ja |
+| SK1 | Steckdosen Zimmer 1 | Steckdose | ja |
+| SK2 | Licht Zimmer 1 | Lichtauslass | ja |
+| SK3 | Steckdosen Zimmer 2 | Steckdose | ja |
+| SK4 | Licht Zimmer 2 | Lichtauslass | ja |
+| SK5 | Keller | Drehstromsteckdose | ja |
+| SK6 | Kueche | 5-polige Anschlussdose | ja |
 
 ## Steckdosen (Platzierung)
 

@@ -150,7 +150,8 @@ function parseAnforderung(text) {
       lsChar: z['LS Char.'],
       lsA: zahl(z['LS (A)']),
       phase: z.Phase || null,
-      zi: z.Zi, zs: z.Zs, rcd: z.RCD,
+      rcd: z.RCD,
+      alteMessSpalten: 'Zi' in z || 'Zs' in z,
       altesFehlerFeld: 'Fehler Zuleitung (Ω)' in z,
       fehlerL: leseFehler(z['Fehler L (Ω)']),
       fehlerN: leseFehler(z['Fehler N (Ω)'])
@@ -221,9 +222,8 @@ function pruefeAnforderung(anf) {
     muss(aus(s.lsA, ERLAUBT.lsNennstrom), `Stromkreis ${n}: LS (A) "${s.lsA}" ungültig (erlaubt: ${liste(ERLAUBT.lsNennstrom)})`);
     muss(!s.dosenFehler, `Stromkreis ${n}: ${s.dosenFehler}`);
     muss(Number.isInteger(s.dosen) && s.dosen >= 1, `Stromkreis ${n}: Anzahl Dosen muss eine Zahl ab 1 sein`);
-    for (const [feld, wert] of [['Zi', s.zi], ['Zs', s.zs], ['RCD', s.rcd]]) {
-      muss(aus(wert, ERLAUBT.janein), `Stromkreis ${n}: ${feld} "${wert}" ungültig (ja/nein)`);
-    }
+    muss(aus(s.rcd, ERLAUBT.janein), `Stromkreis ${n}: RCD "${s.rcd}" ungültig (ja/nein)`);
+    muss(!s.alteMessSpalten, `Stromkreis ${n}: die Spalten "Zi" und "Zs" entfallen, Zi/Zs folgen aus der Anlage (mit RCD Zi, ohne RCD Zi und Zs; siehe demos/anforderung_vorlage.md)`);
     muss(!s.altesFehlerFeld, `Stromkreis ${n}: die Spalte "Fehler Zuleitung (Ω)" heißt jetzt "Fehler L (Ω)", dazu gibt es "Fehler N (Ω)" (siehe demos/anforderung_vorlage.md)`);
     pruefeFehler(s.fehlerL, s.lsPole === 3 ? 3 : 1, `Stromkreis ${n}: Fehler L (Ω)`, muss);
     pruefeFehler(s.fehlerN, 1, `Stromkreis ${n}: Fehler N (Ω)`, muss);
@@ -568,8 +568,8 @@ function schreibeBauteile(anf, modell) {
   }
 
   zeilen.push('', '## Stromkreise', '');
-  zeilen.push('| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |', '|---|---|---|---|');
-  for (const s of sks) zeilen.push(`| ${s.name} | ${s.ziel} | ${s.endstelle} | ${s.zi} / ${s.zs} / ${s.rcd} |`);
+  zeilen.push('| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |', '|---|---|---|---|');
+  for (const s of sks) zeilen.push(`| ${s.name} | ${s.ziel} | ${s.endstelle} | ${s.rcd} |`);
 
   zeilen.push('', '## Steckdosen (Platzierung)', '');
   zeilen.push('Raster für die Anordnung der Steckdosen/Anschlussdosen oberhalb des Schaltkastens.', '');

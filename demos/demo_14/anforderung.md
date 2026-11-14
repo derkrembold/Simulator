@@ -57,13 +57,13 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi | Zs | RCD | Fehler L (Ω) | Fehler N (Ω) |
-| ---------- | ------ | ---- | --------- | ------------ | ------- | -------- | ------ | ----- | -- | -- | --- | ------------ | ------------ |
-| SK1 | G1 | Werkstatt Drehstrom | Drehstromsteckdose | 1 | 3 | C | 32 |  | nein | ja | ja | 0,1 / 0 / 0,3 |  |
-| SK2 | G1 | Werkstatt Anschluss | 5-polige Anschlussdose | 1 | 3 | C | 16 |  | nein | ja | ja |  |  |
-| SK3 | G2 | Büro Steckdosen | Steckdose + Steckdose | 1 + 1 | 1 | B | 16 | L2 | nein | ja | ja | 0,2 | 0,1 |
-| SK4 | G2 | Büro Licht | Lichtauslass + Lichtauslass | 1 + 1 | 1 | B | 10 | L2 | nein | ja | ja |  |  |
-| SK5 | G3 | Flur Licht | Lichtauslass | 1 | 1 | B | 10 | L3 | nein | ja | nein | 0,2 |  |
+| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ---- | --------- | ------------ | ------- | -------- | ------ | ----- | --- | ------------ | ------------ |
+| SK1 | G1 | Werkstatt Drehstrom | Drehstromsteckdose | 1 | 3 | C | 32 |  | ja | 0,1 / 0 / 0,3 |  |
+| SK2 | G1 | Werkstatt Anschluss | 5-polige Anschlussdose | 1 | 3 | C | 16 |  | ja |  |  |
+| SK3 | G2 | Büro Steckdosen | Steckdose + Steckdose | 1 + 1 | 1 | B | 16 | L2 | ja | 0,2 | 0,1 |
+| SK4 | G2 | Büro Licht | Lichtauslass + Lichtauslass | 1 + 1 | 1 | B | 10 | L2 | ja |  |  |
+| SK5 | G3 | Flur Licht | Lichtauslass | 1 | 1 | B | 10 | L3 | nein | 0,2 |  |
 
 Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
 Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:

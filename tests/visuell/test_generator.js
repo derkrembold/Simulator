@@ -72,9 +72,9 @@ pruefe('Gruppe über zwei Hutschienen verteilt -> muss Fehler werfen', () => {
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Testkreis | Steckdose | nein / ja / ja |
+| SK1 | Testkreis | Steckdose | ja |
 
 ## Anlage (Kopfdaten)
 
@@ -149,9 +149,9 @@ pruefe('Gruppe komplett auf einer Hutschiene -> darf NICHT werfen', () => {
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Testkreis | Steckdose | nein / ja / ja |
+| SK1 | Testkreis | Steckdose | ja |
 
 ## Anlage (Kopfdaten)
 
@@ -164,7 +164,10 @@ pruefe('Gruppe komplett auf einer Hutschiene -> darf NICHT werfen', () => {
 | Spannung Stromkreise | 230 | V |
 `);
 
-  generiereAnlage(ordner); // wirft, wenn was kaputt ist - Test faengt das via pruefe() ab
+  const anlage = generiereAnlage(ordner); // wirft, wenn was kaputt ist - Test faengt das via pruefe() ab
+  // sim-r65: Die Spalte "RCD-Test (ja/nein)" kommt als messungen.rcd an.
+  const sk = anlage.hutschienen.flatMap((h) => h.gruppen).flatMap((g) => g.stromkreise)[0];
+  if (sk.messungen.rcd !== true) throw new Error(`messungen.rcd: ${JSON.stringify(sk.messungen)}`);
 
   fs.rmSync(ordner, { recursive: true });
 });

@@ -1297,8 +1297,6 @@ N-Pol wird wie beim RCD gesondert behandelt, siehe `generiereAnlage()`).
     "pe": null
   },
   "messungen": {
-    "zi": false,
-    "zs": true,
     "rcd": true
   }
 }
@@ -1447,8 +1445,9 @@ braucht, die sich aus der reinen Verdrahtung nicht ableiten lässt.
 der angeschlossenen Adern (der steht im Netzplan).
 
 `bauteile.md` enthält neben der Bauteile-Tabelle noch zwei weitere:
-- **Stromkreise**: eine Zeile pro Stromkreis mit Ziel, Endstelle und den
-  `messungen`-Flags (zi/zs/rcd)
+- **Stromkreise**: eine Zeile pro Stromkreis mit Ziel, Endstelle und der Spalte
+  "RCD-Test (ja/nein)" (`messungen.rcd`). Zi/Zs sind kein Flag, sie folgen aus der
+  Anlage: mit RCD Zi, ohne RCD Zi und Zs (sim-r65)
 - **Anlage (Kopfdaten)**: Name, Beschreibung, Netzform, Spannungen – hier steht die
   Einheit als eigene **Spalte "Einheit"** (nicht als Zeile, da diese Tabelle
   Feld/Wert-Paare statt vieler Bauteil-Spalten hat)

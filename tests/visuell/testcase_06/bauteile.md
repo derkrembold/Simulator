@@ -34,11 +34,11 @@ Verdrahtung nicht ableitbar sind (Nennstrom, Typ, Charakteristik, ...).
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Herdanschluss Küche (ohne RCD) | 5-polige Anschlussdose | nein / ja / nein |
-| SK2 | Steckdosen Werkstatt | Steckdose | nein / ja / ja |
-| SK3 | Licht Werkstatt | Lichtauslass | nein / ja / ja |
+| SK1 | Herdanschluss Küche (ohne RCD) | 5-polige Anschlussdose | nein |
+| SK2 | Steckdosen Werkstatt | Steckdose | ja |
+| SK3 | Licht Werkstatt | Lichtauslass | ja |
 
 ## Steckdosen (Platzierung)
 

@@ -34,12 +34,12 @@ Aus `anforderung.md` erzeugt (`tools/demo_erstellung.js`), nicht von Hand änder
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Schlafzimmer 1 Steckdosen | Steckdose | nein / ja / ja |
-| SK2 | Schlafzimmer 1 Licht | Lichtauslass | nein / ja / ja |
-| SK3 | Schlafzimmer 2 Steckdosen | Steckdose | nein / ja / ja |
-| SK4 | Schlafzimmer 2 Licht | Lichtauslass | nein / ja / ja |
+| SK1 | Schlafzimmer 1 Steckdosen | Steckdose | ja |
+| SK2 | Schlafzimmer 1 Licht | Lichtauslass | ja |
+| SK3 | Schlafzimmer 2 Steckdosen | Steckdose | ja |
+| SK4 | Schlafzimmer 2 Licht | Lichtauslass | ja |
 
 ## Steckdosen (Platzierung)
 

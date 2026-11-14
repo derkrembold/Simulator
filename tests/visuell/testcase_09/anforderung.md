@@ -53,14 +53,14 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | Zi   | Zs   | RCD  | Fehler L (Ω) | Fehler N (Ω) |
-| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ---- | ---- | ------------ | ------------ |
-| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | nein | ja   | ja   |              | 0,3          |
-| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L2    | nein | ja   | ja   |              |              |
-| SK3        | G1     | Steckdosen Zimmer 2 | Steckdose    | 1            | 1       | B        | 16     | L3    | nein | ja   | ja   | 0,2          |              |
-| SK4        | G2     | Steckdosen Flur     | Steckdose    | 1            | 1       | B        | 16     | L1    | nein | ja   | ja   |              |              |
-| SK5        | G2     | Licht Flur          | Lichtauslass | 1            | 1       | B        | 10     | L1    | nein | ja   | ja   |              |              |
-| SK6        | G3     | Herd                | 5-polige Anschlussdose | 1  | 3       | B        | 16     |       | nein | ja   | nein | 0 / 0 / 0,25 | 0,3          |
+| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD  | Fehler L (Ω) | Fehler N (Ω) |
+| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ------------ | ------------ |
+| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | ja   |              | 0,3          |
+| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L2    | ja   |              |              |
+| SK3        | G1     | Steckdosen Zimmer 2 | Steckdose    | 1            | 1       | B        | 16     | L3    | ja   | 0,2          |              |
+| SK4        | G2     | Steckdosen Flur     | Steckdose    | 1            | 1       | B        | 16     | L1    | ja   |              |              |
+| SK5        | G2     | Licht Flur          | Lichtauslass | 1            | 1       | B        | 10     | L1    | ja   |              |              |
+| SK6        | G3     | Herd                | 5-polige Anschlussdose | 1  | 3       | B        | 16     |       | nein | 0 / 0 / 0,25 | 0,3          |
 
 Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
 Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:

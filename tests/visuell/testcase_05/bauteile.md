@@ -35,11 +35,11 @@ Verdrahtung nicht ableitbar sind (Nennstrom, Typ, Charakteristik, ...).
 
 ## Stromkreise
 
-| Stromkreis | Ziel | Endstelle | Messungen (zi/zs/rcd) |
+| Stromkreis | Ziel | Endstelle | RCD-Test (ja/nein) |
 |---|---|---|---|
-| SK1 | Steckdose Werkstatt (Drehstrom) | Drehstromsteckdose | nein / ja / ja |
-| SK2 | Steckdose Schlafzimmer | Steckdose | nein / ja / ja |
-| SK3 | Steckdose Kinderzimmer | Steckdose | nein / ja / ja |
+| SK1 | Steckdose Werkstatt (Drehstrom) | Drehstromsteckdose | ja |
+| SK2 | Steckdose Schlafzimmer | Steckdose | ja |
+| SK3 | Steckdose Kinderzimmer | Steckdose | ja |
 
 ## Steckdosen (Platzierung)
 

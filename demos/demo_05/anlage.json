@@ -297,8 +297,6 @@
                 }
               },
               "messungen": {
-                "zi": false,
-                "zs": true,
                 "rcd": true
               }
             },
@@ -385,8 +383,6 @@
                 "pe": null
               },
               "messungen": {
-                "zi": false,
-                "zs": true,
                 "rcd": true
               }
             }
@@ -540,8 +536,6 @@
                 "pe": null
               },
               "messungen": {
-                "zi": false,
-                "zs": true,
                 "rcd": true
               }
             },
@@ -628,8 +622,6 @@
                 "pe": null
               },
               "messungen": {
-                "zi": false,
-                "zs": true,
                 "rcd": true
               }
             }
@@ -849,8 +841,6 @@
                 "pe": null
               },
               "messungen": {
-                "zi": false,
-                "zs": true,
                 "rcd": true
               }
             }

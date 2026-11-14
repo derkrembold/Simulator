@@ -49,6 +49,18 @@ export function gleicherWert(ist, soll) {
   return normalisiereText(ist) === normalisiereText(soll);
 }
 
+// Betriebsmittelkennzeichen (sim-0ns), z.B. "F2-1". Gleich sind Kennbuchstabe,
+// Kennziffer und laufende Nummer; Groß-/Kleinschreibung, ein vorangestelltes
+// "-", führende Nullen und "." oder Leerzeichen statt "-" sind egal
+// ("-F2-01", "f2.1", "F2 - 1").
+const KENNZEICHEN = /^-?\s*([a-z])\s*(\d+)\s*[-.\s]\s*0*(\d+)$/i;
+export function gleichesKennzeichen(ist, soll) {
+  const a = String(ist ?? '').trim().match(KENNZEICHEN);
+  const b = String(soll ?? '').trim().match(KENNZEICHEN);
+  return Boolean(a && b) && a[1].toUpperCase() === b[1].toUpperCase()
+    && Number(a[2]) === Number(b[2]) && Number(a[3]) === Number(b[3]);
+}
+
 // Datum T.M.JJJJ (führende Nullen egal, auch JJ) gleich `heute`.
 export function istHeute(text, heute) {
   const treffer = String(text ?? '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
@@ -222,6 +234,17 @@ export function sollZeilenAusFahrplan(fahrplan) {
   return [...zeilen.entries()].sort(([a], [b]) => a - b).map(([zeile, werte]) => ({ zeile, werte }));
 }
 
+// Eine Zelle der Messtabelle: Zielbezeichnung muss nur ausgefüllt sein, Nr.
+// mit Kennzeichen-Soll (F2-1) muss dasselbe Kennzeichen tragen, sonst nur
+// ausgefüllt sein (Hauptleitung). Alle anderen Spalten wie gleicherWert().
+function richtigeZelle(spalte, ist, soll) {
+  if (Number(spalte) === SPALTE_ZIEL) return String(ist ?? '').trim() !== '';
+  if (Number(spalte) === SPALTE_NR) {
+    return KENNZEICHEN.test(soll) ? gleichesKennzeichen(ist, soll) : String(ist ?? '').trim() !== '';
+  }
+  return gleicherWert(ist, soll);
+}
+
 function pruefeMesstabelle(wurzel, fahrplan, markiere) {
   const tabelle = wurzel.querySelector('.pf-scroll table');
   const alleSoll = sollZeilenAusFahrplan(fahrplan);
@@ -235,8 +258,7 @@ function pruefeMesstabelle(wurzel, fahrplan, markiere) {
     for (const [spalte, sollWert] of Object.entries(hauptleitung.werte)) {
       const input = zellen[Number(spalte)];
       if (!input) continue;
-      const richtig = Number(spalte) === SPALTE_NR ? input.value.trim() !== '' : gleicherWert(input.value, sollWert);
-      if (!richtig) markiere(input);
+      if (!richtigeZelle(spalte, input.value, sollWert)) markiere(input);
     }
   }
   const soll = alleSoll.filter((s) => s.zeile !== HAUPTLEITUNG_ZEILE);
@@ -248,13 +270,16 @@ function pruefeMesstabelle(wurzel, fahrplan, markiere) {
     inputs: [...zeile.cells].map((c) => c.querySelector('input'))
   }));
   const wert = (b, spalte) => b.inputs[Number(spalte)]?.value ?? '';
-  const vergleichsSpalten = (s) => Object.keys(s.werte).filter((sp) => ![SPALTE_NR, SPALTE_ZIEL].includes(Number(sp)));
+  // Verglichen werden die Messwerte und ein Kennzeichen in Nr.; die freie
+  // Zielbezeichnung zählt für die Zuordnung nicht.
+  const vergleichsSpalten = (s) => Object.keys(s.werte).filter((sp) => Number(sp) !== SPALTE_ZIEL
+    && !(Number(sp) === SPALTE_NR && !KENNZEICHEN.test(s.werte[sp])));
 
   // Punkte = Anzahl gleicher Messwerte; kleiner Bonus für dieselbe Zeile,
   // damit bei Gleichstand (z.B. leere Zeilen) die naheliegende Zuordnung
   // gewinnt.
   const bewertung = soll.map((s) => benutzer.map((b) =>
-    vergleichsSpalten(s).filter((sp) => gleicherWert(wert(b, sp), s.werte[sp])).length
+    vergleichsSpalten(s).filter((sp) => richtigeZelle(sp, wert(b, sp), s.werte[sp])).length
     + (b.zeile.rowIndex === s.zeile ? 0.001 : 0)));
   const zuordnung = ordneZu(bewertung);
 
@@ -265,10 +290,7 @@ function pruefeMesstabelle(wurzel, fahrplan, markiere) {
     zugeordnet.add(b);
     for (const spalte of Object.keys(s.werte)) {
       const input = b.inputs[Number(spalte)];
-      const richtig = [SPALTE_NR, SPALTE_ZIEL].includes(Number(spalte))
-        ? wert(b, spalte).trim() !== ''
-        : gleicherWert(wert(b, spalte), s.werte[spalte]);
-      if (!richtig) markiere(input);
+      if (!richtigeZelle(spalte, wert(b, spalte), s.werte[spalte])) markiere(input);
     }
   });
 

@@ -776,7 +776,7 @@ async function berechneProtokoll(testcase) {
   const hauptleitung = { zeile: HAUPTLEITUNG_ZEILE, werte: { nr: '1', ...hauptleitungKabel(anlage) } };
   const stromkreise = alleStromkreise(anlage);
   // Protokollwerte je Stromkreis (Schlüssel aus SPALTE), werden nach jeder
-  // Messart ergänzt und eingetragen. Zeile rows[3] ff., Nr. ab 2.
+  // Messart ergänzt und eingetragen. Zeile rows[3] ff.
   const protokoll = stromkreise.map((_, i) => ({ zeile: i + 3, werte: {} }));
   const protokollEintraege = [];
   const eintraegeFuer = (spalten) => stromkreise.flatMap((_, i) =>
@@ -819,7 +819,11 @@ async function berechneProtokoll(testcase) {
   }
   stromkreise.forEach(({ sk }, i) => {
     Object.assign(protokoll[i].werte, {
-      nr: String(i + 2),
+      // Nr. = Betriebsmittelkennzeichen des LS (sim-0ns): F2-1, F2-2, ... in
+      // der Reihenfolge im Schaltkasten, von links oben nach rechts unten
+      // (Hutschienen von oben nach unten, je Hutschiene von links). Ein LS mit
+      // AFDD zählt mit.
+      nr: `F2-${i + 1}`,
       ziel: stromkreisBezeichnung(anlage, sk, i + 1),
       kabelTyp: sk.leitung.typ,
       kabelAnzahl: String(sk.leitung.adern.length),
@@ -830,7 +834,7 @@ async function berechneProtokoll(testcase) {
   // Kabeltyp (NYM) wird nicht eingetragen: in der Anlage nicht ablesbar
   // (Entscheidung zu sim-0bn/sim-nt2), steht aber in der PDF.
   protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Stromkreise eintragen',
-    'Nach der Zuordnung je Stromkreis eine Zeile anlegen: Nummer, Bezeichnung (Position des LS von links und zugeordnete Endstellen), Aderanzahl und Querschnitt der abgehenden Leitung. In der Zeile Hauptleitung Aderanzahl und Querschnitt der Zuleitung an der Einspeisung.',
+    'Nach der Zuordnung je Stromkreis eine Zeile anlegen: in Nr. das Kennzeichen des LS (F2-1, F2-2, … von links oben nach rechts unten gezählt), Bezeichnung (Position des LS und zugeordnete Endstellen), Aderanzahl und Querschnitt der abgehenden Leitung. In der Zeile Hauptleitung Aderanzahl und Querschnitt der Zuleitung an der Einspeisung.',
     [...['nr', 'kabelAnzahl', 'kabelQuerschnitt'].map((spalte) => ({ zeile: HAUPTLEITUNG_ZEILE, spalte, wert: hauptleitung.werte[spalte] })),
       ...eintraegeFuer(['nr', 'ziel', 'kabelAnzahl', 'kabelQuerschnitt'])]));
 

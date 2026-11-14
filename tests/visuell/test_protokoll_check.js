@@ -192,6 +192,9 @@ async function main() {
         strasse: m.normalisiereText('ETZ Krefelder Straße 12, 70376 Stuttgart') === m.normalisiereText('ETZ Krefelderstr. 12 70376 Stuttgart'),
         datum: [m.istHeute('7.11.2026', heute), m.istHeute('07.11.26', heute), m.istHeute('8.11.2026', heute)],
         zuordnung: m.ordneZu([[1, 3, 0], [3, 0, 0]]),
+        // sim-0ns: Varianten desselben Kennzeichens, dann falsche.
+        kennzeichenGleich: ['F2-1', 'F2-01', '-F2-1', 'f2.1', 'F2 - 1', ' F2 1 '].map((ist) => m.gleichesKennzeichen(ist, 'F2-1')),
+        kennzeichenAnders: ['F2-2', 'F3-1', 'F1-1', 'F21', '1', '', 'F2-1a'].map((ist) => m.gleichesKennzeichen(ist, 'F2-1')),
         // Codex-Review zu sim-5tx: Datum mit zu langem Jahr, Ziffernrest als
         // "Unterschrift", gültige Formate mit echter Unterschrift.
         ortDatumUnterschrift: [
@@ -216,6 +219,10 @@ async function main() {
     await pruefe('istHeute: T.M.JJJJ und TT.MM.JJ', async () => erwarteGleich(ergebnis.datum.join(), 'true,true,false', 'Datum'));
     await pruefe('enthaeltOrtDatumUnterschrift: zu langes Jahr und Ziffernrest sind keine Unterschrift', async () => {
       erwarteGleich(ergebnis.ortDatumUnterschrift.join(), 'false,false,false,true,true,false', 'Fälle');
+    });
+    await pruefe('gleichesKennzeichen: F2-01, -F2-1, f2.1 wie F2-1; F2-2, F3-1, F21 nicht (sim-0ns)', async () => {
+      erwarteGleich(ergebnis.kennzeichenGleich.join(), 'true,true,true,true,true,true', 'Varianten');
+      erwarteGleich(ergebnis.kennzeichenAnders.join(), 'false,false,false,false,false,false,false', 'falsche');
     });
     await pruefe('ordneZu: beste Gesamtzuordnung statt erste passende Zeile', async () => erwarteGleich(ergebnis.zuordnung.join(), '1,0', 'Zuordnung'));
     await page.close();
@@ -254,6 +261,23 @@ async function main() {
     const b = [...tabelle.rows[5].cells].map((c) => c.querySelector('input'));
     a.forEach((x, i) => { const t = x.value; x.value = b[i].value; b[i].value = t; });
   }, async (e) => erwarteGleich(e.rot, 0, 'rote Felder'));
+
+  await fall('Nr. -F2-01 statt F2-1: nicht rot (sim-0ns)', new Function(`${zelle(3, 0)}.value = '-F2-01';`), async (e) => {
+    erwarteGleich(e.rot, 0, 'rote Felder');
+  });
+
+  await fall('Nr. F2-2 in der Zeile von F2-1: genau diese Zelle rot (sim-0ns)', new Function(`${zelle(3, 0)}.value = 'F2-2';`), async (e, page) => {
+    erwarteGleich(e.rot, 1, 'rote Felder');
+    erwarteGleich(await page.evaluate(new Function(`return ${zelle(3, 0)}.classList.contains('pf-fehler');`)), true, 'Nr.-Zelle rot');
+  });
+
+  await fall('Nr. fortlaufend 2 statt F2-1: rot (sim-0ns)', new Function(`${zelle(3, 0)}.value = '2';`), async (e) => {
+    erwarteGleich(e.rot, 1, 'rote Felder');
+  });
+
+  await fall('Hauptleitung Nr. beliebig ausgefüllt: nicht rot', new Function(`${zelle(2, 0)}.value = 'HL';`), async (e) => {
+    erwarteGleich(e.rot, 0, 'rote Felder');
+  });
 
   await fall('Riso <999 statt >999: rot', new Function(`${zelle(3, 6)}.value = '<999';`), async (e, page) => {
     erwarteGleich(e.rot, 1, 'rote Felder');

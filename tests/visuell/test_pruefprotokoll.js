@@ -179,6 +179,18 @@ async function main() {
       });
     }
 
+    // sim-0ns: Nr. = F2-n, gezählt wie im Schaltkasten von links oben nach
+    // rechts unten (testcase_03 hat zwei Hutschienen, testcase_05 einen LS
+    // mit AFDD, der mitzählt). Die Hauptleitung bleibt bei "1".
+    await pruefe(`${testcase}: Nr. ist das LS-Kennzeichen F2-n in Schaltkasten-Reihenfolge (sim-0ns)`, async () => {
+      const reihenfolge = anlage.hutschienen.flatMap((h) => h.gruppen.flatMap((g) => g.stromkreise.map((s) => s.bezeichnung)));
+      erwarteGleich(zeilen.find((z) => z.zeilenIndex === 2).werte[SPALTE.nr], '1', 'Hauptleitung Nr.');
+      for (const erg of ergebnisse) {
+        const zeile = zeilen.find((z) => z.zeilenIndex === erg.zeilenIndex);
+        erwarteGleich(zeile.werte[SPALTE.nr], `F2-${reihenfolge.indexOf(erg.sk) + 1}`, `${erg.sk} Nr.`);
+      }
+    });
+
     // sim-liq: Zref nach dem Hauptschalter = Vorimpedanz (keine Fehler-
     // widerstände vor dem Hauptschalter in den Testcases).
     // sim-lgf: ΔU je Außenleiter = (Zi - Zref) * In / 230 V * 100 und das

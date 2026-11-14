@@ -41,6 +41,12 @@ Antworten und Tickets auf Deutsch.
 4. **Claude** liest die Review-Kommentare und bewertet sie kritisch. Was sinnvoll ist, setzt
    Claude um. Was Claude nicht umsetzt, begründet Claude in einem Kommentar am Ticket. Danach
    geht das Ticket zum Menschen.
+   - Jedes Ticket bekommt mindestens ein Review.
+   - Nach Fixes aus dem Review entscheidet Claude, ob ein zweites Review nötig ist. Ist der Fix
+     klein (nur Text, Kommentare oder Doku, kein geändertes Verhalten), darf es entfallen.
+     Ändert der Fix Code, Logik, Tests oder erzeugte Daten in nennenswertem Umfang, gibt es
+     immer ein zweites Review.
+   - Claude schreibt die Entscheidung mit Begründung in den Kommentar am Ticket.
 5. Der **Mensch** schließt das Ticket (`bd close <id>`). Claude schließt ein Ticket nur, wenn
    der Mensch es ausdrücklich sagt, und fragt sonst immer vorher nach.
 

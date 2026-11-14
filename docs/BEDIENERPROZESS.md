@@ -154,7 +154,7 @@ Die erste Reihe betrifft immer die Hauptleitung. Bei Hauptleitung sind Überstro
 
 | Spalte                             | Pflicht                 | Quelle                                     | Hinweis                                                                                                                                                |
 | ---------------------------------- | ----------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Nr.                                | Ja                      | Fortlaufend                                |                                                                                                                                                        |
+| Nr.                                | Ja                      | Fortlaufend                                | Geplant: Betriebsmittelkennzeichen des LS, F2-XX (sim-0ns, siehe unten). |
 | Stromkreis / Zielbezeichnung       | Ja                      | Position des LS von links + zugeordnete Endstellen, z.B. "LS1: 2 Steckdosen" | Wenn die Steckdosen, Reihenklemmen eine Kennzeichnung haben, dann gehört diese rein. Im Simulator gibt es keine Kennzeichnung, deshalb die LS-Position und die Endstellen aus der Zuordnung (Entscheidung zu sim-nt2). |
 | Leitung/Kabel<br>Typ               | Ja                      | `anlage.json` Ader-Kabeltyp (z.B. NYM-J)   | Typische ist hier NYM, NYY. Aber auch Anzahl der Adern. Beispiel: NYM                                                                                  |
 | Leitung/Kabel<br>Anzahl            | Ja                      |                                            | Hier gehört die Anzahl der Adern, bei Steckdosen 3, bei Drehstromsteckdosen 5 rein. Anzahl bezieht sich auf Anzahl der Adern.                          |
@@ -173,6 +173,40 @@ Die erste Reihe betrifft immer die Hauptleitung. Bei Hauptleitung sind Überstro
 | RCD <br>Imess (mA)                 | Ja, falls RCD vorhanden | FI/RCD-Messung (Modus `FI/RCD`)            |                                                                                                                                                        |
 | RCD <br>Ausl. Zeit tA (ms)         | Ja, falls RCD vorhanden | FI/RCD-Messung (Modus `FI/RCD`)            |                                                                                                                                                        |
 | RCD Umess (V)                      | Ja                      | Live-Spannungsanzeige des jeweiligen Modus | Defaultwert: 50V                                                                                                                                       |
+
+### Betriebsmittelkennzeichen (geplant)
+
+**Status: geplant, noch nicht umgesetzt.** Heute trägt der Fahrplan in Nr. fortlaufende
+Zahlen ein, und der Check verlangt nur ein nicht leeres Feld.
+
+In die Spalte Nr. gehört das Betriebsmittelkennzeichen des Schutzorgans, durchnummeriert:
+
+| Kennzeichen | Betriebsmittel                 |
+| ----------- | ------------------------------ |
+| F1          | Schmelzsicherung               |
+| F2          | Leitungsschutzschalter (LS)    |
+| F3          | Fehlerstromschutzschalter (RCD) |
+| Q1          | Hauptschalter                  |
+| Q2          | Leistungsschalter              |
+| S1          | Schalter-Stromkreis            |
+| S2          | Taster-Stromkreis              |
+| E1          | Leuchte                        |
+| X1          | Schukosteckdose                |
+| X3          | CEE-Steckdose 16 A             |
+
+- **LS-Stromkreis (sim-0ns, P2):** Ein Stromkreis ist im Simulator immer einem LS zugeordnet.
+  Seine Zeile bekommt in Nr. das Kennzeichen F2-XX, und der Check prüft es. Noch offen:
+  Schreibweise (F2-1 oder F2-01, Varianten wie -F2-1), Nummerierung (nach LS-Position oder
+  fortlaufend), was in der Zeile Hauptleitung steht, ob ein LS mit AFDD auch F2 ist und ob die
+  Zielbezeichnung F2-XX statt LS1 nennt.
+- **RCD als eigene Zeile (sim-ovx, Ausblick, nach sim-0ns):** Ein RCD kann auch separat
+  betrachtet werden: eine eigene Zeile mit F3-XX und den RCD-Messwerten. Vorteil: Ein RCD
+  Typ B bekommt zwei Zeilen, eine für die Messung mit DC (Typ B) und eine für die Messung mit AC
+  (Typ A), weil beide Messungen getrennt durchgeführt werden.
+- **Weitere Kennzeichen (sim-23w, P3, nach sim-0ns):** S, E, Q und X aus der Tabelle oben für
+  Endstellen und Schalter. Noch offen: wo sie erscheinen (Zielbezeichnung, Schaltkasten, Dosen,
+  Check), die Nummerierung, und welche Kennzeichen Lichtauslass, Drehstromsteckdose und
+  5-polige Anschlussdose bekommen. Taster und Schalter gibt es im Simulator noch nicht.
 
 ## Prüfergebnis
 

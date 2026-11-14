@@ -896,6 +896,12 @@ Messgerät, und Validierung sind explizit **nicht** Teil dieser ersten
 Ausbaustufe - "die einzige Funktion" ist Eintragen/Ankreuzen, laut
 User-Vorgabe. Spätere Erweiterung möglich.
 
+**Betriebsmittelkennzeichen (geplant):** Die Spalte Nr. der Messtabelle soll das
+Kennzeichen des Schutzorgans tragen (F2-XX für LS-Stromkreise, sim-0ns), ein RCD kann
+später eine eigene Zeile mit F3-XX bekommen (bei Typ B getrennt für DC und AC, sim-ovx),
+weitere Kennzeichen (Q, S, E, X) folgen mit sim-23w. Nomenklatur und offene Fragen:
+`docs/BEDIENERPROZESS.md`, Abschnitt "Betriebsmittelkennzeichen (geplant)".
+
 ---
 
 ## Steckdosen (View-Objekt)

@@ -23,9 +23,11 @@ Ausgefüllt ist ein Beispiel. Die von Hand gebaute Anlage dazu liegt in
 | Phase (nur 1-polig)  | L1, L2, L3                                                              |
 | Endstelle            | Steckdose, Lichtauslass, Drehstromsteckdose, 5-polige Anschlussdose     |
 | Ja/Nein              | ja, nein                                                                |
+| AFDD                 | ja, nein, leer (= nein)                                                 |
 
 Regeln, die das Werkzeug prüft: 2-poliger RCD höchstens 2 LS, 4-poliger RCD höchstens 6 LS,
-RCD-Nennstrom größer als jeder LS, eine Hutschiene höchstens 16 TE.
+RCD-Nennstrom größer als jeder LS, eine Hutschiene höchstens 16 TE, AFDD nur bei 1-poligem LS
+in einer Gruppe mit RCD.
 
 ## Anlage
 
@@ -56,10 +58,14 @@ der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, di
 Phase bleibt dann leer. RCD = ja/nein, ob der RCD-Test gemacht wird. Zi und Zs werden nicht
 angegeben: mit RCD wird Zi gemessen, ohne RCD Zi und Zs (im Protokoll steht dann Zs).
 
-| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD  | Fehler L (Ω) | Fehler N (Ω) |
-| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ------------ | ------------ |
-| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | ja   |              |              |
-| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L1    | ja   |              |              |
+| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD  | Fehler L (Ω) | Fehler N (Ω) | AFDD (ja/nein) |
+| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ------------ | ------------ | -------------- |
+| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | ja   |              |              | nein           |
+| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L1    | ja   |              |              | nein           |
+
+AFDD = ja macht aus dem LS ein Kombigerät "LS mit AFDD" (Brandschutzschalter): 2-polig,
+schaltet L und N, braucht 2 TE. Nur bei 1-poligem LS und nur in einer Gruppe mit RCD. Die
+Spalte darf fehlen, leer heißt nein.
 
 Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
 Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:

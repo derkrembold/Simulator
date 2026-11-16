@@ -5678,7 +5678,7 @@ Tabellen mit festen Auswahlwerten (die erlaubten Werte stehen oben in der Vorlag
 optional Vorimpedanz und Fehler Einspeisung L/N), **Gruppen** (RCD Pole 2/4/`ohne`, Typ,
 Fehlerstrom, Nennstrom, Selektiv, Abklemmen, optional Fehler L/N), **Stromkreise** (Gruppe, Ziel,
 Endstelle, Anzahl Dosen, LS Pole 1/3, Charakteristik, Ampere, Phase, RCD-Test ja/nein, optional Fehler
-L/N in Ω). Eine neue Gruppe ist eine zusätzliche Zeile in `Gruppen` plus die
+L/N in Ω, optional AFDD ja/nein). Eine neue Gruppe ist eine zusätzliche Zeile in `Gruppen` plus die
 Stromkreise mit dieser Gruppen-ID.
 Zi und Zs sind keine Spalten mehr (sim-r65): Mit RCD wird Zi gemessen und eingetragen, ohne RCD
 Zi und Zs, eingetragen und geprüft wird dann Zs. Eine Anforderung mit den alten Spalten `Zi`/`Zs`
@@ -5720,14 +5720,23 @@ Kopfdaten von `bauteile.md`, `generate_anlage.js` übernimmt sie als `anlage.vor
 `tests/visuell/testcase_09`, Sollwerte von Hand in `tests/visuell/test_pruefprotokoll.js`
 (`SOLL_FEHLERORTE`).
 
+**AFDD (sim-i4f):** Optionale Spalte `AFDD (ja/nein)` je Stromkreis, leer oder fehlend = nein.
+Ein LS mit AFDD wird wie in `testcase_05` Gruppe G2 gebaut (docs/KONZEPT.md "AFDD"): 2-poliges
+Kombigerät (`bauteile.md` Pole 2, Spalte `AFDD` = `ja`, die Spalte gibt es nur, wenn ein AFDD
+vorkommt), 2 TE, eigene N-Ader vom RCD-N-Ausgang zum LS (`LS<n>.i2`) und geschaltetes N vom LS
+(`LS<n>.o2`) zur N-Reihenklemme. Die gemeinsame N-Ader der Gruppe gibt es nur noch für LS ohne
+AFDD. Der Gruppen-Fehler N sitzt auf der gemeinsamen N-Ader und auf jeder eigenen N-Ader eines
+AFDD-LS, jeder Stromkreis sieht ihn also genau einmal. Erlaubt nur bei 1-poligem LS in einer
+Gruppe mit RCD (Entscheidung Mensch: ein AFDD wird üblicherweise mit RCD eingesetzt).
+
 **Prüfregeln:** gültige Werte je Feld; Gruppe und Phase existieren; 2-poliger RCD höchstens 2 LS,
 nur 1-polig und alle auf derselben Phase; 4-poliger RCD höchstens 6 LS, 3-poliger Hauptschalter
 und Stromkreise auf L1, L2 und L3; RCD-Nennstrom größer als jeder LS; Gruppe ohne RCD genau ein
 Stromkreis; 3-poliger LS nur mit 3-poligem Hauptschalter, ohne Phase und mit Drehstromsteckdose
 oder 5-poliger Anschlussdose (1-polig: Steckdose oder Lichtauslass); bei 2-poligem Hauptschalter
-nur Phase L1; höchstens 16 TE je Gruppe.
+nur Phase L1; höchstens 16 TE je Gruppe; AFDD nur bei 1-poligem LS in einer Gruppe mit RCD.
 
-**Bewusste Grenzen der ersten Fassung:** kein AFDD-Kombigerät; mehr als ein Stromkreis in einer
+**Bewusste Grenzen der ersten Fassung:** mehr als ein Stromkreis in einer
 Gruppe ohne RCD nicht möglich; die Netzform (TN-S, TN-C-S, TT) ist nur eine Beschriftung, der
 Generator unterscheidet sie nicht; Fehler auf PE und Isolationsfehler sind nicht möglich (sim-0cf).
 
@@ -5743,12 +5752,13 @@ Temp-Ordnern): Die Vorlage erzeugt dieselbe `anlage.json` wie die von Hand gebau
 zweite Hutschiene; 3-poliger LS ohne RCD (wie testcase_06); 4-poliger RCD mit 3-poligem LS und
 Drehstromsteckdose (wie testcase_05); 2-poliger Hauptschalter (wie testcase_01); Fehlerwiderstand
 in `graph.json`; Fehler an Stromkreis, Gruppe und Einspeisung ergeben je Ader die richtige Summe
-auf dem Pfad zur Einspeisung, Vorimpedanz in `anlage.json` (sim-vdo); abgelehnte Anforderungen mit
+auf dem Pfad zur Einspeisung, Vorimpedanz in `anlage.json` (sim-vdo); LS mit AFDD als 2-poliges
+Kombigerät mit eigener N-Ader, Gruppen-Fehler N je Stromkreis einmal (sim-i4f); abgelehnte Anforderungen mit
 der erwarteten Meldung (u. a. `SK01`, `16abc`, negativer oder unlesbarer Fehlerwiderstand, falsche
 Anzahl Werte je Außenleiter, Gruppen-Fehler ohne RCD, Vorimpedanz 0, alte Spalte
-`Fehler Zuleitung (Ω)`, unlesbare RCD-Polzahl, die nicht still als `ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
+`Fehler Zuleitung (Ω)`, AFDD an 3-poligem LS, ohne RCD oder mit ungültigem Wert, unlesbare RCD-Polzahl, die nicht still als `ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
 `istSpannungFuehrend()` mit der Einspeisung verbunden sein. Zusätzlich prüft der Test im headless
-Browser, dass bei `demos/demo_04`, `testcase_07` und `testcase_08` alle Pfade im Graphen und
+Browser, dass bei `demos/demo_04`, `demos/demo_15` (AFDD), `testcase_07` und `testcase_08` alle Pfade im Graphen und
 im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).
 
 **Review (Codex, Ticket sim-m31):** Drei Befunde umgesetzt. Stromkreisnamen müssen kanonisch sein

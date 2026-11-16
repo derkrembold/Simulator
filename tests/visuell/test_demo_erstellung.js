@@ -39,7 +39,9 @@ function tempOrdner() {
 // Kopf der Stromkreis-Fehlerspalten (für die Meldung zur alten Spalte).
 function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise, anlage = {}, fehlerSpalte = 'Fehler L (Ω) | Fehler N (Ω)' }) {
   const g = gruppen.map((x) => `| ${x.id} | ${x.rcdPole} | ${x.typ ?? 'A'} | ${x.fehlerstrom ?? 30} | ${x.nennstrom ?? 40} | ${x.selektiv ?? 'nein'} | ${x.abklemmen ?? 'nein'} | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
-  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
+  // Spalte "AFDD (ja/nein)" nur, wenn ein Stromkreis sie setzt (sie ist optional).
+  const mitAfdd = stromkreise.some((x) => 'afdd' in x);
+  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |${mitAfdd ? ` ${x.afdd ?? ''} |` : ''}`).join('\n');
   const zusatz = Object.entries(anlage).map(([feld, wert]) => `\n| ${feld} | ${wert} |`).join('');
   return `# Anforderung – test
 
@@ -61,8 +63,8 @@ ${g}
 
 ## Stromkreise
 
-| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | ${fehlerSpalte} |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | ${fehlerSpalte} |${mitAfdd ? ' AFDD (ja/nein) |' : ''}
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |${mitAfdd ? ' --- |' : ''}
 ${s}
 `;
 }
@@ -226,6 +228,43 @@ pruefe('Fehler an Stromkreis, Gruppe und Einspeisung summieren sich je Ader rich
   pruefeErreichbarkeit(ergebnis);
 });
 
+// sim-i4f: LS mit AFDD wie testcase_05 Gruppe G2: 2-poliges Kombigerät, eine
+// L-Phase, eigene N-Ader vom RCD und geschaltetes N zur Reihenklemme. Der
+// Gruppen-Fehler N wirkt auf jeden Stromkreis der Gruppe genau einmal, auch
+// wenn ein normaler LS daneben sitzt.
+pruefe('LS mit AFDD (sim-i4f): 2-poliges Kombigerät, eigene N-Ader, Gruppen-Fehler N je Stromkreis einmal', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    gruppen: [{ id: 'G1', rcdPole: 2, fehlerN: '0,03' }, { id: 'G2', rcdPole: 4, nennstrom: 63 }],
+    stromkreise: [
+      { name: 'SK1', gruppe: 'G1', phase: 'L2', afdd: 'ja', fehlerN: '0,1' },
+      { name: 'SK2', gruppe: 'G1', phase: 'L2', afdd: 'nein' },
+      { name: 'SK3', gruppe: 'G2', phase: 'L1', afdd: 'ja', endstelle: 'Lichtauslass', lsA: 10 },
+      { name: 'SK4', gruppe: 'G2', phase: 'L2' },
+      { name: 'SK5', gruppe: 'G2', phase: 'L3', afdd: '' }
+    ]
+  }));
+  const { anlage, graph, modell } = ergebnis;
+  const sks = anlage.hutschienen.flatMap((h) => h.gruppen).flatMap((g) => g.stromkreise);
+  const ls = (name) => sks.find((s) => s.bezeichnung === name);
+  for (const [name, afdd] of [['SK1', true], ['SK2', false], ['SK3', true], ['SK4', false], ['SK5', false]]) {
+    const sk = ls(name);
+    bedingung(sk.ls.afdd === afdd, `${name}: afdd ${sk.ls.afdd}, erwartet ${afdd}`);
+    bedingung(sk.ls.polig === (afdd ? 2 : 1), `${name}: LS ${sk.ls.polig}-polig`);
+    bedingung(sk.phasen.length === 1, `${name}: phasen ${sk.phasen.join()}`);
+  }
+  // Die N-Ader eines AFDD-Stromkreises läuft über den LS (LS.o2), nicht am LS vorbei.
+  const nNetz = (sk) => modell.netze.find((n) => n.pins.some((p) => p.pin === `Reihenklemme_N_${sk}.i1`));
+  bedingung(nNetz('SK1').pins.some((p) => p.pin === 'LS1.o2'), 'SK1: N-Reihenklemme soll vom AFDD-Ausgang LS1.o2 kommen');
+  bedingung(nNetz('SK2').pins.some((p) => p.pin === 'RCD1.o2'), 'SK2: N-Reihenklemme soll am gemeinsamen RCD-N hängen');
+  const nSumme = (sk) => {
+    const netz = modell.netze.find((n) => n.pins.some((p) => p.pin === `Endstelle_${sk}.i2`)).id;
+    return berechneWiderstand(graph, findePfad(graph, 'N', graph.einspeisung.N, netz));
+  };
+  bedingung(Math.abs(nSumme('SK1') - 0.13) < 1e-9, `SK1 N: Fehlersumme ${nSumme('SK1')}, erwartet 0.13`);
+  bedingung(Math.abs(nSumme('SK2') - 0.03) < 1e-9, `SK2 N: Fehlersumme ${nSumme('SK2')}, erwartet 0.03`);
+  pruefeErreichbarkeit(ergebnis);
+});
+
 pruefe('Ohne Vorimpedanz in der Anforderung bleibt anlage.json ohne vorimpedanz_ohm', () => {
   const ergebnis = erzeuge(baueAnforderung({
     gruppen: [{ id: 'G1', rcdPole: 2 }],
@@ -285,6 +324,21 @@ pruefe('Prüfregel: gültige Anforderung ohne Meldungen', () => {
   const fehler = pruefeAnforderung(parseAnforderung(baueAnforderung(basis)));
   bedingung(fehler.length === 0, JSON.stringify(fehler));
 });
+
+lehntAb('AFDD an einem 3-poligen LS (sim-i4f)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', afdd: 'ja' }]
+}), 'AFDD gibt es nur bei einem 1-poligen LS');
+
+lehntAb('AFDD in einer Gruppe ohne RCD (sim-i4f)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 'ohne' }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', afdd: 'ja' }]
+}), 'AFDD nur in einer Gruppe mit RCD');
+
+lehntAb('AFDD mit ungültigem Wert (sim-i4f)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', afdd: 'vielleicht' }]
+}), 'AFDD "vielleicht" ungültig');
 
 lehntAb('2-poliger RCD mit drei LS', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 2 }],
@@ -420,7 +474,7 @@ pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['../../demos/demo_04', 'testcase_07', 'testcase_08']) {
+  for (const demo of ['../../demos/demo_04', '../../demos/demo_15', 'testcase_07', 'testcase_08']) {
     const name = `Verdrahtung ${path.basename(demo)}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
       const { abweichungen, geprueft } = await pruefeVerdrahtung(demo);

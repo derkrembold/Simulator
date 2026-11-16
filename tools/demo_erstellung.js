@@ -151,6 +151,9 @@ function parseAnforderung(text) {
       lsA: zahl(z['LS (A)']),
       phase: z.Phase || null,
       rcd: z.RCD,
+      // Optionale Spalte (sim-i4f): leer oder fehlend = kein AFDD.
+      afddRoh: (z['AFDD (ja/nein)'] ?? '').trim(),
+      afdd: (z['AFDD (ja/nein)'] ?? '').trim() === 'ja',
       alteMessSpalten: 'Zi' in z || 'Zs' in z,
       altesFehlerFeld: 'Fehler Zuleitung (Ω)' in z,
       fehlerL: leseFehler(z['Fehler L (Ω)']),
@@ -223,6 +226,13 @@ function pruefeAnforderung(anf) {
     muss(!s.dosenFehler, `Stromkreis ${n}: ${s.dosenFehler}`);
     muss(Number.isInteger(s.dosen) && s.dosen >= 1, `Stromkreis ${n}: Anzahl Dosen muss eine Zahl ab 1 sein`);
     muss(aus(s.rcd, ERLAUBT.janein), `Stromkreis ${n}: RCD "${s.rcd}" ungültig (ja/nein)`);
+    muss(s.afddRoh === '' || aus(s.afddRoh, ERLAUBT.janein), `Stromkreis ${n}: AFDD "${s.afddRoh}" ungültig (ja/nein, leer = nein)`);
+    if (s.afdd) {
+      // LS mit AFDD ist ein Kombigerät, das L und N schaltet (docs/KONZEPT.md "AFDD").
+      muss(s.lsPole === 1, `Stromkreis ${n}: AFDD gibt es nur bei einem 1-poligen LS (LS mit AFDD schaltet L und N)`);
+      const gruppe = anf.gruppen.find((g) => g.id === s.gruppe);
+      muss(!gruppe?.ohneRcd, `Stromkreis ${n}: AFDD nur in einer Gruppe mit RCD`);
+    }
     muss(!s.alteMessSpalten, `Stromkreis ${n}: die Spalten "Zi" und "Zs" entfallen, Zi/Zs folgen aus der Anlage (mit RCD Zi, ohne RCD Zi und Zs; siehe demos/anforderung_vorlage.md)`);
     muss(!s.altesFehlerFeld, `Stromkreis ${n}: die Spalte "Fehler Zuleitung (Ω)" heißt jetzt "Fehler L (Ω)", dazu gibt es "Fehler N (Ω)" (siehe demos/anforderung_vorlage.md)`);
     pruefeFehler(s.fehlerL, s.lsPole === 3 ? 3 : 1, `Stromkreis ${n}: Fehler L (Ω)`, muss);
@@ -273,7 +283,12 @@ function pruefeAnforderung(anf) {
 
 function teDerGruppe(gruppe, stromkreise) {
   const sks = stromkreise.filter((s) => s.gruppe === gruppe.id);
-  return (gruppe.rcdPole ?? 0) + sks.reduce((summe, s) => summe + s.lsPole, 0);
+  return (gruppe.rcdPole ?? 0) + sks.reduce((summe, s) => summe + lsGeraetePole(s), 0);
+}
+
+// Pole des LS-Geräts: ein LS mit AFDD ist ein 2-poliges Kombigerät (L + N).
+function lsGeraetePole(s) {
+  return s.afdd ? 2 : s.lsPole;
 }
 
 // --- Modell aufbauen (Netze, Pins, Bauteile) ---
@@ -404,9 +419,21 @@ function baueModell(anf) {
         const rcdPhasen = g.rcdPole === 4 ? ['L1', 'L2', 'L3'] : [gruppenSks[0].phasen[0]];
         rcdPhasen.forEach((p, k) => anPin(hsAus[p], tab, `${rcdName}.i${k + 1}`));
         anPin(nUngeschaltet, tab, `${rcdName}.i${rcdPhasen.length + 1}`);
-        gruppeN = neuesNetz(tab, 'N', Math.max(...gruppenSks.map((s) => s.q)));
-        anPin(gruppeN, tab, `${rcdName}.o${rcdPhasen.length + 1}`);
-        fehlerAuf(gruppeN, g.fehlerN.werte[0], `${rcdName} Ausgang N`);
+        const rcdNAusgang = `${rcdName}.o${rcdPhasen.length + 1}`;
+        // Gemeinsames N der Gruppe für LS ohne AFDD. Ein LS mit AFDD schaltet
+        // N selbst und bekommt eine eigene N-Ader vom RCD (wie testcase_05).
+        const normaleSks = gruppenSks.filter((s) => !s.afdd);
+        if (normaleSks.length > 0) {
+          gruppeN = neuesNetz(tab, 'N', Math.max(...normaleSks.map((s) => s.q)));
+          anPin(gruppeN, tab, rcdNAusgang);
+          fehlerAuf(gruppeN, g.fehlerN.werte[0], `${rcdName} Ausgang N`);
+        }
+        for (const s of gruppenSks.filter((k) => k.afdd)) {
+          const nZweig = neuesNetz(tab, 'N', s.q);
+          anPin(nZweig, tab, rcdNAusgang);
+          anPin(nZweig, tab, `LS${s.nr}.i2`);
+          fehlerAuf(nZweig, g.fehlerN.werte[0], `${rcdName} Ausgang N (zu LS${s.nr})`);
+        }
         for (const s of gruppenSks) {
           s.phasen.forEach((p, j) => {
             const zweig = neuesNetz(tab, p, s.q);
@@ -425,12 +452,18 @@ function baueModell(anf) {
       }
 
       for (const s of gruppenSks) {
-        s.gruppeN = gruppeN;
         s.lsAus = s.phasen.map((p, j) => {
           const aus = neuesNetz(tab, p, s.q);
           anPin(aus, tab, `LS${s.nr}.o${j + 1}`);
           return aus;
         });
+        if (s.afdd) {
+          // Geschaltetes N vom AFDD-Ausgang zur N-Reihenklemme.
+          s.gruppeN = neuesNetz(tab, 'N', s.q);
+          anPin(s.gruppeN, tab, `LS${s.nr}.o2`);
+        } else {
+          s.gruppeN = gruppeN;
+        }
       }
       gruppenInfo.push({ gruppe: g, rcdName, sks: gruppenSks, tabelle: tab });
     }
@@ -488,7 +521,7 @@ function schreibeNetzplan(anf, modell, demoName) {
   for (const s of schienen) {
     const beschr = s.gruppen.map((g) => {
       const info = gruppenInfo.find((i) => i.gruppe === g);
-      return `Gruppe ${g.id} (${info.rcdName ? `${info.rcdName}, ${g.rcdPole}-polig, + ` : 'ohne RCD, '}${info.sks.map((k) => `LS${k.nr}`).join('/')})`;
+      return `Gruppe ${g.id} (${info.rcdName ? `${info.rcdName}, ${g.rcdPole}-polig, + ` : 'ohne RCD, '}${info.sks.map((k) => `LS${k.nr}${k.afdd ? ' mit AFDD' : ''}`).join('/')})`;
     }).join(' und ');
     zeilen.push(`- **${s.id}** = ${beschr}`);
   }
@@ -534,7 +567,10 @@ const MAX_DOSEN_SPALTEN = 3;
 
 function schreibeBauteile(anf, modell) {
   const { gruppenInfo, sks, hs3, qHS } = modell;
-  const SPALTEN = ['Bauteil', 'Gruppe', 'Typ/Charakteristik', 'Fehlerstrom', 'Nennstrom', 'Max. Querschnitt', 'Pole', 'Selektiv', 'Abklemmen', 'Anzahl LS', 'tA', 'IA', 'UB'];
+  // Spalte AFDD nur, wenn es einen LS mit AFDD gibt (generate_anlage.js liest
+  // sie optional).
+  const SPALTEN = ['Bauteil', 'Gruppe', 'Typ/Charakteristik', 'Fehlerstrom', 'Nennstrom', 'Max. Querschnitt', 'Pole', 'Selektiv', 'Abklemmen', 'Anzahl LS', 'tA', 'IA', 'UB',
+    ...(sks.some((s) => s.afdd) ? ['AFDD'] : [])];
   const zeile = (werte) => `| ${SPALTEN.map((s) => werte[s] ?? '–').join(' | ')} |`;
 
   const zeilen = [];
@@ -558,7 +594,7 @@ function schreibeBauteile(anf, modell) {
       }));
     }
     for (const s of info.sks) {
-      zeilen.push(zeile({ Bauteil: `LS${s.nr}`, Gruppe: g.id, 'Typ/Charakteristik': s.lsChar, Nennstrom: s.lsA, 'Max. Querschnitt': 16, Pole: s.lsPole }));
+      zeilen.push(zeile({ Bauteil: `LS${s.nr}`, Gruppe: g.id, 'Typ/Charakteristik': s.lsChar, Nennstrom: s.lsA, 'Max. Querschnitt': 16, Pole: lsGeraetePole(s), ...(s.afdd ? { AFDD: 'ja' } : {}) }));
     }
   }
   for (const s of sks) {

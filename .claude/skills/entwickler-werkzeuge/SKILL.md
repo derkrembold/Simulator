@@ -186,3 +186,19 @@ node tools/demo_erstellung.js testcase_07      # Testcase neu erzeugen, der aus 
 ```
 
 Details, Prüfregeln und Grenzen: `docs/ARCHITEKTUR.md`, Abschnitt `tools/demo_erstellung.js`.
+
+### `tools/anlagen_reproduzieren.js`
+
+Erzeugt jede Anlage mit `anforderung.md` (`demos/demo_NN`, `tests/visuell/testcase_NN`) in einem
+Temp-Ordner neu und vergleicht `netzplan.md`, `bauteile.md`, `anlage.json` und `graph.json` mit dem
+eingecheckten Stand. Nutzen nach Änderungen an `tools/demo_erstellung.js` oder
+`tests/visuell/generate_anlage.js`, statt die Anlagen von Hand neu zu erzeugen und zu vergleichen.
+Ohne Browser, dauert unter einer Sekunde. Der Fahrplan wird nicht verglichen.
+
+```
+node tools/anlagen_reproduzieren.js            # alle, Exit-Code 1 bei Abweichung
+node tools/anlagen_reproduzieren.js demo_15    # nur diese (auch testcase_NN)
+```
+
+Läuft in `npm test` mit (`tests/visuell/test_anlagen_reproduzieren.js`). Details:
+`docs/ARCHITEKTUR.md`, Abschnitt `tools/anlagen_reproduzieren.js`.

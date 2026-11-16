@@ -5766,3 +5766,30 @@ im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).
 vollständig gelesen (`16abc` ist ungültig), der Fehlerwiderstand muss leer oder eine Zahl ab 0 sein.
 Die Verdrahtungsprüfung prüft alle Stromkreise und Phasen und nicht nur die erste Phase des ersten
 Stromkreises.
+
+
+### `tools/anlagen_reproduzieren.js` (2026-11-16)
+
+**Zweck (sim-ki2):** Prüft, ob sich jede aus einer Anforderung erzeugte Anlage mit dem heutigen
+Stand von `tools/demo_erstellung.js` und `tests/visuell/generate_anlage.js` unverändert neu erzeugen
+lässt. Vorschlag von Codex, der diesen Vergleich in mehreren Reviews als Wegwerf-Skript gebaut hatte.
+
+**Ablauf:** Alle Ordner mit `anforderung.md` unter `demos/` und `tests/visuell/testcase_NN/` suchen,
+je Ordner `erzeugeModell()` in einen Temp-Ordner (mit dem Ordnernamen als Demo-Name, der steht in
+`netzplan.md`) und `netzplan.md`, `bauteile.md`, `anlage.json`, `graph.json` zeichengenau mit dem
+eingecheckten Stand vergleichen. Gemeldet werden je Datei die ersten drei abweichenden Zeilen mit
+Zeilennummer, dazu der Befehl zum Neuerzeugen. Eine abgelehnte Anforderung zählt als Fehler.
+
+**Bewusst nicht:** Fahrplan und Prüfprotokoll (bräuchten den Browser und mehrere Minuten,
+Entscheidung Mensch). Testcases ohne `anforderung.md` (von Hand gebaut) sind nicht betroffen.
+
+```
+node tools/anlagen_reproduzieren.js            # alle, Exit-Code 1 bei Abweichung
+node tools/anlagen_reproduzieren.js demo_15    # nur diese (auch testcase_NN)
+```
+
+**Test:** `tests/visuell/test_anlagen_reproduzieren.js` (Teil von `npm test`, Entscheidung Mensch):
+jede gefundene Anlage ist gleich; eine Kopie von `demo_15` mit geändertem LS-Nennstrom wird als
+Abweichung in `bauteile.md` und `anlage.json` erkannt; eine ungültige Anforderung liefert die
+Prüfmeldungen. Wer `demo_erstellung.js` oder `generate_anlage.js` absichtlich ändert, erzeugt die
+betroffenen Anlagen danach neu (`node tools/demo_erstellung.js <name>`) und checkt sie mit ein.

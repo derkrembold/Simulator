@@ -201,5 +201,99 @@
         "geschlossen": true
       }
     ]
+  },
+  "PE": {
+    "knoten": [
+      "N5",
+      "N30",
+      "N50",
+      "N27",
+      "N47",
+      "N52",
+      "N51"
+    ],
+    "kontakte": [
+      {
+        "bauteil": "Einspeisung",
+        "pin": "Einspeisung.PE",
+        "netz": "N5"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io1",
+        "netz": "N5"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io2",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io1",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io3",
+        "netz": "N50"
+      },
+      {
+        "bauteil": "H1",
+        "pin": "H1",
+        "netz": "N50"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io2",
+        "netz": "N27"
+      },
+      {
+        "bauteil": "Endstelle_SK1",
+        "pin": "Endstelle_SK1.i5",
+        "netz": "N27"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK2",
+        "pin": "Reihenklemme_PE_SK2.io2",
+        "netz": "N47"
+      },
+      {
+        "bauteil": "Endstelle_SK2",
+        "pin": "Endstelle_SK2.i3",
+        "netz": "N47"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK3",
+        "pin": "Reihenklemme_PE_SK3.io2",
+        "netz": "N52"
+      },
+      {
+        "bauteil": "Endstelle_SK3",
+        "pin": "Endstelle_SK3.i3",
+        "netz": "N52"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io3",
+        "netz": "N51"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK2",
+        "pin": "Reihenklemme_PE_SK2.io3",
+        "netz": "N51"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK3",
+        "pin": "Reihenklemme_PE_SK3.io3",
+        "netz": "N51"
+      },
+      {
+        "bauteil": "H3",
+        "pin": "H3",
+        "netz": "N51"
+      }
+    ],
+    "einspeisung": "N5"
   }
 }

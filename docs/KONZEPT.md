@@ -2134,6 +2134,14 @@ Alle Testcases tragen inzwischen mehrere Beispiel-Netze mit Widerstand (auf
 bekannten Pfaden, siehe die jeweilige `netzplan.md`) – bewusst nicht
 alle Leitungen, der User füllt die Tabelle nach Bedarf selbst weiter auf.
 
+**Kontaktfehler (sim-gn9):** Optionale Spalte `Pin` (z.B.
+`| N40 | 0,25 | SK2 PE | Reihenklemme_PE_SK2.io2 |`). Mit Pin sitzt der
+Fehler am Kontakt zwischen diesem Bauteil-Anschluss und dem Netz, nicht am
+ganzen Netz. Für PE-Netze ist der Pin Pflicht, für L/N nicht erlaubt (L/N
+bleiben netzbezogen). Kontaktfehler stehen nicht in `graph.fehlertabelle`,
+sondern als `widerstand` am Kontakt in `graph.PE.kontakte` (siehe
+"Schutzleiter (PE) – Konzept").
+
 ### RLOW-Berechnung (erster Anwendungsfall)
 
 **Status: umgesetzt.** Die zwei relevanten Messspitzen (siehe "Messmodus")
@@ -2399,10 +2407,20 @@ tests/visuell/
 
 ## Schutzleiter (PE) – Konzept (sim-jvo, Entwurf, 2. Fassung nach Review)
 
-**Status: Entwurf, noch nicht umgesetzt.** Wunsch des Menschen (2026-11-21): Der PE ist heute
-widerstandsfrei und nicht Teil des Verbindungsgraphen. Das ist nicht die Realität. Dieser
-Abschnitt beschreibt Ziel, Modell, Messungen, Anforderung und die Umsetzung in Schritten. Erst
-nach Review (Codex) und Entscheidung des Menschen wird umgesetzt.
+**Status: vom Menschen freigegeben (2026-11-21), Umsetzung in Schritten.** Schritt 1 (sim-gn9)
+ist umgesetzt: `graph.PE` und `berechneErsatzwiderstand()`; die Messungen nutzen ihn noch nicht.
+Wunsch des Menschen: Der PE ist heute widerstandsfrei und nicht Teil des Verbindungsgraphen. Das
+ist nicht die Realität. Dieser Abschnitt beschreibt Ziel, Modell, Messungen, Anforderung und die
+Umsetzung in Schritten.
+
+**Umsetzung Schritt 1 (sim-gn9):** `generiereGraph()` (`tests/visuell/generate_anlage.js`) legt
+`graph.PE = { knoten, kontakte, einspeisung }` an. `kontakte` enthält jeden PE-Pin als
+`{ bauteil, pin, netz, widerstand? }` (Bauteil = Teil vor dem Punkt, Hutschiene = `H1` usw.).
+`graph.PE` hat bewusst keine `kanten` und `graph.einspeisung` keinen PE-Eintrag, damit
+Schalter, Schraubendreher und die bisherigen Pfadsuchen PE weiterhin nicht sehen;
+`findeSchraubenKanten()` nimmt PE zusätzlich ausdrücklich aus. `berechneErsatzwiderstand(peGraph,
+von, nach)` in `model/pfad.js` rechnet mit Knoten `netz:<id>` bzw. `bauteil:<name>` (Hilfsfunktion
+`peKnoten()`). Tests: `tests/visuell/test_pe_graph.js`.
 
 ### Stand heute
 

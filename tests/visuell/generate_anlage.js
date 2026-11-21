@@ -119,15 +119,31 @@ function findeAlleNetze(netze, pin, funktion) {
 function parseFehlertabelle(ordner) {
   const text = fs.readFileSync(path.join(ordner, 'netzplan.md'), 'utf8');
   const abschnitt = text.split(/^## /m).find((a) => a.startsWith('Fehlertabelle'));
-  if (!abschnitt) return {};
+  if (!abschnitt) return { tabelle: {}, kontakte: [] };
 
   const tabelle = {};
+  const kontakte = [];
   for (const zeile of leseMarkdownTabelle(abschnitt)) {
     const netId = bereinige(zeile.Netz);
     const widerstandRoh = bereinige(zeile['Widerstand (Ω)']);
-    if (netId && widerstandRoh) tabelle[netId] = parseFloat(widerstandRoh.replace(',', '.'));
+    // Optionale Spalte `Pin` (PE-Konzept, sim-gn9): Fehler an einem Kontakt
+    // (Bauteil-Anschluss + Ader) statt am ganzen Netz. Für PE Pflicht.
+    const pin = bereinige(zeile.Pin);
+    if (!netId || !widerstandRoh) continue;
+    const widerstand = parseFloat(widerstandRoh.replace(',', '.'));
+    if (pin) {
+      // Ein unlesbarer oder negativer Kontaktfehler darf nicht still als
+      // gesunder Kontakt gelten (Review Codex zu sim-gn9): nur eine
+      // vollständige Zahl ab 0 ist gültig.
+      if (!/^\d+([.,]\d+)?$/.test(widerstandRoh)) {
+        throw new Error(`Fehlertabelle: Kontakt ${pin} an ${netId}: Widerstand "${widerstandRoh}" ungültig (eine Zahl ab 0)`);
+      }
+      kontakte.push({ netz: netId, pin, widerstand });
+    } else {
+      tabelle[netId] = widerstand;
+    }
   }
-  return tabelle;
+  return { tabelle, kontakte };
 }
 
 // Summiert die Fehler-Widerstände entlang eines gefundenen Pfads (Array von
@@ -184,12 +200,46 @@ function findeEinspeisungsNetz(netze, funktion) {
   return null;
 }
 
-// Baut für jede Funktion (L1/L2/L3/N) einen eigenen Teilgraphen. PE bewusst
-// ausgelassen (siehe Kommentar oben).
+// Schutzleiter-Teilgraph (PE-Konzept in KONZEPT.md, sim-gn9). Anders als
+// L1/L2/L3/N keine Kanten mit Schaltern, sondern Kontakte: jeder PE-Pin eines
+// Bauteils (PE-Klemme, PE-Reihenklemme, Endstelle, Einspeisung, Hutschiene)
+// verbindet die Klemme des Bauteils mit seinem Netz, mit `widerstand`, wenn
+// die Fehlertabelle dort einen Kontaktfehler nennt. Die Pins eines Bauteils
+// sind untereinander ideal verbunden. Kein `kanten`-Feld: Schalter und
+// Schraubendreher wirken nicht auf PE (PE wird nie aufgetrennt). Die
+// Einspeisung steht bewusst in `PE.einspeisung`, nicht in
+// `graph.einspeisung`, damit die bisherigen Pfadsuchen PE weiter nicht sehen.
+function baueSchutzleiterGraph(netze, kontaktFehler) {
+  const knoten = knotenFuerFunktion(netze, 'PE');
+  const kontakte = [];
+  for (const netId of knoten) {
+    for (const { pin, funktion } of netze[netId].pins) {
+      if (funktion !== 'PE') continue;
+      kontakte.push({ bauteil: pin.split('.')[0], pin, netz: netId });
+    }
+  }
+  for (const fehler of kontaktFehler) {
+    const kontakt = kontakte.find((k) => k.netz === fehler.netz && k.pin === fehler.pin);
+    if (!kontakt) {
+      throw new Error(`Fehlertabelle: Kontakt ${fehler.pin} an ${fehler.netz} gibt es im PE-Netz nicht (Pin-Spalte nur für PE-Kontakte)`);
+    }
+    kontakt.widerstand = (kontakt.widerstand ?? 0) + fehler.widerstand;
+  }
+  return { knoten, kontakte, einspeisung: findeEinspeisungsNetz(netze, 'PE') };
+}
+
+// Baut für jede Funktion (L1/L2/L3/N) einen eigenen Teilgraphen mit Kanten
+// und für PE einen Kontakt-Graphen (siehe baueSchutzleiterGraph()).
 function generiereGraph(ordner) {
   const { netze } = parseNetzplan(ordner);
   const { bauteile } = parseBauteile(ordner);
-  const fehlertabelle = parseFehlertabelle(ordner);
+  const { tabelle: fehlertabelle, kontakte: kontaktFehler } = parseFehlertabelle(ordner);
+  const peNetze = new Set(knotenFuerFunktion(netze, 'PE'));
+  for (const netId of Object.keys(fehlertabelle)) {
+    if (peNetze.has(netId)) {
+      throw new Error(`Fehlertabelle: PE-Netz ${netId} braucht einen Kontakt in der Spalte Pin (Fehler am PE sitzen an Kontakten)`);
+    }
+  }
 
   const graph = { fehlertabelle, einspeisung: {} };
   for (const funktion of GRAPH_FUNKTIONEN) {
@@ -199,6 +249,7 @@ function generiereGraph(ordner) {
     };
     graph.einspeisung[funktion] = findeEinspeisungsNetz(netze, funktion);
   }
+  graph.PE = baueSchutzleiterGraph(netze, kontaktFehler);
   return graph;
 }
 

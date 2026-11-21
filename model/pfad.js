@@ -130,3 +130,91 @@ export function istSpannungFuehrend(graph, funktion, netz) {
   if (!einspeisungsNetz || !netz) return false;
   return findePfad(graph, funktion, einspeisungsNetz, netz) !== null;
 }
+
+// --- Schutzleiter (PE-Konzept in KONZEPT.md, sim-gn9) ---
+//
+// Ersatzwiderstand zwischen zwei Messpunkten im PE-Kontakt-Graphen
+// (`graph.PE`, siehe baueSchutzleiterGraph() in generate_anlage.js). Knoten
+// sind Netze (`netz:N12`) und Bauteil-Klemmen (`bauteil:PE-Klemme`); jeder
+// Kontakt verbindet seine Klemme mit seinem Netz, ideal oder über
+// `widerstand`. Weil Hutschienen Parallelwege bilden können, wird nicht ein
+// Pfad aufsummiert, sondern das Netzwerk gelöst: ideal verbundene Knoten
+// zusammenfassen, nur die Zusammenhangskomponente des Startpunkts betrachten
+// (Sackgassen und schwebende Teile stören dann nicht), Knotenpotentiale mit
+// Einspeisestrom 1 A am Start und Bezug 0 V am Ziel berechnen. Liefert den
+// Widerstand in Ω, 0 bei ideal verbundenen Punkten, null ohne Verbindung
+// oder bei unbekanntem Messpunkt.
+export function peKnoten(art, name) {
+  return `${art}:${name}`;
+}
+
+export function berechneErsatzwiderstand(peGraph, von, nach) {
+  if (!peGraph) return null;
+  const kontakte = peGraph.kontakte ?? [];
+  const elternteil = new Map();
+  const finde = (x) => {
+    let wurzel = x;
+    while (elternteil.get(wurzel) !== wurzel) wurzel = elternteil.get(wurzel);
+    elternteil.set(x, wurzel);
+    return wurzel;
+  };
+  const knoten = (x) => { if (!elternteil.has(x)) elternteil.set(x, x); return x; };
+  const widerstaende = [];
+  for (const k of kontakte) {
+    const a = knoten(peKnoten('bauteil', k.bauteil));
+    const b = knoten(peKnoten('netz', k.netz));
+    if (k.widerstand > 0) widerstaende.push([a, b, k.widerstand]);
+    else elternteil.set(finde(a), finde(b));
+  }
+  if (!elternteil.has(von) || !elternteil.has(nach)) return null;
+  const start = finde(von);
+  const ziel = finde(nach);
+  if (start === ziel) return 0;
+
+  // Widerstände zwischen den zusammengefassten Knoten (ohne Selbstschleifen).
+  const kanten = widerstaende
+    .map(([a, b, r]) => [finde(a), finde(b), r])
+    .filter(([a, b]) => a !== b);
+  const nachbarn = new Map();
+  for (const [a, b] of kanten) {
+    if (!nachbarn.has(a)) nachbarn.set(a, []);
+    if (!nachbarn.has(b)) nachbarn.set(b, []);
+    nachbarn.get(a).push(b);
+    nachbarn.get(b).push(a);
+  }
+  const komponente = new Set([start]);
+  const warteschlange = [start];
+  while (warteschlange.length > 0) {
+    for (const n of nachbarn.get(warteschlange.shift()) ?? []) {
+      if (!komponente.has(n)) { komponente.add(n); warteschlange.push(n); }
+    }
+  }
+  if (!komponente.has(ziel)) return null;
+
+  // Leitwertmatrix ohne den Bezugsknoten (Ziel), Gauß mit Spaltenpivot.
+  const index = new Map([...komponente].filter((n) => n !== ziel).map((n, i) => [n, i]));
+  const n = index.size;
+  const g = Array.from({ length: n }, () => new Array(n + 1).fill(0));
+  for (const [a, b, r] of kanten) {
+    if (!komponente.has(a)) continue;
+    const leitwert = 1 / r;
+    const ia = index.get(a);
+    const ib = index.get(b);
+    if (ia !== undefined) g[ia][ia] += leitwert;
+    if (ib !== undefined) g[ib][ib] += leitwert;
+    if (ia !== undefined && ib !== undefined) { g[ia][ib] -= leitwert; g[ib][ia] -= leitwert; }
+  }
+  g[index.get(start)][n] = 1;
+  for (let spalte = 0; spalte < n; spalte++) {
+    let pivot = spalte;
+    for (let z = spalte + 1; z < n; z++) if (Math.abs(g[z][spalte]) > Math.abs(g[pivot][spalte])) pivot = z;
+    [g[spalte], g[pivot]] = [g[pivot], g[spalte]];
+    for (let z = 0; z < n; z++) {
+      if (z === spalte || g[z][spalte] === 0) continue;
+      const faktor = g[z][spalte] / g[spalte][spalte];
+      for (let k = spalte; k <= n; k++) g[z][k] -= faktor * g[spalte][k];
+    }
+  }
+  const i = index.get(start);
+  return g[i][n] / g[i][i];
+}

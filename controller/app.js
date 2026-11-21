@@ -159,6 +159,9 @@ async function start() {
   function findeSchraubenKanten(ader, kreis) {
     const bauteilName = kreis.dataset.bauteil;
     if (!graph || !bauteilName) return [];
+    // PE wird nie aufgetrennt (PE-Konzept in KONZEPT.md, sim-gn9): der
+    // Schraubendreher löst PE-Schrauben nur optisch.
+    if (ader.funktion === 'PE') return [];
     const netzeDieserSchraube = [ader.netz, ...(ader.weitere ?? []).map((w) => w.netz)];
     const kanten = graph[ader.funktion]?.kanten ?? [];
     return kanten.filter((k) =>

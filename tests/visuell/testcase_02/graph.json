@@ -186,5 +186,115 @@
         "geschlossen": true
       }
     ]
+  },
+  "PE": {
+    "knoten": [
+      "N3",
+      "N30",
+      "N34",
+      "N20",
+      "N23",
+      "N26",
+      "N29",
+      "N31"
+    ],
+    "kontakte": [
+      {
+        "bauteil": "Einspeisung",
+        "pin": "Einspeisung.PE",
+        "netz": "N3"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io1",
+        "netz": "N3"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io2",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io1",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io3",
+        "netz": "N34"
+      },
+      {
+        "bauteil": "H1",
+        "pin": "H1",
+        "netz": "N34"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io2",
+        "netz": "N20"
+      },
+      {
+        "bauteil": "Endstelle_SK1",
+        "pin": "Endstelle_SK1.i3",
+        "netz": "N20"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK2",
+        "pin": "Reihenklemme_PE_SK2.io2",
+        "netz": "N23"
+      },
+      {
+        "bauteil": "Endstelle_SK2",
+        "pin": "Endstelle_SK2.i3",
+        "netz": "N23"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK3",
+        "pin": "Reihenklemme_PE_SK3.io2",
+        "netz": "N26"
+      },
+      {
+        "bauteil": "Endstelle_SK3",
+        "pin": "Endstelle_SK3.i3",
+        "netz": "N26"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK4",
+        "pin": "Reihenklemme_PE_SK4.io2",
+        "netz": "N29"
+      },
+      {
+        "bauteil": "Endstelle_SK4",
+        "pin": "Endstelle_SK4.i3",
+        "netz": "N29"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io3",
+        "netz": "N31"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK2",
+        "pin": "Reihenklemme_PE_SK2.io3",
+        "netz": "N31"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK3",
+        "pin": "Reihenklemme_PE_SK3.io3",
+        "netz": "N31"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK4",
+        "pin": "Reihenklemme_PE_SK4.io3",
+        "netz": "N31"
+      },
+      {
+        "bauteil": "H3",
+        "pin": "H3",
+        "netz": "N31"
+      }
+    ],
+    "einspeisung": "N3"
   }
 }

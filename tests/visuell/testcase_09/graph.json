@@ -295,5 +295,147 @@
         "geschlossen": true
       }
     ]
+  },
+  "PE": {
+    "knoten": [
+      "N5",
+      "N13",
+      "N14",
+      "N30",
+      "N33",
+      "N36",
+      "N39",
+      "N42",
+      "N45",
+      "N50"
+    ],
+    "kontakte": [
+      {
+        "bauteil": "Einspeisung",
+        "pin": "Einspeisung.PE",
+        "netz": "N5"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io1",
+        "netz": "N5"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io2",
+        "netz": "N13"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io1",
+        "netz": "N13"
+      },
+      {
+        "bauteil": "PE-Klemme",
+        "pin": "PE-Klemme.io3",
+        "netz": "N14"
+      },
+      {
+        "bauteil": "H1",
+        "pin": "H1",
+        "netz": "N14"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io3",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK2",
+        "pin": "Reihenklemme_PE_SK2.io3",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK3",
+        "pin": "Reihenklemme_PE_SK3.io3",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK4",
+        "pin": "Reihenklemme_PE_SK4.io3",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK5",
+        "pin": "Reihenklemme_PE_SK5.io3",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK6",
+        "pin": "Reihenklemme_PE_SK6.io3",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "H3",
+        "pin": "H3",
+        "netz": "N30"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK1",
+        "pin": "Reihenklemme_PE_SK1.io2",
+        "netz": "N33"
+      },
+      {
+        "bauteil": "Endstelle_SK1",
+        "pin": "Endstelle_SK1.i3",
+        "netz": "N33"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK2",
+        "pin": "Reihenklemme_PE_SK2.io2",
+        "netz": "N36"
+      },
+      {
+        "bauteil": "Endstelle_SK2",
+        "pin": "Endstelle_SK2.i3",
+        "netz": "N36"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK3",
+        "pin": "Reihenklemme_PE_SK3.io2",
+        "netz": "N39"
+      },
+      {
+        "bauteil": "Endstelle_SK3",
+        "pin": "Endstelle_SK3.i3",
+        "netz": "N39"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK4",
+        "pin": "Reihenklemme_PE_SK4.io2",
+        "netz": "N42"
+      },
+      {
+        "bauteil": "Endstelle_SK4",
+        "pin": "Endstelle_SK4.i3",
+        "netz": "N42"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK5",
+        "pin": "Reihenklemme_PE_SK5.io2",
+        "netz": "N45"
+      },
+      {
+        "bauteil": "Endstelle_SK5",
+        "pin": "Endstelle_SK5.i3",
+        "netz": "N45"
+      },
+      {
+        "bauteil": "Reihenklemme_PE_SK6",
+        "pin": "Reihenklemme_PE_SK6.io2",
+        "netz": "N50"
+      },
+      {
+        "bauteil": "Endstelle_SK6",
+        "pin": "Endstelle_SK6.i5",
+        "netz": "N50"
+      }
+    ],
+    "einspeisung": "N5"
   }
 }

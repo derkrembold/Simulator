@@ -7629,8 +7629,8 @@
       ]
     },
     {
-      "titel": "Rechtsdrehfeld an SK6 (Drehstromsteckdose)",
-      "begruendung": "Anlage normal energisiert - Phasenfolge über V~ prüfen (Sonden in Reihenfolge L1/L2/L3 an Schwarz/Blau/Grün).",
+      "titel": "Rechtsdrehfeld an SK6 Endstelle 2-2",
+      "begruendung": "Anlage normal energisiert - Phasenfolge über V~ an den Kontakten L1/L2/L3 der Dose prüfen (Schwarz/Blau/Grün).",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -7643,6 +7643,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N57"
             }
           ],
@@ -7652,6 +7653,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N58"
             }
           ],
@@ -7661,6 +7663,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N59"
             }
           ],
@@ -7676,8 +7679,58 @@
       ]
     },
     {
+      "titel": "Rechtsdrehfeld an SK5 Endstelle 2-1",
+      "begruendung": "Anlage normal energisiert - Phasenfolge über V~ an den Kontakten L1/L2/L3 der Dose prüfen (Schwarz/Blau/Grün).",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "V~"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "2-1",
+              "netz": "N52"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "2-1",
+              "netz": "N53"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "endstelle": "2-1",
+              "netz": "N54"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "phasenfolge"
+          ],
+          "ergebnis": "1.2.3."
+        }
+      ]
+    },
+    {
       "titel": "Protokoll: Erproben ankreuzen",
-      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O. bei 1.2.3.",
+      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.",
       "schritte": [
         {
           "funktion": "protokollAnkreuzen",

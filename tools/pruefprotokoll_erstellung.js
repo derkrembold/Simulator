@@ -541,16 +541,22 @@ async function messeRcd(testcase, sk, gruppe) {
 // energisiert (kein Abklemmen nötig, anders als bei RISO). Liefert
 // "1.2.3." (Rechtsdrehfeld, korrekt) oder "3.2.1." (Linksdrehfeld,
 // vertauschte Phasen), siehe controller/app.js berechnePhasenfolge().
-async function messeRechtsdrehfeld(testcase, sk) {
+//
+// Gemessen wird an den Kontakten L1/L2/L3 der Dose (sim-wme): Sind dort zwei
+// Außenleiter vertauscht angeklemmt, sitzt am Kontakt eine andere Ader
+// (`ader.kontakt`), und das Messgerät zeigt "3.2.1.". Ohne Endstelle (Anlage
+// ohne Steckdosen-Platzierung) an den Adern des Stromkreises.
+async function messeRechtsdrehfeld(testcase, sk, endstelle) {
   const ctx = await basis.starteTestUmgebung(testcase);
   messgeraet.abschnittBeginnen(
-    `Rechtsdrehfeld an ${sk.bezeichnung} (Drehstromsteckdose)`,
-    'Anlage normal energisiert - Phasenfolge über V~ prüfen (Sonden in Reihenfolge L1/L2/L3 an Schwarz/Blau/Grün).'
+    endstelle ? `Rechtsdrehfeld an ${sk.bezeichnung} Endstelle ${endstelle}` : `Rechtsdrehfeld an ${sk.bezeichnung} (Drehstromsteckdose)`,
+    'Anlage normal energisiert - Phasenfolge über V~ an den Kontakten L1/L2/L3 der Dose prüfen (Schwarz/Blau/Grün).'
   );
   await messgeraet.drehknopfAufModus(ctx, 'V~');
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'L1') }); // schwarz
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'L2') }); // blau
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'L3') }); // grün
+  const amKontakt = (kontakt) => sk.leitung.adern.find((a) => (a.kontakt ?? a.funktion) === kontakt).netz;
+  for (const kontakt of ['L1', 'L2', 'L3']) { // schwarz, blau, grün
+    await messgeraet.messspitzeSetzen(ctx, endstelle ? { endstelle, netz: amKontakt(kontakt) } : { netz: amKontakt(kontakt) });
+  }
   const phasenfolge = await messgeraet.leseWert(ctx, 'phasenfolge');
   messgeraet.abschnittEnde();
   await ctx.schliessen();
@@ -992,16 +998,28 @@ async function berechneProtokoll(testcase) {
     console.log('Spannungsfall:', alleDeltaU.join(' / '), io ? 'i.O.' : 'n.i.O.');
     erprobenPunkte.push({ punkt: 'Überprüfung Spannungsfall', ergebnis: io ? 'i.O.' : 'n.i.O.' });
   }
-  const dreiphasig = stromkreise.find(({ sk }) => sk.phasen.length === 3);
-  if (dreiphasig) {
-    const phasenfolge = await messeRechtsdrehfeld(testcase, dreiphasig.sk);
-    console.log('Rechtsdrehfeld:', phasenfolge);
-    if (phasenfolge === '1.2.3.') erprobenPunkte.push({ punkt: 'Rechtsdrehfeld (Drehstromsteckdosen)', ergebnis: 'i.O.' });
+  // Rechtsdrehfeld an jeder Drehstrom-Endstelle (sim-wme): i.O. nur, wenn
+  // überall "1.2.3." angezeigt wird. Endstellen-Typen wie
+  // DREHSTROM_ENDSTELLEN in model/protokoll_soll.js.
+  const DREHSTROM_TYPEN = ['Drehstromsteckdose', '5-polige Anschlussdose'];
+  const phasenfolgen = [];
+  for (const { sk } of stromkreise.filter(({ sk }) => sk.phasen.length === 3)) {
+    const endstellen = (anlage.steckdosen_platzierung ?? [])
+      .filter((p) => p.sk === sk.bezeichnung && DREHSTROM_TYPEN.includes(p.endstelle ?? sk.endstelle))
+      .map((p) => `${p.row}-${p.col}`);
+    for (const endstelle of endstellen.length > 0 ? endstellen : [null]) {
+      const phasenfolge = await messeRechtsdrehfeld(testcase, sk, endstelle);
+      console.log(`Rechtsdrehfeld ${sk.bezeichnung}${endstelle ? ` ${endstelle}` : ''}:`, phasenfolge);
+      phasenfolgen.push(phasenfolge);
+    }
+  }
+  if (phasenfolgen.length > 0) {
+    erprobenPunkte.push({ punkt: 'Rechtsdrehfeld (Drehstromsteckdosen)', ergebnis: phasenfolgen.every((f) => f === '1.2.3.') ? 'i.O.' : 'n.i.O.' });
   }
   if (erprobenPunkte.length > 0) {
     const ctx = await basis.starteTestUmgebung(testcase);
     messgeraet.abschnittBeginnen('Protokoll: Erproben ankreuzen',
-      `Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über ${String(SPANNUNGSFALL_GRENZWERT_PROZENT).replace('.', ',')} % liegt, sonst n.i.O.; Rechtsdrehfeld i.O. bei 1.2.3.`);
+      `Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über ${String(SPANNUNGSFALL_GRENZWERT_PROZENT).replace('.', ',')} % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.`);
     for (const { punkt, ergebnis } of erprobenPunkte) await messgeraet.protokollAnkreuzen(ctx, punkt, ergebnis);
     messgeraet.abschnittEnde();
     await ctx.schliessen();

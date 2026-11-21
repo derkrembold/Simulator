@@ -67,8 +67,10 @@ async function fuelleRichtig(page) {
     const { PROTOKOLL_REGELN } = await import('/model/protokoll_soll.js');
     const { fuehreSchrittAus } = await import('/controller/fahrplan_ausfuehrung.js');
     const fahrplan = await (await fetch(new URLSearchParams(location.search).get('anlage').replace('anlage.json', 'fahrplan.json'))).json();
+    const kreuzSoll = {};
     for (const a of fahrplan.abschnitte) for (const s of a.schritte) {
       if (s.funktion === 'protokollEintragen') fuehreSchrittAus(s);
+      if (s.funktion === 'protokollAnkreuzen') kreuzSoll[s.argumente[0]] = s.argumente[1] ?? 'i.O.';
     }
 
     const heute = new Date().toLocaleDateString('de-DE');
@@ -80,7 +82,7 @@ async function fuelleRichtig(page) {
     const setze = (f, w) => { f.value = w; };
     for (const r of PROTOKOLL_REGELN) {
       const ab = abschnitt(r.abschnitt);
-      if (r.art === 'kreuz' || r.art === 'angekreuzt') { tzeile(ab, r.label).querySelectorAll('.pf-cb')[0].click(); continue; }
+      if (r.art === 'kreuz' || r.art === 'angekreuzt') { tzeile(ab, r.label).querySelectorAll('.pf-cb')[kreuzSoll[r.label] === 'n.i.O.' ? 1 : 0].click(); continue; }
       if (r.art === 'nio') { tzeile(ab, r.label).querySelectorAll('.pf-cb')[1].click(); continue; }
       if (r.art === 'keinKreuz') continue;
       if (r.art === 'text') { setze(ab.querySelector('input.pf-feld'), 'Keine'); continue; }
@@ -277,6 +279,33 @@ async function main() {
 
   await fall('Hauptleitung Nr. beliebig ausgefüllt: nicht rot', new Function(`${zelle(2, 0)}.value = 'HL';`), async (e) => {
     erwarteGleich(e.rot, 0, 'rote Felder');
+  });
+
+  // sim-wme: Gibt der Fahrplan ein Ergebnis vor, muss genau dieses angekreuzt
+  // sein (testcase_05: Rechtsdrehfeld i.O.).
+  await fall('Rechtsdrehfeld n.i.O. statt i.O. (Fahrplan sagt i.O.): beide Kästchen rot (sim-wme)', () => {
+    const z = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((x) => x.cells[0]?.textContent === 'Rechtsdrehfeld (Drehstromsteckdosen)');
+    z.querySelectorAll('.pf-cb').forEach((cb) => cb.click());
+  }, async (e) => erwarteGleich(e.rot, 2, 'rote Felder'));
+
+  await pruefe('Fahrplan sagt Rechtsdrehfeld n.i.O.: i.O. angekreuzt ist rot, n.i.O. nicht (sim-wme)', async () => {
+    const page = await neueSeite();
+    await fuelleRichtig(page);
+    const rot = await page.evaluate(async () => {
+      const { pruefeProtokoll } = await import('/controller/protokoll_check.js');
+      const fahrplan = await (await fetch('/tests/visuell/testcase_05/fahrplan.json')).json();
+      for (const a of fahrplan.abschnitte) for (const s of a.schritte) {
+        if (s.funktion === 'protokollAnkreuzen' && s.argumente[0] === 'Rechtsdrehfeld (Drehstromsteckdosen)') s.argumente[1] = 'n.i.O.';
+      }
+      const z = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((x) => x.cells[0]?.textContent === 'Rechtsdrehfeld (Drehstromsteckdosen)');
+      const ergebnis = [];
+      ergebnis.push(pruefeProtokoll(document.getElementById('protokoll'), { fahrplan }).anzahl);
+      z.querySelectorAll('.pf-cb').forEach((cb) => cb.click());
+      ergebnis.push(pruefeProtokoll(document.getElementById('protokoll'), { fahrplan }).anzahl);
+      return ergebnis.join();
+    });
+    erwarteGleich(rot, '2,0', 'rote Felder mit i.O. bzw. n.i.O.');
+    await page.close();
   });
 
   await fall('Riso <999 statt >999: rot', new Function(`${zelle(3, 6)}.value = '<999';`), async (e, page) => {

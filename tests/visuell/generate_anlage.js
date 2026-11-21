@@ -508,15 +508,25 @@ function generiereAnlage(ordner) {
       // gegenüber PE-Klemmen, die eingehende+weiterführende Ader auf demselben `io1`
       // Pin tragen (mehrere Netze an einem Pin, siehe Annahme 7). Bei mehreren
       // Phasen wächst die Pin-Liste entsprechend (i1..i3 = L1/L2/L3, i4 = N, i5 = PE).
+      //
+      // Die Pin-Position an der Endstelle ist der Kontakt der Dose (i1 = Kontakt
+      // L1 usw.), die Funktion kommt aus dem Netz. Normalerweise sind beide
+      // gleich. Sind zwei Außenleiter an der Dose vertauscht angeklemmt
+      // (Linksdrehfeld, sim-wme), trägt die Ader zusätzlich `kontakt` - die
+      // Position an der Dose, an der sie sitzt. Die Adern bleiben nach Funktion
+      // sortiert (Reihenklemmen im Schaltkasten in der Reihenfolge L1/L2/L3).
       let leitungKabeltyp = null;
       const alleFunktionen = [...phasen, 'N', 'PE'];
-      const endstellePins = {};
-      alleFunktionen.forEach((funktion, i) => { endstellePins[funktion] = `i${i + 1}`; });
-      const leitungAdern = alleFunktionen.map((funktion) => {
-        const treffer = findeNetz(netze, `Endstelle_${skNr}.${endstellePins[funktion]}`);
-        if (treffer) leitungKabeltyp = leitungKabeltyp ?? treffer.kabeltyp;
-        return treffer ? baueAder(treffer, funktion) : null;
-      }).filter(Boolean);
+      const leitungAdern = alleFunktionen.map((position, i) => {
+        const pin = `Endstelle_${skNr}.i${i + 1}`;
+        const treffer = findeNetz(netze, pin);
+        if (!treffer) return null;
+        leitungKabeltyp = leitungKabeltyp ?? treffer.kabeltyp;
+        const funktion = treffer.pins.find((p) => p.pin === pin)?.funktion ?? position;
+        const ader = baueAder(treffer, funktion);
+        if (funktion !== position) ader.kontakt = position;
+        return ader;
+      }).filter(Boolean).sort((a, b) => alleFunktionen.indexOf(a.funktion) - alleFunktionen.indexOf(b.funktion));
 
       // Eingangsseite der Reihenklemmen - kann von der Ausgangsseite (leitung,
       // oben) abweichen, z.B. wenn `io1` der PE-Reihenklemme unverbunden ist

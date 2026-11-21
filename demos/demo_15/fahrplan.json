@@ -4705,7 +4705,7 @@
     },
     {
       "titel": "Protokoll: Erproben ankreuzen",
-      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O. bei 1.2.3.",
+      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.",
       "schritte": [
         {
           "funktion": "protokollAnkreuzen",

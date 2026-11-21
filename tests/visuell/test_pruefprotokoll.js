@@ -424,6 +424,17 @@ async function main() {
     }
   }
 
+  // sim-wme: demos/demo_18 hat eine richtig (SK1) und eine mit vertauschten
+  // Außenleitern angeklemmte Drehstromsteckdose (SK2). Gemessen wird an den
+  // Dosenkontakten; eine falsche Dose reicht für n.i.O.
+  {
+    const { erprobenPunkte } = await berechneProtokoll('../../demos/demo_18');
+    await pruefe('demo_18: Rechtsdrehfeld n.i.O., weil eine Drehstromsteckdose Linksdrehfeld hat (sim-wme)', async () => {
+      const punkt = erprobenPunkte.find((p) => p.punkt === 'Rechtsdrehfeld (Drehstromsteckdosen)');
+      erwarteGleich(punkt?.ergebnis, 'n.i.O.', 'Erproben Rechtsdrehfeld');
+    });
+  }
+
   process.exit(alleBestanden ? 0 : 1);
 }
 

@@ -6338,8 +6338,8 @@
       ]
     },
     {
-      "titel": "Rechtsdrehfeld an SK1 (Drehstromsteckdose)",
-      "begruendung": "Anlage normal energisiert - Phasenfolge über V~ prüfen (Sonden in Reihenfolge L1/L2/L3 an Schwarz/Blau/Grün).",
+      "titel": "Rechtsdrehfeld an SK1 Endstelle 0-0",
+      "begruendung": "Anlage normal energisiert - Phasenfolge über V~ an den Kontakten L1/L2/L3 der Dose prüfen (Schwarz/Blau/Grün).",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -6352,6 +6352,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "0-0",
               "netz": "N33"
             }
           ],
@@ -6361,6 +6362,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "0-0",
               "netz": "N34"
             }
           ],
@@ -6370,6 +6372,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "0-0",
               "netz": "N35"
             }
           ],
@@ -6386,7 +6389,7 @@
     },
     {
       "titel": "Protokoll: Erproben ankreuzen",
-      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O. bei 1.2.3.",
+      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.",
       "schritte": [
         {
           "funktion": "protokollAnkreuzen",

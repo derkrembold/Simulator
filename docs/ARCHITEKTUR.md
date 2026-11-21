@@ -1907,7 +1907,11 @@ entfernt alte Markierungen, prüft und markiert Abweichungen mit der Klasse
   Stuttgart als Netzbetreiber zulässig. Das Rechtsdrehfeld (Regel mit
   `nurMitDrehstrom`) wird nur geprüft, wenn die Anlage eine
   Drehstromsteckdose oder 5-polige Anschlussdose hat
-  (`hatDrehstromEndstelle()`, app.js übergibt `drehstrom`).
+  (`hatDrehstromEndstelle()`, app.js übergibt `drehstrom`). Bei Ankreuz-
+  Punkten (`kreuz`) genügt ein Kreuz, außer der Fahrplan gibt per
+  `protokollAnkreuzen` ein Ergebnis vor (`erwarteteKreuze()`): dann muss genau
+  dieses angekreuzt sein, z.B. Rechtsdrehfeld n.i.O. bei vertauschten
+  Außenleitern oder Spannungsfall n.i.O. (sim-wme).
   `test_protokoll_check.js` prüft, dass jeder Eintrag der Markdown-Datei
   eine Regel hat.
 - **Messtabelle**: Sollwerte aus den `protokollEintragen`-Schritten des
@@ -5341,6 +5345,15 @@ PDF-Outputs durch den User:**
    Prüfpunkt-Text in der ersten Zelle, analog zu `fuelleKopfdaten()`).
    Verifiziert an `testcase_05`: `Rechtsdrehfeld: 1.2.3.` erkannt,
    entsprechende Checkbox im PDF angekreuzt.
+   **Seit sim-wme (2026-11-21):** gemessen wird an jeder Drehstrom-Endstelle
+   (Drehstromsteckdose, 5-polige Anschlussdose) und an den Kontakten L1/L2/L3
+   der Dose, nicht mehr an den Adern des ersten dreiphasigen Stromkreises.
+   i.O. nur, wenn jede Endstelle `"1.2.3."` zeigt, sonst wird n.i.O.
+   angekreuzt. Vertauscht angeklemmte Außenleiter stehen in `anlage.json` als
+   Ader mit `kontakt` (Position an der Dose, wenn sie von der Funktion
+   abweicht; `generiereAnlage()` liest die Funktion aus dem Netz, die Position
+   aus dem Endstellen-Pin), `view/steckdosen.js` `findeAder()` platziert die
+   Ader danach. Beispiel: `demos/demo_18` (SK2 mit Linksdrehfeld).
 
 `npm test` weiterhin grün (238 Tests).
 
@@ -5731,6 +5744,12 @@ Kopfdaten von `bauteile.md`, `generate_anlage.js` übernimmt sie als `anlage.vor
 `tests/visuell/testcase_09`, Sollwerte von Hand in `tests/visuell/test_pruefprotokoll.js`
 (`SOLL_FEHLERORTE`).
 
+**Drehfeld (sim-wme):** Optionale Spalte `Drehfeld (rechts/links)` je Stromkreis, leer = rechts,
+`links` nur bei 3-poligem LS. Bei `links` sind L2 und L3 an der Endstelle vertauscht angeklemmt
+(`Endstelle_SK<n>.i2` am L3-Netz, `.i3` am L2-Netz); die Reihenklemmen bleiben richtig. Das
+Messgerät zeigt an diesen Dosen `3.2.1.`, der Fahrplan kreuzt beim Rechtsdrehfeld n.i.O. an.
+Beispiel: `demos/demo_18`.
+
 **AFDD (sim-i4f):** Optionale Spalte `AFDD (ja/nein)` je Stromkreis, leer oder fehlend = nein.
 Ein LS mit AFDD wird wie in `testcase_05` Gruppe G2 gebaut (docs/KONZEPT.md "AFDD"): 2-poliges
 Kombigerät (`bauteile.md` Pole 2, Spalte `AFDD` = `ja`, die Spalte gibt es nur, wenn ein AFDD
@@ -5769,7 +5788,7 @@ der erwarteten Meldung (u. a. `SK01`, `16abc`, negativer oder unlesbarer Fehlerw
 Anzahl Werte je Außenleiter, Gruppen-Fehler ohne RCD, Vorimpedanz 0, alte Spalte
 `Fehler Zuleitung (Ω)`, AFDD an 3-poligem LS, ohne RCD oder mit ungültigem Wert, unlesbare RCD-Polzahl, die nicht still als `ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
 `istSpannungFuehrend()` mit der Einspeisung verbunden sein. Zusätzlich prüft der Test im headless
-Browser, dass bei `demos/demo_04`, `demos/demo_15` (AFDD), `testcase_07` und `testcase_08` alle Pfade im Graphen und
+Browser, dass bei `demos/demo_04`, `demos/demo_15` (AFDD), `demos/demo_18` (Linksdrehfeld), `testcase_07` und `testcase_08` alle Pfade im Graphen und
 im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).
 
 **Review (Codex, Ticket sim-m31):** Drei Befunde umgesetzt. Stromkreisnamen müssen kanonisch sein

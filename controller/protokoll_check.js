@@ -139,7 +139,19 @@ const angekreuzt = (zelle) => zelle?.querySelector('.pf-cb')?.textContent === '�
 
 // --- Regeln prüfen ---
 
-function pruefeRegel(wurzel, regel, heute, drehstrom, markiere) {
+// Erwartete Ergebnisse der Ankreuz-Punkte aus dem Fahrplan
+// (protokollAnkreuzen-Schritte): { punkt: 'i.O.' | 'n.i.O.' }.
+export function erwarteteKreuze(fahrplan) {
+  const erwartet = {};
+  for (const abschnitt of fahrplan?.abschnitte ?? []) {
+    for (const schritt of abschnitt.schritte) {
+      if (schritt.funktion === 'protokollAnkreuzen') erwartet[schritt.argumente[0]] = schritt.argumente[1] ?? 'i.O.';
+    }
+  }
+  return erwartet;
+}
+
+function pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll = {}) {
   if (regel.nurMitDrehstrom && !drehstrom) return;
   const abschnitt = findeAbschnitt(wurzel, regel.abschnitt);
   if (!abschnitt) return;
@@ -149,7 +161,12 @@ function pruefeRegel(wurzel, regel, heute, drehstrom, markiere) {
     if (!zeile) return;
     const zellen = [...zeile.querySelectorAll('.pf-cb-zelle')];
     const [io, nio] = zellen.map(angekreuzt);
-    const richtig = regel.art === 'kreuz' ? io !== nio
+    // Gibt der Fahrplan ein Ergebnis vor (z.B. Rechtsdrehfeld n.i.O. bei
+    // vertauschten Außenleitern, sim-wme), muss genau dieses angekreuzt sein,
+    // sonst genügt ein Kreuz.
+    const soll = regel.art === 'kreuz' ? kreuzSoll[regel.label] : undefined;
+    const richtig = soll ? (soll === 'n.i.O.' ? nio && !io : io && !nio)
+      : regel.art === 'kreuz' ? io !== nio
       : regel.art === 'nio' ? nio && !io
         : regel.art === 'keinKreuz' ? !io && !nio
           : io;
@@ -314,7 +331,8 @@ export function pruefeProtokoll(wurzel, { fahrplan = null, heute = new Date(), d
     el.classList.add('pf-fehler');
     anzahl += 1;
   };
-  for (const regel of PROTOKOLL_REGELN) pruefeRegel(wurzel, regel, heute, drehstrom, markiere);
+  const kreuzSoll = erwarteteKreuze(fahrplan);
+  for (const regel of PROTOKOLL_REGELN) pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll);
   if (fahrplan) pruefeMesstabelle(wurzel, fahrplan, markiere);
   return { anzahl };
 }

@@ -762,6 +762,10 @@ L1=0/L2=1/L3=2): `(index(blau) - index(schwarz) + 3) % 3 === 1` → "1.2.3.",
 sonst "3.2.1." (`berechnePhasenfolge()` in `controller/app.js`) - Grün ist
 durch die beiden anderen bereits eindeutig festgelegt (drei verschiedene
 Phasen, keine vierte Möglichkeit), muss also nicht separat geprüft werden.
+Gemessen wird die Phase der Ader am angetasteten Kontakt. Sind an einer Dose
+zwei Außenleiter vertauscht angeklemmt (Anforderung `Drehfeld = links`,
+sim-wme), sitzt z.B. am Kontakt L2 die Ader L3 (`ader.kontakt` in
+`anlage.json`), und die Anzeige wird "3.2.1.".
 Nutzt ausschließlich bereits bestehende Bausteine (`messspitzenAderNachFarbe()`,
 `istSpannungFuehrend()`) - keine neuen Grundfunktionen nötig.
 

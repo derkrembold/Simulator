@@ -47,8 +47,12 @@ function findeStromkreis(anlage, sk) {
 // `sk.leitung.adern` (aus anlage.json) trägt bereits dieselben Netz-IDs wie
 // die Endstelle_SKx-Knoten im Verbindungsgraphen (siehe netzplan.md) - keine
 // eigene Datenquelle für die Steckdosen-Kontakte nötig.
+// Ader am Kontakt `funktion` der Dose. `ader.kontakt` (falls vorhanden) ist die
+// Position an der Dose, wenn sie von der Funktion abweicht (vertauscht
+// angeklemmte Außenleiter, sim-wme).
 function findeAder(adern, funktion) {
-  return adern?.find((a) => (funktion === 'L' ? a.funktion.startsWith('L') : a.funktion === funktion)) ?? null;
+  const position = (a) => a.kontakt ?? a.funktion;
+  return adern?.find((a) => (funktion === 'L' ? position(a).startsWith('L') : position(a) === funktion)) ?? null;
 }
 
 // Macht ein SVG-Element (Kreis oder Rechteck) klickbar wie eine

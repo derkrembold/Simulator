@@ -154,6 +154,9 @@ function parseAnforderung(text) {
       // Optionale Spalte (sim-i4f): leer oder fehlend = kein AFDD.
       afddRoh: (z['AFDD (ja/nein)'] ?? '').trim(),
       afdd: (z['AFDD (ja/nein)'] ?? '').trim() === 'ja',
+      // Optionale Spalte (sim-wme): leer = rechts.
+      drehfeldRoh: (z['Drehfeld (rechts/links)'] ?? '').trim(),
+      linksdrehfeld: (z['Drehfeld (rechts/links)'] ?? '').trim() === 'links',
       alteMessSpalten: 'Zi' in z || 'Zs' in z,
       altesFehlerFeld: 'Fehler Zuleitung (Ω)' in z,
       fehlerL: leseFehler(z['Fehler L (Ω)']),
@@ -226,6 +229,8 @@ function pruefeAnforderung(anf) {
     muss(!s.dosenFehler, `Stromkreis ${n}: ${s.dosenFehler}`);
     muss(Number.isInteger(s.dosen) && s.dosen >= 1, `Stromkreis ${n}: Anzahl Dosen muss eine Zahl ab 1 sein`);
     muss(aus(s.rcd, ERLAUBT.janein), `Stromkreis ${n}: RCD "${s.rcd}" ungültig (ja/nein)`);
+    muss(['', 'rechts', 'links'].includes(s.drehfeldRoh), `Stromkreis ${n}: Drehfeld "${s.drehfeldRoh}" ungültig (rechts, links, leer = rechts)`);
+    muss(!s.linksdrehfeld || s.lsPole === 3, `Stromkreis ${n}: Drehfeld links gibt es nur bei einem 3-poligen LS (Drehstrom-Endstelle)`);
     muss(s.afddRoh === '' || aus(s.afddRoh, ERLAUBT.janein), `Stromkreis ${n}: AFDD "${s.afddRoh}" ungültig (ja/nein, leer = nein)`);
     if (s.afdd) {
       // LS mit AFDD ist ein Kombigerät, das L und N schaltet (docs/KONZEPT.md "AFDD").
@@ -475,13 +480,15 @@ function baueModell(anf) {
     const tab = tabelleReihenklemmen;
     const mehrphasig = s.phasen.length > 1;
     s.reihenklemmen = [];
+    // Linksdrehfeld (sim-wme): L2 und L3 an der Endstelle vertauscht angeklemmt.
+    const kontaktNr = (p, j) => (s.linksdrehfeld && p === 'L2' ? 3 : s.linksdrehfeld && p === 'L3' ? 2 : j + 1);
     s.phasen.forEach((p, j) => {
       const rk = mehrphasig ? `Reihenklemme_L${p.replace('L', '')}_SK${s.nr}` : `Reihenklemme_L_SK${s.nr}`;
       s.reihenklemmen.push(rk);
       anPin(s.lsAus[j], tab, `${rk}.i1`);
       const ende = neuesNetz(tab, p, s.q);
       anPin(ende, tab, `${rk}.o1`);
-      anPin(ende, tab, `Endstelle_SK${s.nr}.i${j + 1}`);
+      anPin(ende, tab, `Endstelle_SK${s.nr}.i${kontaktNr(p, j)}`);
       fehlerAuf(ende, s.fehlerL.werte[j], `SK${s.nr} Zuleitung ${p}`);
     });
     s.reihenklemmen.push(`Reihenklemme_N_SK${s.nr}`, `Reihenklemme_PE_SK${s.nr}`);

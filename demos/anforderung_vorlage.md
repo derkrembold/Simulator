@@ -24,6 +24,7 @@ Ausgefüllt ist ein Beispiel. Die von Hand gebaute Anlage dazu liegt in
 | Endstelle            | Steckdose, Lichtauslass, Drehstromsteckdose, 5-polige Anschlussdose     |
 | Ja/Nein              | ja, nein                                                                |
 | AFDD                 | ja, nein, leer (= nein)                                                 |
+| Drehfeld             | rechts, links, leer (= rechts), links nur bei 3-poligem LS              |
 
 Regeln, die das Werkzeug prüft: 2-poliger RCD höchstens 2 LS, 4-poliger RCD höchstens 6 LS,
 RCD-Nennstrom größer als jeder LS, eine Hutschiene höchstens 16 TE, AFDD nur bei 1-poligem LS
@@ -62,6 +63,10 @@ angegeben: mit RCD wird Zi gemessen, ohne RCD Zi und Zs (im Protokoll steht dann
 | ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ------------ | ------------ | -------------- |
 | SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | ja   |              |              | nein           |
 | SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L1    | ja   |              |              | nein           |
+
+Drehfeld = links: An den Dosen dieses Drehstrom-Stromkreises sind L2 und L3 vertauscht
+angeklemmt (Linksdrehfeld, Mangel). Die Spalte `Drehfeld (rechts/links)` darf fehlen, leer heißt
+rechts. Sie steht nicht in der Beispieltabelle oben; bei Bedarf als letzte Spalte ergänzen.
 
 AFDD = ja macht aus dem LS ein Kombigerät "LS mit AFDD" (Brandschutzschalter): 2-polig,
 schaltet L und N, braucht 2 TE. Nur bei 1-poligem LS und nur in einer Gruppe mit RCD. Die

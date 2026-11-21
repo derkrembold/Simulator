@@ -41,7 +41,9 @@ function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise, anlage = 
   const g = gruppen.map((x) => `| ${x.id} | ${x.rcdPole} | ${x.typ ?? 'A'} | ${x.fehlerstrom ?? 30} | ${x.nennstrom ?? 40} | ${x.selektiv ?? 'nein'} | ${x.abklemmen ?? 'nein'} | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
   // Spalte "AFDD (ja/nein)" nur, wenn ein Stromkreis sie setzt (sie ist optional).
   const mitAfdd = stromkreise.some((x) => 'afdd' in x);
-  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |${mitAfdd ? ` ${x.afdd ?? ''} |` : ''}`).join('\n');
+  // Spalte "Drehfeld (rechts/links)" ebenso nur bei Bedarf (sim-wme).
+  const mitDrehfeld = stromkreise.some((x) => 'drehfeld' in x);
+  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |${mitAfdd ? ` ${x.afdd ?? ''} |` : ''}${mitDrehfeld ? ` ${x.drehfeld ?? ''} |` : ''}`).join('\n');
   const zusatz = Object.entries(anlage).map(([feld, wert]) => `\n| ${feld} | ${wert} |`).join('');
   return `# Anforderung – test
 
@@ -63,8 +65,8 @@ ${g}
 
 ## Stromkreise
 
-| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | ${fehlerSpalte} |${mitAfdd ? ' AFDD (ja/nein) |' : ''}
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |${mitAfdd ? ' --- |' : ''}
+| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | ${fehlerSpalte} |${mitAfdd ? ' AFDD (ja/nein) |' : ''}${mitDrehfeld ? ' Drehfeld (rechts/links) |' : ''}
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |${mitAfdd ? ' --- |' : ''}${mitDrehfeld ? ' --- |' : ''}
 ${s}
 `;
 }
@@ -265,6 +267,23 @@ pruefe('LS mit AFDD (sim-i4f): 2-poliges Kombigerät, eigene N-Ader, Gruppen-Feh
   pruefeErreichbarkeit(ergebnis);
 });
 
+// sim-wme: Drehfeld links vertauscht L2 und L3 an der Endstelle. Die Adern
+// behalten ihre Funktion (Netz), `kontakt` nennt die Position an der Dose.
+pruefe('Drehfeld links (sim-wme): L2/L3 an der Dose vertauscht, Adern mit kontakt, rechts ohne', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
+    stromkreise: [
+      { name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', drehfeld: 'links' },
+      { name: 'SK2', gruppe: 'G1', lsPole: 3, endstelle: '5-polige Anschlussdose', drehfeld: 'rechts' }
+    ]
+  }));
+  const sks = ergebnis.anlage.hutschienen.flatMap((h) => h.gruppen).flatMap((g) => g.stromkreise);
+  const adern = (name) => sks.find((s) => s.bezeichnung === name).leitung.adern.map((a) => `${a.funktion}${a.kontakt ? `@${a.kontakt}` : ''}`).join();
+  bedingung(adern('SK1') === 'L1,L2@L3,L3@L2,N,PE', `SK1: ${adern('SK1')}`);
+  bedingung(adern('SK2') === 'L1,L2,L3,N,PE', `SK2: ${adern('SK2')}`);
+  pruefeErreichbarkeit(ergebnis);
+});
+
 pruefe('Ohne Vorimpedanz in der Anforderung bleibt anlage.json ohne vorimpedanz_ohm', () => {
   const ergebnis = erzeuge(baueAnforderung({
     gruppen: [{ id: 'G1', rcdPole: 2 }],
@@ -324,6 +343,16 @@ pruefe('Prüfregel: gültige Anforderung ohne Meldungen', () => {
   const fehler = pruefeAnforderung(parseAnforderung(baueAnforderung(basis)));
   bedingung(fehler.length === 0, JSON.stringify(fehler));
 });
+
+lehntAb('Drehfeld links an einem 1-poligen LS (sim-wme)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', drehfeld: 'links' }]
+}), 'Drehfeld links gibt es nur bei einem 3-poligen LS');
+
+lehntAb('Drehfeld mit ungültigem Wert (sim-wme)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', drehfeld: 'falsch' }]
+}), 'Drehfeld "falsch" ungültig');
 
 lehntAb('AFDD an einem 3-poligen LS (sim-i4f)', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
@@ -474,7 +503,7 @@ pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['../../demos/demo_04', '../../demos/demo_15', 'testcase_07', 'testcase_08']) {
+  for (const demo of ['../../demos/demo_04', '../../demos/demo_15', '../../demos/demo_18', 'testcase_07', 'testcase_08']) {
     const name = `Verdrahtung ${path.basename(demo)}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
       const { abweichungen, geprueft } = await pruefeVerdrahtung(demo);

@@ -3555,7 +3555,7 @@
     },
     {
       "titel": "SK3: Überstromschutz (Zs)",
-      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (C/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (C/16A) am Messgerät einstellen, dann Schleifenimpedanz an der Endstelle 0-2 (L, N und PE der Dose) messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -3584,6 +3584,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "0-2",
               "netz": "N26"
             }
           ],
@@ -3593,6 +3594,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "0-2",
               "netz": "N27"
             }
           ],
@@ -3602,7 +3604,8 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
-              "bauteil": "PE-Klemme"
+              "endstelle": "0-2",
+              "netz": "N28"
             }
           ],
           "ergebnis": null

@@ -4514,7 +4514,7 @@
     },
     {
       "titel": "SK4 L1: Überstromschutz (Zs)",
-      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz an der Endstelle 2-0 (L, N und PE der Dose) messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -4543,6 +4543,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-0",
               "netz": "N36"
             }
           ],
@@ -4552,6 +4553,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-0",
               "netz": "N39"
             }
           ],
@@ -4561,7 +4563,8 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
-              "bauteil": "PE-Klemme"
+              "endstelle": "2-0",
+              "netz": "N40"
             }
           ],
           "ergebnis": null
@@ -4685,7 +4688,7 @@
     },
     {
       "titel": "SK4 L2: Überstromschutz (Zs)",
-      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz an der Endstelle 2-0 (L, N und PE der Dose) messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -4714,6 +4717,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-0",
               "netz": "N37"
             }
           ],
@@ -4723,6 +4727,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-0",
               "netz": "N39"
             }
           ],
@@ -4732,7 +4737,8 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
-              "bauteil": "PE-Klemme"
+              "endstelle": "2-0",
+              "netz": "N40"
             }
           ],
           "ergebnis": null
@@ -4856,7 +4862,7 @@
     },
     {
       "titel": "SK4 L3: Überstromschutz (Zs)",
-      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz an der Endstelle 2-0 (L, N und PE der Dose) messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -4885,6 +4891,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-0",
               "netz": "N38"
             }
           ],
@@ -4894,6 +4901,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-0",
               "netz": "N39"
             }
           ],
@@ -4903,7 +4911,8 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
-              "bauteil": "PE-Klemme"
+              "endstelle": "2-0",
+              "netz": "N40"
             }
           ],
           "ergebnis": null

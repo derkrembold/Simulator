@@ -52,16 +52,19 @@ function mitFehlerzeilen(quelle, zeilen) {
   ];
   for (const ordner of anlagen) {
     const name = path.basename(ordner);
-    pruefe(`${name}: graph.PE verbindet jede Endstelle widerstandsfrei mit der Einspeisung, ohne Kanten`, () => {
+    pruefe(`${name}: graph.PE verbindet jede Endstelle mit der Einspeisung (ohne Kontaktfehler widerstandsfrei), ohne Kanten`, () => {
       const graph = generiereGraph(ordner);
       bedingung(graph.PE && graph.PE.einspeisung, 'graph.PE.einspeisung fehlt');
       bedingung(!('kanten' in graph.PE), 'graph.PE darf keine Schalter-Kanten haben');
       bedingung(!graph.einspeisung.PE, 'graph.einspeisung.PE darf es nicht geben (bisherige Pfadsuchen sehen PE nicht)');
       const endstellen = [...new Set(graph.PE.kontakte.filter((k) => k.bauteil.startsWith('Endstelle_')).map((k) => k.bauteil))];
       bedingung(endstellen.length > 0, 'keine Endstelle im PE-Graphen');
+      // Anlagen mit PE-Kontaktfehlern (z.B. testcase_09): verbunden, Wert > 0
+      // möglich; ohne Kontaktfehler überall 0 Ω.
+      const mitFehlern = graph.PE.kontakte.some((k) => k.widerstand > 0);
       for (const e of endstellen) {
         const r = R(graph.PE, bauteil(e), netz(graph.PE.einspeisung));
-        bedingung(r === 0, `${e}: ${r} statt 0 Ω`);
+        bedingung(r !== null && (mitFehlern ? r >= 0 : r === 0), `${e}: ${r}`);
       }
     });
   }

@@ -1,6 +1,6 @@
 {
   "name": "Fehlerorte",
-  "beschreibung": "Fehler an Einspeisung, RCD-Ausgang und Stromkreisen, Vorimpedanz 0,2 Ω",
+  "beschreibung": "Fehler an Einspeisung, RCD-Ausgang und Stromkreisen, PE-Kontaktfehler, Vorimpedanz 0,2 Ω",
   "netzform": "TN-S",
   "spannung_einspeisung": 400,
   "spannung_stromkreise": 400,

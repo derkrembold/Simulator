@@ -942,23 +942,22 @@ async function start() {
     const blauAder = messspitzenAderNachFarbe('blau');
     // Schwarz auf L1/L2/L3, Grün auf PE, Blau auf N - alle drei müssen
     // korrekt platziert sein, damit TEST überhaupt reagiert (explizite
-    // User-Vorgabe), auch wenn PE und N unten NICHT in die Berechnung
-    // einfließen.
+    // User-Vorgabe), auch wenn N unten NICHT in die Berechnung einfließt.
     if (!schwarzAder || !gruenAder || !blauAder) return;
     if (!RISO_L_FUNKTIONEN.includes(schwarzAder.funktion)) return;
     if (gruenAder.funktion !== 'PE') return;
     if (blauAder.funktion !== 'N') return;
 
-    // Unterschied zu ZI: nur EIN Teilpfad wird geprüft (L-Sonde ->
-    // L-Einspeisung). Der PE-Pfad wird bewusst NICHT verfolgt - Annahme:
-    // PE hat immer Durchgang (0Ω), analog zur PE-Vereinfachung bei RISO
-    // (siehe risoEffektiveAder()). Explizit als vorläufige Vereinfachung
-    // markiert, kann später durch einen echten PE-Teilgraphen ersetzt
-    // werden (siehe KONZEPT.md "Nächste Schritte").
+    // Schleife L-PE (PE-Konzept, sim-24c): Fehler auf dem L-Pfad von der
+    // schwarzen Sonde zur Einspeisung, plus PE-Weg von der grünen Sonde bis
+    // Einspeisung.PE (Ersatzwiderstand im PE-Graphen, Kontaktfehler), plus
+    // einmal die Vorimpedanz. Ohne L-Pfad oder ohne PE-Verbindung kein Wert.
     const pfadL = findePfadZurEinspeisung(schwarzAder.funktion, schwarzAder);
     if (!pfadL) return;
+    const rPe = peWiderstandZurEinspeisung(peMesspunktNachFarbe('grün'));
+    if (rPe === null) return;
 
-    zsMesswert = berechneWiderstand(graph, pfadL) + ZI_VORIMPEDANZ;
+    zsMesswert = berechneWiderstand(graph, pfadL) + rPe + ZI_VORIMPEDANZ;
     renderMessgeraet();
   }
 

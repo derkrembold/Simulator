@@ -6230,7 +6230,7 @@
     },
     {
       "titel": "SK5: Überstromschutz (Zs)",
-      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/10A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/10A) am Messgerät einstellen, dann Schleifenimpedanz an der Endstelle 2-1 (L, N und PE der Dose) messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -6259,6 +6259,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-1",
               "netz": "N51"
             }
           ],
@@ -6268,6 +6269,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-1",
               "netz": "N52"
             }
           ],
@@ -6277,7 +6279,8 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
-              "bauteil": "PE-Klemme"
+              "endstelle": "2-1",
+              "netz": "N53"
             }
           ],
           "ergebnis": null

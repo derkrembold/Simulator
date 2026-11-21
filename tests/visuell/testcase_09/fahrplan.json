@@ -2378,7 +2378,7 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "R:0,00Ω"
+          "ergebnis": "R:0,26Ω"
         }
       ]
     },
@@ -2417,7 +2417,7 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "R:0,00Ω"
+          "ergebnis": "R:0,26Ω"
         }
       ]
     },
@@ -2456,7 +2456,7 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "R:0,00Ω"
+          "ergebnis": "R:0,06Ω"
         }
       ]
     },
@@ -2495,7 +2495,7 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "R:0,00Ω"
+          "ergebnis": "R:0,06Ω"
         }
       ]
     },
@@ -2534,7 +2534,7 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "R:0,00Ω"
+          "ergebnis": "R:0,06Ω"
         }
       ]
     },
@@ -2573,7 +2573,7 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "R:0,00Ω"
+          "ergebnis": "R:0,06Ω"
         }
       ]
     },
@@ -2612,7 +2612,7 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "R:0,00Ω"
+          "ergebnis": "R:0,16Ω"
         }
       ]
     },
@@ -2628,7 +2628,7 @@
               "spalte": 5,
               "spaltenName": "Rpe (Ω)"
             },
-            "0,00"
+            "0,26"
           ],
           "ergebnis": null
         },
@@ -2640,7 +2640,7 @@
               "spalte": 5,
               "spaltenName": "Rpe (Ω)"
             },
-            "0,00"
+            "0,06"
           ],
           "ergebnis": null
         },
@@ -2652,7 +2652,7 @@
               "spalte": 5,
               "spaltenName": "Rpe (Ω)"
             },
-            "0,00"
+            "0,06"
           ],
           "ergebnis": null
         },
@@ -2664,7 +2664,7 @@
               "spalte": 5,
               "spaltenName": "Rpe (Ω)"
             },
-            "0,00"
+            "0,06"
           ],
           "ergebnis": null
         },
@@ -2676,7 +2676,7 @@
               "spalte": 5,
               "spaltenName": "Rpe (Ω)"
             },
-            "0,00"
+            "0,06"
           ],
           "ergebnis": null
         },
@@ -2688,7 +2688,7 @@
               "spalte": 5,
               "spaltenName": "Rpe (Ω)"
             },
-            "0,00"
+            "0,16"
           ],
           "ergebnis": null
         }
@@ -4643,14 +4643,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,20Ω"
+          "ergebnis": "Z:0,24Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1035,0A"
+          "ergebnis": "Isc:862,5A"
         }
       ]
     },
@@ -4702,14 +4702,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,30Ω"
+          "ergebnis": "Z:0,34Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:690,0A"
+          "ergebnis": "Isc:608,8A"
         }
       ]
     },
@@ -4761,14 +4761,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,20Ω"
+          "ergebnis": "Z:0,24Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1035,0A"
+          "ergebnis": "Isc:862,5A"
         }
       ]
     },
@@ -4784,7 +4784,7 @@
               "spalte": 10,
               "spaltenName": "Zs (Ω)"
             },
-            "0,30"
+            "0,34"
           ],
           "ergebnis": null
         },
@@ -4796,7 +4796,7 @@
               "spalte": 11,
               "spaltenName": "Ik L-PE (A)"
             },
-            "690,0"
+            "608,8"
           ],
           "ergebnis": null
         }
@@ -5380,7 +5380,7 @@
     },
     {
       "titel": "SK6 L1: Überstromschutz (Zs)",
-      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz an der Endstelle 2-2 (L, N und PE der Dose) messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -5409,6 +5409,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N46"
             }
           ],
@@ -5418,6 +5419,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N49"
             }
           ],
@@ -5427,7 +5429,8 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
-              "bauteil": "PE-Klemme"
+              "endstelle": "2-2",
+              "netz": "N50"
             }
           ],
           "ergebnis": null
@@ -5442,14 +5445,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,20Ω"
+          "ergebnis": "Z:0,40Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1035,0A"
+          "ergebnis": "Isc:517,5A"
         }
       ]
     },
@@ -5551,7 +5554,7 @@
     },
     {
       "titel": "SK6 L2: Überstromschutz (Zs)",
-      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz an der Endstelle 2-2 (L, N und PE der Dose) messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -5580,6 +5583,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N47"
             }
           ],
@@ -5589,6 +5593,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N49"
             }
           ],
@@ -5598,7 +5603,8 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
-              "bauteil": "PE-Klemme"
+              "endstelle": "2-2",
+              "netz": "N50"
             }
           ],
           "ergebnis": null
@@ -5613,14 +5619,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,30Ω"
+          "ergebnis": "Z:0,50Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:690,0A"
+          "ergebnis": "Isc:414,0A"
         }
       ]
     },
@@ -5722,7 +5728,7 @@
     },
     {
       "titel": "SK6 L3: Überstromschutz (Zs)",
-      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz messen.",
+      "begruendung": "Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (B/16A) am Messgerät einstellen, dann Schleifenimpedanz an der Endstelle 2-2 (L, N und PE der Dose) messen.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -5751,6 +5757,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N48"
             }
           ],
@@ -5760,6 +5767,7 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
+              "endstelle": "2-2",
               "netz": "N49"
             }
           ],
@@ -5769,7 +5777,8 @@
           "funktion": "messspitzeSetzen",
           "argumente": [
             {
-              "bauteil": "PE-Klemme"
+              "endstelle": "2-2",
+              "netz": "N50"
             }
           ],
           "ergebnis": null
@@ -5784,14 +5793,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,45Ω"
+          "ergebnis": "Z:0,65Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:460,0A"
+          "ergebnis": "Isc:318,5A"
         }
       ]
     },
@@ -6071,7 +6080,7 @@
               "spalte": 10,
               "spaltenName": "Zs (Ω)"
             },
-            "0,45"
+            "0,65"
           ],
           "ergebnis": null
         },
@@ -6083,7 +6092,7 @@
               "spalte": 11,
               "spaltenName": "Ik L-PE (A)"
             },
-            "460,0"
+            "318,5"
           ],
           "ergebnis": null
         }

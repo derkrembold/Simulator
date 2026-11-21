@@ -28,13 +28,15 @@ RCD-Nennstrom größer als jeder LS, eine Hutschiene höchstens 16 TE.
 | Feld                 | Wert                                                                    |
 | -------------------- | ----------------------------------------------------------------------- |
 | Name                 | Fehlerorte                                                              |
-| Beschreibung         | Fehler an Einspeisung, RCD-Ausgang und Stromkreisen, Vorimpedanz 0,2 Ω  |
+| Beschreibung         | Fehler an Einspeisung, RCD-Ausgang und Stromkreisen, PE-Kontaktfehler, Vorimpedanz 0,2 Ω |
 | Netzform             | TN-S                                                                    |
 | Hauptschalter Pole   | 3                                                                       |
 | Hauptschalter (A)    | 35                                                                      |
 | Vorimpedanz (Ω)      | 0,2                                                                     |
 | Fehler Einspeisung L (Ω) | 0 / 0,1 / 0                                                         |
 | Fehler Einspeisung N (Ω) | 0,05                                                                |
+| Fehler PE Einspeisung (Ω) | 0,04                                                               |
+| Fehler PE-Klemme Zubringer (Ω) | 0,06                                                          |
 
 ## Gruppen
 
@@ -53,14 +55,14 @@ Die Reihenfolge bestimmt die Nummer (SK1, SK2, ...). Jeder Stromkreis bekommt ei
 der angegebenen Gruppe. Bei einem 3-poligen LS ist der Stromkreis dreiphasig, die Spalte
 Phase bleibt dann leer.
 
-| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD  | Fehler L (Ω) | Fehler N (Ω) |
-| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ------------ | ------------ |
-| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | ja   |              | 0,3          |
-| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L2    | ja   |              |              |
-| SK3        | G1     | Steckdosen Zimmer 2 | Steckdose    | 1            | 1       | B        | 16     | L3    | ja   | 0,2          |              |
-| SK4        | G2     | Steckdosen Flur     | Steckdose    | 1            | 1       | B        | 16     | L1    | ja   |              |              |
-| SK5        | G2     | Licht Flur          | Lichtauslass | 1            | 1       | B        | 10     | L1    | ja   |              |              |
-| SK6        | G3     | Herd                | 5-polige Anschlussdose | 1  | 3       | B        | 16     |       | nein | 0 / 0 / 0,25 | 0,3          |
+| Stromkreis | Gruppe | Ziel                | Endstelle    | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD  | Fehler L (Ω) | Fehler N (Ω) | Fehler PE (Ω) |
+| ---------- | ------ | ------------------- | ------------ | ------------ | ------- | -------- | ------ | ----- | ---- | ------------ | ------------ | ------------- |
+| SK1        | G1     | Steckdosen Zimmer 1 | Steckdose    | 2            | 1       | B        | 16     | L1    | ja   |              | 0,3          | 0,2 |
+| SK2        | G1     | Licht Zimmer 1      | Lichtauslass | 1            | 1       | B        | 10     | L2    | ja   |              |              |  |
+| SK3        | G1     | Steckdosen Zimmer 2 | Steckdose    | 1            | 1       | B        | 16     | L3    | ja   | 0,2          |              |  |
+| SK4        | G2     | Steckdosen Flur     | Steckdose    | 1            | 1       | B        | 16     | L1    | ja   |              |              |  |
+| SK5        | G2     | Licht Flur          | Lichtauslass | 1            | 1       | B        | 10     | L1    | ja   |              |              |  |
+| SK6        | G3     | Herd                | 5-polige Anschlussdose | 1  | 3       | B        | 16     |       | nein | 0 / 0 / 0,25 | 0,3          | 0,1 |
 
 Gemischte Endstellen in einem Stromkreis: Endstelle z.B. `Steckdose + Lichtauslass` und
 Anzahl Dosen `2 + 1` (je Teil eine Anzahl). Alle Typen müssen zum LS passen (1-polig:

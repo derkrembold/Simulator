@@ -630,7 +630,11 @@ ist ja ohnehin schon live, siehe "Referenz-LS"), zieht die Ampel sofort mit,
 ohne dass erneut TEST gedrückt werden muss - Isc bleibt dabei unverändert
 der zuletzt gemessene Wert.
 
-**ZS (bewusst vereinfacht, keine weitere Iteration geplant):** Messspitzen diesmal Schwarz
+**ZS, Stand sim-24c (2026-11-21):** Zs = Fehler auf dem L-Pfad + PE-Ersatzwiderstand von der
+grünen Sonde bis Einspeisung.PE (PE-Graph, Kontaktfehler) + einmal die Vorimpedanz. Ohne
+PE-Verbindung kein Wert. Der folgende Absatz beschreibt den früheren Stand ohne PE-Pfad.
+
+**ZS (früherer Stand, bewusst vereinfacht):** Messspitzen diesmal Schwarz
 (L1/L2/L3, wie bei ZI) und **Grün** statt Blau als zweite aktive Sonde -
 Grün muss auf PE sitzen, Blau zusätzlich auf N (analog zu ZI/RISO müssen
 alle drei Sonden korrekt platziert sein, damit TEST überhaupt reagiert).
@@ -2405,7 +2409,10 @@ tests/visuell/
 ist umgesetzt: `graph.PE` und `berechneErsatzwiderstand()`. Schritt 2 (sim-0cf) ist umgesetzt:
 RLOW PE-PE und PE-N über den PE-Graphen, Riso L-PE nur mit PE-Verbindung, Riso N-PE mit
 Sternpunkt-Regel, Fahrplan misst N-PE nach N-Trennung (siehe "RLOW-Berechnung" und
-"Berechnung der Messwerte"). Offen: Zs (sim-24c), Hutschiene (sim-kfb).
+"Berechnung der Messwerte"). Schritt 3 (sim-24c) ist umgesetzt: Zs = L-Pfad + PE-Ersatzwiderstand
+von der grünen Sonde bis Einspeisung.PE + Vorimpedanz (`zsTestKlick()`), PE-Fehler in der
+Anforderung, der Fahrplan misst Zs an der Endstelle (alle drei Sonden an der Dose). Offen:
+Hutschiene (sim-kfb).
 Wunsch des Menschen: Der PE ist heute widerstandsfrei und nicht Teil des Verbindungsgraphen. Das
 ist nicht die Realität. Dieser Abschnitt beschreibt Ziel, Modell, Messungen, Anforderung und die
 Umsetzung in Schritten.

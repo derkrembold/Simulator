@@ -43,7 +43,9 @@ function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise, anlage = 
   const mitAfdd = stromkreise.some((x) => 'afdd' in x);
   // Spalte "Drehfeld (rechts/links)" ebenso nur bei Bedarf (sim-wme).
   const mitDrehfeld = stromkreise.some((x) => 'drehfeld' in x);
-  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |${mitAfdd ? ` ${x.afdd ?? ''} |` : ''}${mitDrehfeld ? ` ${x.drehfeld ?? ''} |` : ''}`).join('\n');
+  // Spalte "Fehler PE (Ω)" ebenso nur bei Bedarf (sim-24c).
+  const mitPe = stromkreise.some((x) => 'fehlerPE' in x);
+  const s = stromkreise.map((x) => `| ${x.name} | ${x.gruppe} | Ziel ${x.name} | ${x.endstelle ?? 'Steckdose'} | ${x.dosen ?? 1} | ${x.lsPole ?? 1} | ${x.lsChar ?? 'B'} | ${x.lsA ?? 16} | ${x.phase ?? ''} | ja | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |${mitAfdd ? ` ${x.afdd ?? ''} |` : ''}${mitDrehfeld ? ` ${x.drehfeld ?? ''} |` : ''}${mitPe ? ` ${x.fehlerPE ?? ''} |` : ''}`).join('\n');
   const zusatz = Object.entries(anlage).map(([feld, wert]) => `\n| ${feld} | ${wert} |`).join('');
   return `# Anforderung – test
 
@@ -65,8 +67,8 @@ ${g}
 
 ## Stromkreise
 
-| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | ${fehlerSpalte} |${mitAfdd ? ' AFDD (ja/nein) |' : ''}${mitDrehfeld ? ' Drehfeld (rechts/links) |' : ''}
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |${mitAfdd ? ' --- |' : ''}${mitDrehfeld ? ' --- |' : ''}
+| Stromkreis | Gruppe | Ziel | Endstelle | Anzahl Dosen | LS Pole | LS Char. | LS (A) | Phase | RCD | ${fehlerSpalte} |${mitAfdd ? ' AFDD (ja/nein) |' : ''}${mitDrehfeld ? ' Drehfeld (rechts/links) |' : ''}${mitPe ? ' Fehler PE (Ω) |' : ''}
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |${mitAfdd ? ' --- |' : ''}${mitDrehfeld ? ' --- |' : ''}${mitPe ? ' --- |' : ''}
 ${s}
 `;
 }
@@ -284,6 +286,19 @@ pruefe('Drehfeld links (sim-wme): L2/L3 an der Dose vertauscht, Adern mit kontak
   pruefeErreichbarkeit(ergebnis);
 });
 
+// sim-24c: PE-Fehler sitzen an Kontakten der PE-Klemme bzw. PE-Reihenklemme.
+pruefe('Fehler PE (sim-24c): Kontaktfehler an PE-Klemme (Einspeisung, Zubringer) und PE-Reihenklemme', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    anlage: { 'Fehler PE Einspeisung (Ω)': '0,04', 'Fehler PE-Klemme Zubringer (Ω)': '0,06' },
+    gruppen: [{ id: 'G1', rcdPole: 2 }],
+    stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', fehlerPE: '0,2' }, { name: 'SK2', gruppe: 'G1', phase: 'L1', fehlerPE: '' }]
+  }));
+  const kontakte = Object.fromEntries(ergebnis.graph.PE.kontakte.filter((k) => k.widerstand).map((k) => [k.pin, k.widerstand]));
+  bedingung(JSON.stringify(kontakte) === JSON.stringify({ 'PE-Klemme.io1': 0.04, 'PE-Klemme.io2': 0.06, 'Reihenklemme_PE_SK1.io2': 0.2 }), JSON.stringify(kontakte));
+  bedingung(Object.keys(ergebnis.graph.fehlertabelle).length === 0, 'PE-Fehler gehören nicht in die netzbezogene Fehlertabelle');
+  pruefeErreichbarkeit(ergebnis);
+});
+
 pruefe('Ohne Vorimpedanz in der Anforderung bleibt anlage.json ohne vorimpedanz_ohm', () => {
   const ergebnis = erzeuge(baueAnforderung({
     gruppen: [{ id: 'G1', rcdPole: 2 }],
@@ -353,6 +368,11 @@ lehntAb('Drehfeld mit ungültigem Wert (sim-wme)', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
   stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', drehfeld: 'falsch' }]
 }), 'Drehfeld "falsch" ungültig');
+
+lehntAb('Fehler PE mit mehreren Werten (sim-24c)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', fehlerPE: '0,1 / 0,2 / 0,3' }]
+}), 'Fehler PE (Ω) "0,1 / 0,2 / 0,3": 3 Werte');
 
 lehntAb('AFDD an einem 3-poligen LS (sim-i4f)', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],

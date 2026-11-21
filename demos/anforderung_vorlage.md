@@ -42,6 +42,8 @@ in einer Gruppe mit RCD.
 | Vorimpedanz (Ω)      |                                                                         |
 | Fehler Einspeisung L (Ω) |                                                                     |
 | Fehler Einspeisung N (Ω) |                                                                     |
+| Fehler PE Einspeisung (Ω) |                                                                    |
+| Fehler PE-Klemme Zubringer (Ω) |                                                               |
 
 ## Gruppen
 
@@ -93,5 +95,10 @@ Außenleiter gibt: 3-poliger Hauptschalter, 4-poliger RCD, 3-poliger LS).
 | Gruppe, Fehler L / N       | Ausgang des RCD (z.B. lose Klemme)          | wie oben, für alle Stromkreise der Gruppe                     |
 | Anlage, Fehler Einspeisung | Zuleitung von außen bis zum Hauptschalter   | Zs der Hauptleitung und alle Zi/Zs steigen; Zref wird auf L1 und N gemessen, ΔU steigt deshalb nur bei einem Fehler auf L2/L3 |
 | Anlage, Vorimpedanz        | Netz vor der Anlage (leer = 0,14 Ω)         | ein Gesamtwert, der einmal zu jedem Zi, Zs und Zref addiert wird; ΔU bleibt gleich |
+| Stromkreis, Fehler PE      | Kontakt der PE-Reihenklemme zur Leitung zur Endstelle | Rpe und Zs (an der Endstelle gemessen) dieses Stromkreises steigen |
+| Anlage, Fehler PE-Klemme Zubringer | Kontakt an der PE-Klemme zum Zubringer zur ersten Reihenklemme | Rpe und Zs aller Stromkreise steigen (ihr PE läuft über die Reihenklemmen-Hutschiene) |
+| Anlage, Fehler PE Einspeisung | Kontakt an der PE-Klemme zur Zuleitung   | Zs aller Stromkreise und der Hauptleitung steigen, Rpe nicht |
 
-Gruppen ohne RCD haben keine Gruppen-Fehler, dort den Fehler am Stromkreis eintragen.
+Gruppen ohne RCD haben keine Gruppen-Fehler, dort den Fehler am Stromkreis eintragen. PE-Fehler sind
+immer eine einzelne Zahl (ein Schutzleiter), Gruppen haben keinen PE-Fehler (RCD und LS führen
+keinen PE). Die Spalte `Fehler PE (Ω)` in der Stromkreis-Tabelle darf fehlen.

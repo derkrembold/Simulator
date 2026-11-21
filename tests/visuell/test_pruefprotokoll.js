@@ -41,13 +41,19 @@ const HAUPTLEITUNG_QUERSCHNITT = {
 //   RCD2 Ausgang L1 0,15, SK1 N 0,3, SK3 L3 0,2, SK6 L3 0,25, SK6 N 0,3.
 const SOLL_FEHLERORTE = {
   testcase_09: {
-    hauptleitungZs: { L1: '0,20', L2: '0,30', L3: '0,20' },
+    // Zs mit PE-Weg (sim-24c): + 0,04 Fehler am PE-Kontakt der Einspeisung.
+    hauptleitungZs: { L1: '0,24', L2: '0,34', L3: '0,24' },
     zref: '0,25',
     zi: {
       'SK1 L1': '0,65', 'SK2 L2': '0,45', 'SK3 L3': '0,55', 'SK4 L1': '0,40', 'SK5 L1': '0,40',
       'SK6 L1': '0,55', 'SK6 L2': '0,65', 'SK6 L3': '0,80'
     },
-    zs: { 'SK6 L1': '0,20', 'SK6 L2': '0,30', 'SK6 L3': '0,45' }
+    // SK6 Zs an der Endstelle: + PE Einspeisung 0,04 + Zubringer 0,06 + SK6 PE 0,1.
+    zs: { 'SK6 L1': '0,40', 'SK6 L2': '0,50', 'SK6 L3': '0,65' },
+    // Rpe Endstelle gegen PE-Klemme: Zubringer 0,06 für alle (PE über die
+    // Reihenklemmen-Hutschiene), dazu der eigene PE-Kontakt; der Fehler an
+    // der Einspeisung liegt nicht dazwischen.
+    rpe: { SK1: '0,26', SK2: '0,06', SK3: '0,06', SK4: '0,06', SK5: '0,06', SK6: '0,16' }
   }
 };
 
@@ -242,6 +248,7 @@ async function main() {
             if (fehlerorte.zs[schluessel]) erwarteGleich(m.zs, fehlerorte.zs[schluessel], `${schluessel} Zs`);
           }
         }
+        for (const erg of ergebnisse) erwarteGleich(erg.rpe, fehlerorte.rpe[erg.sk], `${erg.sk} Rpe`);
         erwarteGleich(Object.keys(fehlerorte.zi).length + Object.keys(fehlerorte.zs).length,
           ergebnisse.flatMap((e) => (e.aussenleiter ?? []).flatMap((m) => [m.zi, m.zs].filter(Boolean))).length, 'Anzahl geprüfter Werte');
       });
@@ -296,10 +303,12 @@ async function main() {
         for (const m of erg.spannungsfreiheit) erwarteGleich(m.wert, '0', `${erg.sk} ${m.ort} ${m.paar}`);
       });
 
-      await pruefe(`${testcase} ${erg.sk}: Rpe an jeder Endstelle gemessen, 0,00Ω (RLOW-Workaround)`, async () => {
+      // Rpe über den PE-Graphen (sim-0cf): ohne PE-Kontaktfehler 0,00Ω, mit
+      // Kontaktfehlern die Sollwerte aus SOLL_FEHLERORTE (testcase_09).
+      await pruefe(`${testcase} ${erg.sk}: Rpe an jeder Endstelle gemessen`, async () => {
         const endstellen = (anlage.steckdosen_platzierung ?? []).filter((p) => p.sk === erg.sk).length;
         erwarteGleich(erg.rpeMessungen.length, Math.max(endstellen, 1), `${erg.sk} Anzahl Rpe-Messungen`);
-        erwarteGleich(erg.rpe, '0,00', `${erg.sk} Rpe`);
+        erwarteGleich(erg.rpe, SOLL_FEHLERORTE[testcase]?.rpe?.[erg.sk] ?? '0,00', `${erg.sk} Rpe`);
       });
 
       await pruefe(`${testcase} ${erg.sk}: Riso Verbraucher ohne ist >999MΩ (kein Isolationsfehler in diesem Testcase)`, async () => {

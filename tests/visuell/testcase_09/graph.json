@@ -318,12 +318,14 @@
       {
         "bauteil": "PE-Klemme",
         "pin": "PE-Klemme.io1",
-        "netz": "N5"
+        "netz": "N5",
+        "widerstand": 0.04
       },
       {
         "bauteil": "PE-Klemme",
         "pin": "PE-Klemme.io2",
-        "netz": "N13"
+        "netz": "N13",
+        "widerstand": 0.06
       },
       {
         "bauteil": "Reihenklemme_PE_SK1",
@@ -378,7 +380,8 @@
       {
         "bauteil": "Reihenklemme_PE_SK1",
         "pin": "Reihenklemme_PE_SK1.io2",
-        "netz": "N33"
+        "netz": "N33",
+        "widerstand": 0.2
       },
       {
         "bauteil": "Endstelle_SK1",
@@ -428,7 +431,8 @@
       {
         "bauteil": "Reihenklemme_PE_SK6",
         "pin": "Reihenklemme_PE_SK6.io2",
-        "netz": "N50"
+        "netz": "N50",
+        "widerstand": 0.1
       },
       {
         "bauteil": "Endstelle_SK6",

@@ -401,18 +401,29 @@ function messstelle(sk, phase) {
   return sk.phasen.length > 1 ? `${sk.bezeichnung} ${phase}` : sk.bezeichnung;
 }
 
-async function messeUeberstromschutz(testcase, sk, phase) {
+// Zs an der Endstelle (sim-24c): alle drei Messspitzen an der ersten Dose des
+// Stromkreises, damit PE-Fehler am Stromkreis in der Schleife L-PE liegen.
+// Ohne Endstelle (Anlage ohne Steckdosen-Platzierung) wie früher an den
+// Abgangsklemmen, Grün an der PE-Klemme.
+async function messeUeberstromschutz(testcase, anlage, sk, phase) {
+  const [endstelle] = endstellenVon(anlage, sk);
   const ctx = await basis.starteTestUmgebung(testcase);
   messgeraet.abschnittBeginnen(
     `${messstelle(sk, phase)}: Überstromschutz (Zs)`,
-    `Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (${sk.ls.char}/${sk.ls.in}A) am Messgerät einstellen, dann Schleifenimpedanz messen.`
+    `Anlage normal energisiert (kein Abklemmen nötig) - LS-Typenschild (${sk.ls.char}/${sk.ls.in}A) am Messgerät einstellen, dann Schleifenimpedanz ${endstelle ? `an der Endstelle ${endstelle} (L, N und PE der Dose)` : 'an den Abgangsklemmen'} messen.`
   );
   await messgeraet.drehknopfAufModus(ctx, 'ZS');
   await messgeraet.stelleEin(ctx, 'lsTyp', sk.ls.char);
   await messgeraet.stelleEin(ctx, 'bemessungsstrom', `${sk.ls.in}A`);
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, phase) }); // schwarz
-  await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'N') }); // blau
-  await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
+  if (endstelle) {
+    await messgeraet.messspitzeSetzen(ctx, { endstelle, netz: aderNetz(sk, phase) }); // schwarz
+    await messgeraet.messspitzeSetzen(ctx, { endstelle, netz: aderNetz(sk, 'N') }); // blau
+    await messgeraet.messspitzeSetzen(ctx, { endstelle, netz: aderNetz(sk, 'PE') }); // grün
+  } else {
+    await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, phase) }); // schwarz
+    await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'N') }); // blau
+    await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
+  }
   await messgeraet.testDruecken(ctx);
   const zs = await messgeraet.leseWert(ctx, 'hauptmesswert');
   const ik = await messgeraet.leseWert(ctx, 'isc');
@@ -946,7 +957,7 @@ async function berechneProtokoll(testcase) {
       console.log(`${sk.bezeichnung} Zi ${phase}:`, zi, 'Ik (L-N):', ikLn, 'ΔU:', deltaU);
       const messung = { phase, zi, ikLn, deltaU };
       if (!gruppe.rcd) {
-        const { zs, ik } = await messeUeberstromschutz(testcase, sk, phase);
+        const { zs, ik } = await messeUeberstromschutz(testcase, anlage, sk, phase);
         console.log(`${sk.bezeichnung} Zs ${phase}:`, zs, 'Ik:', ik);
         messung.zs = zs;
         messung.ik = ik;

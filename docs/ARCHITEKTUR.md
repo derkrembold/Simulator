@@ -5744,6 +5744,12 @@ Kopfdaten von `bauteile.md`, `generate_anlage.js` übernimmt sie als `anlage.vor
 `tests/visuell/testcase_09`, Sollwerte von Hand in `tests/visuell/test_pruefprotokoll.js`
 (`SOLL_FEHLERORTE`).
 
+**PE-Fehler (sim-24c):** `Fehler PE (Ω)` je Stromkreis (Kontakt `Reihenklemme_PE_SK<n>.io2`),
+`Fehler PE Einspeisung (Ω)` (`PE-Klemme.io1`) und `Fehler PE-Klemme Zubringer (Ω)` (`PE-Klemme.io2`)
+an der Anlage, je eine Zahl. Sie landen als Kontaktfehler mit Pin in der Fehlertabelle von
+`netzplan.md` (Spalte `Pin` nur, wenn es Kontaktfehler gibt) und damit in `graph.PE.kontakte`.
+Beispiel mit Sollwerten: `tests/visuell/testcase_09`.
+
 **Drehfeld (sim-wme):** Optionale Spalte `Drehfeld (rechts/links)` je Stromkreis, leer = rechts,
 `links` nur bei 3-poligem LS. Bei `links` sind L2 und L3 an der Endstelle vertauscht angeklemmt
 (`Endstelle_SK<n>.i2` am L3-Netz, `.i3` am L2-Netz); die Reihenklemmen bleiben richtig. Das
@@ -5782,7 +5788,7 @@ Temp-Ordnern): Die Vorlage erzeugt dieselbe `anlage.json` wie die von Hand gebau
 zweite Hutschiene; 3-poliger LS ohne RCD (wie testcase_06); 4-poliger RCD mit 3-poligem LS und
 Drehstromsteckdose (wie testcase_05); 2-poliger Hauptschalter (wie testcase_01); Fehlerwiderstand
 in `graph.json`; Fehler an Stromkreis, Gruppe und Einspeisung ergeben je Ader die richtige Summe
-auf dem Pfad zur Einspeisung, Vorimpedanz in `anlage.json` (sim-vdo); LS mit AFDD als 2-poliges
+auf dem Pfad zur Einspeisung, Vorimpedanz in `anlage.json` (sim-vdo); PE-Fehler als Kontaktfehler (sim-24c); LS mit AFDD als 2-poliges
 Kombigerät mit eigener N-Ader, Gruppen-Fehler N je Stromkreis einmal (sim-i4f); abgelehnte Anforderungen mit
 der erwarteten Meldung (u. a. `SK01`, `16abc`, negativer oder unlesbarer Fehlerwiderstand, falsche
 Anzahl Werte je Außenleiter, Gruppen-Fehler ohne RCD, Vorimpedanz 0, alte Spalte

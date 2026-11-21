@@ -160,7 +160,10 @@ function parseAnforderung(text) {
       alteMessSpalten: 'Zi' in z || 'Zs' in z,
       altesFehlerFeld: 'Fehler Zuleitung (Ω)' in z,
       fehlerL: leseFehler(z['Fehler L (Ω)']),
-      fehlerN: leseFehler(z['Fehler N (Ω)'])
+      fehlerN: leseFehler(z['Fehler N (Ω)']),
+      // Optionale Spalte (PE-Konzept, sim-24c): Kontakt der PE-Reihenklemme
+      // zur Leitung zur Endstelle.
+      fehlerPE: leseFehler(z['Fehler PE (Ω)'])
     };
   });
 
@@ -174,6 +177,10 @@ function parseAnforderung(text) {
     vorimpedanz: zahl(kopfdaten['Vorimpedanz (Ω)']),
     einspeisungFehlerL: leseFehler(kopfdaten['Fehler Einspeisung L (Ω)']),
     einspeisungFehlerN: leseFehler(kopfdaten['Fehler Einspeisung N (Ω)']),
+    // PE-Kontaktfehler an der PE-Klemme (sim-24c): Zuleitung (io1) und Zubringer
+    // zur ersten Reihenklemme (io2).
+    peEinspeisungFehler: leseFehler(kopfdaten['Fehler PE Einspeisung (Ω)']),
+    peZubringerFehler: leseFehler(kopfdaten['Fehler PE-Klemme Zubringer (Ω)']),
     gruppen,
     stromkreise
   };
@@ -195,6 +202,8 @@ function pruefeAnforderung(anf) {
   const aussenleiterHS = anf.hsPole === 3 ? 3 : 1;
   pruefeFehler(anf.einspeisungFehlerL, aussenleiterHS, 'Anlage: Fehler Einspeisung L (Ω)', muss);
   pruefeFehler(anf.einspeisungFehlerN, 1, 'Anlage: Fehler Einspeisung N (Ω)', muss);
+  pruefeFehler(anf.peEinspeisungFehler, 1, 'Anlage: Fehler PE Einspeisung (Ω)', muss);
+  pruefeFehler(anf.peZubringerFehler, 1, 'Anlage: Fehler PE-Klemme Zubringer (Ω)', muss);
   muss(anf.gruppen.length > 0, 'Gruppen: mindestens eine Gruppe nötig');
   muss(anf.stromkreise.length > 0, 'Stromkreise: mindestens ein Stromkreis nötig');
 
@@ -242,6 +251,7 @@ function pruefeAnforderung(anf) {
     muss(!s.altesFehlerFeld, `Stromkreis ${n}: die Spalte "Fehler Zuleitung (Ω)" heißt jetzt "Fehler L (Ω)", dazu gibt es "Fehler N (Ω)" (siehe demos/anforderung_vorlage.md)`);
     pruefeFehler(s.fehlerL, s.lsPole === 3 ? 3 : 1, `Stromkreis ${n}: Fehler L (Ω)`, muss);
     pruefeFehler(s.fehlerN, 1, `Stromkreis ${n}: Fehler N (Ω)`, muss);
+    pruefeFehler(s.fehlerPE, 1, `Stromkreis ${n}: Fehler PE (Ω)`, muss);
     if (s.lsPole === 3) {
       for (const typ of new Set(s.dosenTypen)) {
         muss(aus(typ, ERLAUBT.endstelleDreiphasig), `Stromkreis ${n}: Endstelle "${typ}" passt nicht zu einem 3-poligen LS (erlaubt: ${liste(ERLAUBT.endstelleDreiphasig)})`);
@@ -332,6 +342,11 @@ function baueModell(anf) {
   const fehlerAuf = (netz, widerstand, ort) => {
     if (widerstand > 0) fehlerNetze.push({ netz: netz.id, widerstand, ort });
   };
+  // PE-Fehler sitzen an Kontakten (PE-Konzept in docs/KONZEPT.md): Netz und
+  // Pin des Bauteils, an dem die Ader klemmt.
+  const fehlerAmKontakt = (netz, pin, widerstand, ort) => {
+    if (widerstand > 0) fehlerNetze.push({ netz: netz.id, widerstand, ort, pin });
+  };
 
   // Hutschienen: H1 = Hauptschalter + Klemmen, dann Gruppen (je bis 16 TE), zuletzt Reihenklemmen.
   const schienen = [];
@@ -367,6 +382,7 @@ function baueModell(anf) {
   const peEin = neuesNetz('H1', 'PE', qEin);
   anPin(peEin, 'H1', 'Einspeisung.PE');
   anPin(peEin, 'H1', 'PE-Klemme.io1');
+  fehlerAmKontakt(peEin, 'PE-Klemme.io1', anf.peEinspeisungFehler.werte[0], 'Einspeisung PE');
   // Fehler an der Einspeisung liegen vor der Zref-Messstelle (Hauptschalter-
   // Ausgang): Zs der Hauptleitung und alle Zi/Zs auf diesem Leiter steigen.
   // Zref wird auf L1 und N gemessen, ein Fehler auf L1 oder N steckt also auch
@@ -398,6 +414,7 @@ function baueModell(anf) {
   }
   const zubringer = neuesNetz('H1', 'PE', 2.5);
   anPin(zubringer, 'H1', 'PE-Klemme.io2');
+  fehlerAmKontakt(zubringer, 'PE-Klemme.io2', anf.peZubringerFehler.werte[0], 'PE-Klemme Zubringer');
   const bondH1 = bond('H1');
   anPin(bondH1, 'H1', 'PE-Klemme.io3');
   anPin(bondH1, 'H1', 'H1');
@@ -502,6 +519,7 @@ function baueModell(anf) {
     if (index === 0) anPin(zubringer, tab, `Reihenklemme_PE_SK${s.nr}.io1`);
     const peEnde = neuesNetz(tab, 'PE', s.q);
     anPin(peEnde, tab, `Reihenklemme_PE_SK${s.nr}.io2`);
+    fehlerAmKontakt(peEnde, `Reihenklemme_PE_SK${s.nr}.io2`, s.fehlerPE.werte[0], `SK${s.nr} Zuleitung PE`);
     anPin(peEnde, tab, `Endstelle_SK${s.nr}.i${s.phasen.length + 2}`);
     anPin(bondR, tab, `Reihenklemme_PE_SK${s.nr}.io3`);
   });
@@ -560,8 +578,14 @@ function schreibeNetzplan(anf, modell, demoName) {
   if (fehlerNetze.length > 0) {
     zeilen.push('## Fehlertabelle', '');
     zeilen.push('Fehler-Widerstände aus der Anforderung - Netze ohne Eintrag gelten als 0Ω.', '');
-    zeilen.push('| Netz | Widerstand (Ω) | Ort |', '| ---- | --------------- | --- |');
-    for (const f of fehlerNetze) zeilen.push(`| ${f.netz} | ${String(f.widerstand).replace('.', ',')} | ${f.ort} |`);
+    // Spalte Pin nur, wenn es Kontaktfehler (PE) gibt - bestehende Netzpläne
+    // bleiben unverändert.
+    const mitPin = fehlerNetze.some((f) => f.pin);
+    zeilen.push(mitPin ? '| Netz | Widerstand (Ω) | Ort | Pin |' : '| Netz | Widerstand (Ω) | Ort |',
+      mitPin ? '| ---- | --------------- | --- | --- |' : '| ---- | --------------- | --- |');
+    for (const f of fehlerNetze) {
+      zeilen.push(`| ${f.netz} | ${String(f.widerstand).replace('.', ',')} | ${f.ort} |${mitPin ? ` ${f.pin ?? ''} |` : ''}`);
+    }
     zeilen.push('');
   }
   return zeilen.join('\n') + '\n';

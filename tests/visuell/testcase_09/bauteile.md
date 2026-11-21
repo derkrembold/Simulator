@@ -68,7 +68,7 @@ Raster für die Anordnung der Steckdosen/Anschlussdosen oberhalb des Schaltkaste
 | Feld | Wert | Einheit |
 |---|---|---|
 | Name | Fehlerorte | – |
-| Beschreibung | Fehler an Einspeisung, RCD-Ausgang und Stromkreisen, Vorimpedanz 0,2 Ω | – |
+| Beschreibung | Fehler an Einspeisung, RCD-Ausgang und Stromkreisen, PE-Kontaktfehler, Vorimpedanz 0,2 Ω | – |
 | Netzform | TN-S | – |
 | Spannung Einspeisung | 400 | V |
 | Spannung Stromkreise | 400 | V |

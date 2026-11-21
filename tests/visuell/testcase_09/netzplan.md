@@ -167,15 +167,19 @@ Hutschiene dieses Netz stammt.
 
 Fehler-Widerstände aus der Anforderung - Netze ohne Eintrag gelten als 0Ω.
 
-| Netz | Widerstand (Ω) | Ort |
-| ---- | --------------- | --- |
-| N2 | 0,1 | Einspeisung L2 |
-| N4 | 0,05 | Einspeisung N |
-| N15 | 0,1 | RCD1 Ausgang N |
-| N23 | 0,15 | RCD2 Ausgang L1 (zu LS4) |
-| N24 | 0,15 | RCD2 Ausgang L1 (zu LS5) |
-| N32 | 0,3 | SK1 Zuleitung N |
-| N37 | 0,2 | SK3 Zuleitung L3 |
-| N48 | 0,25 | SK6 Zuleitung L3 |
-| N49 | 0,3 | SK6 Zuleitung N |
+| Netz | Widerstand (Ω) | Ort | Pin |
+| ---- | --------------- | --- | --- |
+| N5 | 0,04 | Einspeisung PE | PE-Klemme.io1 |
+| N2 | 0,1 | Einspeisung L2 |  |
+| N4 | 0,05 | Einspeisung N |  |
+| N13 | 0,06 | PE-Klemme Zubringer | PE-Klemme.io2 |
+| N15 | 0,1 | RCD1 Ausgang N |  |
+| N23 | 0,15 | RCD2 Ausgang L1 (zu LS4) |  |
+| N24 | 0,15 | RCD2 Ausgang L1 (zu LS5) |  |
+| N32 | 0,3 | SK1 Zuleitung N |  |
+| N33 | 0,2 | SK1 Zuleitung PE | Reihenklemme_PE_SK1.io2 |
+| N37 | 0,2 | SK3 Zuleitung L3 |  |
+| N48 | 0,25 | SK6 Zuleitung L3 |  |
+| N49 | 0,3 | SK6 Zuleitung N |  |
+| N50 | 0,1 | SK6 Zuleitung PE | Reihenklemme_PE_SK6.io2 |
 

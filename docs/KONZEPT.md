@@ -2397,6 +2397,166 @@ tests/visuell/
 
 ---
 
+## Schutzleiter (PE) – Konzept (sim-jvo, Entwurf, 2. Fassung nach Review)
+
+**Status: Entwurf, noch nicht umgesetzt.** Wunsch des Menschen (2026-11-21): Der PE ist heute
+widerstandsfrei und nicht Teil des Verbindungsgraphen. Das ist nicht die Realität. Dieser
+Abschnitt beschreibt Ziel, Modell, Messungen, Anforderung und die Umsetzung in Schritten. Erst
+nach Review (Codex) und Entscheidung des Menschen wird umgesetzt.
+
+### Stand heute
+
+- **Graph:** `generiereGraph()` baut Teilgraphen nur für L1/L2/L3/N (`GRAPH_FUNKTIONEN` in
+  `tests/visuell/generate_anlage.js`). PE-Netze stehen im Netzplan, kommen aber nicht in
+  `graph.json`.
+- **Topologie (Analyse aller 21 Anlagen, 2026-11-21):** Der PE ist überall ein Baum ohne
+  Zyklen. Einspeisung.PE → PE-Klemme (`io1`); von der PE-Klemme ein Zubringer (`io2`) zur
+  PE-Reihenklemme des ersten Stromkreises (`io1`); jede PE-Reihenklemme hängt mit `io3` am
+  Bond der Reihenklemmen-Hutschiene und führt mit `io2` zur Endstelle. Der PE aller anderen
+  Stromkreise läuft also **über die Reihenklemmen-Hutschiene**. Die PE-Klemme hängt mit `io3`
+  am Bond von H1 (Sackgasse). Gruppen-Hutschienen (RCD, LS) haben keinen PE-Anschluss.
+- **Messungen:**
+  - RLOW PE-PE liefert pauschal 0 Ω, PE-N nur die Fehler des N-Pfads (`berechneRlowMesswert()`,
+    `controller/app.js`). Rpe im Fahrplan ist deshalb immer 0 (`messeRpe()`,
+    `tools/pruefprotokoll_erstellung.js`).
+  - Zs = Fehler auf dem L-Pfad + Vorimpedanz, der PE-Rückweg fehlt (`zsTestKlick()`).
+  - Riso: eine Messspitze auf PE gilt als N an der Einspeisung (`risoEffektiveAder()`), L-PE ist
+    also gleich L-N; N-PE ist kein erlaubtes Paar (`risoPaarTyp()`).
+  - Der Schraubendreher wirkt auf PE-Schrauben nur optisch (`findeSchraubenKanten()` findet
+    keine PE-Kanten).
+- **Widerstände:** Leitungen sind widerstandsfrei. Widerstände entstehen nur aus der
+  Fehlertabelle (je Netz ein Wert, `berechneWiderstand()` summiert die Netze auf dem Pfad) und
+  der Vorimpedanz.
+
+### Ziel
+
+1. PE als eigener Teilgraph in `graph.json`, mit Fehlern an PE-Kontakten.
+2. Rpe, Zs, Riso L-PE und N-PE rechnen über den echten PE-Weg.
+3. Fehler auf dem PE sind in der Anforderung einstellbar: Widerstände an bestimmten Kontakten,
+   wie heute bei L und N (Entscheidung Mensch 2026-11-21: in der Realität sitzen die
+   Widerstände an den Kontakten).
+4. Die Hutschiene ist ein Messpunkt; ihre Verbindung zur PE-Klemme ist einstellbar (sim-kfb).
+
+**Entscheidungen des Menschen (2026-11-21):**
+- Widerstände nur über Fehler an Kontakten, kein Grundwiderstand aus Länge und Querschnitt.
+- Der PE ist nirgends aufgetrennt und kann nicht aufgetrennt werden: keine Unterbrechung als
+  Fehler, der Schraubendreher trennt PE nicht auf (das macht man in der Praxis nicht).
+- RCD und LS haben keinen Schutzleiter und verbinden ihre Hutschiene nicht mit PE. PE-Potential
+  bekommt eine Hutschiene nur über eine PE-Klemme bzw. PE-Reihenklemme, die auf ihr sitzt und
+  sie kontaktiert. So ist es heute schon bei der Reihenklemmen-Hutschiene (PE-Reihenklemmen,
+  `io3`) und bei H1 (PE-Klemme). Auch eine mittlere Hutschiene (mit RCD und LS) kann PE-Potential
+  haben, wenn dort eine PE-Klemme sitzt, die per Ader von der unteren PE-Klemme versorgt wird.
+  Standard ist: eine PE-Klemme kontaktiert ihre Hutschiene; Ausnahmen (keine Verbindung) und
+  zusätzliche PE-Klemmen auf mittleren Hutschienen werden in der Anforderung konfiguriert.
+- V~ bleibt vorerst unverändert.
+
+### Modell
+
+- **Fehler sitzen an Kontakten** (Entscheidung Mensch, präzisiert nach dem Review von Codex):
+  Ein PE-Fehler gehört nicht zu einem ganzen Netz, sondern zu einem **Kontakt**, also zu einem
+  Paar aus Bauteil-Anschluss und Ader (z.B. `Reihenklemme_PE_SK2.io2` an Netz `N40`). Der
+  Widerstand liegt zwischen der Klemme des Bauteils und der Ader. Damit ist auch bei Netzen mit
+  mehr als zwei Anschlüssen (Hutschienen-Bond, verzweigter Zubringer) eindeutig, wo er liegt.
+  Die Fehlertabelle in `netzplan.md` bekommt dafür eine Spalte `Pin`; für PE-Fehler ist sie
+  Pflicht. L- und N-Fehler bleiben netzbezogen wie heute (eine Umstellung wäre ein eigenes
+  Ticket).
+- **Knoten und Kanten:** Knoten sind die PE-Netze und die Klemmen der PE-Bauteile. Die Anschlüsse
+  eines Bauteils (`io1`/`io2`/`io3` der PE-Klemme und der PE-Reihenklemmen, der PE-Kontakt der
+  Endstelle) sind untereinander ideal verbunden. Ein Kontakt ohne Fehler verbindet Klemme und
+  Netz ideal, ein Kontakt mit Fehler über seinen Widerstand. Die Hutschiene (Pin `Hx`) ist ein
+  Netz im Bond.
+- **Messpunkte:** Eine Messspitze auf einer Schraube berührt die Klemme des Bauteils, auf dem
+  PE-Kontakt einer Dose die Endstelle. Zwei Messspitzen an beiden Enden einer Ader mit
+  Kontaktfehler liegen damit auf verschiedenen Seiten des Widerstands und messen ihn.
+- **Ersatzwiderstand:** Sobald eine Hutschiene mehrere PE-Anschlüsse hat (sim-kfb), entstehen
+  Parallelwege. Der PE-Widerstand zwischen zwei Messpunkten wird deshalb als Ersatzwiderstand
+  berechnet: ideal verbundene Knoten zusammenfassen, Kontaktfehler als Leitwerte, nur die
+  Zusammenhangskomponente der beiden Messpunkte betrachten (Sackgassen und schwebende Teile
+  stören dann nicht), Gleichungssystem lösen. Liegen die Messpunkte nicht zusammen, gibt es
+  keinen Durchgang. In einem Baum ist das Ergebnis die Summe der Kontaktfehler auf dem Weg.
+  L und N bleiben bei der Pfadsuche.
+- **PE ist nie aufgetrennt:** PE-Kanten sind immer geschlossen. Der Schraubendreher darf PE nicht
+  auftrennen. Achtung (Review Codex): `findeSchraubenKanten()` (`controller/app.js`) liest
+  `graph[ader.funktion]` generisch; sobald `graph.PE` existiert, muss PE dort ausdrücklich
+  ausgenommen werden.
+- **Einspeisung:** N und PE sind am Sternpunkt verbunden (TN-S). Diese Verbindung zählt für RLOW
+  PE-N und für Riso (siehe unten), nicht für V~.
+- **Vorimpedanz:** gilt einmal für die Schleife L-PE wie für L-N (TN-S), nicht noch einmal im
+  PE-Graphen. Zref bleibt L1-N.
+
+### Messungen
+
+| Messung | Neu |
+| --- | --- |
+| RLOW / Rpe | PE-PE: Ersatzwiderstand im PE-Graphen. Ohne Verbindung (nur bei einer Hutschiene ohne PE-Anschluss möglich) kein Durchgang, Anzeige wie heute bei offenem Pfad. PE-N: PE-Weg bis Einspeisung.PE + N-Weg bis Einspeisung.N (Sternpunkt), ohne Vorimpedanz. |
+| Zs | Fehler L-Pfad + PE-Ersatzwiderstand von der Messstelle bis Einspeisung.PE + einmal die Vorimpedanz. Zi bleibt L + N. |
+| Riso | Zwei Messspitzen, die leitend verbunden sind (über L-, N- und PE-Graph, geschlossene Schalter und die N-PE-Verbindung an der Einspeisung), zeigen einen Kurzschluss (0,00 MΩ, n.i.O.). Sonst wie heute >999 MΩ, außer die Elektronik eines RCD Typ B oder AFDD liegt zwischen den beiden Seiten; das bleibt topologieabhängig (L-PE sieht die Elektronik nur, wenn ihr N-Anschluss noch mit dem Sternpunkt verbunden ist). Werte der Elektronik: sim-qha. Ein allgemeiner Isolationsfehler bleibt außerhalb dieses Konzepts ("Nächste Schritte", Punkt 1). |
+| Riso N-PE | Neues Messpaar. Entscheidend ist, ob der gemessene N noch leitend mit dem Sternpunkt verbunden ist: dann misst es den Kurzschluss, also n.i.O. (realistische Prüfungsfalle). Ist der N schon anders getrennt (geöffneter N-Pol eines RCD, AFDD oder 2-poligen Hauptschalters), ergibt ein sonst fehlerfreier Messkreis >999 MΩ; die Elektronik-Regel gilt weiter. Der Fahrplan trennt N vorher an der N-Reihenklemme des Stromkreises (Schraube am Eingang lösen) und klemmt danach wieder an; PE bleibt angeschlossen. Fachliche Gegenprüfung (Review Codex): ABB-Servicehandbuch, Abschnitt 5.13, N-PE-Messung mit geöffnetem N. |
+| Rpe an der Hutschiene | Messspitze auf eine Hutschiene, Gegenspitze PE-Klemme (sim-kfb). Ohne PE-Anschluss der Hutschiene kein Durchgang. |
+| V~ | unverändert (Entscheidung Mensch). |
+
+Rpe (Endstelle gegen PE-Klemme im Verteiler) enthält einen Fehler am PE-Kontakt der Einspeisung
+nicht, Zs enthält ihn. Das ist gewollt und wird als Testfall festgehalten.
+
+### Anforderung (Demo-Werkzeug)
+
+Alle neuen Felder sind optional; leer heißt kein Fehler bzw. Standard. Bestehende Anforderungen
+bleiben gültig und erzeugen dieselbe Anlage.
+
+- `Fehler PE (Ω)` je Stromkreis: Kontakt der PE-Reihenklemme zur Leitung zur Endstelle (`io2`).
+  Erhöht Rpe und Zs dieses Stromkreises.
+- `Fehler PE-Klemme Zubringer (Ω)` an der Anlage: Kontakt an der PE-Klemme zum Zubringer zur
+  ersten Reihenklemme (`io2`). Erhöht Rpe und Zs aller Stromkreise, deren PE über die
+  Reihenklemmen-Hutschiene läuft.
+- `Fehler PE Einspeisung (Ω)` an der Anlage: Kontakt an der PE-Klemme zur Zuleitung (`io1`).
+  Erhöht Zs aller Stromkreise und die Zs der Hauptleitung, nicht Rpe.
+- Gruppen haben keinen PE-Fehler (RCD und LS führen keinen PE).
+- Nur Widerstände, keine Unterbrechung (Entscheidung Mensch).
+- Hutschienen (sim-kfb): Die Einstellung betrifft den **Hutschienen-Kontakt einer PE-Klemme**
+  (`io3`), Standard ja. PE-Reihenklemmen kontaktieren ihre Hutschiene immer, sonst wäre der PE
+  ihrer Stromkreise unterbrochen. Zusätzlich kann eine Gruppen-Hutschiene eine eigene PE-Klemme
+  bekommen, versorgt per Ader von der unteren PE-Klemme (Standard nein). Ob eine Hutschiene
+  PE-Potential hat, entscheidet der Graph; eine indirekte Verbindung zählt als Verbindung. Der
+  Check erwartet einen Mangel nur, wenn eine Hutschiene laut Graph keinen PE-Anschluss hat.
+  Spaltenform und Mangel-Text legt sim-kfb fest.
+
+### Folgen
+
+- Ohne neue PE-Fehler und mit Standard-Hutschienen bleiben Rpe, Zs und Riso L-N/L-PE gleich. Neu
+  in allen Anlagen: `graph.PE` in `graph.json` und im Fahrplan der Schritt Riso N-PE mit
+  N-Trennung. `tools/anlagen_reproduzieren.js` zeigt die Änderungen je Schritt.
+- Die Workarounds in `berechneRlowMesswert()`, `risoEffektiveAder()` und `zsTestKlick()`
+  entfallen; die Abschnitte dazu in diesem Dokument werden in den jeweiligen Schritten
+  angepasst.
+
+### Umsetzung in Schritten (je Schritt ein Ticket, je Schritt ein Review)
+
+1. **PE-Teilgraph mit Kontaktfehlern und Ersatzwiderstand** (sim-gn9): `graph.PE`, Spalte `Pin`
+   in der Fehlertabelle, `berechneErsatzwiderstand()`, PE im Schraubendreher ausdrücklich
+   ausgenommen. Messroutinen bleiben unverändert, also keine geänderten Messwerte.
+2. **Messungen über den PE-Graphen** (sim-0cf): RLOW PE-PE/PE-N, Riso mit Sternpunkt-Regel und
+   topologieabhängiger Elektronik, Riso N-PE mit N-Trennung im Fahrplan, alle Fahrpläne neu.
+   Abstimmen mit sim-qha (Elektronik-Werte).
+3. **Zs über PE, Fehler PE in der Anforderung** (sim-24c): Zs mit PE-Weg, neue Felder im
+   Demo-Werkzeug und in der Vorlage, eine Demo mit PE-Fehlern.
+4. **Hutschiene als Messpunkt** (sim-kfb): Messspitze an der Hutschiene, Hutschienen-Kontakt
+   der PE-Klemme einstellbar, PE-Klemme auf einer Gruppen-Hutschiene, Mangel im Check (über
+   sim-03t).
+
+### Testfälle (Akzeptanz, aus dem Review von Codex)
+
+- Zwei Messpunkte an beiden Enden einer Ader mit Kontaktfehler messen den Fehler.
+- Baum mit bekannten Summen; zwei Parallelzweige (Ersatzwiderstand).
+- Schwebender Messpunkt und Sackgassen ohne singuläres Gleichungssystem.
+- Hutschiene ohne PE-Anschluss: kein Durchgang; mit indirektem Parallelweg: Durchgang.
+- Riso N-PE: N über den Sternpunkt verbunden ergibt Kurzschluss; N an der N-Reihenklemme getrennt
+  oder durch einen geöffneten N-Pol (RCD, AFDD, 2-poliger Hauptschalter) getrennt ergibt >999 MΩ.
+- Bestandsgleichheit in Schritt 2 für die bisherigen Messpaare; das neue Paar N-PE nach der
+  neuen Regel.
+- Fehler am PE-Kontakt der Einspeisung wirkt auf Zs, nicht auf Rpe.
+- Bestandsgleichheit nach Schritt 1 und 2 auch bei gelösten Schrauben und offenen Schaltern,
+  nicht nur im Grundzustand.
+
 ## Nächste Schritte
 
 Verbindungsgraph, Schalter und Fehlertabelle sind für RLOW umgesetzt (siehe
@@ -2419,7 +2579,7 @@ Offen:
    oben - dieser spezielle Fall ist bereits umgesetzt). Ein GENERISCHER
    künstlicher Isolationsfehler zwischen zwei beliebigen Funktionen (z.B.
    ein echter Kabelschaden L-N) existiert weiterhin nicht.
-2. **PE-Teilgraph** - bewusst zurückgestellt, da PE über den
+2. **PE-Teilgraph** (Konzept und Schritte: Abschnitt "Schutzleiter (PE) – Konzept" oben, sim-jvo) - bewusst zurückgestellt, da PE über den
    Hutschienen-Bond Zyklen bilden kann (Parallelwiderstand statt einfacher
    Pfad-Summe) - ein eigenständiges, größeres Vorhaben. Bis dahin gelten zwei
    bewusste Vereinfachungen: bei RISO wird eine an PE angelegte Messspitze

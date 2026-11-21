@@ -2411,8 +2411,11 @@ RLOW PE-PE und PE-N über den PE-Graphen, Riso L-PE nur mit PE-Verbindung, Riso 
 Sternpunkt-Regel, Fahrplan misst N-PE nach N-Trennung (siehe "RLOW-Berechnung" und
 "Berechnung der Messwerte"). Schritt 3 (sim-24c) ist umgesetzt: Zs = L-Pfad + PE-Ersatzwiderstand
 von der grünen Sonde bis Einspeisung.PE + Vorimpedanz (`zsTestKlick()`), PE-Fehler in der
-Anforderung, der Fahrplan misst Zs an der Endstelle (alle drei Sonden an der Dose). Offen:
-Hutschiene (sim-kfb).
+Anforderung, der Fahrplan misst Zs an der Endstelle (alle drei Sonden an der Dose). Schritt 4
+(sim-kfb) ist umgesetzt: Messpunkt an jeder Hutschiene, Kontakt der PE-Klemme zur Hutschiene
+und eigene PE-Klemme auf einer Gruppen-Hutschiene in der Anforderung einstellbar, Rpe der
+Hutschienen im Fahrplan, V~ zeigt gegen eine Hutschiene ohne PE 0 V (Entscheidung Mensch). Der
+Mangel "Hutschiene ohne PE" im Check kommt mit sim-03t. Damit ist die PE-Kette abgeschlossen.
 Wunsch des Menschen: Der PE ist heute widerstandsfrei und nicht Teil des Verbindungsgraphen. Das
 ist nicht die Realität. Dieser Abschnitt beschreibt Ziel, Modell, Messungen, Anforderung und die
 Umsetzung in Schritten.

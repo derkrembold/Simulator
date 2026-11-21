@@ -3173,6 +3173,82 @@
       ]
     },
     {
+      "titel": "Hutschiene H1: Rpe (PE-Anschluss)",
+      "begruendung": "Anlage ist freigeschaltet. Hat die Hutschiene H1 PE-Potential? Messspitze auf die Hutschiene, Gegenspitze auf die PE-Klemme. Kein Durchgang heißt: die Hutschiene ist nicht mit dem Schutzleiter verbunden (Mangel).",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RLOW"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "H1"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:0,00Ω"
+        }
+      ]
+    },
+    {
+      "titel": "Hutschiene H4: Rpe (PE-Anschluss)",
+      "begruendung": "Anlage ist freigeschaltet. Hat die Hutschiene H4 PE-Potential? Messspitze auf die Hutschiene, Gegenspitze auf die PE-Klemme. Kein Durchgang heißt: die Hutschiene ist nicht mit dem Schutzleiter verbunden (Mangel).",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RLOW"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "H4"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:0,00Ω"
+        }
+      ]
+    },
+    {
       "titel": "Protokoll: Rpe eintragen",
       "begruendung": "Je Stromkreis den größten Rpe-Wert seiner Endstellen eintragen.",
       "schritte": [

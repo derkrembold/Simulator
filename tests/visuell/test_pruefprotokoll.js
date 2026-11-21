@@ -434,6 +434,16 @@ async function main() {
     }
   }
 
+  // sim-kfb: demos/demo_19 - Rpe der Hutschienen mit PE-Klemme bzw.
+  // PE-Reihenklemmen: H1 ohne Kontakt (kein Durchgang), H2 mit eigener
+  // PE-Klemme 0, Reihenklemmen-Hutschiene H3 über den Zubringer 0,05.
+  {
+    const { hutschienenRpe } = await berechneProtokoll('../../demos/demo_19');
+    await pruefe('demo_19: Rpe der Hutschienen H1 ---, H2 0,00, H3 0,05 (sim-kfb)', async () => {
+      erwarteGleich(hutschienenRpe.map((m) => `${m.hutschiene}:${m.wert}`).join(), 'H1:---,H2:0,00,H3:0,05', 'Hutschienen-Rpe');
+    });
+  }
+
   // sim-wme: demos/demo_18 hat eine richtig (SK1) und eine mit vertauschten
   // Außenleitern angeklemmte Drehstromsteckdose (SK2). Gemessen wird an den
   // Dosenkontakten; eine falsche Dose reicht für n.i.O.

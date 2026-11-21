@@ -700,12 +700,31 @@ function generiereAnlage(ordner) {
   const tabellenNummer = (t) => (t ? parseInt(t.replace('H', ''), 10) : -1);
   const tabellen = [...new Set(gruppen.map((g) => g._tabelle))].sort((a, b) => tabellenNummer(b) - tabellenNummer(a));
 
+  // Hutschienen als Messpunkt (sim-kfb): Name der Hutschiene (= Tabelle im
+  // Netzplan, z.B. "H2") und ihr PE-Netz (Bond, Pin = Hutschienenname), null
+  // ohne PE-Anschluss. Eine Gruppen-Hutschiene kann eine eigene PE-Klemme
+  // (`PE-Klemme_<Hx>`) haben, per Ader von der unteren PE-Klemme versorgt.
+  const peNetzDerHutschiene = (name) => (name ? findeNetz(netze, name, 'PE')?.netId ?? null : null);
   for (const tabelle of tabellen) {
     const gruppenAufDieserHutschiene = gruppen
       .filter((g) => g._tabelle === tabelle)
       .map(({ _tabelle, ...rest }) => rest);
-    anlage.hutschienen.push({ gruppen: gruppenAufDieserHutschiene });
+    const peKlemmeName = `PE-Klemme_${tabelle}`;
+    const peKlemme = findeNetz(netze, `${peKlemmeName}.io1`, 'PE')
+      ? { name: peKlemmeName, ...baueKlemme(netze, peKlemmeName, 'io1', 'io2', 'PE') }
+      : null;
+    anlage.hutschienen.push({
+      name: tabelle,
+      pe_netz: peNetzDerHutschiene(tabelle),
+      ...(peKlemme ? { pe_klemme: peKlemme } : {}),
+      gruppen: gruppenAufDieserHutschiene
+    });
   }
+  const tabelleVon = (praefix) => Object.entries(bauteilTabelle).find(([name]) => name.startsWith(praefix))?.[1] ?? null;
+  const hauptschalterTabelle = bauteilTabelle[hauptschalter.name] ?? null;
+  const reihenklemmenTabelle = tabelleVon('Reihenklemme_');
+  anlage.hutschiene_hauptschalter = { name: hauptschalterTabelle, pe_netz: peNetzDerHutschiene(hauptschalterTabelle) };
+  anlage.hutschiene_reihenklemmen = { name: reihenklemmenTabelle, pe_netz: peNetzDerHutschiene(reihenklemmenTabelle) };
 
   return anlage;
 }

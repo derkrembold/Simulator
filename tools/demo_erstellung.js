@@ -130,6 +130,9 @@ function parseAnforderung(text) {
     nennstrom: zahl(z['RCD Nennstrom (A)']),
     selektiv: z.Selektiv,
     abklemmen: z.Abklemmen,
+    // Optionale Spalte (sim-kfb): eigene PE-Klemme auf der Hutschiene dieser
+    // Gruppe, per Ader von der unteren PE-Klemme versorgt. Leer = nein.
+    peKlemmeRoh: (z['PE-Klemme (ja/nein)'] ?? '').trim(),
     fehlerL: leseFehler(z['Fehler L (Ω)']),
     fehlerN: leseFehler(z['Fehler N (Ω)'])
   }));
@@ -181,6 +184,8 @@ function parseAnforderung(text) {
     // zur ersten Reihenklemme (io2).
     peEinspeisungFehler: leseFehler(kopfdaten['Fehler PE Einspeisung (Ω)']),
     peZubringerFehler: leseFehler(kopfdaten['Fehler PE-Klemme Zubringer (Ω)']),
+    // sim-kfb: kontaktiert die PE-Klemme ihre Hutschiene (H1)? Leer = ja.
+    peKlemmeHutschieneRoh: (kopfdaten['PE-Klemme mit Hutschiene verbunden (ja/nein)'] ?? '').trim(),
     gruppen,
     stromkreise
   };
@@ -204,12 +209,14 @@ function pruefeAnforderung(anf) {
   pruefeFehler(anf.einspeisungFehlerN, 1, 'Anlage: Fehler Einspeisung N (Ω)', muss);
   pruefeFehler(anf.peEinspeisungFehler, 1, 'Anlage: Fehler PE Einspeisung (Ω)', muss);
   pruefeFehler(anf.peZubringerFehler, 1, 'Anlage: Fehler PE-Klemme Zubringer (Ω)', muss);
+  muss(['', 'ja', 'nein'].includes(anf.peKlemmeHutschieneRoh), `Anlage: PE-Klemme mit Hutschiene verbunden "${anf.peKlemmeHutschieneRoh}" ungültig (ja/nein, leer = ja)`);
   muss(anf.gruppen.length > 0, 'Gruppen: mindestens eine Gruppe nötig');
   muss(anf.stromkreise.length > 0, 'Stromkreise: mindestens ein Stromkreis nötig');
 
   const gruppenIds = new Set();
   for (const g of anf.gruppen) {
     muss(!gruppenIds.has(g.id), `Gruppe ${g.id}: doppelt vergeben`);
+    muss(['', 'ja', 'nein'].includes(g.peKlemmeRoh), `Gruppe ${g.id}: PE-Klemme "${g.peKlemmeRoh}" ungültig (ja/nein, leer = nein)`);
     gruppenIds.add(g.id);
     if (g.ohneRcd) {
       muss(g.fehlerL.roh === '' && g.fehlerN.roh === '', `Gruppe ${g.id}: ohne RCD gibt es keinen Gruppen-Fehler, den Fehler am Stromkreis angeben`);
@@ -289,7 +296,7 @@ function pruefeAnforderung(anf) {
   }
 
   for (const g of anf.gruppen) {
-    const te = teDerGruppe(g, anf.stromkreise);
+    const te = teDerGruppe(g, anf.stromkreise) + (g.peKlemmeRoh === 'ja' ? 1 : 0);
     muss(te <= MAX_TE_PRO_HUTSCHIENE, `Gruppe ${g.id}: ${te} TE passen nicht auf eine Hutschiene (max. ${MAX_TE_PRO_HUTSCHIENE} TE)`);
   }
 
@@ -298,6 +305,9 @@ function pruefeAnforderung(anf) {
 
 function teDerGruppe(gruppe, stromkreise) {
   const sks = stromkreise.filter((s) => s.gruppe === gruppe.id);
+  // Eine eigene PE-Klemme auf der Hutschiene (sim-kfb) zählt als 1 TE, damit
+  // rechts blanke Schiene für den Messpunkt bleibt - aber nur einmal je
+  // Hutschiene (siehe baueModell()), hier also nur die Geräte der Gruppe.
   return (gruppe.rcdPole ?? 0) + sks.reduce((summe, s) => summe + lsGeraetePole(s), 0);
 }
 
@@ -352,12 +362,17 @@ function baueModell(anf) {
   const schienen = [];
   for (const g of anf.gruppen) {
     const te = teDerGruppe(g, anf.stromkreise);
+    // Die eigene PE-Klemme einer Hutschiene (1 TE) gibt es je Hutschiene nur
+    // einmal, auch wenn mehrere Gruppen darauf sie verlangen (Review Codex).
+    const klemme = g.peKlemmeRoh === 'ja';
     const letzte = schienen[schienen.length - 1];
-    if (letzte && letzte.te + te <= MAX_TE_PRO_HUTSCHIENE) {
+    const zusatz = klemme && !letzte?.klemme ? 1 : 0;
+    if (letzte && letzte.te + te + zusatz <= MAX_TE_PRO_HUTSCHIENE) {
       letzte.gruppen.push(g);
-      letzte.te += te;
+      letzte.te += te + zusatz;
+      letzte.klemme = letzte.klemme || klemme;
     } else {
-      schienen.push({ gruppen: [g], te });
+      schienen.push({ gruppen: [g], te: te + (klemme ? 1 : 0), klemme });
     }
   }
   schienen.forEach((s, i) => { s.id = `H${i + 2}`; });
@@ -415,8 +430,10 @@ function baueModell(anf) {
   const zubringer = neuesNetz('H1', 'PE', 2.5);
   anPin(zubringer, 'H1', 'PE-Klemme.io2');
   fehlerAmKontakt(zubringer, 'PE-Klemme.io2', anf.peZubringerFehler.werte[0], 'PE-Klemme Zubringer');
+  // Die PE-Klemme kontaktiert ihre Hutschiene H1 (Standard). Ohne Kontakt hat
+  // H1 keinen PE-Anschluss (sim-kfb); der Bond bleibt mit der Hutschiene allein.
   const bondH1 = bond('H1');
-  anPin(bondH1, 'H1', 'PE-Klemme.io3');
+  if (anf.peKlemmeHutschieneRoh !== 'nein') anPin(bondH1, 'H1', 'PE-Klemme.io3');
   anPin(bondH1, 'H1', 'H1');
 
   // Stromkreise vorbereiten
@@ -488,6 +505,18 @@ function baueModell(anf) {
         }
       }
       gruppenInfo.push({ gruppe: g, rcdName, sks: gruppenSks, tabelle: tab });
+    }
+    // Eigene PE-Klemme der Hutschiene (sim-kfb), wenn eine Gruppe darauf sie
+    // verlangt: Ader von der unteren PE-Klemme (io2), Kontakt zur Hutschiene.
+    if (schiene.gruppen.some((g) => g.peKlemmeRoh === 'ja')) {
+      const tab = schiene.id;
+      const zuleitung = neuesNetz(tab, 'PE', 2.5);
+      anPin(zuleitung, 'H1', 'PE-Klemme.io2');
+      anPin(zuleitung, tab, `PE-Klemme_${tab}.io1`);
+      const bondGruppe = bond(tab);
+      anPin(bondGruppe, tab, `PE-Klemme_${tab}.io3`);
+      anPin(bondGruppe, tab, tab);
+      schiene.peKlemme = `PE-Klemme_${tab}`;
     }
   }
 
@@ -614,6 +643,9 @@ function schreibeBauteile(anf, modell) {
   zeilen.push(zeile({ Bauteil: 'Hauptschalter', Nennstrom: anf.hsA, 'Max. Querschnitt': Math.max(16, qHS), Pole: anf.hsPole }));
   const klemmen = hs3 ? ['L1-Klemme', 'L2-Klemme', 'L3-Klemme', 'N-Klemme', 'PE-Klemme'] : ['PE-Klemme'];
   for (const k of klemmen) zeilen.push(zeile({ Bauteil: k, Nennstrom: 63, 'Max. Querschnitt': 16 }));
+  for (const schiene of modell.schienen.filter((sch) => sch.peKlemme)) {
+    zeilen.push(zeile({ Bauteil: schiene.peKlemme, Nennstrom: 63, 'Max. Querschnitt': 16 }));
+  }
 
   for (const info of gruppenInfo) {
     const g = info.gruppe;

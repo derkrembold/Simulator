@@ -44,6 +44,7 @@ in einer Gruppe mit RCD.
 | Fehler Einspeisung N (Ω) |                                                                     |
 | Fehler PE Einspeisung (Ω) |                                                                    |
 | Fehler PE-Klemme Zubringer (Ω) |                                                               |
+| PE-Klemme mit Hutschiene verbunden (ja/nein) |                                                 |
 
 ## Gruppen
 
@@ -98,6 +99,13 @@ Außenleiter gibt: 3-poliger Hauptschalter, 4-poliger RCD, 3-poliger LS).
 | Stromkreis, Fehler PE      | Kontakt der PE-Reihenklemme zur Leitung zur Endstelle | Rpe und Zs (an der Endstelle gemessen) dieses Stromkreises steigen |
 | Anlage, Fehler PE-Klemme Zubringer | Kontakt an der PE-Klemme zum Zubringer zur ersten Reihenklemme | Rpe und Zs aller Stromkreise steigen (ihr PE läuft über die Reihenklemmen-Hutschiene) |
 | Anlage, Fehler PE Einspeisung | Kontakt an der PE-Klemme zur Zuleitung   | Zs aller Stromkreise und der Hauptleitung steigen, Rpe nicht |
+
+Hutschienen und PE (sim-kfb): `PE-Klemme mit Hutschiene verbunden (ja/nein)` an der Anlage, leer
+= ja. Bei `nein` kontaktiert die PE-Klemme ihre Hutschiene H1 nicht, H1 hat dann kein
+PE-Potential (Mangel, Rpe an der Hutschiene zeigt keinen Durchgang). Die optionale Spalte
+`PE-Klemme (ja/nein)` in der Gruppen-Tabelle (leer = nein) setzt auf die Hutschiene dieser
+Gruppe eine eigene PE-Klemme, per Ader von der unteren PE-Klemme versorgt; die Hutschiene hat
+dann PE-Potential. RCD und LS verbinden ihre Hutschiene nie mit PE.
 
 Gruppen ohne RCD haben keine Gruppen-Fehler, dort den Fehler am Stromkreis eintragen. PE-Fehler sind
 immer eine einzelne Zahl (ein Schutzleiter), Gruppen haben keinen PE-Fehler (RCD und LS führen

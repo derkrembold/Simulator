@@ -28,7 +28,7 @@ function bedingung(wahr, meldung) {
   if (!wahr) throw new Error(meldung);
 }
 
-const ohneNetzIds = (obj) => JSON.stringify(obj, (k, v) => (k === 'netz' ? undefined : v));
+const ohneNetzIds = (obj) => JSON.stringify(obj, (k, v) => (k === 'netz' || k === 'pe_netz' ? undefined : v));
 
 function tempOrdner() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'demo-erstellung-'));
@@ -38,7 +38,9 @@ function tempOrdner() {
 // `anlage` ergänzt Zeilen der Anlage-Tabelle (z.B. Vorimpedanz), `fehlerSpalte` ersetzt den
 // Kopf der Stromkreis-Fehlerspalten (für die Meldung zur alten Spalte).
 function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise, anlage = {}, fehlerSpalte = 'Fehler L (Ω) | Fehler N (Ω)' }) {
-  const g = gruppen.map((x) => `| ${x.id} | ${x.rcdPole} | ${x.typ ?? 'A'} | ${x.fehlerstrom ?? 30} | ${x.nennstrom ?? 40} | ${x.selektiv ?? 'nein'} | ${x.abklemmen ?? 'nein'} | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |`).join('\n');
+  // Spalte "PE-Klemme (ja/nein)" nur bei Bedarf (sim-kfb).
+  const mitPeKlemme = gruppen.some((x) => 'peKlemme' in x);
+  const g = gruppen.map((x) => `| ${x.id} | ${x.rcdPole} | ${x.typ ?? 'A'} | ${x.fehlerstrom ?? 30} | ${x.nennstrom ?? 40} | ${x.selektiv ?? 'nein'} | ${x.abklemmen ?? 'nein'} | ${x.fehlerL ?? ''} | ${x.fehlerN ?? ''} |${mitPeKlemme ? ` ${x.peKlemme ?? ''} |` : ''}`).join('\n');
   // Spalte "AFDD (ja/nein)" nur, wenn ein Stromkreis sie setzt (sie ist optional).
   const mitAfdd = stromkreise.some((x) => 'afdd' in x);
   // Spalte "Drehfeld (rechts/links)" ebenso nur bei Bedarf (sim-wme).
@@ -61,8 +63,8 @@ function baueAnforderung({ hsPole = 3, hsA = 35, gruppen, stromkreise, anlage = 
 
 ## Gruppen
 
-| Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen | Fehler L (Ω) | Fehler N (Ω) |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen | Fehler L (Ω) | Fehler N (Ω) |${mitPeKlemme ? ' PE-Klemme (ja/nein) |' : ''}
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |${mitPeKlemme ? ' --- |' : ''}
 ${g}
 
 ## Stromkreise
@@ -299,6 +301,44 @@ pruefe('Fehler PE (sim-24c): Kontaktfehler an PE-Klemme (Einspeisung, Zubringer)
   pruefeErreichbarkeit(ergebnis);
 });
 
+// sim-kfb: PE-Klemme ohne Kontakt zu H1, eigene PE-Klemme auf einer Gruppen-Hutschiene.
+pruefe('Hutschienen (sim-kfb): H1 ohne PE-Kontakt, Gruppen-Hutschiene mit eigener PE-Klemme, Namen und PE-Netze in anlage.json', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    anlage: { 'PE-Klemme mit Hutschiene verbunden (ja/nein)': 'nein' },
+    gruppen: [{ id: 'G1', rcdPole: 2, peKlemme: 'ja' }],
+    stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+  }));
+  const { anlage, graph } = ergebnis;
+  bedingung(anlage.hutschiene_hauptschalter.name === 'H1', JSON.stringify(anlage.hutschiene_hauptschalter));
+  const h2 = anlage.hutschienen[0];
+  bedingung(h2.name === 'H2' && h2.pe_netz && h2.pe_klemme?.name === 'PE-Klemme_H2', JSON.stringify(h2));
+  bedingung(anlage.hutschiene_reihenklemmen.name === 'H3' && anlage.hutschiene_reihenklemmen.pe_netz, JSON.stringify(anlage.hutschiene_reihenklemmen));
+  const pinsAmNetz = (pin) => graph.PE.kontakte.filter((k) => k.netz === graph.PE.kontakte.find((x) => x.pin === pin).netz).map((k) => k.pin).sort().join();
+  bedingung(pinsAmNetz('H1') === 'H1', `H1 ohne PE-Klemme: ${pinsAmNetz('H1')}`);
+  bedingung(pinsAmNetz('H2') === 'H2,PE-Klemme_H2.io3', `H2: ${pinsAmNetz('H2')}`);
+  bedingung(pinsAmNetz('PE-Klemme_H2.io1') === 'PE-Klemme.io2,PE-Klemme_H2.io1', `Zuleitung PE-Klemme_H2: ${pinsAmNetz('PE-Klemme_H2.io1')}`);
+  pruefeErreichbarkeit(ergebnis);
+});
+
+// Review Codex zu sim-kfb: die gemeinsame PE-Klemme zählt je Hutschiene nur
+// einmal. 11 TE + 4 TE + 1 TE PE-Klemme = 16 TE, passt auf eine Hutschiene.
+pruefe('Hutschienen (sim-kfb): zwei Gruppen mit PE-Klemme teilen sich eine Hutschiene und eine PE-Klemme', () => {
+  const ergebnis = erzeuge(baueAnforderung({
+    gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63, peKlemme: 'ja' }, { id: 'G2', rcdPole: 2, peKlemme: 'ja' }],
+    stromkreise: [
+      { name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose' },
+      { name: 'SK2', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose' },
+      { name: 'SK3', gruppe: 'G1', phase: 'L1' },
+      { name: 'SK4', gruppe: 'G2', phase: 'L2' },
+      { name: 'SK5', gruppe: 'G2', phase: 'L2' }
+    ]
+  }));
+  const schienen = ergebnis.anlage.hutschienen;
+  bedingung(schienen.length === 1, `${schienen.length} Gruppen-Hutschienen statt 1`);
+  bedingung(schienen[0].gruppen.length === 2 && schienen[0].pe_klemme?.name === 'PE-Klemme_H2', JSON.stringify(schienen.map((h) => [h.name, h.gruppen.length, h.pe_klemme?.name])));
+  pruefeErreichbarkeit(ergebnis);
+});
+
 pruefe('Ohne Vorimpedanz in der Anforderung bleibt anlage.json ohne vorimpedanz_ohm', () => {
   const ergebnis = erzeuge(baueAnforderung({
     gruppen: [{ id: 'G1', rcdPole: 2 }],
@@ -373,6 +413,11 @@ lehntAb('Fehler PE mit mehreren Werten (sim-24c)', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
   stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', fehlerPE: '0,1 / 0,2 / 0,3' }]
 }), 'Fehler PE (Ω) "0,1 / 0,2 / 0,3": 3 Werte');
+
+lehntAb('PE-Klemme mit ungültigem Wert (sim-kfb)', baueAnforderung({
+  gruppen: [{ id: 'G1', rcdPole: 2, peKlemme: 'vielleicht' }],
+  stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
+}), 'PE-Klemme "vielleicht" ungültig');
 
 lehntAb('AFDD an einem 3-poligen LS (sim-i4f)', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
@@ -523,7 +568,7 @@ pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['../../demos/demo_04', '../../demos/demo_15', '../../demos/demo_18', 'testcase_07', 'testcase_08']) {
+  for (const demo of ['../../demos/demo_04', '../../demos/demo_15', '../../demos/demo_18', '../../demos/demo_19', 'testcase_07', 'testcase_08']) {
     const name = `Verdrahtung ${path.basename(demo)}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
       const { abweichungen, geprueft } = await pruefeVerdrahtung(demo);

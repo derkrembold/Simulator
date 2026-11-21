@@ -67,6 +67,20 @@ function zeichneHutschiene(svg, reihenIndex) {
   }));
 }
 
+// Messpunkt der Hutschiene für die Messspitze (sim-kfb, Rpe Hutschiene gegen
+// PE-Klemme): am rechten Ende auf blanker Schiene (Wunsch des Menschen). Frei
+// bleibt die Stelle, weil eine Hutschiene höchstens 16 TE trägt und eine
+// eigene PE-Klemme dabei als 1 TE zählt (tools/demo_erstellung.js
+// teDerGruppe()). Wird nach den Geräten der Reihe gezeichnet. `hutschiene` =
+// { name, pe_netz } aus anlage.json; `pe_netz` ist null ohne PE-Anschluss,
+// der Messpunkt bleibt trotzdem klickbar.
+function zeichneHutschienenMesspunkt(svg, reihenIndex, hutschiene, onSchraubeKlick) {
+  if (!hutschiene?.name || !onSchraubeKlick) return;
+  const x = HUTSCHIENE_LAENGE - 12;
+  const ader = { funktion: 'PE', netz: hutschiene.pe_netz ?? undefined, farbe: 'blank', querschnitt_mm2: null, hutschiene: hutschiene.name };
+  schraube(svg, x, reihenMitteY(reihenIndex), ader, onSchraubeKlick, hutschiene.name);
+}
+
 function schraube(svg, x, y, ader, onKlick, bauteilName) {
   const attrs = { cx: x, cy: y, r: 4, fill: '#888888' };
   if (ader) {
@@ -344,6 +358,7 @@ export const SchaltkastenView = {
         }
       }
     }
+    zeichneHutschienenMesspunkt(g, 0, anlage.hutschiene_reihenklemmen, onSchraubeKlick);
 
     // Reihe 2..n: pro Hutschiene alle ihre Gruppen (RCD + LS) nebeneinander
     anlage.hutschienen.forEach((hutschiene, i) => {
@@ -379,6 +394,18 @@ export const SchaltkastenView = {
           });
         }
       }
+      // Eigene PE-Klemme dieser Hutschiene (sim-kfb), per Ader von der unteren
+      // PE-Klemme versorgt; sie gibt der Hutschiene PE-Potential.
+      if (hutschiene.pe_klemme) {
+        klemme(g, {
+          x: gx, y: reihenMitteY(reihenIndex) - RK_HOEHE / 2, breite: KLEMME_BREITE, hoehe: RK_HOEHE, farben: FARBEN.pe_klemme,
+          aderEingang: hutschiene.pe_klemme.eingang.leitung.adern[0],
+          aderAusgang: hutschiene.pe_klemme.ausgang.leitung.adern[0],
+          onSchraubeKlick, bauteilName: hutschiene.pe_klemme.name
+        });
+        gx += KLEMME_BREITE;
+      }
+      zeichneHutschienenMesspunkt(g, reihenIndex, hutschiene, onSchraubeKlick);
     });
 
     // Letzte Reihe: Hauptsicherung + L-Klemme + N-Klemme + PE-Klemme
@@ -433,6 +460,7 @@ export const SchaltkastenView = {
       });
       hx += KLEMME_BREITE;
     }
+    zeichneHutschienenMesspunkt(g, letzteReihenIndex, anlage.hutschiene_hauptschalter, onSchraubeKlick);
 
     svg.setAttribute('width', gesamtBreite);
     svg.setAttribute('height', gesamtHoehe);

@@ -149,6 +149,8 @@
   },
   "hutschienen": [
     {
+      "name": "H3",
+      "pe_netz": null,
       "gruppen": [
         {
           "id": "G4",
@@ -372,6 +374,8 @@
       ]
     },
     {
+      "name": "H2",
+      "pe_netz": null,
       "gruppen": [
         {
           "id": "G1",
@@ -1201,5 +1205,13 @@
         ]
       }
     }
+  },
+  "hutschiene_hauptschalter": {
+    "name": "H1",
+    "pe_netz": "N14"
+  },
+  "hutschiene_reihenklemmen": {
+    "name": "H4",
+    "pe_netz": "N39"
   }
 }

@@ -344,6 +344,36 @@ async function messeRpe(testcase, anlage, sk, endstelle) {
   return { endstelle: endstelle ?? null, wert: nurZahl(wert) };
 }
 
+// Rpe einer Hutschiene (sim-kfb): Messspitze auf den Messpunkt der
+// Hutschiene, Gegenspitze auf die PE-Klemme. Ohne PE-Anschluss bleibt der
+// Platzhalter ("---"), das ist dann ein Mangel.
+async function messeRpeHutschiene(testcase, anlage, name) {
+  const ctx = await starteAbschnitt(testcase, anlage, { freigeschaltet: true });
+  messgeraet.abschnittBeginnen(
+    `Hutschiene ${name}: Rpe (PE-Anschluss)`,
+    `Anlage ist freigeschaltet. Hat die Hutschiene ${name} PE-Potential? Messspitze auf die Hutschiene, Gegenspitze auf die PE-Klemme. Kein Durchgang heißt: die Hutschiene ist nicht mit dem Schutzleiter verbunden (Mangel).`
+  );
+  await messgeraet.drehknopfAufModus(ctx, 'RLOW');
+  await messgeraet.messspitzeSetzen(ctx, { bauteil: name });
+  await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' });
+  const wert = await messgeraet.leseWert(ctx, 'hauptmesswert');
+  messgeraet.abschnittEnde();
+  await ctx.schliessen();
+  return { hutschiene: name, wert: nurZahl(wert) };
+}
+
+// Hutschienen, die PE-Potential haben sollen (sim-kfb): die mit der
+// Haupt-PE-Klemme (H1), die Reihenklemmen-Hutschiene (PE-Reihenklemmen) und
+// Gruppen-Hutschienen mit eigener PE-Klemme. Hutschienen nur mit RCD/LS haben
+// keinen PE und werden nicht gemessen.
+function hutschienenMitPe(anlage) {
+  return [
+    anlage.hutschiene_hauptschalter?.name,
+    ...(anlage.hutschienen ?? []).filter((h) => h.pe_klemme).map((h) => h.name),
+    anlage.hutschiene_reihenklemmen?.name
+  ].filter(Boolean);
+}
+
 // Größter Rpe-Wert als Anzeigetext. Ein Wert ohne Zahl bleibt sichtbar (wie
 // bei kleinsterRiso()).
 function groessterRpe(werte) {
@@ -896,6 +926,12 @@ async function berechneProtokoll(testcase) {
     e.rpe = groessterRpe(e.rpeMessungen.map((m) => m.wert));
     console.log(`${sk.bezeichnung} Rpe:`, e.rpe);
   }
+  const hutschienenRpe = [];
+  for (const name of hutschienenMitPe(anlage)) {
+    const m = await messeRpeHutschiene(testcase, anlage, name);
+    console.log(`Hutschiene ${name} Rpe:`, m.wert);
+    hutschienenRpe.push(m);
+  }
   stromkreise.forEach(({ sk }, i) => { protokoll[i].werte.rpe = ergebnisVon(sk).rpe; });
   protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Rpe eintragen',
     'Je Stromkreis den größten Rpe-Wert seiner Endstellen eintragen.', eintraegeFuer(['rpe'])));
@@ -1057,7 +1093,7 @@ async function berechneProtokoll(testcase) {
     }))
   ];
 
-  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs };
+  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs, hutschienenRpe };
 }
 
 async function main() {

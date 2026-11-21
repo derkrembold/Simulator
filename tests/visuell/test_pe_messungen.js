@@ -121,5 +121,50 @@ async function risoNPe(ctx, vorher = async () => {}) {
     await ctx.schliessen();
   });
 
+  // --- Hutschienen als Messpunkt (sim-kfb), demos/demo_19 ---
+  // H1: PE-Klemme ohne Kontakt zur Hutschiene; H2: eigene PE-Klemme mit Ader
+  // von unten; H3: Reihenklemmen-Hutschiene, PE über Zubringer (0,05 Ω).
+  const DEMO = '../../demos/demo_19';
+  const demoAnlage = require('../../demos/demo_19/anlage.json');
+  const sk1 = demoAnlage.hutschienen.flatMap((h) => h.gruppen).flatMap((g) => g.stromkreise).find((s) => s.bezeichnung === 'SK1');
+  const sk1Netz = (f) => sk1.leitung.adern.find((a) => a.funktion === f).netz;
+  const demoUmgebung = () => messgeraet.starteTestUmgebung(DEMO);
+
+  for (const [name, soll] of [['H1', null], ['H2', 0], ['H3', 0.05]]) {
+    await pruefe(`Rpe Hutschiene ${name} gegen PE-Klemme: ${soll === null ? 'kein Durchgang' : `${soll} Ω`} (sim-kfb)`, async () => {
+      const ctx = await demoUmgebung();
+      const wert = await rlow(ctx, { bauteil: name }, { bauteil: 'PE-Klemme' });
+      if (soll === null) erwarteGleich(nurZahl(wert), '---', `Rpe ${name}`);
+      else erwarteGleich(zahl(wert), soll, `Rpe ${name}`);
+      await ctx.schliessen();
+    });
+  }
+
+  await pruefe('V~ Ulpe: 0 V gegen eine Hutschiene ohne PE, 230 V gegen eine mit PE (sim-kfb)', async () => {
+    const ergebnis = [];
+    for (const name of ['H1', 'H2']) {
+      const ctx = await demoUmgebung();
+      await messgeraet.drehknopfAufModus(ctx, 'V~');
+      await messgeraet.messspitzeSetzen(ctx, { netz: sk1Netz('L1') }); // schwarz
+      await messgeraet.messspitzeSetzen(ctx, { netz: sk1Netz('N') }); // blau
+      await messgeraet.messspitzeSetzen(ctx, { bauteil: name }); // grün
+      ergebnis.push(await messgeraet.leseWert(ctx, 'ulpe'));
+      await ctx.schliessen();
+    }
+    erwarteGleich(ergebnis.join(), '0V,230V', 'Ulpe H1, H2');
+  });
+
+  await pruefe('Zs mit Grün auf einer Hutschiene ohne PE: kein Messwert (sim-kfb)', async () => {
+    const ctx = await demoUmgebung();
+    await messgeraet.drehknopfAufModus(ctx, 'ZS');
+    await messgeraet.messspitzeSetzen(ctx, { netz: sk1Netz('L1') }); // schwarz
+    await messgeraet.messspitzeSetzen(ctx, { netz: sk1Netz('N') }); // blau
+    await messgeraet.messspitzeSetzen(ctx, { bauteil: 'H1' }); // grün
+    await messgeraet.testDruecken(ctx);
+    const wert = nurZahl(await messgeraet.leseWert(ctx, 'hauptmesswert'));
+    if (!Number.isNaN(zahl(wert))) throw new Error(`erwartet kein Messwert, ist ${wert}`);
+    await ctx.schliessen();
+  });
+
   process.exit(alleBestanden ? 0 : 1);
 })();

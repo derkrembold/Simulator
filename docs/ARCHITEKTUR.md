@@ -5744,6 +5744,17 @@ Kopfdaten von `bauteile.md`, `generate_anlage.js` übernimmt sie als `anlage.vor
 `tests/visuell/testcase_09`, Sollwerte von Hand in `tests/visuell/test_pruefprotokoll.js`
 (`SOLL_FEHLERORTE`).
 
+**Hutschienen (sim-kfb):** `PE-Klemme mit Hutschiene verbunden (ja/nein)` an der Anlage (leer =
+ja; bei nein fehlt `PE-Klemme.io3` im Bond von H1) und Spalte `PE-Klemme (ja/nein)` je Gruppe
+(eigene `PE-Klemme_<Hx>` auf der Hutschiene der Gruppe: Ader von `PE-Klemme.io2` an
+`PE-Klemme_<Hx>.io1`, `io3` im Bond der Hutschiene). `generiereAnlage()` schreibt je Hutschiene
+`name` und `pe_netz` (null ohne PE), dazu `hutschiene_hauptschalter` und
+`hutschiene_reihenklemmen`, bei einer eigenen PE-Klemme `hutschienen[i].pe_klemme`.
+`view/schaltkasten.js` zeichnet am rechten Ende jeder Hutschiene einen Messpunkt
+(`data-bauteil = Hx`) und die eigene PE-Klemme. Der Fahrplan misst Rpe jeder Hutschiene mit
+PE-Klemme bzw. PE-Reihenklemmen gegen die PE-Klemme (`messeRpeHutschiene()`). Beispiel:
+`demos/demo_19`.
+
 **PE-Fehler (sim-24c):** `Fehler PE (Ω)` je Stromkreis (Kontakt `Reihenklemme_PE_SK<n>.io2`),
 `Fehler PE Einspeisung (Ω)` (`PE-Klemme.io1`) und `Fehler PE-Klemme Zubringer (Ω)` (`PE-Klemme.io2`)
 an der Anlage, je eine Zahl. Sie landen als Kontaktfehler mit Pin in der Fehlertabelle von
@@ -5794,7 +5805,7 @@ der erwarteten Meldung (u. a. `SK01`, `16abc`, negativer oder unlesbarer Fehlerw
 Anzahl Werte je Außenleiter, Gruppen-Fehler ohne RCD, Vorimpedanz 0, alte Spalte
 `Fehler Zuleitung (Ω)`, AFDD an 3-poligem LS, ohne RCD oder mit ungültigem Wert, unlesbare RCD-Polzahl, die nicht still als `ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
 `istSpannungFuehrend()` mit der Einspeisung verbunden sein. Zusätzlich prüft der Test im headless
-Browser, dass bei `demos/demo_04`, `demos/demo_15` (AFDD), `demos/demo_18` (Linksdrehfeld), `testcase_07` und `testcase_08` alle Pfade im Graphen und
+Browser, dass bei `demos/demo_04`, `demos/demo_15` (AFDD), `demos/demo_18` (Linksdrehfeld), `demos/demo_19` (Hutschienen und PE), `testcase_07` und `testcase_08` alle Pfade im Graphen und
 im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).
 
 **Review (Codex, Ticket sim-m31):** Drei Befunde umgesetzt. Stromkreisnamen müssen kanonisch sein

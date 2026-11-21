@@ -174,6 +174,9 @@ async function start() {
   // nichts Schaltkasten-Spezifisches referenziert, nur `kreis`/`ader` aus dem
   // jeweiligen Aufruf.
   function onSchraubeKlick(ader, x, y, kreis) {
+    // Messpunkt einer Hutschiene (sim-kfb): nur für Messspitzen, kein
+    // Schraubendreher und kein Popup (keine Ader mit Querschnitt/Farbe).
+    if (ader.hutschiene && (schraubendreherAufgenommen || !messgeraetZustand.an)) return;
     // Schraubendreher-Werkzeug hat Vorrang vor Messspitzen UND Popup - hat
     // nichts mit dem An/Aus-Zustand des Messgeräts zu tun (bleibt davon
     // unberührt, siehe Projekt-Memory "Schrauben lösen Idee"). Bei einer
@@ -489,6 +492,9 @@ async function start() {
     if (!graph || !aderARoh || !aderBRoh) return 0;
     const typ = risoPaarTyp(aderARoh, aderBRoh);
     if (!typ) return 0;
+    // Hutschiene ohne PE-Anschluss (sim-kfb): kein Rückweg, also 0 V.
+    const ohnePe = (ader) => ader.hutschiene && peWiderstandZurEinspeisung(peKnoten('bauteil', ader.hutschiene)) === null;
+    if (ohnePe(aderARoh) || ohnePe(aderBRoh)) return 0;
 
     const aderA = risoEffektiveAder(aderARoh);
     const aderB = risoEffektiveAder(aderBRoh);

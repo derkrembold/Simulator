@@ -256,6 +256,62 @@ async function main() {
     await page.close();
   });
 
+  // sim-ibp: Ein Replay-Durchlauf ab Schritt 1 beginnt mit leerem Protokoll.
+  // Steht schon etwas drin, wird vorher nachgefragt; Abbrechen startet nicht.
+  const feld = '#protokoll .pf-scroll table';
+  async function fuelleProtokollEtwas(page) {
+    await page.evaluate((sel) => {
+      document.querySelector(sel).rows[3].cells[5].querySelector('input').value = '0,42';
+      document.querySelector('#protokoll .pf-cb').click();
+    }, feld);
+  }
+  const protokollZustand = (page) => page.evaluate((sel) => ({
+    wert: document.querySelector(sel).rows[3].cells[5].querySelector('input').value,
+    hauptleitung: document.querySelector(sel).rows[2].cells[1].querySelector('input').value,
+    kreuze: [...document.querySelectorAll('#protokoll .pf-cb')].filter((cb) => cb.textContent === '☒').length
+  }), feld);
+  async function replaySchritt(page) {
+    await page.locator('#handy svg g[style*="cursor"]').last().click(); // Replay-Icon
+    await page.waitForTimeout(80);
+    await page.locator('#handy svg g[style*="cursor"]').nth(1).click(); // Schritt
+    await page.waitForTimeout(80);
+  }
+  const replayTexte = (page) => page.evaluate(() => [...document.querySelectorAll('#handy svg text')].map((t) => t.textContent));
+
+  await pruefe('Replay ab Schritt 1 mit Einträgen: Rückfrage, OK leert das ganze Protokoll (sim-ibp)', async () => {
+    const page = await neueSeite();
+    await fuelleProtokollEtwas(page);
+    const dialoge = [];
+    page.on('dialog', (d) => { dialoge.push(d.message()); d.accept(); });
+    await replaySchritt(page);
+    const z = await protokollZustand(page);
+    if (dialoge.length !== 1) throw new Error(`erwartet eine Rückfrage, gefunden ${dialoge.length}`);
+    if (z.wert !== '' || z.kreuze !== 0) throw new Error(`Protokoll nicht geleert: ${JSON.stringify(z)}`);
+    if (z.hauptleitung !== 'Hauptleitung') throw new Error(`Vorbelegung "Hauptleitung" verloren: ${z.hauptleitung}`);
+    if (!(await replayTexte(page)).some((t) => t.startsWith('2/'))) throw new Error('Replay hat nach OK keinen Schritt ausgeführt');
+    await page.close();
+  });
+
+  await pruefe('Replay ab Schritt 1, Rückfrage abgebrochen: Protokoll bleibt, Replay startet nicht (sim-ibp)', async () => {
+    const page = await neueSeite();
+    await fuelleProtokollEtwas(page);
+    page.on('dialog', (d) => d.dismiss());
+    await replaySchritt(page);
+    const z = await protokollZustand(page);
+    if (z.wert !== '0,42' || z.kreuze !== 1) throw new Error(`Protokoll verändert: ${JSON.stringify(z)}`);
+    if (!(await replayTexte(page)).some((t) => t.startsWith('1/'))) throw new Error('Replay ist trotz Abbrechen weitergelaufen');
+    await page.close();
+  });
+
+  await pruefe('Replay ab Schritt 1 mit leerem Protokoll: keine Rückfrage (sim-ibp)', async () => {
+    const page = await neueSeite();
+    const dialoge = [];
+    page.on('dialog', (d) => { dialoge.push(d.message()); d.accept(); });
+    await replaySchritt(page);
+    if (dialoge.length !== 0) throw new Error(`unerwartete Rückfrage: ${dialoge.join('; ')}`);
+    await page.close();
+  });
+
   await browser.close();
   server.close();
   process.exit(alleBestanden ? 0 : 1);

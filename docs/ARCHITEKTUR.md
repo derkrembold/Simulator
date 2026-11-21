@@ -2843,6 +2843,17 @@ konzeptionell zusammen (neuer Durchlauf = neuer Fahrplan-Index UND neue
 Anlage). **Bewusst NICHT bei der Timer-App** (rührt den Schaltkasten gar
 nicht an, kein Reset-Grund).
 
+**Prüfprotokoll beim Replay-Start (sim-ibp, 2026-11-21):** Der Schaltkasten wird beim Öffnen
+der Replay-App zurückgesetzt, das Protokoll erst, wenn der Durchlauf bei Schritt 1 beginnt
+(Play oder Schritt-Button bei `replayIndex === 0`, `fuehreNaechstenReplaySchrittAus()`). Nur
+Öffnen und Schließen der App verändert das Protokoll nicht. Geleert wird das ganze Protokoll
+(`ProtokollView.leeren()` in `view/protokoll.js`: Felder auf ihren Ausgangswert, z.B.
+"Hauptleitung", alle Kreuze weg, rote Check-Markierungen weg, ohne neu zu rendern, damit der
+Klick-Listener nicht doppelt angehängt wird). Steht schon etwas drin
+(`ProtokollView.hatEintraege()`), fragt ein `window.confirm()` nach; bei Abbrechen bleibt das
+Protokoll unverändert und das Replay startet nicht. Entscheidungen des Menschen: Leeren beim
+Start ab Schritt 1, ganzes Protokoll, mit Rückfrage. Test: `tests/visuell/test_handy_timer.js`.
+
 Verifiziert per Playwright-Skript: Messspitze gesetzt, eine Schraube
 gelöst, ein RCD-Hebel geöffnet - vor dem Reset 2 sichtbare r=7-Overlays (1
 Messspitze + 1 gelöste Schraube) und ein offener Hebel (per Screenshot

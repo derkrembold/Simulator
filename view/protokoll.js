@@ -365,5 +365,22 @@ export const ProtokollView = {
       if (!cb) return;
       cb.textContent = cb.textContent === '☒' ? '☐' : '☒';
     });
+  },
+
+  // Ist irgendetwas eingetragen oder angekreuzt? Vorbelegte Felder (z.B.
+  // "Hauptleitung") zählen nur, wenn ihr Inhalt geändert wurde.
+  hatEintraege(container) {
+    const felder = [...container.querySelectorAll('input, textarea')];
+    return felder.some((f) => f.value !== f.defaultValue)
+      || [...container.querySelectorAll('.pf-cb')].some((cb) => cb.textContent === '☒');
+  },
+
+  // Setzt alle Felder auf den Ausgangszustand zurück (Inhalt, Kreuze und rote
+  // Markierungen des Checks), ohne neu zu rendern - so bleibt der eine
+  // Klick-Listener aus render() erhalten (sim-ibp).
+  leeren(container) {
+    container.querySelectorAll('input, textarea').forEach((f) => { f.value = f.defaultValue; });
+    container.querySelectorAll('.pf-cb').forEach((cb) => { cb.textContent = '☐'; });
+    container.querySelectorAll('.pf-fehler').forEach((el) => el.classList.remove('pf-fehler'));
   }
 };

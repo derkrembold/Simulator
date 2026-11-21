@@ -1607,6 +1607,19 @@ async function start() {
   // Abschnitte hinweg absichtlich offen.
   function fuehreNaechstenReplaySchrittAus() {
     if (replayIndex >= replaySchritte.length) return;
+    // Ein Durchlauf ab Schritt 1 beginnt mit leerem Protokoll (sim-ibp).
+    // Steht schon etwas drin (eigene Eingaben oder ein früherer Durchlauf),
+    // wird vorher nachgefragt; bei Abbrechen startet das Replay nicht.
+    if (replayIndex === 0) {
+      if (ProtokollView.hatEintraege(protokollContainer)
+        && !window.confirm('Das Replay beginnt mit einem leeren Prüfprotokoll. Alle Einträge im Protokoll löschen?')) {
+        stoppeReplayAutomatik();
+        renderHandy(handyHoehe);
+        return;
+      }
+      ProtokollView.leeren(protokollContainer);
+      checkErgebnis = null;
+    }
     const vorherigerAbschnitt = replaySchrittInfo[replayIndex - 1]?.abschnittIndex;
     const aktuellerAbschnitt = replaySchrittInfo[replayIndex].abschnittIndex;
     if (replayIndex > 0 && aktuellerAbschnitt !== vorherigerAbschnitt) entferneAlleMessspitzen();

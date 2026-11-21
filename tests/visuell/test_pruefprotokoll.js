@@ -309,7 +309,8 @@ async function main() {
       await pruefe(`${testcase} ${erg.sk}: Riso je Leiterpaar mit den im Browser gesetzten Sonden gemessen`, async () => {
         const sk = alleStromkreiseAus(anlagen[testcase]).find((s) => s.bezeichnung === erg.sk);
         const netz = (funktion) => sk.leitung.adern.find((a) => a.funktion === funktion).netz;
-        const erwartet = [...sk.phasen.map((p) => [p, 'N']), ...sk.phasen.map((p) => [p, 'PE'])];
+        // N-PE nach N-Trennung (sim-0cf) zwischen L-PE und L-L.
+        const erwartet = [...sk.phasen.map((p) => [p, 'N']), ...sk.phasen.map((p) => [p, 'PE']), ['N', 'PE']];
         for (let i = 0; i < sk.phasen.length; i++) {
           for (let j = i + 1; j < sk.phasen.length; j++) erwartet.push([sk.phasen[i], sk.phasen[j]]);
         }

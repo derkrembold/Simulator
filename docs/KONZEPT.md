@@ -483,15 +483,22 @@ Platzierungs-Voraussetzung). Welche der ersten beiden Spitzen (Schwarz/Blau)
 auf L bzw. N/L sitzt, ist egal - wie bei einer echten Widerstandsmessung sind
 die Rollen vertauschbar, nur Grün muss immer auf PE bleiben.
 
-**Verwechslung N/PE:** landet die "N"-Spitze (bewusst oder aus Versehen) auf
-PE statt auf N, funktioniert die Messung trotzdem - PE und N sind im
-TN-S/TN-C-S-Netz am Sternpunkt ohnehin verbunden, und anders als ein offener
-Schalter ist ein aufgetrennter PE-Leiter im Prüfungsalltag kein realistisches
-Szenario. Bewusste Vereinfachung statt eines vollständigen PE-Graphen (der
-wäre wegen möglicher Zyklen über den Hutschienen-Bond ein größeres eigenes
-Vorhaben): eine an PE angelegte Spitze wird für RISO einfach wie N am
-Einspeisungspunkt behandelt - **Stand heute bewusst so akzeptiert, aber ein
-Kandidat für später** (siehe "Nächste Schritte" -> "PE-Teilgraph").
+**L-PE und Verwechslung N/PE:** PE und N sind im TN-S/TN-C-S-Netz am
+Sternpunkt verbunden. Eine an PE angelegte Spitze wirkt deshalb für RISO wie N
+am Einspeisungspunkt (`risoEffektiveAder()`), aber nur, wenn der Messpunkt laut
+PE-Graph mit der Einspeisung verbunden ist; sonst ist der Messkreis isoliert
+(>999 MΩ). Die Elektronik eines RCD Typ B oder AFDD wird dabei wie bisher
+topologieabhängig erkannt.
+
+**N-PE (sim-0cf):** eigenes Messpaar (Schwarz/Blau auf N und PE, Grün auf PE).
+Solange der gemessene N leitend mit dem Sternpunkt verbunden ist (geschlossener
+N-Pfad zur Einspeisung), misst das Gerät den Kurzschluss über die
+N-PE-Verbindung an der Einspeisung: N-Fehler plus PE-Weg in Ω, Ampel rot. Ist
+der N getrennt (gelöste Schraube am Eingang der N-Reihenklemme, geöffneter
+N-Pol eines RCD, AFDD oder 2-poligen Hauptschalters), ist der Messkreis
+isoliert: >999 MΩ. Bewusst nicht in `risoPaarTyp()`, weil das auch V~ steuert
+und V~ unverändert bleibt. Der Fahrplan trennt N vor der Messung an der
+N-Reihenklemme (`nTrennstelle()` in `tools/pruefprotokoll_erstellung.js`).
 
 Zwei Schritte:
 1. **Live-Spannungsprüfung** (unabhängig von TEST, wie eine Sicherheitsfunktion
@@ -2151,27 +2158,14 @@ Fehlertabellen-Einträge der Netze entlang dieses Pfads** (0Ω, wenn keine
 Fehlertabellen-Einträge auf dem Weg liegen). Existiert kein Pfad (offener
 Schalter dazwischen), bleibt der Messwert beim `---`-Platzhalter.
 
-**WORKAROUND für PE-zu-PE, bis der PE-Teilgraph existiert:** da PE kein
-eigener Teilgraph ist (siehe "Nächste Schritte" - PE-Teilgraph), würde eine
-RLOW-Messung zwischen zwei PE-Punkten (z.B. eine grüne Reihenklemme und die
-PE-Klemme, oder eine PE-Steckdose) nie einen Pfad finden und dauerhaft beim
-Platzhalter bleiben - obwohl PE in diesem Modell nie geschaltet wird (kein
-PE-Schalter) und deshalb elektrisch immer durchgängig ist. `berechneRlowMesswert()`
-in `controller/app.js` behandelt PE-zu-PE deshalb als Sonderfall und liefert
-pauschal **0Ω**, unabhängig davon, an welchen zwei PE-Bauteilen (Reihenklemme,
-PE-Klemme, Steckdose, Anschlussdose) die Messspitzen sitzen. Ignoriert bewusst
-etwaige Fehlertabellen-Einträge auf PE-Netzen (aktuell in keinem Testcase
-vorhanden). **Entfällt ersatzlos**, sobald der echte PE-Teilgraph existiert.
-
-**WORKAROUND für PE-zu-N, bis der PE-Teilgraph existiert:** ähnlich gelagert
-wie PE-zu-PE, aber diesmal mit einer Sonde auf N: PE gilt weiterhin als immer
-durchgängig (0Ω), die eigentliche Messung läuft deshalb nur über den N-Pfad
-zur Einspeisung - **wie bei ZS, aber für N statt L, und OHNE die feste
-Vorimpedanz** (bleibt ein RLOW-Wert, kein ZS/ZI-Wert). Ist irgendein Schalter
-auf dem Weg zur Einspeisung offen, bleibt der Platzhalter stehen; sind alle
-geschlossen, wird die Fehlertabelle entlang dieses N-Pfads aufsummiert und
-kontinuierlich angezeigt (ohne TEST-Taste, wie RLOW sonst auch). Ebenfalls
-**entfällt ersatzlos**, sobald der echte PE-Teilgraph existiert.
+**PE-zu-PE und PE-zu-N (sim-0cf, ersetzt die früheren Workarounds):** PE-zu-PE ist der
+Ersatzwiderstand zwischen den beiden Messpunkten im PE-Graphen (`berechneErsatzwiderstand()`,
+siehe "Schutzleiter (PE) – Konzept"). Messpunkt ist auf einer Schraube die Klemme des Bauteils
+(`data-bauteil`), auf dem Kontakt einer Dose die Endstelle ihres Stromkreises
+(`peMesspunktNachFarbe()` in `controller/app.js`). Kontaktfehler zwischen den Messpunkten gehen
+ein, ohne Verbindung bleibt der Platzhalter. PE-zu-N: PE und N sind am Sternpunkt verbunden, der
+Wert ist der PE-Weg vom Messpunkt zur Einspeisung plus die Fehlertabelle des N-Pfads zur
+Einspeisung, ohne Vorimpedanz. Ist ein Schalter auf dem N-Weg offen, bleibt der Platzhalter.
 
 ### RISO-Berechnung (zweiter Anwendungsfall, prototypisch)
 
@@ -2408,7 +2402,10 @@ tests/visuell/
 ## Schutzleiter (PE) – Konzept (sim-jvo, Entwurf, 2. Fassung nach Review)
 
 **Status: vom Menschen freigegeben (2026-11-21), Umsetzung in Schritten.** Schritt 1 (sim-gn9)
-ist umgesetzt: `graph.PE` und `berechneErsatzwiderstand()`; die Messungen nutzen ihn noch nicht.
+ist umgesetzt: `graph.PE` und `berechneErsatzwiderstand()`. Schritt 2 (sim-0cf) ist umgesetzt:
+RLOW PE-PE und PE-N über den PE-Graphen, Riso L-PE nur mit PE-Verbindung, Riso N-PE mit
+Sternpunkt-Regel, Fahrplan misst N-PE nach N-Trennung (siehe "RLOW-Berechnung" und
+"Berechnung der Messwerte"). Offen: Zs (sim-24c), Hutschiene (sim-kfb).
 Wunsch des Menschen: Der PE ist heute widerstandsfrei und nicht Teil des Verbindungsgraphen. Das
 ist nicht die Realität. Dieser Abschnitt beschreibt Ziel, Modell, Messungen, Anforderung und die
 Umsetzung in Schritten.
@@ -2599,7 +2596,10 @@ Offen:
    ein echter Kabelschaden L-N) existiert weiterhin nicht.
 2. **PE-Teilgraph** (Konzept und Schritte: Abschnitt "Schutzleiter (PE) – Konzept" oben, sim-jvo) - bewusst zurückgestellt, da PE über den
    Hutschienen-Bond Zyklen bilden kann (Parallelwiderstand statt einfacher
-   Pfad-Summe) - ein eigenständiges, größeres Vorhaben. Bis dahin gelten zwei
+   Pfad-Summe) - ein eigenständiges, größeres Vorhaben. **Stand 2026-11-21:**
+   Schritte 1 und 2 umgesetzt (PE-Graph, RLOW und Riso über den PE-Graphen);
+   die folgende Beschreibung ist teilweise überholt, offen ist noch ZS
+   (sim-24c). Bis dahin galten zwei
    bewusste Vereinfachungen: bei RISO wird eine an PE angelegte Messspitze
    pauschal wie N am Einspeisungspunkt behandelt (`risoEffektiveAder()`,
    siehe "Berechnung der Messwerte" - Abschnitt "Verwechslung N/PE"); bei ZS

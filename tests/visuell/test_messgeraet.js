@@ -452,30 +452,22 @@ async function main() {
     await page.close();
   });
 
-  // WORKAROUND (siehe KONZEPT.md "Nächste Schritte" - PE-Teilgraph, und
-  // controller/app.js berechneRlowMesswert()): PE ist noch kein eigener
-  // Teilgraph im Verbindungsgraphen, eine PE-zu-PE-Messung würde deshalb
-  // ohne Sonderfall immer beim Platzhalter bleiben - obwohl PE in diesem
-  // Modell nie geschaltet wird und elektrisch immer durchgängig ist. Bis
-  // der echte PE-Teilgraph existiert: PE-zu-PE liefert pauschal 0Ω, egal an
-  // welchen zwei PE-Bauteilen die Messspitzen sitzen (hier: Reihenklemme_PE
-  // N9 und die anlagenweite PE-Klemme N3, zwei unterschiedliche Netze).
-  await pruefe('RLOW: WORKAROUND - PE-zu-PE (Reihenklemme + PE-Klemme, unterschiedliche Netze) zeigt 0Ω', async () => {
+  // PE-zu-PE über den PE-Graphen (sim-0cf): ohne Kontaktfehler 0Ω zwischen
+  // Reihenklemme_PE (N9) und PE-Klemme (N3), zwei unterschiedliche Netze.
+  // Kontaktfehler: tests/visuell/test_pe_messungen.js.
+  await pruefe('RLOW: PE-zu-PE (Reihenklemme + PE-Klemme, unterschiedliche Netze) ohne Kontaktfehler 0Ω', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     await page.locator('#schaltkasten svg circle[data-netz="N9"]').first().click(); // schwarz, Reihenklemme_PE_SK1
     await page.locator('#schaltkasten svg circle[data-netz="N3"]').first().click(); // blau, PE-Klemme
-    erwarte([await rlowHauptwert(page)], 'R:0,00Ω', 'PE-zu-PE liefert pauschal 0Ω (Workaround ohne PE-Teilgraph)');
+    erwarte([await rlowHauptwert(page)], 'R:0,00Ω', 'PE-zu-PE ohne Kontaktfehler 0Ω');
     await page.close();
   });
 
-  // WORKAROUND PE-zu-N (siehe KONZEPT.md "Nächste Schritte" - PE-Teilgraph,
-  // und controller/app.js berechneRlowMesswert()): eine Sonde auf PE (gilt
-  // wie oben als immer durchgängig), die andere auf N - die Messung läuft
-  // dann nur über den N-Pfad zur Einspeisung (`findePfadZurEinspeisung()`,
-  // dieselbe Funktion wie bei ZI/ZS), OHNE feste Vorimpedanz (anders als
-  // ZS), da es ein RLOW-Wert bleibt. testcase_02 hat mit N10 (RCD1.o2)
+  // PE-zu-N (sim-0cf): PE-Weg zur Einspeisung (hier ohne Kontaktfehler 0Ω)
+  // plus N-Pfad zur Einspeisung (`findePfadZurEinspeisung()`), OHNE feste
+  // Vorimpedanz (anders als ZS), da es ein RLOW-Wert bleibt. testcase_02 hat mit N10 (RCD1.o2)
   // extra einen Fehlertabellen-Eintrag auf dem N-Pfad (0,30Ω).
-  await pruefe('RLOW: WORKAROUND - PE-zu-N summiert die Fehlertabelle auf dem N-Pfad zur Einspeisung (ohne Vorimpedanz)', async () => {
+  await pruefe('RLOW: PE-zu-N summiert die Fehlertabelle auf dem N-Pfad zur Einspeisung (ohne Vorimpedanz)', async () => {
     const page = await neueSeiteMitTestcase('testcase_02');
     await page.locator('#schaltkasten svg circle[data-netz="N10"]').first().click(); // schwarz, N (RCD1.o2)
     await page.locator('#schaltkasten svg circle[data-farbe="gn-ge"]').first().click(); // blau, PE
@@ -483,7 +475,7 @@ async function main() {
     await page.close();
   });
 
-  await pruefe('RLOW: WORKAROUND - PE-zu-N bleibt beim Platzhalter, solange ein Schalter Richtung Einspeisung offen ist', async () => {
+  await pruefe('RLOW: PE-zu-N bleibt beim Platzhalter, solange ein Schalter Richtung Einspeisung offen ist', async () => {
     const page = await neueSeiteMitTestcase('testcase_02');
     await page.locator('#schaltkasten svg circle[data-netz="N10"]').first().click(); // schwarz, N (RCD1.o2)
     await page.locator('#schaltkasten svg circle[data-farbe="gn-ge"]').first().click(); // blau, PE

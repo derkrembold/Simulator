@@ -10,7 +10,7 @@ import { pruefeProtokoll } from './protokoll_check.js';
 import { hatDrehstromEndstelle } from '../model/protokoll_soll.js';
 import { berechneSpannungsfall } from '../model/spannungsfall.js';
 import { Popup } from '../view/popup.js';
-import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehrend } from '../model/pfad.js';
+import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehrend, berechneErsatzwiderstand, peKnoten } from '../model/pfad.js';
 
 // Messspitzen (Messmodus, siehe unten): pro Schrauben-Kreis genau eine Farbe,
 // jede Farbe insgesamt nur an einer Schraube gleichzeitig (3 Messspitzen wie
@@ -339,6 +339,29 @@ async function start() {
     return null;
   }
 
+  // Knoten der Messspitze einer Farbe im PE-Graphen (PE-Konzept in
+  // KONZEPT.md, sim-0cf): auf einer Schraube die Klemme des Bauteils
+  // (`data-bauteil`), auf dem Kontakt einer Dose die Endstelle ihres
+  // Stromkreises, sonst das Netz der Ader. null ohne Messspitze.
+  function peMesspunktNachFarbe(farbe) {
+    for (const [kreis, f] of messspitzenFarbe) {
+      if (f !== farbe) continue;
+      if (kreis.dataset.bauteil) return peKnoten('bauteil', kreis.dataset.bauteil);
+      const endstelle = kreis.closest('[data-endstelle]')?.dataset.endstelle;
+      const platz = endstelle && (anlage.steckdosen_platzierung ?? []).find((p) => `${p.row}-${p.col}` === endstelle);
+      if (platz) return peKnoten('bauteil', `Endstelle_${platz.sk}`);
+      return peKnoten('netz', messspitzenAder.get(kreis).netz);
+    }
+    return null;
+  }
+
+  // Widerstand des PE von einem Messpunkt bis zur Einspeisung (Sternpunkt),
+  // null ohne Verbindung.
+  function peWiderstandZurEinspeisung(knoten) {
+    if (!graph?.PE?.einspeisung || !knoten) return null;
+    return berechneErsatzwiderstand(graph.PE, knoten, peKnoten('netz', graph.PE.einspeisung));
+  }
+
   // Sucht einen Pfad zwischen zwei Adern - probiert alle Kombinationen ihrer
   // Netz-IDs (inkl. `ader.weitere` bei geteilten Schrauben, siehe oben), da
   // an einer solchen Klemme irgendeine der dort hängenden Adern eine
@@ -385,39 +408,26 @@ async function start() {
     const blauAder = messspitzenAderNachFarbe('blau');
     if (!schwarzAder || !blauAder) return null;
 
-    // WORKAROUND PE-zu-N (siehe KONZEPT.md "Nächste Schritte" -
-    // PE-Teilgraph): eine Sonde auf PE, die andere auf N - PE gilt wie beim
-    // PE-zu-PE-Workaround unten als immer durchgängig (0Ω), die eigentliche
-    // Messung läuft deshalb nur über den N-Pfad zur Einspeisung
-    // (`findePfadZurEinspeisung()`, dieselbe Funktion, die ZI/ZS schon für
-    // ihren Pfad zur Einspeisung nutzen). Ist irgendein Schalter auf diesem
-    // Weg offen, bleibt der Platzhalter stehen - sind alle geschlossen, wird
-    // (anders als bei ZS) NUR die Fehlertabelle aufsummiert, OHNE feste
-    // Vorimpedanz, da es ein RLOW- und kein ZS/ZI-Wert bleibt. Entfällt
-    // ersatzlos, sobald der PE-Teilgraph existiert.
-    const peAder = schwarzAder.funktion === 'PE' ? schwarzAder : (blauAder.funktion === 'PE' ? blauAder : null);
+    // PE-N (PE-Konzept, sim-0cf): PE und N sind am Sternpunkt verbunden. Der
+    // Wert ist der PE-Weg vom Messpunkt zur Einspeisung plus die Fehler des
+    // N-Wegs zur Einspeisung, ohne Vorimpedanz (RLOW misst nicht durch das
+    // Netz). Ist der N-Weg durch einen Schalter getrennt oder hat der PE
+    // keine Verbindung, bleibt der Platzhalter stehen.
+    const peFarbe = schwarzAder.funktion === 'PE' ? 'schwarz' : (blauAder.funktion === 'PE' ? 'blau' : null);
     const nAder = schwarzAder.funktion === 'N' ? schwarzAder : (blauAder.funktion === 'N' ? blauAder : null);
-    if (peAder && nAder) {
+    if (peFarbe && nAder) {
       const pfadN = findePfadZurEinspeisung('N', nAder);
-      return pfadN ? berechneWiderstand(graph, pfadN) : null;
+      const rPe = peWiderstandZurEinspeisung(peMesspunktNachFarbe(peFarbe));
+      return pfadN && rPe !== null ? berechneWiderstand(graph, pfadN) + rPe : null;
     }
 
     if (schwarzAder.funktion !== blauAder.funktion) return null;
 
-    // WORKAROUND PE-zu-PE (siehe KONZEPT.md "Nächste Schritte" -
-    // PE-Teilgraph): PE ist noch nicht Teil des Verbindungsgraphen
-    // (`graph.PE` existiert nicht, GRAPH_FUNKTIONEN in generate_anlage.js
-    // hat nur L1/L2/L3/N), findePfad() würde also für PE immer null
-    // liefern - obwohl PE elektrisch in diesem Modell nie geschaltet wird
-    // (kein PE-Schalter, siehe netzplan.md Annahme 1 "PE umgeht
-    // Leistungsschalter und RCD") und deshalb praktisch immer durchgängig
-    // ist. Bis der echte PE-Teilgraph existiert: PE-zu-PE liefert pauschal
-    // 0Ω - unabhängig davon, welche PE-Bauteile (Reihenklemme, PE-Klemme,
-    // Steckdose, Anschlussdose) die Messspitzen tragen. Ignoriert bewusst
-    // etwaige Fehlertabellen-Einträge auf PE-Netzen (aktuell in keinem
-    // Testcase vorhanden). Entfällt ersatzlos, sobald der PE-Teilgraph
-    // existiert.
-    if (schwarzAder.funktion === 'PE') return 0;
+    // PE-PE: Ersatzwiderstand zwischen den beiden Messpunkten im PE-Graphen
+    // (Kontaktfehler, Parallelwege über Hutschienen). null ohne Verbindung.
+    if (schwarzAder.funktion === 'PE') {
+      return berechneErsatzwiderstand(graph.PE, peMesspunktNachFarbe('schwarz'), peMesspunktNachFarbe('blau'));
+    }
 
     const pfad = findePfadZwischenAdern(schwarzAder.funktion, schwarzAder, blauAder);
     return pfad ? berechneWiderstand(graph, pfad) : null;
@@ -551,7 +561,10 @@ async function start() {
     // risoPaarTyp()/der L-N/L-L-Spannungslogik. PE-PE bewusst ausgenommen
     // (Grün deckt PE schon separat ab, PE selbst ist nicht im Graphen).
     const gleicheFunktion = schwarzAder.funktion === blauAder.funktion && schwarzAder.funktion !== 'PE';
-    if (!gleicheFunktion && !risoPaarTyp(schwarzAder, blauAder)) return;
+    // N-PE (PE-Konzept, sim-0cf): eigenes Messpaar, nicht in risoPaarTyp(),
+    // weil das auch V~ steuert und V~ unverändert bleibt.
+    const nPe = [schwarzAder.funktion, blauAder.funktion].sort().join() === 'N,PE';
+    if (!gleicheFunktion && !nPe && !risoPaarTyp(schwarzAder, blauAder)) return;
     if (gruenAder.funktion !== 'PE') return;
     // Sicherheits-Verhalten wie beim echten Gerät: solange Spannung anliegt,
     // springt R auf den Platzhalter zurück, statt einen alten Messwert stehen
@@ -565,6 +578,29 @@ async function start() {
       return;
     }
 
+    // N-PE: Solange der gemessene N leitend mit dem Sternpunkt verbunden ist,
+    // misst das Gerät den Kurzschluss über die N-PE-Verbindung an der
+    // Einspeisung (N-Weg + PE-Weg). Ist der N getrennt (gelöste N-Klemme,
+    // geöffneter N-Pol), ist der Messkreis isoliert: >999 MΩ.
+    if (nPe) {
+      const nAder = schwarzAder.funktion === 'N' ? schwarzAder : blauAder;
+      const pfadN = findePfadZurEinspeisung('N', nAder);
+      const rPe = peWiderstandZurEinspeisung(peMesspunktNachFarbe(nAder === schwarzAder ? 'blau' : 'schwarz'));
+      risoMesswert = pfadN && rPe !== null ? berechneWiderstand(graph, pfadN) + rPe : Infinity;
+      risoAmpel = risoMesswert === Infinity || risoMesswert >= risoGrenzwertMOhm * 1_000_000 ? 'gruen' : 'rot';
+      renderMessgeraet();
+      return;
+    }
+
+    // L-PE: der PE-Messpunkt wirkt wie N am Sternpunkt, aber nur, wenn er
+    // laut PE-Graph mit der Einspeisung verbunden ist (sonst isoliert).
+    const peOhneVerbindung = (ader, farbe) => ader.funktion === 'PE' && peWiderstandZurEinspeisung(peMesspunktNachFarbe(farbe)) === null;
+    if (peOhneVerbindung(schwarzAder, 'schwarz') || peOhneVerbindung(blauAder, 'blau')) {
+      risoMesswert = Infinity;
+      risoAmpel = 'gruen';
+      renderMessgeraet();
+      return;
+    }
     const schwarzEffektiv = risoEffektiveAder(schwarzAder);
     const blauEffektiv = risoEffektiveAder(blauAder);
     const pfad = findePfadZwischenAdern(schwarzEffektiv.funktion, schwarzEffektiv, blauEffektiv);

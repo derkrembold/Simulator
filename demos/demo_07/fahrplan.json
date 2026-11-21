@@ -3361,6 +3361,74 @@
       ]
     },
     {
+      "titel": "SK1 N-PE: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Für N-PE den Neutralleiter trennen: Schraube am Eingang von Reihenklemme_N_SK1 lösen, sonst misst das Gerät den Kurzschluss über die N-PE-Verbindung an der Einspeisung. Nach der Messung wieder eindrehen.",
+      "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK1",
+            "N15"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N30"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N31"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK1",
+            "N15"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "SK2 L1-N: Riso Verbraucher ohne",
       "begruendung": "Anlage ist freigeschaltet. Da RCD1 ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md \"Riso Verbraucher ohne\"), nach der Messung wieder eindrehen.",
       "schritte": [
@@ -3491,6 +3559,74 @@
           "argumente": [
             "RCD1",
             "N17"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK2 N-PE: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Für N-PE den Neutralleiter trennen: Schraube am Eingang von Reihenklemme_N_SK2 lösen, sonst misst das Gerät den Kurzschluss über die N-PE-Verbindung an der Einspeisung. Nach der Messung wieder eindrehen.",
+      "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK2",
+            "N15"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N33"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N34"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK2",
+            "N15"
           ],
           "ergebnis": null
         }
@@ -3633,6 +3769,74 @@
       ]
     },
     {
+      "titel": "SK3 N-PE: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Für N-PE den Neutralleiter trennen: Schraube am Eingang von Reihenklemme_N_SK3 lösen, sonst misst das Gerät den Kurzschluss über die N-PE-Verbindung an der Einspeisung. Nach der Messung wieder eindrehen.",
+      "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK3",
+            "N15"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N36"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N37"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK3",
+            "N15"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "SK4 L2-N: Riso Verbraucher ohne",
       "begruendung": "Anlage ist freigeschaltet. Da RCD1 ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md \"Riso Verbraucher ohne\"), nach der Messung wieder eindrehen.",
       "schritte": [
@@ -3763,6 +3967,74 @@
           "argumente": [
             "RCD1",
             "N19"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK4 N-PE: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Für N-PE den Neutralleiter trennen: Schraube am Eingang von Reihenklemme_N_SK4 lösen, sonst misst das Gerät den Kurzschluss über die N-PE-Verbindung an der Einspeisung. Nach der Messung wieder eindrehen.",
+      "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK4",
+            "N15"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N39"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N40"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK4",
+            "N15"
           ],
           "ergebnis": null
         }
@@ -3905,6 +4177,74 @@
       ]
     },
     {
+      "titel": "SK5 N-PE: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Für N-PE den Neutralleiter trennen: Schraube am Eingang von Reihenklemme_N_SK5 lösen, sonst misst das Gerät den Kurzschluss über die N-PE-Verbindung an der Einspeisung. Nach der Messung wieder eindrehen.",
+      "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK5",
+            "N15"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N42"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N43"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK5",
+            "N15"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "SK6 L3-N: Riso Verbraucher ohne",
       "begruendung": "Anlage ist freigeschaltet. Da RCD1 ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md \"Riso Verbraucher ohne\"), nach der Messung wieder eindrehen.",
       "schritte": [
@@ -4035,6 +4375,74 @@
           "argumente": [
             "RCD1",
             "N21"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK6 N-PE: Riso Verbraucher ohne",
+      "begruendung": "Anlage ist freigeschaltet. Für N-PE den Neutralleiter trennen: Schraube am Eingang von Reihenklemme_N_SK6 lösen, sonst misst das Gerät den Kurzschluss über die N-PE-Verbindung an der Einspeisung. Nach der Messung wieder eindrehen.",
+      "schritte": [
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK6",
+            "N15"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "RISO"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N45"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N46"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "R:>999MΩ"
+        },
+        {
+          "funktion": "schraubeSchalten",
+          "argumente": [
+            "Reihenklemme_N_SK6",
+            "N15"
           ],
           "ergebnis": null
         }

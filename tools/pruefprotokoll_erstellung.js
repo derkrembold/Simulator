@@ -92,14 +92,16 @@ function naechsteTrennstelle(sk, gruppe, phasen) {
 
 // Riso-Messpaare (Schwarz/Blau): jeder Außenleiter gegen N und gegen PE,
 // bei mehrphasigen Stromkreisen zusätzlich jedes Außenleiter-Paar
-// gegeneinander. Grün sitzt immer an PE, weil die App das verlangt; in den
-// Messwert gehen nur Schwarz und Blau ein (siehe risoTestKlick() in
-// controller/app.js). PE behandelt die App wie N an der Einspeisung
-// (risoEffektiveAder()), L-PE liefert deshalb denselben Wert wie L-N.
+// gegeneinander, dazu N gegen PE (PE-Konzept, sim-0cf). Grün sitzt immer an
+// PE, weil die App das verlangt; in den Messwert gehen nur Schwarz und Blau
+// ein (siehe risoTestKlick() in controller/app.js). N-PE braucht vorher die
+// N-Trennung (`nTrennung`), sonst misst das Gerät den Kurzschluss über den
+// Sternpunkt.
 function risoPaare(sk) {
   const paare = [
     ...sk.phasen.map((phase) => ({ name: `${phase}-N`, schwarz: phase, blau: 'N' })),
-    ...sk.phasen.map((phase) => ({ name: `${phase}-PE`, schwarz: phase, blau: 'PE' }))
+    ...sk.phasen.map((phase) => ({ name: `${phase}-PE`, schwarz: phase, blau: 'PE' })),
+    { name: 'N-PE', schwarz: 'N', blau: 'PE', nTrennung: true }
   ];
   for (let i = 0; i < sk.phasen.length; i++) {
     for (let j = i + 1; j < sk.phasen.length; j++) {
@@ -351,13 +353,23 @@ function groessterRpe(werte) {
   return werte.reduce((max, w) => (zahl(w) > zahl(max) ? w : max));
 }
 
+// N-Trennung für Riso N-PE: Schraube am Eingang der N-Reihenklemme lösen,
+// damit der N des Stromkreises nicht mehr mit dem Sternpunkt verbunden ist.
+function nTrennstelle(sk) {
+  const netz = sk.reihenklemmen_eingang?.n?.netz;
+  if (!netz) throw new Error(`${sk.bezeichnung}: keine N-Reihenklemme mit Eingangsader für die N-Trennung`);
+  return { bauteil: `Reihenklemme_N_${sk.bezeichnung}`, netze: [netz], istLeckageQuelle: false, nTrennung: true };
+}
+
 async function messeRisoOhne(testcase, anlage, sk, gruppe, paar) {
-  const trennstelle = naechsteTrennstelle(sk, gruppe, [paar.schwarz, paar.blau]);
+  const trennstelle = paar.nTrennung ? nTrennstelle(sk) : naechsteTrennstelle(sk, gruppe, [paar.schwarz, paar.blau]);
 
   const ctx = await starteAbschnitt(testcase, anlage, { freigeschaltet: true });
   messgeraet.abschnittBeginnen(
     `${sk.bezeichnung} ${paar.name}: Riso Verbraucher ohne`,
-    trennstelle
+    trennstelle?.nTrennung
+      ? `Anlage ist freigeschaltet. Für N-PE den Neutralleiter trennen: Schraube am Eingang von ${trennstelle.bauteil} lösen, sonst misst das Gerät den Kurzschluss über die N-PE-Verbindung an der Einspeisung. Nach der Messung wieder eindrehen.`
+      : trennstelle
       ? (trennstelle.istLeckageQuelle
         ? `Anlage ist freigeschaltet. Da ${trennstelle.bauteil} ein RCD Typ B/AFDD ist, dessen Schraube auf dieser Phase öffnen, um den inneren (elektronischen) Widerstand zu umgehen (siehe BEDIENERPROZESS.md "Riso Verbraucher ohne"), nach der Messung wieder eindrehen.`
         : `Anlage ist freigeschaltet. Schraube von ${trennstelle.bauteil} öffnen, damit Geschwister-Stromkreise auf derselben Sammelschiene die Messung nicht verfälschen, nach der Messung wieder eindrehen.`)

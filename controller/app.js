@@ -887,9 +887,15 @@ async function start() {
     const schnittmenge = [...schwarzBauteile].filter((name) => blauBauteile.has(name));
     if (schnittmenge.length === 0) return null;
 
-    const eigenerWertMOhm = (name) => (rcdTypBNamen.has(name) ? RISO_RCD_TYP_B_WIDERSTAND_MOHM : RISO_AFDD_WIDERSTAND_MOHM);
+    // Wert je Gerät aus anlage.json (riso_elektronik_mohm, sim-qha), sonst
+    // der Standard für RCD Typ B bzw. AFDD.
+    const geraet = (name) => alleRcds().find((r) => r.name === name) ?? alleAfddLs().find((ls) => ls.name === name);
+    const eigenerWertMOhm = (name) => geraet(name)?.riso_elektronik_mohm
+      ?? (rcdTypBNamen.has(name) ? RISO_RCD_TYP_B_WIDERSTAND_MOHM : RISO_AFDD_WIDERSTAND_MOHM);
     const leitwertSummeProMOhm = schnittmenge.reduce((summe, name) => summe + 1 / eigenerWertMOhm(name), 0);
-    return Math.round(1 / leitwertSummeProMOhm) * 1_000_000;
+    // Ungerundet in Ω: die Ampel vergleicht den genauen Wert mit dem
+    // Grenzwert, gerundet wird erst in der Anzeige (Review Codex zu sim-qha).
+    return 1_000_000 / leitwertSummeProMOhm;
   }
 
   // FI/RCD-Messwert, ausgelöst über die TEST-Taste - wie ZS nicht
@@ -1111,7 +1117,11 @@ async function start() {
           ? 'R:>999MΩ'
           : risoMesswert >= 1_000_000
             ? `R:${Math.round(risoMesswert / 1_000_000)}MΩ`
-            : `R:${risoMesswert.toFixed(2).replace('.', ',')}Ω`;
+            // Unter 1 MΩ, aber kein Kurzschluss (z.B. Elektronik 0,15 MΩ,
+            // sim-qha): in MΩ mit zwei Nachkommastellen wie am echten Gerät.
+            : risoMesswert >= 10_000
+              ? `R:${(risoMesswert / 1_000_000).toFixed(2).replace('.', ',')}MΩ`
+              : `R:${risoMesswert.toFixed(2).replace('.', ',')}Ω`;
       }
       // Ampel (siehe risoTestKlick()) - links rot bei "durchgefallen", rechts
       // grün bei "bestanden", sonst beide aus/grau (kein TEST-Klick seit dem

@@ -419,6 +419,21 @@ lehntAb('PE-Klemme mit ungültigem Wert (sim-kfb)', baueAnforderung({
   stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
 }), 'PE-Klemme "vielleicht" ungültig');
 
+// sim-qha: Riso Elektronik nur bei RCD Typ B/B+ bzw. LS mit AFDD, als Zahl > 0.
+pruefe('Riso Elektronik (sim-qha): Wert landet in bauteile.md und anlage.json', () => {
+  const text = baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2, typ: 'B' }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', afdd: 'ja' }] })
+    .replace('| Fehler L (Ω) | Fehler N (Ω) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |', '| Fehler L (Ω) | Fehler N (Ω) | Riso Elektronik (MΩ) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
+    .replace(/(\| G1 \|[^\n]*\|)$/m, '$1 0,15 |');
+  const ergebnis = erzeuge(text);
+  const gruppe = ergebnis.anlage.hutschienen[0].gruppen[0];
+  bedingung(gruppe.rcd.riso_elektronik_mohm === 0.15, `RCD: ${gruppe.rcd.riso_elektronik_mohm}`);
+  bedingung(!('riso_elektronik_mohm' in gruppe.stromkreise[0].ls), 'LS ohne eigenen Wert');
+});
+
+lehntAb('Riso Elektronik an einem RCD Typ A (sim-qha)', baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2 }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] })
+  .replace('| Fehler L (Ω) | Fehler N (Ω) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |', '| Fehler L (Ω) | Fehler N (Ω) | Riso Elektronik (MΩ) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
+  .replace(/(\| G1 \|[^\n]*\|)$/m, '$1 0,15 |'), 'Riso Elektronik gibt es nur bei einem RCD Typ B oder B+');
+
 lehntAb('AFDD an einem 3-poligen LS (sim-i4f)', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
   stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', afdd: 'ja' }]
@@ -568,7 +583,7 @@ pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['../../demos/demo_04', '../../demos/demo_15', '../../demos/demo_18', '../../demos/demo_19', 'testcase_07', 'testcase_08']) {
+  for (const demo of ['../../demos/demo_04', '../../demos/demo_15', '../../demos/demo_18', '../../demos/demo_19', '../../demos/demo_20', 'testcase_07', 'testcase_08']) {
     const name = `Verdrahtung ${path.basename(demo)}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
       const { abweichungen, geprueft } = await pruefeVerdrahtung(demo);

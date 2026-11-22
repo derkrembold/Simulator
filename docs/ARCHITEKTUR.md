@@ -5744,6 +5744,12 @@ Kopfdaten von `bauteile.md`, `generate_anlage.js` übernimmt sie als `anlage.vor
 `tests/visuell/testcase_09`, Sollwerte von Hand in `tests/visuell/test_pruefprotokoll.js`
 (`SOLL_FEHLERORTE`).
 
+**Riso Elektronik (sim-qha):** optionale Spalte `Riso Elektronik (MΩ)` je Gruppe (nur RCD Typ
+B/B+) und je Stromkreis (nur LS mit AFDD), Zahl > 0. Landet in `bauteile.md` (Spalte nur, wenn
+ein Wert gesetzt ist) und als `riso_elektronik_mohm` am RCD bzw. LS in `anlage.json`; die App
+nimmt ihn statt des Standards (`berechneRisoElektronikWiderstand()`). Beispiel: `demos/demo_20`,
+Test `tests/visuell/test_riso_elektronik.js`.
+
 **Hutschienen (sim-kfb):** `PE-Klemme mit Hutschiene verbunden (ja/nein)` an der Anlage (leer =
 ja; bei nein fehlt `PE-Klemme.io3` im Bond von H1) und Spalte `PE-Klemme (ja/nein)` je Gruppe
 (eigene `PE-Klemme_<Hx>` auf der Hutschiene der Gruppe: Ader von `PE-Klemme.io2` an
@@ -5805,7 +5811,7 @@ der erwarteten Meldung (u. a. `SK01`, `16abc`, negativer oder unlesbarer Fehlerw
 Anzahl Werte je Außenleiter, Gruppen-Fehler ohne RCD, Vorimpedanz 0, alte Spalte
 `Fehler Zuleitung (Ω)`, AFDD an 3-poligem LS, ohne RCD oder mit ungültigem Wert, unlesbare RCD-Polzahl, die nicht still als `ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
 `istSpannungFuehrend()` mit der Einspeisung verbunden sein. Zusätzlich prüft der Test im headless
-Browser, dass bei `demos/demo_04`, `demos/demo_15` (AFDD), `demos/demo_18` (Linksdrehfeld), `demos/demo_19` (Hutschienen und PE), `testcase_07` und `testcase_08` alle Pfade im Graphen und
+Browser, dass bei `demos/demo_04`, `demos/demo_15` (AFDD), `demos/demo_18` (Linksdrehfeld), `demos/demo_19` (Hutschienen und PE), `demos/demo_20` (Riso Elektronik), `testcase_07` und `testcase_08` alle Pfade im Graphen und
 im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).
 
 **Review (Codex, Ticket sim-m31):** Drei Befunde umgesetzt. Stromkreisnamen müssen kanonisch sein

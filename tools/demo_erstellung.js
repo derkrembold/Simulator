@@ -133,6 +133,9 @@ function parseAnforderung(text) {
     // Optionale Spalte (sim-kfb): eigene PE-Klemme auf der Hutschiene dieser
     // Gruppe, per Ader von der unteren PE-Klemme versorgt. Leer = nein.
     peKlemmeRoh: (z['PE-Klemme (ja/nein)'] ?? '').trim(),
+    // Optionale Spalte (sim-qha): Riso-Widerstand der Elektronik eines RCD Typ
+    // B/B+ in MΩ, leer = Standard der App.
+    risoElektronikRoh: (z['Riso Elektronik (MΩ)'] ?? '').trim(),
     fehlerL: leseFehler(z['Fehler L (Ω)']),
     fehlerN: leseFehler(z['Fehler N (Ω)'])
   }));
@@ -166,7 +169,9 @@ function parseAnforderung(text) {
       fehlerN: leseFehler(z['Fehler N (Ω)']),
       // Optionale Spalte (PE-Konzept, sim-24c): Kontakt der PE-Reihenklemme
       // zur Leitung zur Endstelle.
-      fehlerPE: leseFehler(z['Fehler PE (Ω)'])
+      fehlerPE: leseFehler(z['Fehler PE (Ω)']),
+      // Optionale Spalte (sim-qha): Riso der AFDD-Elektronik in MΩ.
+      risoElektronikRoh: (z['Riso Elektronik (MΩ)'] ?? '').trim()
     };
   });
 
@@ -217,6 +222,10 @@ function pruefeAnforderung(anf) {
   for (const g of anf.gruppen) {
     muss(!gruppenIds.has(g.id), `Gruppe ${g.id}: doppelt vergeben`);
     muss(['', 'ja', 'nein'].includes(g.peKlemmeRoh), `Gruppe ${g.id}: PE-Klemme "${g.peKlemmeRoh}" ungültig (ja/nein, leer = nein)`);
+    if (g.risoElektronikRoh !== '') {
+      muss(zahl(g.risoElektronikRoh) > 0, `Gruppe ${g.id}: Riso Elektronik (MΩ) "${g.risoElektronikRoh}" ungültig (eine Zahl größer 0, leer = Standard)`);
+      muss(['B', 'B+'].includes(g.typ), `Gruppe ${g.id}: Riso Elektronik gibt es nur bei einem RCD Typ B oder B+`);
+    }
     gruppenIds.add(g.id);
     if (g.ohneRcd) {
       muss(g.fehlerL.roh === '' && g.fehlerN.roh === '', `Gruppe ${g.id}: ohne RCD gibt es keinen Gruppen-Fehler, den Fehler am Stromkreis angeben`);
@@ -247,6 +256,10 @@ function pruefeAnforderung(anf) {
     muss(aus(s.rcd, ERLAUBT.janein), `Stromkreis ${n}: RCD "${s.rcd}" ungültig (ja/nein)`);
     muss(['', 'rechts', 'links'].includes(s.drehfeldRoh), `Stromkreis ${n}: Drehfeld "${s.drehfeldRoh}" ungültig (rechts, links, leer = rechts)`);
     muss(!s.linksdrehfeld || s.lsPole === 3, `Stromkreis ${n}: Drehfeld links gibt es nur bei einem 3-poligen LS (Drehstrom-Endstelle)`);
+    if (s.risoElektronikRoh !== '') {
+      muss(zahl(s.risoElektronikRoh) > 0, `Stromkreis ${n}: Riso Elektronik (MΩ) "${s.risoElektronikRoh}" ungültig (eine Zahl größer 0, leer = Standard)`);
+      muss(s.afdd, `Stromkreis ${n}: Riso Elektronik gibt es nur bei einem LS mit AFDD`);
+    }
     muss(s.afddRoh === '' || aus(s.afddRoh, ERLAUBT.janein), `Stromkreis ${n}: AFDD "${s.afddRoh}" ungültig (ja/nein, leer = nein)`);
     if (s.afdd) {
       // LS mit AFDD ist ein Kombigerät, das L und N schaltet (docs/KONZEPT.md "AFDD").
@@ -629,8 +642,10 @@ function schreibeBauteile(anf, modell) {
   const { gruppenInfo, sks, hs3, qHS } = modell;
   // Spalte AFDD nur, wenn es einen LS mit AFDD gibt (generate_anlage.js liest
   // sie optional).
+  // Ebenso die Spalte Riso Elektronik nur, wenn ein Wert gesetzt ist (sim-qha).
+  const mitRisoElektronik = anf.gruppen.some((g) => g.risoElektronikRoh) || sks.some((s) => s.risoElektronikRoh);
   const SPALTEN = ['Bauteil', 'Gruppe', 'Typ/Charakteristik', 'Fehlerstrom', 'Nennstrom', 'Max. Querschnitt', 'Pole', 'Selektiv', 'Abklemmen', 'Anzahl LS', 'tA', 'IA', 'UB',
-    ...(sks.some((s) => s.afdd) ? ['AFDD'] : [])];
+    ...(sks.some((s) => s.afdd) ? ['AFDD'] : []), ...(mitRisoElektronik ? ['Riso Elektronik (MΩ)'] : [])];
   const zeile = (werte) => `| ${SPALTEN.map((s) => werte[s] ?? '–').join(' | ')} |`;
 
   const zeilen = [];
@@ -653,11 +668,12 @@ function schreibeBauteile(anf, modell) {
       zeilen.push(zeile({
         Bauteil: info.rcdName, Gruppe: g.id, 'Typ/Charakteristik': g.typ, Fehlerstrom: g.fehlerstrom,
         Nennstrom: g.nennstrom, 'Max. Querschnitt': 16, Pole: g.rcdPole, Selektiv: g.selektiv, Abklemmen: g.abklemmen,
-        'Anzahl LS': info.sks.length, tA: 22, IA: Math.round(g.fehlerstrom * 0.6), UB: 1
+        'Anzahl LS': info.sks.length, tA: 22, IA: Math.round(g.fehlerstrom * 0.6), UB: 1,
+        ...(g.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': g.risoElektronikRoh } : {})
       }));
     }
     for (const s of info.sks) {
-      zeilen.push(zeile({ Bauteil: `LS${s.nr}`, Gruppe: g.id, 'Typ/Charakteristik': s.lsChar, Nennstrom: s.lsA, 'Max. Querschnitt': 16, Pole: lsGeraetePole(s), ...(s.afdd ? { AFDD: 'ja' } : {}) }));
+      zeilen.push(zeile({ Bauteil: `LS${s.nr}`, Gruppe: g.id, 'Typ/Charakteristik': s.lsChar, Nennstrom: s.lsA, 'Max. Querschnitt': 16, Pole: lsGeraetePole(s), ...(s.afdd ? { AFDD: 'ja' } : {}), ...(s.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': s.risoElektronikRoh } : {}) }));
     }
   }
   for (const s of sks) {

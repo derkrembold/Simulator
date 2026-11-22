@@ -2185,9 +2185,17 @@ zwingend direkt an der Messspitze), liefert bei einer echten
 Isolationsmessung (Schwarz/Blau auf unterschiedlichen Funktionen, z.B. L-N
 oder L-L) einen festen, künstlich schlechten Widerstand statt `>999MΩ` -
 reale Elektronik dieser Geräte "leckt" geringfügig zwischen ihren Polen,
-auch ohne echten Isolationsfehler in der Verkabelung selbst. Werte (feste,
-globale Konstanten, siehe "Konfigurierbare Parameter" unten): AFDD 101MΩ,
-RCD Typ B/B+ 13MΩ.
+auch ohne echten Isolationsfehler in der Verkabelung selbst. Standardwerte
+(siehe "Konfigurierbare Parameter" unten): AFDD 101MΩ, RCD Typ B/B+ 13MΩ.
+**Seit sim-qha je Gerät einstellbar:** `riso_elektronik_mohm` am RCD bzw. LS
+in `anlage.json` (aus der optionalen Spalte `Riso Elektronik (MΩ)` in
+`bauteile.md`, im Demo-Werkzeug je Gruppe bzw. Stromkreis). Liegen mehrere
+Geräte im Messkreis, gilt die Parallelschaltung; der Wert wird ungerundet mit dem Grenzwert
+verglichen und erst in der Anzeige gerundet (ab 1 MΩ ganze MΩ, darunter zwei Nachkommastellen in
+MΩ, unter 0,01 MΩ in Ω). Werte
+unter 1 MΩ zeigt das Gerät in MΩ mit zwei Nachkommastellen (z.B. `R:0,15MΩ`,
+Ampel rot): so fällt in der Prüfung auf, wer Typ B oder AFDD nicht
+abklemmt. Beispiel: `demos/demo_20`.
 
 Da es im Verbindungsgraphen KEINE Kante zwischen L- und N-Teilgraph gibt
 (jede Funktion ist ein eigener, unverbundener Teilgraph, siehe

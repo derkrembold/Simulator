@@ -434,6 +434,15 @@ async function main() {
     }
   }
 
+  // sim-qha: demos/demo_20 - RCD Typ B (0,15 MΩ) und AFDD (0,3 MΩ): der
+  // Fahrplan öffnet die Trennstellen, Riso ist überall >999.
+  {
+    const { ergebnisse } = await berechneProtokoll('../../demos/demo_20');
+    await pruefe('demo_20: Riso mit Abklemmen überall >999 trotz Elektronik 0,15/0,3 MΩ (sim-qha)', async () => {
+      for (const e of ergebnisse) for (const m of e.risoMessungen) erwarteGleich(m.wert, '>999', `${e.sk} ${m.paar}`);
+    });
+  }
+
   // sim-kfb: demos/demo_19 - Rpe der Hutschienen mit PE-Klemme bzw.
   // PE-Reihenklemmen: H1 ohne Kontakt (kein Durchgang), H2 mit eigener
   // PE-Klemme 0, Reihenklemmen-Hutschiene H3 über den Zubringer 0,05.

@@ -411,7 +411,10 @@ function parseBauteile(ordner) {
           // unterscheidet sich. Optionale Spalte - fehlt sie in einer
           // bauteile.md-Datei (ältere Testcases), ist `z.AFDD` einfach
           // undefined und `bereinige()` liefert null, also `false`.
-          afdd: bereinige(z.AFDD) === 'ja'
+          afdd: bereinige(z.AFDD) === 'ja',
+          // Riso-Widerstand der Elektronik eines RCD Typ B/B+ oder AFDD in MΩ
+          // (sim-qha). Optionale Spalte; ohne Wert gilt der Standard der App.
+          risoElektronik: bereinige(z['Riso Elektronik (MΩ)']) ? parseFloat(String(z['Riso Elektronik (MΩ)']).replace(',', '.')) : null
         }));
     } else if (abschnitt.startsWith('Stromkreise')) {
       ergebnis.stromkreise = leseMarkdownTabelle(abschnitt).map((z) => {
@@ -621,6 +624,7 @@ function generiereAnlage(ordner) {
           // RCD-Bauform mit zweizeiliger Aufschrift) - elektrisch verhält
           // sich das Gerät wie ein normaler 2-poliger LS (L+N geschaltet).
           afdd: ls.afdd,
+          ...(ls.risoElektronik !== null ? { riso_elektronik_mohm: ls.risoElektronik } : {}),
           eingang: baueLeitung(netze, ls.name, 'i', lsFunktionen),
           ausgang: baueLeitung(netze, ls.name, 'o', lsFunktionen)
         },
@@ -675,6 +679,7 @@ function generiereAnlage(ordner) {
         selektiv: rcd.selektiv,
         abklemmen_bei_iso: rcd.abklemmen,
         max_ls_anzahl: rcd.anzahlLs,
+        ...(rcd.risoElektronik !== null ? { riso_elektronik_mohm: rcd.risoElektronik } : {}),
         // Auslösewerte des RCD-Geräts selbst (siehe KONZEPT.md "Berechnung
         // der Messwerte" - FI/RCD): Abschaltzeit, Auslösestrom,
         // Berührungsspannung. Werden von TEST übernommen, sobald ein RCD auf

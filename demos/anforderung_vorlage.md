@@ -107,6 +107,10 @@ PE-Potential (Mangel, Rpe an der Hutschiene zeigt keinen Durchgang). Die optiona
 Gruppe eine eigene PE-Klemme, per Ader von der unteren PE-Klemme versorgt; die Hutschiene hat
 dann PE-Potential. RCD und LS verbinden ihre Hutschiene nie mit PE.
 
+Riso Elektronik (sim-qha): optionale Spalte `Riso Elektronik (MΩ)` in der Gruppen-Tabelle (nur RCD
+Typ B/B+) und in der Stromkreis-Tabelle (nur LS mit AFDD), leer = Standard (Typ B 13 MΩ, AFDD
+101 MΩ). Ein kleiner Wert wie `0,15` macht eine Riso-Messung ohne Abklemmen n.i.O.
+
 Gruppen ohne RCD haben keine Gruppen-Fehler, dort den Fehler am Stromkreis eintragen. PE-Fehler sind
 immer eine einzelne Zahl (ein Schutzleiter), Gruppen haben keinen PE-Fehler (RCD und LS führen
 keinen PE). Die Spalte `Fehler PE (Ω)` in der Stromkreis-Tabelle darf fehlen.

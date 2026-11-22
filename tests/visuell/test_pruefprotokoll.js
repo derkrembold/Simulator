@@ -114,7 +114,54 @@ function erwartePositiv(tatsaechlich, kontext) {
   }
 }
 
+// berechneProtokoll() misst eine Anlage komplett im Browser und dauert je
+// Anlage 10-60 s. Die Anlagen werden deshalb vorab parallel in eigenen
+// Kindprozessen berechnet (sim-unq, Testlaufzeit); jeder Kindprozess hat
+// eigenen Browser und eigenen Fahrplan-Rekorder. Die Prüfungen laufen danach
+// wie bisher nacheinander auf den Ergebnissen.
+// Anzahl paralleler Prozesse: aus den Kernen des Rechners (zwei bleiben frei,
+// höchstens 4), von Hand überschreibbar mit TEST_PARALLEL=<n>.
+const PARALLEL = Number(process.env.TEST_PARALLEL) > 0
+  ? Number(process.env.TEST_PARALLEL)
+  : Math.max(1, Math.min(4, require('os').cpus().length - 2));
+
+function berechneImKindprozess(name) {
+  const os = require('os');
+  const { spawn } = require('child_process');
+  const datei = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'protokoll-')), 'ergebnis.json');
+  const code = `const p = require(${JSON.stringify(path.join(__dirname, '..', '..', 'tools', 'pruefprotokoll_erstellung.js'))});
+const m = require(${JSON.stringify(path.join(__dirname, '..', '..', 'tools', 'messgeraet_steuerung.js'))});
+p.berechneProtokoll(${JSON.stringify(name)}).then(async (e) => {
+  require('fs').writeFileSync(${JSON.stringify(datei)}, JSON.stringify(e));
+  await m.beendeTestUmgebungen(); process.exit(0);
+}).catch((err) => { console.error(err); process.exit(1); });`;
+  return new Promise((resolve, reject) => {
+    const kind = spawn(process.execPath, ['-e', code], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let fehler = '';
+    kind.stderr.on('data', (d) => { fehler += d; });
+    kind.on('exit', (rc) => {
+      if (rc !== 0) { reject(new Error(`${name}: berechneProtokoll fehlgeschlagen\n${fehler}`)); return; }
+      resolve(JSON.parse(fs.readFileSync(datei, 'utf8')));
+      fs.rmSync(path.dirname(datei), { recursive: true, force: true });
+    });
+  });
+}
+
+async function berechneAlle(namen) {
+  const ergebnisse = {};
+  const warteschlange = [...namen];
+  await Promise.all(Array.from({ length: PARALLEL }, async () => {
+    while (warteschlange.length > 0) {
+      const name = warteschlange.shift();
+      ergebnisse[name] = await berechneImKindprozess(name);
+    }
+  }));
+  return ergebnisse;
+}
+
 async function main() {
+  const vorab = await berechneAlle([...TESTCASES, '../../demos/demo_18', '../../demos/demo_19', '../../demos/demo_20']);
+
   await pruefe('kleinsterRiso: kleinster endlicher Wert gewinnt, >999 zählt als unendlich', async () => {
     erwarteGleich(kleinsterRiso(['>999', '12,5', '3', '450']), '3', 'gemischte Werte');
     erwarteGleich(kleinsterRiso(['>999', '0,8']), '0,8', 'Komma-Wert');
@@ -170,7 +217,7 @@ async function main() {
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref, erprobenPunkte, hauptleitungZs } = await berechneProtokoll(testcase);
+    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref, erprobenPunkte, hauptleitungZs } = vorab[testcase];
     anlagen[testcase] = anlage;
 
     // sim-f7j, integriert: testcase_08 (früher demo_08) hat einen Stromkreis
@@ -437,7 +484,7 @@ async function main() {
   // sim-qha: demos/demo_20 - RCD Typ B (0,15 MΩ) und AFDD (0,3 MΩ): der
   // Fahrplan öffnet die Trennstellen, Riso ist überall >999.
   {
-    const { ergebnisse } = await berechneProtokoll('../../demos/demo_20');
+    const { ergebnisse } = vorab['../../demos/demo_20'];
     await pruefe('demo_20: Riso mit Abklemmen überall >999 trotz Elektronik 0,15/0,3 MΩ (sim-qha)', async () => {
       for (const e of ergebnisse) for (const m of e.risoMessungen) erwarteGleich(m.wert, '>999', `${e.sk} ${m.paar}`);
     });
@@ -447,7 +494,7 @@ async function main() {
   // PE-Reihenklemmen: H1 ohne Kontakt (kein Durchgang), H2 mit eigener
   // PE-Klemme 0, Reihenklemmen-Hutschiene H3 über den Zubringer 0,05.
   {
-    const { hutschienenRpe } = await berechneProtokoll('../../demos/demo_19');
+    const { hutschienenRpe } = vorab['../../demos/demo_19'];
     await pruefe('demo_19: Rpe der Hutschienen H1 ---, H2 0,00, H3 0,05 (sim-kfb)', async () => {
       erwarteGleich(hutschienenRpe.map((m) => `${m.hutschiene}:${m.wert}`).join(), 'H1:---,H2:0,00,H3:0,05', 'Hutschienen-Rpe');
     });
@@ -457,7 +504,7 @@ async function main() {
   // Außenleitern angeklemmte Drehstromsteckdose (SK2). Gemessen wird an den
   // Dosenkontakten; eine falsche Dose reicht für n.i.O.
   {
-    const { erprobenPunkte } = await berechneProtokoll('../../demos/demo_18');
+    const { erprobenPunkte } = vorab['../../demos/demo_18'];
     await pruefe('demo_18: Rechtsdrehfeld n.i.O., weil eine Drehstromsteckdose Linksdrehfeld hat (sim-wme)', async () => {
       const punkt = erprobenPunkte.find((p) => p.punkt === 'Rechtsdrehfeld (Drehstromsteckdosen)');
       erwarteGleich(punkt?.ergebnis, 'n.i.O.', 'Erproben Rechtsdrehfeld');

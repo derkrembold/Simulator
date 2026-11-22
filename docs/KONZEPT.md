@@ -2409,6 +2409,25 @@ tests/visuell/
   ...
 ```
 
+### Laufzeit der Tests (sim-unq)
+
+`npm test` lief zuletzt etwa 11 Minuten (auf einem ausgelasteten Rechner bis 30). Die beiden
+teuren Tests sind umgebaut:
+
+- `tests/visuell/test_pruefprotokoll.js` misst jede Anlage komplett im Browser
+  (`berechneProtokoll()`, je Anlage 10-60 s). Die Anlagen werden vorab parallel in eigenen
+  Kindprozessen berechnet (jeder mit eigenem Browser und eigenem Fahrplan-Rekorder), die
+  Prüfungen laufen danach nacheinander. Anzahl Prozesse: Kerne minus 2, höchstens 4, mindestens
+  1; von Hand mit `TEST_PARALLEL=<n> npm test`. 345 s -> 102 s.
+- `tests/visuell/test_fahrplan_ausfuehrung.js` spielt jeden Fahrplan über den Handy-Schritt-Button
+  ab. Die Schritte laufen jetzt in einem einzigen `page.evaluate()` (die Schritte der App sind
+  synchron), mit denselben Prüfungen je Schritt. 218 s -> 7 s.
+- `tools/messgeraet_steuerung.js` startet Server und Browser nur noch einmal je Prozess
+  (`beendeTestUmgebungen()` am Ende); jede Testumgebung bekommt eine eigene Seite.
+
+Gesamt danach etwa 3,5 Minuten. Grundsatz: teure Tests (vollständige Messung, Replay) nur für
+Testcases; Demos nur mit billigen Prüfungen (`tools/anlagen_reproduzieren.js`).
+
 ---
 
 ## Schutzleiter (PE) – Konzept (sim-jvo, Entwurf, 2. Fassung nach Review)

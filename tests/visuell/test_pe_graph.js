@@ -136,7 +136,7 @@ function mitFehlerzeilen(quelle, zeilen) {
   });
 
   // --- Kontaktfehler aus der Fehlertabelle ---
-  const demo = path.join(PROJEKT_ROOT, 'demos', 'demo_04');
+  const demo = path.join(PROJEKT_ROOT, 'demos', 'demo_09');
   pruefe('Fehlertabelle mit Pin: Kontaktfehler landet am PE-Kontakt und wirkt im Ersatzwiderstand', () => {
     const basis = generiereGraph(demo).PE;
     const abgang = basis.kontakte.find((k) => k.pin === 'Reihenklemme_PE_SK2.io2');
@@ -155,7 +155,8 @@ function mitFehlerzeilen(quelle, zeilen) {
     try { generiereGraph(mitFehlerzeilen(demo, [`| ${peNetz} | 0,25 | SK2 PE |  |`])); } catch (e) { meldung = e.message; }
     bedingung(meldung.includes('braucht einen Kontakt'), `PE ohne Pin: "${meldung}"`);
     meldung = '';
-    try { generiereGraph(mitFehlerzeilen(demo, ['| N2 | 0,25 | L | Hauptschalter.i1 |'])); } catch (e) { meldung = e.message; }
+    const lNetz = generiereGraph(demo).L1.knoten[0];
+    try { generiereGraph(mitFehlerzeilen(demo, [`| ${lNetz} | 0,25 | L | Hauptschalter.i1 |`])); } catch (e) { meldung = e.message; }
     bedingung(meldung.includes('gibt es im PE-Netz nicht'), `L mit Pin: "${meldung}"`);
   });
 

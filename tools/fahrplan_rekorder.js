@@ -33,7 +33,7 @@ function erstelleRekorder(basisModul) {
 
   const rekorder = { abschnittBeginnen, abschnittEnde, alsJson };
   for (const [name, fn] of Object.entries(basisModul)) {
-    if (typeof fn !== 'function' || name === 'starteTestUmgebung') {
+    if (typeof fn !== 'function' || name === 'starteTestUmgebung' || name === 'beendeTestUmgebungen') {
       rekorder[name] = fn;
       continue;
     }

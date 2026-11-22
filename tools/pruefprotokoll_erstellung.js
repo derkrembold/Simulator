@@ -1128,6 +1128,7 @@ async function main() {
   await ctx.page.pdf({ path: pdfPfad, printBackground: true, format: 'A4', landscape: true });
   console.log('Prüfprotokoll gespeichert:', pdfPfad);
   await ctx.schliessen();
+  await basis.beendeTestUmgebungen();
 }
 
 module.exports = { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE };

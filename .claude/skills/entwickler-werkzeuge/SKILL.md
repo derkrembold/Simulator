@@ -62,19 +62,25 @@ Ablauf komplett aus diesem Modul zusammensetzen lässt, statt Boilerplate
 neu zu schreiben.
 
 ```js
-const { starteTestUmgebung, drehknopfAufModus, stelleEin, leseWert,
+const { starteTestUmgebung, beendeTestUmgebungen, drehknopfAufModus, stelleEin, leseWert,
   messspitzeSetzen, hebelSchalten, schraubeSchalten, testDruecken
 } = require('./tools/messgeraet_steuerung.js');
 
-const ctx = await starteTestUmgebung('testcase_04');
-await drehknopfAufModus(ctx, 'RISO');
-await stelleEin(ctx, 'grenzwiderstand', 30);
-await messspitzeSetzen(ctx, { bauteil: 'RCD1', netz: 'N10' });
-await messspitzeSetzen(ctx, { bauteil: 'RCD1', netz: 'N11' });
-await messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' });
-await testDruecken(ctx);
-console.log(await leseWert(ctx, 'hauptmesswert'), await leseWert(ctx, 'ampel'));
-await ctx.schliessen();
+try {
+  const ctx = await starteTestUmgebung('testcase_04');
+  await drehknopfAufModus(ctx, 'RISO');
+  await stelleEin(ctx, 'grenzwiderstand', 30);
+  await messspitzeSetzen(ctx, { bauteil: 'RCD1', netz: 'N10' });
+  await messspitzeSetzen(ctx, { bauteil: 'RCD1', netz: 'N11' });
+  await messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' });
+  await testDruecken(ctx);
+  console.log(await leseWert(ctx, 'hauptmesswert'), await leseWert(ctx, 'ampel'));
+  await ctx.schliessen();
+} finally {
+  // Server und Browser werden je Prozess geteilt (sim-unq) und halten ein
+  // eigenständiges Skript sonst am Leben.
+  await beendeTestUmgebungen();
+}
 ```
 
 `platzierteMessspitzen(ctx)` liest im Browser aus, auf welchem Netz die

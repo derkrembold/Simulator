@@ -22,6 +22,7 @@
 //   await testDruecken(ctx);
 //   console.log(await leseWert(ctx, 'hauptmesswert'));
 //   await ctx.schliessen();
+//   await beendeTestUmgebungen(); // am Ende des Skripts, am besten im finally
 
 const http = require('http');
 const fs = require('fs');
@@ -53,10 +54,36 @@ function starteServer() {
 // durch alle übrigen Funktionen dieser Datei durchgereicht wird (hält
 // `page` sowie den intern mitgeführten Messgerät-Zustand - siehe
 // MESSGERAET_ZUSTAND_DEFAULTS unten für den Grund, warum das nötig ist).
+//
+// Server und Browser werden nur einmal je Prozess gestartet und von allen
+// Testumgebungen geteilt (sim-unq: vorher je Messabschnitt ein eigener
+// Browser, ~0,4 s Startzeit je Abschnitt). Jede Testumgebung bekommt eine
+// eigene, isolierte Seite (eigener Browser-Kontext); `schliessen()` schließt
+// nur diese. Am Ende des Prozesses `beendeTestUmgebungen()` aufrufen, sonst
+// hält der offene Browser den Prozess am Leben.
+let geteilteUmgebung = null;
+
+function gemeinsameUmgebung() {
+  if (!geteilteUmgebung) {
+    geteilteUmgebung = (async () => {
+      const server = await starteServer();
+      const browser = await chromium.launch();
+      return { server, port: server.address().port, browser };
+    })();
+  }
+  return geteilteUmgebung;
+}
+
+async function beendeTestUmgebungen() {
+  if (!geteilteUmgebung) return;
+  const { server, browser } = await geteilteUmgebung;
+  geteilteUmgebung = null;
+  await browser.close();
+  server.close();
+}
+
 async function starteTestUmgebung(testcase) {
-  const server = await starteServer();
-  const port = server.address().port;
-  const browser = await chromium.launch();
+  const { port, browser } = await gemeinsameUmgebung();
   const page = await browser.newPage();
   const anlageParam = testcase ? `?anlage=tests/visuell/${testcase}/anlage.json` : '';
   await page.goto(`http://localhost:${port}/index.html${anlageParam}`);
@@ -70,8 +97,7 @@ async function starteTestUmgebung(testcase) {
     zone: 0,
     werte: { ...MESSGERAET_ZUSTAND_DEFAULTS },
     async schliessen() {
-      await browser.close();
-      server.close();
+      await page.context().close();
     }
   };
 }
@@ -561,6 +587,7 @@ async function protokollAnkreuzen(ctx, punkt, ergebnis = 'i.O.') {
 }
 
 module.exports = {
+  beendeTestUmgebungen,
   platzierteMessspitzen,
   protokollEintragen,
   protokollAnkreuzen,

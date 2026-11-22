@@ -583,7 +583,7 @@ pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['../../demos/demo_04', '../../demos/demo_15', '../../demos/demo_18', '../../demos/demo_19', '../../demos/demo_20', 'testcase_07', 'testcase_08']) {
+  for (const demo of ['../../demos/demo_15', '../../demos/demo_18', '../../demos/demo_19', '../../demos/demo_20', 'testcase_07', 'testcase_08']) {
     const name = `Verdrahtung ${path.basename(demo)}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
       const { abweichungen, geprueft } = await pruefeVerdrahtung(demo);

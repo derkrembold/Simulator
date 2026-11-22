@@ -104,59 +104,50 @@ async function main() {
 
       await page.locator('#handy svg g[style*="cursor"]').last().click(); // Replay-Icon
       await page.waitForTimeout(100);
-      const schrittButton = page.locator('#handy svg g[style*="cursor"]').nth(1);
+      // Alle Schritte laufen in einem einzigen page.evaluate() durch (sim-unq,
+      // Testlaufzeit): je Schritt ein Klick auf den Handy-Schritt-Button, die
+      // Schritte der App sind synchron, danach dieselben Prüfungen wie vorher.
+      // Liefert die erste Abweichung als Text oder null.
+      const abweichung = await page.evaluate((schritte) => {
+        const displayTexte = () => [...document.querySelectorAll('#messgeraet svg text')].map((t) => t.textContent);
+        const ZAHL_EINHEITEN = { spannungsfall: '%' };
+        for (const schritt of schritte) {
+          const knopf = document.querySelectorAll('#handy svg g[style*="cursor"]')[1];
+          if (!knopf) return `${schritt.abschnittTitel}: Handy-Schritt-Button nicht gefunden`;
+          knopf.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-      for (const schritt of flach) {
-        await schrittButton.click();
-        await page.waitForTimeout(20);
-
-        if (schritt.funktion === 'testDruecken') {
-          const texte = await displayTexte(page);
-          const platzhalter = texte.filter((t) => t?.includes('---') || t?.includes('___'));
-          if (platzhalter.length > 0) {
-            throw new Error(`${schritt.abschnittTitel}: Platzhalter nach testDruecken noch vorhanden (${JSON.stringify(platzhalter)})`);
+          if (schritt.funktion === 'testDruecken') {
+            const platzhalter = displayTexte().filter((t) => t?.includes('---') || t?.includes('___'));
+            if (platzhalter.length > 0) return `${schritt.abschnittTitel}: Platzhalter nach testDruecken noch vorhanden (${JSON.stringify(platzhalter)})`;
           }
-        }
-
-        if (schritt.funktion === 'leseWert' && schritt.ergebnis !== null) {
-          const texte = await displayTexte(page);
-          if (!texte.includes(schritt.ergebnis)) {
-            throw new Error(`${schritt.abschnittTitel}: leseWert("${schritt.argumente[0]}") erwartet "${schritt.ergebnis}", nicht im Display gefunden (${JSON.stringify(texte)})`);
+          if (schritt.funktion === 'leseWert' && schritt.ergebnis !== null) {
+            const texte = displayTexte();
+            if (!texte.includes(schritt.ergebnis)) return `${schritt.abschnittTitel}: leseWert("${schritt.argumente[0]}") erwartet "${schritt.ergebnis}", nicht im Display gefunden (${JSON.stringify(texte)})`;
           }
-        }
-
-        if (schritt.funktion === 'protokollEintragen') {
-          const [{ zeile, spalte }, wert] = schritt.argumente;
-          const ist = await page.evaluate(({ zeile, spalte }) =>
-            document.querySelector('#protokoll .pf-scroll table').rows[zeile].cells[spalte].querySelector('input')?.value, { zeile, spalte });
-          if (ist !== wert) {
-            throw new Error(`${schritt.abschnittTitel}: Protokollzelle Zeile ${zeile}/Spalte ${spalte} erwartet "${wert}", gefunden "${ist}"`);
+          if (schritt.funktion === 'protokollEintragen') {
+            const [{ zeile, spalte }, wert] = schritt.argumente;
+            const ist = document.querySelector('#protokoll .pf-scroll table').rows[zeile].cells[spalte].querySelector('input')?.value;
+            if (ist !== wert) return `${schritt.abschnittTitel}: Protokollzelle Zeile ${zeile}/Spalte ${spalte} erwartet "${wert}", gefunden "${ist}"`;
           }
-        }
-
-        if (schritt.funktion === 'protokollAnkreuzen') {
-          const angekreuzt = await page.evaluate(({ punkt, ergebnis }) => {
+          if (schritt.funktion === 'protokollAnkreuzen') {
+            const [punkt, ergebnis] = schritt.argumente;
             const zeile = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((z) => z.cells[0]?.textContent === punkt);
-            return zeile?.querySelectorAll('.pf-cb-zelle .pf-cb')[ergebnis === 'n.i.O.' ? 1 : 0]?.textContent;
-          }, { punkt: schritt.argumente[0], ergebnis: schritt.argumente[1] });
-          if (angekreuzt !== '☒') {
-            throw new Error(`${schritt.abschnittTitel}: "${schritt.argumente[0]}" nicht angekreuzt (gefunden "${angekreuzt}")`);
+            const angekreuzt = zeile?.querySelectorAll('.pf-cb-zelle .pf-cb')[ergebnis === 'n.i.O.' ? 1 : 0]?.textContent;
+            if (angekreuzt !== '☒') return `${schritt.abschnittTitel}: "${punkt}" nicht angekreuzt (gefunden "${angekreuzt}")`;
+          }
+          if (schritt.funktion === 'stelleEin') {
+            // Freie Zahlenwerte (z.B. Spannungsfall 3.5) erscheinen im Display
+            // mit Dezimalkomma und Einheit ("3,5%").
+            const zielWert = typeof schritt.argumente[1] === 'number'
+              ? `${schritt.argumente[1].toFixed(1).replace('.', ',')}${ZAHL_EINHEITEN[schritt.argumente[0]] ?? ''}`
+              : schritt.argumente[1];
+            const texte = displayTexte();
+            if (!texte.includes(zielWert)) return `${schritt.abschnittTitel}: stelleEin("${schritt.argumente[0]}", "${zielWert}") - Zielwert nicht im Display gefunden (${JSON.stringify(texte)})`;
           }
         }
-
-        if (schritt.funktion === 'stelleEin') {
-          // Freie Zahlenwerte (z.B. Spannungsfall 3.5) erscheinen im Display
-          // mit Dezimalkomma und Einheit ("3,5%").
-          const ZAHL_EINHEITEN = { spannungsfall: '%' };
-          const zielWert = typeof schritt.argumente[1] === 'number'
-            ? `${schritt.argumente[1].toFixed(1).replace('.', ',')}${ZAHL_EINHEITEN[schritt.argumente[0]] ?? ''}`
-            : schritt.argumente[1];
-          const texte = await displayTexte(page);
-          if (!texte.includes(zielWert)) {
-            throw new Error(`${schritt.abschnittTitel}: stelleEin("${schritt.argumente[0]}", "${zielWert}") - Zielwert nicht im Display gefunden (${JSON.stringify(texte)})`);
-          }
-        }
-      }
+        return null;
+      }, flach);
+      if (abweichung) throw new Error(abweichung);
 
       if (fehler.length > 0) throw new Error(`Browser-Fehler: ${fehler.join('; ')}`);
       await page.close();

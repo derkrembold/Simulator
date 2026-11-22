@@ -420,6 +420,46 @@ lehntAb('PE-Klemme mit ungültigem Wert (sim-kfb)', baueAnforderung({
   stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }]
 }), 'PE-Klemme "vielleicht" ungültig');
 
+// sim-03t: erwartete Punkte für Mängel und Beurteilung. Nur Zeilen mit
+// Schlüsselwörtern gelten, die Spalte Vorschlag wird nicht gelesen.
+const PUNKTE_TABELLEN = `
+
+## Mängel
+
+| Punkt | Schlüsselwörter | Vorschlag |
+| --- | --- | --- |
+| Phasenfolge | Linksdrehfeld; Drehfeld | Phasenfolge |
+| Schutzart |  | IP44; Schutzart |
+
+## Beurteilung
+
+| Punkt | Schlüsselwörter | Vorschlag |
+| --- | --- | --- |
+| Kurzschlussstrom | Ik ; Kurzschlussstrom | |
+`;
+
+pruefe('Mängel und Beurteilung (sim-03t): nur aktive Punkte landen in bauteile.md und anlage.json', () => {
+  const ergebnis = erzeuge(baueAnforderung(basis) + PUNKTE_TABELLEN);
+  bedingung(JSON.stringify(ergebnis.anlage.erwartete_maengel) === JSON.stringify([{ punkt: 'Phasenfolge', schluesselwoerter: ['Linksdrehfeld', 'Drehfeld'] }]),
+    `erwartete_maengel: ${JSON.stringify(ergebnis.anlage.erwartete_maengel)}`);
+  bedingung(JSON.stringify(ergebnis.anlage.erwartete_beurteilung) === JSON.stringify([{ punkt: 'Kurzschlussstrom', schluesselwoerter: ['Ik', 'Kurzschlussstrom'] }]),
+    `erwartete_beurteilung: ${JSON.stringify(ergebnis.anlage.erwartete_beurteilung)}`);
+});
+
+pruefe('Mängel und Beurteilung (sim-03t): ohne aktive Punkte keine Felder in anlage.json', () => {
+  const ergebnis = erzeuge(baueAnforderung(basis) + PUNKTE_TABELLEN.replace('Linksdrehfeld; Drehfeld', '').replace('Ik ; Kurzschlussstrom', ''));
+  bedingung(!('erwartete_maengel' in ergebnis.anlage) && !('erwartete_beurteilung' in ergebnis.anlage), Object.keys(ergebnis.anlage).join(', '));
+});
+
+lehntAb('Mängel: Schlüsselwörter ohne Punkt (sim-03t)', baueAnforderung(basis) + PUNKTE_TABELLEN.replace('| Phasenfolge |', '|  |'),
+  'Mängel: Zeile mit Schlüsselwörtern "Linksdrehfeld; Drehfeld" hat keinen Punkt');
+
+lehntAb('Beurteilung: Schlüsselwort ohne Buchstaben und Ziffern (sim-03t)', baueAnforderung(basis) + PUNKTE_TABELLEN.replace('Ik ;', 'Δ ;'),
+  'Beurteilung, Kurzschlussstrom: Schlüsselwort "Δ" enthält keinen Buchstaben und keine Ziffer');
+
+lehntAb('Mängel: Punkt doppelt (sim-03t)', baueAnforderung(basis) + PUNKTE_TABELLEN.replace('| Schutzart |  |', '| Phasenfolge | Drehrichtung |'),
+  'Mängel: ein Punkt steht doppelt');
+
 // sim-qha: Riso Elektronik nur bei RCD Typ B/B+ bzw. LS mit AFDD, als Zahl > 0.
 pruefe('Riso Elektronik (sim-qha): Wert landet in bauteile.md und anlage.json', () => {
   const text = baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2, typ: 'B' }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1', afdd: 'ja' }] })

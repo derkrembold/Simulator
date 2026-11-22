@@ -11,6 +11,8 @@
 // Werkzeug (siehe view/popup.js für das einzige andere HTML-basierte View
 // im Projekt).
 
+import { TITEL_MAENGEL, TITEL_BEURTEILUNG } from '../model/protokoll_soll.js';
+
 let cssEingefuegt = false;
 
 function sorgeFuerCss() {
@@ -317,8 +319,8 @@ function baueSeite2() {
   return `
     <div class="pf-blatt" style="margin-top: 20px;">
       <div class="pf-titel-zeile"><span class="pf-seite2-titel">Seite 2 – Übergabe-/Zustandsbericht</span></div>
-      ${abschnitt('Mängel', linienTabelle(11))}
-      ${abschnitt('Beurteilung', linienTabelle(11))}
+      ${abschnitt(TITEL_MAENGEL, linienTabelle(11))}
+      ${abschnitt(TITEL_BEURTEILUNG, linienTabelle(11))}
       ${abschnitt('Abschluss',
         zeile('', `<span class="pf-cboption"><span class="pf-cb">☐</span>Auftraggeber: Anlage vollständig übernommen</span>`) +
         zeile('', `<span class="pf-cboption"><span class="pf-cb">☐</span>Zustandsbericht erhalten</span>`) +

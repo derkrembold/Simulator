@@ -7,7 +7,7 @@ import { SchraubendreherView } from '../view/schraubendreher.js';
 import { HandyView } from '../view/handy.js';
 import { fuehreSchrittAus } from './fahrplan_ausfuehrung.js';
 import { pruefeProtokoll } from './protokoll_check.js';
-import { hatDrehstromEndstelle } from '../model/protokoll_soll.js';
+import { hatDrehstromEndstelle, erwartetePunkte } from '../model/protokoll_soll.js';
 import { berechneSpannungsfall } from '../model/spannungsfall.js';
 import { Popup } from '../view/popup.js';
 import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehrend, berechneErsatzwiderstand, peKnoten } from '../model/pfad.js';
@@ -1723,7 +1723,7 @@ async function start() {
         renderHandy(handyHoehe);
       },
       onCheckPruefenKlick: () => {
-        checkErgebnis = pruefeProtokoll(protokollContainer, { fahrplan, drehstrom: hatDrehstromEndstelle(anlage) });
+        checkErgebnis = pruefeProtokoll(protokollContainer, { fahrplan, drehstrom: hatDrehstromEndstelle(anlage), punkte: erwartetePunkte(anlage) });
         renderHandy(handyHoehe);
       },
       onTimerIconKlick: () => {

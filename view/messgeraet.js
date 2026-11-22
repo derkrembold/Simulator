@@ -1,3 +1,5 @@
+import { berechneLim } from '../model/abschaltbedingung.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Internes Koordinatensystem (viewBox) - unverändert vom Mockup, alle Positionen
@@ -20,23 +22,11 @@ const DISPLAY = { x: 190, y: 55, breite: 260, hoehe: 190 };
 const DREHKNOPF = { cx: 542, cy: 147, r: 26 };
 const TEST_TASTE = { cx: 57, cy: 149 };
 
-// Lim-Grenzwert für ZI/ZS: Auslösefaktor je LS-Charakteristik, direkt mit dem
-// Bemessungsstrom multipliziert (Lim = Faktor × Bemessungsstrom). Lim hängt
-// also von BEIDEN Werten ab (Typ und Bemessungsstrom), nicht nur vom Typ.
-// NV/gG-Faktoren können sich noch ändern (vom Anwender als vorläufig markiert).
-const LIM_FAKTOR_NACH_LS_TYP = {
-  B: 5, C: 10, D: 20, K: 15, Z: 3, L: 5.25, U: 12, NV: 12, gG: 12
-};
-
-// Roher Lim-Zahlenwert (Ampere) aus LS-Typ und Bemessungsstrom (String mit
-// "A"-Suffix, z.B. "16A") - gebraucht sowohl für die Textanzeige
-// (berechneLimText() unten) als auch für den Isc/Lim-Ampel-Vergleich in
-// controller/app.js (ziAmpel), damit die Formel nur an einer Stelle steht.
-function berechneLim(lsTyp, lsBemessungsstrom) {
-  const faktor = LIM_FAKTOR_NACH_LS_TYP[lsTyp];
-  const bemessungsstrom = parseFloat(lsBemessungsstrom);
-  return faktor * bemessungsstrom;
-}
+// Lim-Grenzwert für ZI/ZS (Lim = Auslösefaktor je LS-Charakteristik ×
+// Bemessungsstrom) kommt aus model/abschaltbedingung.js, damit Ampel und
+// Fahrplan-Generator dieselbe Formel nutzen. Gebraucht für die Textanzeige
+// (berechneLimText() unten) und den Isc/Lim-Ampel-Vergleich in
+// controller/app.js.
 
 // Berechnet den formatierten Lim-Text ("Lim: X,XA") aus LS-Typ und
 // Bemessungsstrom - gemeinsam genutzt vom initialen/statischen Zustand

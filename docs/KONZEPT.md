@@ -830,8 +830,8 @@ auf 0V, keine Phasenfolge-Anzeige mehr).
   den die Charakteristik des Referenz-LS für ein Auslösen innerhalb der
   Abschaltzeit braucht – hängt von **beiden** Referenzwerten ab, `lsTyp` **und**
   `lsBemessungsstrom` (nicht nur vom Typ): `Lim = Faktor(lsTyp) × lsBemessungsstrom`.
-  Faktoren (`LIM_FAKTOR_NACH_LS_TYP` in `view/messgeraet.js`, exportiert als
-  `berechneLimText()`): B=5, C=10, K=15, D=20, Z=3, L=5,25, U=12, NV=12, gG=12
+  Faktoren (`LIM_FAKTOR_NACH_LS_TYP` in `model/abschaltbedingung.js`, in der
+  Anzeige über `berechneLimText()` in `view/messgeraet.js`): B=5, C=10, K=15, D=20, Z=3, L=5,25, U=12, NV=12, gG=12
   (NV/gG-Faktoren können sich noch ändern). `Lim` wird live neu berechnet, wenn
   LS-Typ oder Bemessungsstrom über ▲/▼ geändert werden (in `controller/app.js`).
 - **Fehlerstrom/Typ (FI/RCD)** – neben dem Titel "RCD I" zeigt das Display den
@@ -891,9 +891,31 @@ i.O./n.i.O.), Verwendete Messgeräte (3 Zeilen), Messen –
 Stromkreisverteiler (19 Spalten in 4 Gruppen + 3 eigenständigen Spalten,
 zweizeiliger Tabellenkopf, 11 Zeilen, erste Zeile mit "Hauptleitung"
 vorausgefüllt), Prüfergebnis, Abschluss – Auftraggeber/Prüfer, und als
-eigenes zweites Blatt Seite 2 (Übergabe-/Zustandsbericht: Mängel/
-Beurteilung als je 11 linierte Zeilen, plus dieselben Abschluss-Felder wie
+eigenes zweites Blatt Seite 2 (Übergabe-/Zustandsbericht: „Folgende
+Mängel wurden festgestellt“ und „Beurteilung zu den gemessenen
+Stromkreisen“ als je 11 linierte Zeilen, plus dieselben Abschluss-Felder wie
 Seite 1).
+
+**Mängel und Beurteilung über Schlüsselwörter (sim-03t):** Beide Felder
+müssen immer ausgefüllt sein (z.B. „nichts auffällig“). Zusätzlich kann eine
+Anlage Punkte vorgeben, die der Prüfling nennen muss: in `anforderung.md`
+die Tabellen `## Mängel` und `## Beurteilung` (Spalten Punkt,
+Schlüsselwörter, Vorschlag). Ein Punkt gilt nur, wenn seine Spalte
+Schlüsselwörter gefüllt ist; Alternativen sind mit `;` getrennt, eine genügt.
+Die Vorlage `demos/anforderung_vorlage.md` enthält Standard-Punkte
+(Kurzschlussstrom, Phasenfolge, Schutzleiter, Kabel und Leitungen,
+Dokumentation usw.) mit Vorschlägen in der Spalte Vorschlag, die Spalte
+Schlüsselwörter ist leer. So erwartet eine neue Demo nicht versehentlich
+Mängel. Nichts wird aus der Anlage abgeleitet: wer einen Fehler einbaut (z.B.
+Linksdrehfeld), trägt die Schlüsselwörter selbst ein (Entscheidung Mensch).
+Fehlt ein Punkt, wird das ganze Feld rot, ohne Hinweis welcher; der
+Prüfling soll selbst herausfinden, was fehlt. Zusätzlicher Text ist erlaubt.
+Ein Kontrollwort für „keine Mängel“ gibt es nicht. Gibt die Anlage
+Mängel-Punkte vor oder liegt laut Fahrplan ein Stromkreis im 2/3-Band
+(sim-g0o, siehe BEDIENERPROZESS.md bei Ik L-N), sind auch die Ergebnis-Kreuze
+festgelegt (Entscheidung Mensch): „Mängel festgestellt“, Prüf-Plakette „Nein“ und „Anlage entspricht
+den anerkannten Regeln“ „Nein“ (Seite 1 und Seite 2). Ohne Mängel-Punkte
+genügt dort wie bisher ein Kreuz.
 
 **Messen – Stromkreisverteiler braucht horizontalen Scroll:** 19 Spalten
 passen bei Schaltkasten-Breite nicht nebeneinander - die Tabelle sitzt in

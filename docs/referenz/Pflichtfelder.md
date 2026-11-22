@@ -53,8 +53,8 @@
 * für jeden Stromkreis
 
 ## Prüfergebnis
-* Ergebnis - kreuz muss stehen bei Mängel oder keine Mängel
-* Prüf-Plakette angebracht - kreuz muss stehen bei ja oder nein
+* Ergebnis - kreuz muss stehen bei Mängel oder keine Mängel; gibt die Anlage Mängel-Punkte vor oder liegt ein Stromkreis im 2/3-Band, muss es Mängel festgestellt sein (sim-03t, sim-g0o)
+* Prüf-Plakette angebracht - kreuz muss stehen bei ja oder nein; mit Mängel-Punkten der Anlage oder im 2/3-Band nein (sim-03t, sim-g0o)
 * Nächster Prüftermin - Termin muss drinstehen
 
 ## Abschluss – Auftraggeber
@@ -63,19 +63,19 @@
 Ort, Datum und Unterschrift des Auftraggebers werden nicht geprüft.
 
 ## Abschluss – Prüfer
-+ Anlage entspricht den anerkannten Regeln der Elektrotechnik - kreuz muss bei einen der beiden stehen
++ Anlage entspricht den anerkannten Regeln der Elektrotechnik - kreuz muss bei einen der beiden stehen; mit Mängel-Punkten der Anlage oder im 2/3-Band Nein (sim-03t, sim-g0o)
 * Ort - Stuttgart (Postleitzahl 70376 davor erlaubt, aber nicht nötig)
 * Datum - aktuelles Datum
 * Unterschrift - Ohne Unterschrift ist man durchgefallen, hier muss einfach nur der Name rein
 
 ## Seite 2 – Mängel
-* Mängel - es muss Text drinstehen, der Inhalt wird nicht geprüft
+* Mängel - es muss Text drinstehen; gibt die Anlage Punkte mit Schlüsselwörtern vor, muss jeder Punkt genannt sein (sim-03t)
 
 ## Seite 2 – Beurteilung
-* Beurteilung - es muss Text drinstehen, der Inhalt wird nicht geprüft
+* Beurteilung - es muss Text drinstehen; gibt die Anlage Punkte mit Schlüsselwörtern vor, muss jeder Punkt genannt sein (sim-03t)
 
 ## Seite 2 – Abschluss
 + Anlage vollständig übernommen - angekreuzt
 + Zustandsbericht erhalten - angekreuzt
-+ Anlage entspricht anerkannten Regeln - kreuz muss bei einem der beiden stehen
++ Anlage entspricht anerkannten Regeln - kreuz muss bei einem der beiden stehen; mit Mängel-Punkten der Anlage oder im 2/3-Band Nein (sim-03t, sim-g0o)
 * Ort / Datum / Unterschrift (Prüfer) - Stuttgart (PLZ erlaubt, nicht nötig), aktuelles Datum und Unterschrift (beliebiger Text), Trennzeichen egal; der Prüfer unterschreibt immer, der Auftraggeber nicht

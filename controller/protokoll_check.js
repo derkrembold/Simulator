@@ -10,6 +10,7 @@
 // Wert verrät der Check nicht (Entscheidung zu sim-0bn).
 
 import { PROTOKOLL_REGELN } from '../model/protokoll_soll.js';
+import { bewerteAbschaltung } from '../model/abschaltbedingung.js';
 
 // --- Vergleich ---
 
@@ -59,6 +60,47 @@ export function gleichesKennzeichen(ist, soll) {
   const b = String(soll ?? '').trim().match(KENNZEICHEN);
   return Boolean(a && b) && a[1].toUpperCase() === b[1].toUpperCase()
     && Number(a[2]) === Number(b[2]) && Number(a[3]) === Number(b[3]);
+}
+
+// Schlüsselwörter für Mängel und Beurteilung (sim-03t). Verglichen werden
+// Wörter: Kleinschreibung, ß = ss, ä und ae = a (ebenso ö, ü), damit
+// "Maengel" = "Mängel" und "Kurzschlussströme" mit "Kurzschlussstrom"
+// beginnt. Alles außer Buchstaben und Ziffern trennt Wörter. Ein
+// Schlüsselwort muss an einem Wortanfang stehen und darf über mehrere Wörter
+// gehen ("IP44" passt zu "IP 44", "2/3" zu "2 / 3").
+// Bei reinen Buchstabenwörtern ab 4 Zeichen genügt der Anfang
+// ("Kurzschlussstrom" passt zu "Kurzschlussströme"). Kürzere wie "Ik" oder
+// "PE" müssen ganz passen, damit "PE" nicht in "Personal" gefunden wird,
+// ebenso alles mit Ziffern, damit "IP44" nicht zu "IP 440" passt.
+const MIN_LAENGE_ANFANG = 4;
+
+function woerter(text) {
+  return String(text ?? '').toLowerCase()
+    .replace(/ß/g, 'ss').replace(/ä|ae/g, 'a').replace(/ö|oe/g, 'o').replace(/ü|ue/g, 'u')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+export function enthaeltSchluesselwort(text, schluesselwort) {
+  const ziel = woerter(schluesselwort).join('');
+  if (ziel === '') return false;
+  const anfangGenuegt = ziel.length >= MIN_LAENGE_ANFANG && /^[a-z]+$/.test(ziel);
+  const t = woerter(text);
+  for (let i = 0; i < t.length; i++) {
+    let kette = '';
+    for (let j = i; j < t.length && kette.length < ziel.length; j++) {
+      kette += t[j];
+      if (kette === ziel) return true;
+      if (anfangGenuegt && kette.length >= ziel.length && kette.startsWith(ziel)) return true;
+      if (!ziel.startsWith(kette)) break;
+    }
+  }
+  return false;
+}
+
+// Jeder Punkt muss mit mindestens einem seiner Schlüsselwörter im Text stehen.
+export function allePunkteGenannt(text, punkte) {
+  return (punkte ?? []).every((p) => p.schluesselwoerter.some((w) => enthaeltSchluesselwort(text, w)));
 }
 
 // Datum T.M.JJJJ (führende Nullen egal, auch JJ) gleich `heute`.
@@ -151,7 +193,7 @@ export function erwarteteKreuze(fahrplan) {
   return erwartet;
 }
 
-function pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll = {}) {
+function pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll = {}, punkte = {}, mangel = false) {
   if (regel.nurMitDrehstrom && !drehstrom) return;
   const abschnitt = findeAbschnitt(wurzel, regel.abschnitt);
   if (!abschnitt) return;
@@ -174,10 +216,14 @@ function pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll = {}) 
     return;
   }
 
-  // Seite 2: Linien-Tabelle, mindestens eine ausgefüllte Zeile.
+  // Seite 2: Linien-Tabelle, mindestens eine ausgefüllte Zeile. Hat die
+  // Anlage erwartete Punkte (sim-03t), muss jeder davon im Text stehen.
+  // Fehlt einer, wird die ganze Tabelle rot, ohne zu verraten, welcher.
   if (regel.art === 'text') {
     const felder = [...abschnitt.querySelectorAll('input.pf-feld')];
-    if (!felder.some((f) => f.value.trim() !== '')) felder.forEach(markiere);
+    const text = felder.map((f) => f.value).join('\n');
+    const richtig = text.trim() !== '' && allePunkteGenannt(text, punkte[regel.punkte]);
+    if (!richtig) felder.forEach(markiere);
     return;
   }
 
@@ -202,9 +248,12 @@ function pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll = {}) 
 
   if (regel.art === 'auswahl' || regel.art === 'einsAus') {
     const an = optionen(zeile).filter((o) => o.an);
-    const richtig = regel.art === 'auswahl'
-      ? an.length === 1 && an[0].text === regel.wert
-      : an.length === 1;
+    // Hat die Anlage einen Mangel (Mängel-Punkte, sim-03t, oder 2/3-Regel,
+    // sim-g0o), ist das Ergebnis vorgegeben, z.B. "Mängel festgestellt" und
+    // Plakette "Nein".
+    const soll = regel.art === 'auswahl' ? regel.wert
+      : (regel.beiMaengeln && mangel ? regel.beiMaengeln : null);
+    const richtig = an.length === 1 && (soll === null || an[0].text === soll);
     if (!richtig) markiere(zeile.querySelector('.pf-cbgroup') ?? zeile);
     return;
   }
@@ -318,12 +367,30 @@ function pruefeMesstabelle(wurzel, fahrplan, markiere) {
   }
 }
 
+// 2/3-Regel (sim-g0o): Liegt ein Stromkreis laut Fahrplan über
+// Z = 2/3 · U0 / Ia (Ampel grün oder rot), hat die Anlage einen Mangel, auch
+// ohne Mängel-Punkte in der Anforderung. Bewertet wird der Wert, der ins
+// Protokoll kommt (Zs ohne RCD, Zi mit RCD), mit LS-Art und In derselben Zeile.
+const SPALTE_UE_ART = 8;
+const SPALTE_UE_IN = 9;
+const SPALTE_ZS = 10;
+const SPALTE_ZI = 12;
+export function zweiDrittelMangel(fahrplan) {
+  return sollZeilenAusFahrplan(fahrplan).some(({ werte }) => {
+    const art = werte[SPALTE_UE_ART];
+    const z = parseFloat(String(werte[SPALTE_ZS] ?? werte[SPALTE_ZI] ?? '').replace(',', '.'));
+    if (!art || !werte[SPALTE_UE_IN] || Number.isNaN(z)) return false;
+    return bewerteAbschaltung(z, art, werte[SPALTE_UE_IN]).mangel;
+  });
+}
+
 // --- Einstieg ---
 
 // Entfernt alte Markierungen, prüft neu und liefert die Anzahl der rot
 // markierten Felder. `drehstrom` = Anlage hat eine Drehstrom-Endstelle
 // (hatDrehstromEndstelle()); ohne gilt das Rechtsdrehfeld als nicht nötig.
-export function pruefeProtokoll(wurzel, { fahrplan = null, heute = new Date(), drehstrom = true } = {}) {
+// `punkte` = erwartete Punkte für Mängel und Beurteilung (erwartetePunkte()).
+export function pruefeProtokoll(wurzel, { fahrplan = null, heute = new Date(), drehstrom = true, punkte = {} } = {}) {
   wurzel.querySelectorAll('.pf-fehler').forEach((el) => el.classList.remove('pf-fehler'));
   let anzahl = 0;
   const markiere = (el) => {
@@ -332,7 +399,8 @@ export function pruefeProtokoll(wurzel, { fahrplan = null, heute = new Date(), d
     anzahl += 1;
   };
   const kreuzSoll = erwarteteKreuze(fahrplan);
-  for (const regel of PROTOKOLL_REGELN) pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll);
+  const mangel = (punkte.maengel ?? []).length > 0 || zweiDrittelMangel(fahrplan);
+  for (const regel of PROTOKOLL_REGELN) pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll, punkte, mangel);
   if (fahrplan) pruefeMesstabelle(wurzel, fahrplan, markiere);
   return { anzahl };
 }

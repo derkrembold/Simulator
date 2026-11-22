@@ -922,8 +922,10 @@ Drehstromsteckdose + beide neuen Steckdosen SK2/SK3).
   Bemessungsstrom/Abschaltzeit; FI/RCD: Fehlerstrom/Typ) können dagegen schon
   vorher als Platzhalter erscheinen. Bei ZI/ZS wird zusätzlich `Lim`
   (Mindestauslösestrom) automatisch aus LS-Typ **und** Bemessungsstrom berechnet:
-  `Lim = Faktor(lsTyp) × Bemessungsstrom` (`LIM_FAKTOR_NACH_LS_TYP`, modulintern
-  in `view/messgeraet.js`, nicht exportiert). Zwei Varianten exportiert:
+  `Lim = Faktor(lsTyp) × Bemessungsstrom` (`LIM_FAKTOR_NACH_LS_TYP` und
+  `berechneLim()` in `model/abschaltbedingung.js`, seit sim-g0o gemeinsam mit
+  dem Fahrplan-Generator, der dort auch die 2/3-Regel `bewerteAbschaltung()`
+  nutzt). `view/messgeraet.js` exportiert zwei Varianten:
   `berechneLimText()` (formatierter Text `Lim: X,XA`, für die Anzeige) und
   `berechneLim()` (roher Zahlenwert, seit der Isc/Lim-Ampel bei ZI gebraucht -
   siehe `controller/app.js` unten). Beide von `controller/app.js` für die
@@ -1012,7 +1014,7 @@ Drehstromsteckdose + beide neuen Steckdosen SK2/SK3).
     ältere DIN- bzw. Sicherungs- statt aktuelle LS-Charakteristiken (daher
     nicht in `docs/referenz/bauteilwerte.md`, das nur echte LS-Bauteilfelder
     listet), als Referenzgerät für die Zi/Zs-Messung aber ebenso zulässig;
-    passend dazu unterstützt `LIM_FAKTOR_NACH_LS_TYP` (`view/messgeraet.js`)
+    passend dazu unterstützt `LIM_FAKTOR_NACH_LS_TYP` (`model/abschaltbedingung.js`)
     alle vier bereits seit dessen erster Version. **Dieselben
     drei Variablen** werden in beiden Ansichten (normal "Zl" und "ΔU")
     gelesen und geschrieben - eine Änderung in der einen Ansicht ist sofort
@@ -1914,6 +1916,23 @@ entfernt alte Markierungen, prüft und markiert Abweichungen mit der Klasse
   Außenleitern oder Spannungsfall n.i.O. (sim-wme).
   `test_protokoll_check.js` prüft, dass jeder Eintrag der Markdown-Datei
   eine Regel hat.
+- **Mängel und Beurteilung** (sim-03t, Art `text` mit `punkte`): Die Anlage
+  kann in `erwartete_maengel` und `erwartete_beurteilung` Punkte vorgeben
+  (`[{ punkt, schluesselwoerter }]`, aus den Tabellen `## Mängel` und
+  `## Beurteilung` der `anforderung.md` über `bauteile.md`, nur Zeilen mit
+  Schlüsselwörtern). `erwartetePunkte(anlage)` in `model/protokoll_soll.js`
+  liefert sie, app.js übergibt sie als `punkte`. Jeder Punkt braucht eines
+  seiner Schlüsselwörter im Feld (`enthaeltSchluesselwort()`: Wortanfang,
+  über mehrere Wörter, ä/ae = a; nur reine Buchstabenwörter ab 4 Zeichen
+  dürfen ein Wortanfang sein, kürzere und solche mit Ziffern wie IP44 müssen
+  ganz passen). Fehlt einer, werden alle 11 Linien rot. Mit Mängel-Punkten oder einem Stromkreis im 2/3-Band
+  (`zweiDrittelMangel(fahrplan)`, sim-g0o: LS-Art, In und Zs bzw. Zi aus den
+  `protokollEintragen`-Schritten, bewertet mit `bewerteAbschaltung()` aus
+  `model/abschaltbedingung.js`) verlangen die
+  `einsAus`-Regeln mit `beiMaengeln` genau diese Option („Mängel
+  festgestellt“, Plakette und „entspricht Regeln“ jeweils „Nein“). Die Abschnittstitel stehen
+  als `TITEL_MAENGEL`/`TITEL_BEURTEILUNG` im Modell und werden von
+  view/protokoll.js verwendet.
 - **Messtabelle**: Sollwerte aus den `protokollEintragen`-Schritten des
   Fahrplans (dieselben Werte wie beim Replay). Die Benutzerzeilen werden
   den Stromkreisen über die beste Gesamtzuordnung zugeordnet (`ordneZu()`,

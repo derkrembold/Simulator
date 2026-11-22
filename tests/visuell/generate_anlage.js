@@ -384,7 +384,12 @@ function parseBauteile(ordner) {
   const text = fs.readFileSync(path.join(ordner, 'bauteile.md'), 'utf8');
   const abschnitte = text.split(/^## /m).slice(1);
 
-  const ergebnis = { bauteile: [], stromkreise: [], kopfdaten: {}, steckdosenPlatzierung: [] };
+  const ergebnis = { bauteile: [], stromkreise: [], kopfdaten: {}, steckdosenPlatzierung: [], maengel: [], beurteilung: [] };
+  // Erwartete Punkte für Mängel und Beurteilung (sim-03t).
+  const lesePunkte = (abschnitt) => leseMarkdownTabelle(abschnitt).map((z) => ({
+    punkt: z.Punkt.trim(),
+    schluesselwoerter: z['Schlüsselwörter'].split(';').map((w) => w.trim()).filter(Boolean)
+  }));
 
   for (const abschnitt of abschnitte) {
     if (abschnitt.startsWith('Bauteile')) {
@@ -429,6 +434,10 @@ function parseBauteile(ordner) {
       }
     } else if (abschnitt.startsWith('Steckdosen')) {
       ergebnis.steckdosenPlatzierung = parseSteckdosenPlatzierung(abschnitt);
+    } else if (abschnitt.startsWith('Mängel')) {
+      ergebnis.maengel = lesePunkte(abschnitt);
+    } else if (abschnitt.startsWith('Beurteilung')) {
+      ergebnis.beurteilung = lesePunkte(abschnitt);
     }
   }
 
@@ -439,7 +448,7 @@ function parseBauteile(ordner) {
 
 function generiereAnlage(ordner) {
   const { netze, bauteilTabelle } = parseNetzplan(ordner);
-  const { bauteile, stromkreise, kopfdaten, steckdosenPlatzierung } = parseBauteile(ordner);
+  const { bauteile, stromkreise, kopfdaten, steckdosenPlatzierung, maengel, beurteilung } = parseBauteile(ordner);
 
   const findeBauteil = (name) => bauteile.find((b) => b.name === name);
   const hauptschalter = findeBauteil('Leistungsschalter') || findeBauteil('Hauptschalter');
@@ -461,6 +470,11 @@ function generiereAnlage(ordner) {
     spannung_stromkreise: parseInt(kopfdaten['Spannung Stromkreise'], 10),
     // Vorimpedanz der Einspeisung (sim-vdo); ohne Eintrag rechnet die App mit 0,14 Ω.
     ...(kopfdaten['Vorimpedanz'] ? { vorimpedanz_ohm: parseFloat(kopfdaten['Vorimpedanz'].replace(',', '.')) } : {}),
+    // Punkte, die der Prüfling unter Mängel bzw. Beurteilung nennen muss
+    // (sim-03t, controller/protokoll_check.js); fehlen sie, genügt ein
+    // ausgefülltes Feld.
+    ...(maengel.length > 0 ? { erwartete_maengel: maengel } : {}),
+    ...(beurteilung.length > 0 ? { erwartete_beurteilung: beurteilung } : {}),
 
     // Raster für das Steckdosen-View-Objekt oberhalb des Schaltkastens (siehe
     // view/steckdosen.js und die "## Steckdosen (Platzierung)"-Tabelle in

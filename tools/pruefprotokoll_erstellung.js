@@ -20,6 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const { erstelleRekorder } = require('./fahrplan_rekorder.js');
 const basis = require('./messgeraet_steuerung.js');
+const { bewerteAbschaltung } = require('../model/abschaltbedingung.js');
 const messgeraet = erstelleRekorder(basis);
 
 const PROJEKT_ROOT = path.resolve(__dirname, '..');
@@ -1016,6 +1017,28 @@ async function berechneProtokoll(testcase) {
     Object.assign(protokoll[i].werte, { ueArt: sk.ls.char, ueIn: String(sk.ls.in) },
       gruppe.rcd ? { zi: e.zi, ikLn: e.ikLn } : { zs: e.zs, ik: e.ik });
   });
+  // 2/3-Regel (sim-g0o, model/abschaltbedingung.js): bewertet wird der Wert,
+  // der ins Protokoll kommt (mit RCD Zi, ohne RCD Zs). Ein Mangel steht nicht
+  // im Fahrplan; wer ihn erwartet, trägt einen Mängel-Punkt in die
+  // anforderung.md ein (sim-03t). Hier nur der Hinweis dazu.
+  const zweiDrittel = [];
+  for (const { sk, gruppe } of stromkreise) {
+    const e = ergebnisVon(sk);
+    const groesse = gruppe.rcd ? 'Zi' : 'Zs';
+    const wert = gruppe.rcd ? e.zi : e.zs;
+    const z = parseFloat(String(wert).replace(',', '.'));
+    if (Number.isNaN(z)) continue;
+    const b = bewerteAbschaltung(z, sk.ls.char, sk.ls.in);
+    const grenze = b.grenzeZ.toFixed(2).replace('.', ',');
+    zweiDrittel.push({ stromkreis: sk.bezeichnung, groesse, wert, grenze, mangel: b.mangel });
+    if (b.mangel) {
+      console.log(`Hinweis 2/3-Regel: ${sk.bezeichnung} ${groesse} ${wert} Ω > ${grenze} Ω (${sk.ls.char}${sk.ls.in}), Mangel, Ampel ${b.ampelGruen ? 'grün' : 'rot'}`);
+    }
+  }
+  if (zweiDrittel.some((m) => m.mangel) && (anlage.erwartete_maengel ?? []).length === 0) {
+    console.log('Hinweis 2/3-Regel: die Anlage erwartet keine Mängel. Mängel-Punkt (z.B. Kurzschlussstrom) in anforderung.md eintragen?');
+  }
+
   protokollEintraege.push(...await trageEin(testcase, 'Protokoll: Überstromschutz eintragen',
     'Je Stromkreis LS-Charakteristik und Nennstrom vom Typenschild eintragen, dazu mit RCD Zi/Ik L-N, ohne RCD Zs/Ik L-PE. Bei Drehstrom der schlechteste Außenleiter.',
     eintraegeFuer(['ueArt', 'ueIn', 'zs', 'ik', 'zi', 'ikLn'])));
@@ -1093,7 +1116,7 @@ async function berechneProtokoll(testcase) {
     }))
   ];
 
-  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs, hutschienenRpe };
+  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs, hutschienenRpe, zweiDrittel };
 }
 
 async function main() {

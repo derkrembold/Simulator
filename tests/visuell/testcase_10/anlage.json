@@ -1,9 +1,57 @@
 {
   "name": "Sonderfälle",
-  "beschreibung": "Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer",
+  "beschreibung": "Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer",
   "netzform": "TN-S",
   "spannung_einspeisung": 400,
   "spannung_stromkreise": 400,
+  "vorimpedanz_ohm": 1,
+  "erwartete_maengel": [
+    {
+      "punkt": "Phasenfolge",
+      "schluesselwoerter": [
+        "Linksdrehfeld",
+        "Drehfeld",
+        "Phasenfolge",
+        "Drehrichtung"
+      ]
+    },
+    {
+      "punkt": "Schutzleiter",
+      "schluesselwoerter": [
+        "Schutzleiter",
+        "PE",
+        "Hutschiene"
+      ]
+    },
+    {
+      "punkt": "Kurzschlussstrom",
+      "schluesselwoerter": [
+        "Kurzschlussstrom",
+        "Ik",
+        "Schleifenimpedanz",
+        "2/3"
+      ]
+    }
+  ],
+  "erwartete_beurteilung": [
+    {
+      "punkt": "Phasenfolge",
+      "schluesselwoerter": [
+        "Linksdrehfeld",
+        "Drehfeld",
+        "Phasenfolge"
+      ]
+    },
+    {
+      "punkt": "Kurzschlussstrom",
+      "schluesselwoerter": [
+        "Kurzschlussstrom",
+        "Ik",
+        "Schleifenimpedanz",
+        "2/3"
+      ]
+    }
+  ],
   "steckdosen_platzierung": [
     {
       "row": 0,

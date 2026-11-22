@@ -35,11 +35,11 @@ in einer Gruppe mit RCD.
 | Feld                 | Wert                                                                    |
 | -------------------- | ----------------------------------------------------------------------- |
 | Name                 | Sonderfälle                                                             |
-| Beschreibung         | Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer |
+| Beschreibung         | Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer |
 | Netzform             | TN-S                                                                    |
 | Hauptschalter Pole   | 3                                                                       |
 | Hauptschalter (A)    | 35                                                                      |
-| Vorimpedanz (Ω)      |                                                                         |
+| Vorimpedanz (Ω)      | 1,0                                                                     |
 | Fehler Einspeisung L (Ω) |                                                                     |
 | Fehler Einspeisung N (Ω) |                                                                     |
 | Fehler PE Einspeisung (Ω) |                                                                    |
@@ -118,3 +118,19 @@ Typ B/B+) und in der Stromkreis-Tabelle (nur LS mit AFDD), leer = Standard (Typ 
 Gruppen ohne RCD haben keine Gruppen-Fehler, dort den Fehler am Stromkreis eintragen. PE-Fehler sind
 immer eine einzelne Zahl (ein Schutzleiter), Gruppen haben keinen PE-Fehler (RCD und LS führen
 keinen PE). Die Spalte `Fehler PE (Ω)` in der Stromkreis-Tabelle darf fehlen.
+
+## Mängel
+
+| Punkt         | Schlüsselwörter                                    | Vorschlag |
+| ------------- | -------------------------------------------------- | --------- |
+| Phasenfolge   | Linksdrehfeld; Drehfeld; Phasenfolge; Drehrichtung |           |
+| Schutzleiter  | Schutzleiter; PE; Hutschiene                       |           |
+| Kurzschlussstrom | Kurzschlussstrom; Ik; Schleifenimpedanz; 2/3    |           |
+| Schutzart     |                                                    | Schutzart; IP44 |
+
+## Beurteilung
+
+| Punkt         | Schlüsselwörter                                    | Vorschlag |
+| ------------- | -------------------------------------------------- | --------- |
+| Phasenfolge   | Linksdrehfeld; Drehfeld; Phasenfolge               |           |
+| Kurzschlussstrom | Kurzschlussstrom; Ik; Schleifenimpedanz; 2/3    |           |

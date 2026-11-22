@@ -492,9 +492,10 @@ async function main() {
   // RCD Typ B 0,15 MΩ und AFDD 0,3 MΩ, Fahrplan klemmt ab (sim-qha); Rpe der
   // Hutschienen: H1 ohne Kontakt, H2 mit eigener PE-Klemme, Reihenklemmen-
   // Hutschiene H4 über den Zubringerfehler 0,05 (sim-kfb); eine Drehstromdose
-  // mit vertauschten Außenleitern (sim-wme).
+  // mit vertauschten Außenleitern (sim-wme); Vorimpedanz 1 Ω, damit die
+  // C16-Kreise im 2/3-Band liegen (sim-g0o).
   {
-    const { ergebnisse, hutschienenRpe, erprobenPunkte } = vorab.testcase_10;
+    const { ergebnisse, hutschienenRpe, erprobenPunkte, zweiDrittel } = vorab.testcase_10;
     await pruefe('testcase_10: Riso mit Abklemmen überall >999 trotz Elektronik 0,15/0,3 MΩ (sim-qha)', async () => {
       for (const e of ergebnisse) for (const m of e.risoMessungen) erwarteGleich(m.wert, '>999', `${e.sk} ${m.paar}`);
     });
@@ -504,6 +505,10 @@ async function main() {
     await pruefe('testcase_10: Rechtsdrehfeld n.i.O., weil eine Drehstromsteckdose Linksdrehfeld hat (sim-wme)', async () => {
       const punkt = erprobenPunkte.find((p) => p.punkt === 'Rechtsdrehfeld (Drehstromsteckdosen)');
       erwarteGleich(punkt?.ergebnis, 'n.i.O.', 'Erproben Rechtsdrehfeld');
+    });
+    await pruefe('testcase_10: 2/3-Regel bei Zi 1,00 Ω: Mangel nur an den C16-Kreisen SK1/SK2 (Grenze 0,96 Ω), B-Kreise i.O. (sim-g0o)', async () => {
+      erwarteGleich(zweiDrittel.map((m) => `${m.stromkreis}:${m.groesse}:${m.wert}:${m.grenze}:${m.mangel}`).sort().join(' '),
+        'SK1:Zi:1,00:0,96:true SK2:Zi:1,00:0,96:true SK3:Zi:1,00:1,92:false SK4:Zi:1,00:1,92:false SK5:Zi:1,00:3,07:false', '2/3-Regel');
     });
   }
 

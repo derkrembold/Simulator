@@ -20,11 +20,18 @@
 //   keinKreuz - Prüfpunkt-Tabelle: weder i.O. noch n.i.O. angekreuzt
 //              (Gebäudesystemtechnik: keine eingebaut)
 //   option   - eine einzelne Ankreuz-Option der Zeile ist angekreuzt
-//   text     - Linien-Tabelle (Seite 2): mindestens eine Zeile ausgefüllt
+//   text     - Linien-Tabelle (Seite 2): mindestens eine Zeile ausgefüllt.
+//              `punkte` = Schlüssel der erwarteten Punkte ('maengel' oder
+//              'beurteilung', siehe erwartetePunkte()): jeder Punkt muss mit
+//              mindestens einem seiner Schlüsselwörter im Text stehen.
 //   ortDatumUnterschrift - ein Feld mit Ort (`ort`), heutigem Datum und
 //              weiterem Text als Unterschrift (Seite 2, Prüfer). Eine
 //              Postleitzahl vor dem Ort ist erlaubt, aber nicht nötig.
 // `alternativen` (bei fest): mehrere zulässige Schreibweisen.
+// `beiMaengeln` (bei einsAus): Hat die Anlage einen Mangel, muss genau
+//              diese Option angekreuzt sein, sonst genügt ein Kreuz. Mangel =
+//              Mängel-Punkte in der Anlage (sim-03t) oder ein Stromkreis im
+//              2/3-Band laut Fahrplan (zweiDrittelMangel(), sim-g0o).
 // `nurMitDrehstrom`: Regel gilt nur, wenn die Anlage eine Drehstrom-
 //              Endstelle hat (siehe hatDrehstromEndstelle()); sonst darf
 //              das Feld leer bleiben.
@@ -42,6 +49,8 @@ const P = 'Prüfergebnis';
 const A = 'Abschluss – Prüfer';
 const AG = 'Abschluss – Auftraggeber';
 const S2 = 'Abschluss';
+export const TITEL_MAENGEL = 'Folgende Mängel wurden festgestellt';
+export const TITEL_BEURTEILUNG = 'Beurteilung zu den gemessenen Stromkreisen';
 
 export const PROTOKOLL_REGELN = [
   { abschnitt: K, label: 'Nr.', art: 'fest', wert: '1' },
@@ -88,25 +97,25 @@ export const PROTOKOLL_REGELN = [
 
   { abschnitt: M, label: 'Messgerät', art: 'messgeraet', werte: ['Benning', 'IT 130'], quelle: ['Fabrikat', 'Typ'] },
 
-  { abschnitt: P, label: 'Ergebnis', art: 'einsAus' },
-  { abschnitt: P, label: 'Prüf-Plakette angebracht', art: 'einsAus' },
+  { abschnitt: P, label: 'Ergebnis', art: 'einsAus', beiMaengeln: 'Mängel festgestellt' },
+  { abschnitt: P, label: 'Prüf-Plakette angebracht', art: 'einsAus', beiMaengeln: 'Nein' },
   { abschnitt: P, label: 'Nächster Prüftermin', art: 'pflicht' },
 
   { abschnitt: AG, label: 'Übergabebericht: Anlage vollständig übernommen', art: 'option', quelle: 'Anlage vollständig übernommen' },
   { abschnitt: AG, label: 'Zustandsbericht erhalten', art: 'option' },
 
-  { abschnitt: A, label: 'Anlage entspricht den anerkannten Regeln der Elektrotechnik', art: 'einsAus' },
+  { abschnitt: A, label: 'Anlage entspricht den anerkannten Regeln der Elektrotechnik', art: 'einsAus', beiMaengeln: 'Nein' },
   { abschnitt: A, label: 'Ort', art: 'fest', alternativen: ['Stuttgart', '70376 Stuttgart'] },
   { abschnitt: A, label: 'Datum', art: 'datum' },
   { abschnitt: A, label: 'Unterschrift', art: 'pflicht' },
 
   // Seite 2 (Übergabe-/Zustandsbericht). Der Prüfer unterschreibt immer,
   // der Auftraggeber nicht.
-  { abschnitt: 'Mängel', label: 'Mängel', art: 'text' },
-  { abschnitt: 'Beurteilung', label: 'Beurteilung', art: 'text' },
+  { abschnitt: TITEL_MAENGEL, label: 'Mängel', art: 'text', punkte: 'maengel' },
+  { abschnitt: TITEL_BEURTEILUNG, label: 'Beurteilung', art: 'text', punkte: 'beurteilung' },
   { abschnitt: S2, label: 'Auftraggeber: Anlage vollständig übernommen', art: 'option', quelle: 'Anlage vollständig übernommen' },
   { abschnitt: S2, label: 'Zustandsbericht erhalten', art: 'option' },
-  { abschnitt: S2, label: 'Prüfer: Anlage entspricht anerkannten Regeln', art: 'einsAus', quelle: 'Anlage entspricht anerkannten Regeln' },
+  { abschnitt: S2, label: 'Prüfer: Anlage entspricht anerkannten Regeln', art: 'einsAus', quelle: 'Anlage entspricht anerkannten Regeln', beiMaengeln: 'Nein' },
   { abschnitt: S2, label: 'Ort / Datum / Unterschrift (Prüfer)', art: 'ortDatumUnterschrift', ort: 'Stuttgart' }
 ];
 
@@ -122,4 +131,14 @@ export function hatDrehstromEndstelle(anlage) {
     ...(anlage?.steckdosen_platzierung ?? []).map((p) => p.endstelle)
   ];
   return typen.some((t) => DREHSTROM_ENDSTELLEN.includes(t));
+}
+
+// Erwartete Punkte für Mängel und Beurteilung (sim-03t) aus anlage.json:
+// je Feld [{ punkt, schluesselwoerter: [...] }]. Ohne Eintrag in der Anlage
+// ist die Liste leer, dann genügt ein ausgefülltes Feld.
+export function erwartetePunkte(anlage) {
+  return {
+    maengel: anlage?.erwartete_maengel ?? [],
+    beurteilung: anlage?.erwartete_beurteilung ?? []
+  };
 }

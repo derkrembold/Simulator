@@ -113,6 +113,20 @@ function pruefeFehler(fehler, aussenleiter, ort, muss) {
   }
 }
 
+// Erwartete Punkte für "Folgende Mängel wurden festgestellt" bzw.
+// "Beurteilung zu den gemessenen Stromkreisen" (sim-03t): Tabelle mit den
+// Spalten Punkt, Schlüsselwörter (Alternativen mit ";" getrennt) und
+// optional Vorschlag. Nur Zeilen mit Schlüsselwörtern gelten, die Spalte
+// Vorschlag wird nie gelesen.
+function lesePunkte(abschnitt) {
+  return leseTabelle(abschnitt ?? '')
+    .map((z) => ({
+      punkt: (z.Punkt ?? '').trim(),
+      schluesselwoerter: (z['Schlüsselwörter'] ?? '').split(';').map((w) => w.trim()).filter(Boolean)
+    }))
+    .filter((p) => p.schluesselwoerter.length > 0);
+}
+
 function parseAnforderung(text) {
   const abschnitte = text.split(/^## /m).slice(1);
   const finde = (name) => abschnitte.find((a) => a.startsWith(name));
@@ -191,6 +205,8 @@ function parseAnforderung(text) {
     peZubringerFehler: leseFehler(kopfdaten['Fehler PE-Klemme Zubringer (Ω)']),
     // sim-kfb: kontaktiert die PE-Klemme ihre Hutschiene (H1)? Leer = ja.
     peKlemmeHutschieneRoh: (kopfdaten['PE-Klemme mit Hutschiene verbunden (ja/nein)'] ?? '').trim(),
+    maengel: lesePunkte(finde('Mängel')),
+    beurteilung: lesePunkte(finde('Beurteilung')),
     gruppen,
     stromkreise
   };
@@ -311,6 +327,19 @@ function pruefeAnforderung(anf) {
   for (const g of anf.gruppen) {
     const te = teDerGruppe(g, anf.stromkreise) + (g.peKlemmeRoh === 'ja' ? 1 : 0);
     muss(te <= MAX_TE_PRO_HUTSCHIENE, `Gruppe ${g.id}: ${te} TE passen nicht auf eine Hutschiene (max. ${MAX_TE_PRO_HUTSCHIENE} TE)`);
+  }
+
+  for (const [tabelle, punkte] of [['Mängel', anf.maengel], ['Beurteilung', anf.beurteilung]]) {
+    for (const p of punkte) {
+      muss(p.punkt, `${tabelle}: Zeile mit Schlüsselwörtern "${p.schluesselwoerter.join('; ')}" hat keinen Punkt`);
+      // Der Check vergleicht nur Buchstaben und Ziffern (enthaeltSchluesselwort()
+      // in controller/protokoll_check.js); ein Wort ohne beides passt nie.
+      for (const w of p.schluesselwoerter) {
+        muss(/[a-z0-9äöüß]/i.test(w), `${tabelle}, ${p.punkt}: Schlüsselwort "${w}" enthält keinen Buchstaben und keine Ziffer`);
+      }
+    }
+    const namen = punkte.map((p) => p.punkt).filter(Boolean);
+    muss(new Set(namen).size === namen.length, `${tabelle}: ein Punkt steht doppelt in der Tabelle`);
   }
 
   return fehler;
@@ -712,6 +741,14 @@ function schreibeBauteile(anf, modell) {
   zeilen.push('| Spannung Einspeisung | 400 | V |');
   zeilen.push(`| Spannung Stromkreise | ${sks.some((s) => s.lsPole === 3) ? 400 : 230} | V |`);
   if (anf.vorimpedanz !== null) zeilen.push(`| Vorimpedanz | ${String(anf.vorimpedanz).replace('.', ',')} | Ω |`);
+
+  // Erwartete Punkte für Mängel und Beurteilung (sim-03t), nur die aktiven.
+  for (const [titel, punkte] of [['Mängel', anf.maengel], ['Beurteilung', anf.beurteilung]]) {
+    if (punkte.length === 0) continue;
+    zeilen.push('', `## ${titel}`, '');
+    zeilen.push('| Punkt | Schlüsselwörter |', '|---|---|');
+    for (const p of punkte) zeilen.push(`| ${p.punkt} | ${p.schluesselwoerter.join('; ')} |`);
+  }
   return zeilen.join('\n') + '\n';
 }
 

@@ -5262,7 +5262,7 @@
           "argumente": [
             "zref"
           ],
-          "ergebnis": "Zref: 0,14Ω"
+          "ergebnis": "Zref: 1,00Ω"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -5319,14 +5319,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         }
       ]
     },
@@ -5378,14 +5378,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         }
       ]
     },
@@ -5437,14 +5437,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         }
       ]
     },
@@ -5460,7 +5460,7 @@
               "spalte": 10,
               "spaltenName": "Zs (Ω)"
             },
-            "0,14"
+            "1,00"
           ],
           "ergebnis": null
         },
@@ -5472,7 +5472,7 @@
               "spalte": 11,
               "spaltenName": "Ik L-PE (A)"
             },
-            "1478,6"
+            "207,0"
           ],
           "ergebnis": null
         }
@@ -5533,14 +5533,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -5629,14 +5629,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -5725,14 +5725,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -5821,14 +5821,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -5917,14 +5917,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -6013,14 +6013,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -6109,14 +6109,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -6205,14 +6205,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -6301,14 +6301,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "Z:0,14Ω"
+          "ergebnis": "Z:1,00Ω"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "isc"
           ],
-          "ergebnis": "Isc:1478,6A"
+          "ergebnis": "Isc:207,0A"
         },
         {
           "funktion": "wechsleAnsicht",
@@ -6378,7 +6378,7 @@
               "spalte": 12,
               "spaltenName": "Zi (Ω)"
             },
-            "0,14"
+            "1,00"
           ],
           "ergebnis": null
         },
@@ -6390,7 +6390,7 @@
               "spalte": 13,
               "spaltenName": "Ik L-N (A)"
             },
-            "1478,6"
+            "207,0"
           ],
           "ergebnis": null
         },
@@ -6426,7 +6426,7 @@
               "spalte": 12,
               "spaltenName": "Zi (Ω)"
             },
-            "0,14"
+            "1,00"
           ],
           "ergebnis": null
         },
@@ -6438,7 +6438,7 @@
               "spalte": 13,
               "spaltenName": "Ik L-N (A)"
             },
-            "1478,6"
+            "207,0"
           ],
           "ergebnis": null
         },
@@ -6474,7 +6474,7 @@
               "spalte": 12,
               "spaltenName": "Zi (Ω)"
             },
-            "0,14"
+            "1,00"
           ],
           "ergebnis": null
         },
@@ -6486,7 +6486,7 @@
               "spalte": 13,
               "spaltenName": "Ik L-N (A)"
             },
-            "1478,6"
+            "207,0"
           ],
           "ergebnis": null
         },
@@ -6522,7 +6522,7 @@
               "spalte": 12,
               "spaltenName": "Zi (Ω)"
             },
-            "0,14"
+            "1,00"
           ],
           "ergebnis": null
         },
@@ -6534,7 +6534,7 @@
               "spalte": 13,
               "spaltenName": "Ik L-N (A)"
             },
-            "1478,6"
+            "207,0"
           ],
           "ergebnis": null
         },
@@ -6570,7 +6570,7 @@
               "spalte": 12,
               "spaltenName": "Zi (Ω)"
             },
-            "0,14"
+            "1,00"
           ],
           "ergebnis": null
         },
@@ -6582,7 +6582,7 @@
               "spalte": 13,
               "spaltenName": "Ik L-N (A)"
             },
-            "1478,6"
+            "207,0"
           ],
           "ergebnis": null
         }

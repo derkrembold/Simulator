@@ -114,3 +114,42 @@ Typ B/B+) und in der Stromkreis-Tabelle (nur LS mit AFDD), leer = Standard (Typ 
 Gruppen ohne RCD haben keine Gruppen-Fehler, dort den Fehler am Stromkreis eintragen. PE-Fehler sind
 immer eine einzelne Zahl (ein Schutzleiter), Gruppen haben keinen PE-Fehler (RCD und LS führen
 keinen PE). Die Spalte `Fehler PE (Ω)` in der Stromkreis-Tabelle darf fehlen.
+
+## Mängel
+
+Punkte, die der Prüfling im Protokoll unter „Folgende Mängel wurden festgestellt“ nennen muss
+(sim-03t). Geprüft wird ein Punkt nur, wenn in seiner Zeile die Spalte `Schlüsselwörter` gefüllt
+ist. Zum Aktivieren die Vorschläge kopieren oder eigene Wörter eintragen, Alternativen mit `;`
+trennen; eines davon genügt. Fehlt ein Punkt im Text, wird das ganze Feld rot, ohne Hinweis
+welcher. Zusätzlicher Text ist erlaubt. Ohne aktive Punkte genügt ein ausgefülltes Feld. Die
+Spalte `Vorschlag` wird nicht gelesen, eigene Zeilen dürfen dazukommen.
+
+Vergleich: Groß-/Kleinschreibung, Leer- und Satzzeichen sind egal („IP 44“ = „IP44“), ä, ae und a
+gelten als gleich (ebenso ö, ü), ß = ss. Ein Schlüsselwort muss am Wortanfang stehen. Bei reinen Buchstabenwörtern ab 4 Zeichen genügt
+der Anfang („Kurzschlussstrom“ passt zu „Kurzschlussströme“). Kürzere wie „Ik“ oder „PE“ und
+alles mit Ziffern müssen ganz passen („IP44“ passt zu „IP 44“, nicht zu „IP 440“).
+
+| Punkt                  | Schlüsselwörter | Vorschlag                                                          |
+| ---------------------- | --------------- | ------------------------------------------------------------------ |
+| Kurzschlussstrom       |                 | Kurzschlussstrom; Ik; Abschaltbedingung; Schleifenimpedanz; 2/3    |
+| Phasenfolge            |                 | Linksdrehfeld; Drehfeld; Phasenfolge; Drehrichtung                 |
+| Schutzleiter           |                 | Schutzleiter; PE; Hutschiene; Potentialausgleich                   |
+| Isolationswiderstand   |                 | Isolationswiderstand; Isolation; Riso                              |
+| RCD                    |                 | RCD; FI; Fehlerstromschutzschalter; Auslösezeit; Auslösestrom      |
+| Spannungsfall          |                 | Spannungsfall; Spannungsabfall                                     |
+| Kabel und Leitungen    |                 | Leitung; Kabel; Querschnitt; Verdrahtung                           |
+| Schutzart              |                 | Schutzart; IP44; IPX4; spritzwassergeschützt                       |
+| Dokumentation          |                 | Dokumentation; Stromlaufplan; Schaltplan; Kennzeichnung; Beschriftung |
+
+## Beurteilung
+
+Punkte für „Beurteilung zu den gemessenen Stromkreisen“, Regeln wie bei Mängel.
+
+| Punkt                  | Schlüsselwörter | Vorschlag                                                          |
+| ---------------------- | --------------- | ------------------------------------------------------------------ |
+| Kurzschlussstrom       |                 | Kurzschlussstrom; Ik; Abschaltbedingung; Schleifenimpedanz; 2/3    |
+| Phasenfolge            |                 | Linksdrehfeld; Drehfeld; Phasenfolge; Drehrichtung                 |
+| Schutzleiter           |                 | Schutzleiter; PE; Hutschiene; Potentialausgleich                   |
+| Isolationswiderstand   |                 | Isolationswiderstand; Isolation; Riso                              |
+| RCD                    |                 | RCD; FI; Fehlerstromschutzschalter; Auslösezeit; Auslösestrom      |
+| Spannungsfall          |                 | Spannungsfall; Spannungsabfall                                     |

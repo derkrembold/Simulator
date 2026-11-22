@@ -67,6 +67,8 @@ async function fuelleRichtig(page) {
     const { PROTOKOLL_REGELN } = await import('/model/protokoll_soll.js');
     const { fuehreSchrittAus } = await import('/controller/fahrplan_ausfuehrung.js');
     const fahrplan = await (await fetch(new URLSearchParams(location.search).get('anlage').replace('anlage.json', 'fahrplan.json'))).json();
+    const anlagePfad = new URLSearchParams(location.search).get('anlage');
+    const mitMaengeln = ((await (await fetch(anlagePfad)).json()).erwartete_maengel ?? []).length > 0;
     const kreuzSoll = {};
     for (const a of fahrplan.abschnitte) for (const s of a.schritte) {
       if (s.funktion === 'protokollEintragen') fuehreSchrittAus(s);
@@ -96,7 +98,9 @@ async function fuelleRichtig(page) {
       if (r.art === 'auswahl') {
         [...z.querySelectorAll('.pf-cboption')].find((o) => o.textContent.replace(/[☐☒]/g, '').trim() === r.wert).querySelector('.pf-cb').click();
       } else if (r.art === 'einsAus') {
-        [...z.querySelectorAll('.pf-cboption')].filter((o) => o.querySelector('.pf-cb'))[0].querySelector('.pf-cb').click();
+        const opts = [...z.querySelectorAll('.pf-cboption')].filter((o) => o.querySelector('.pf-cb'));
+        const wahl = mitMaengeln && r.beiMaengeln ? opts.find((o) => o.textContent.replace(/[☐☒]/g, '').trim() === r.beiMaengeln) : opts[0];
+        wahl.querySelector('.pf-cb').click();
       } else if (r.art === 'option') {
         z.querySelector('.pf-cboption .pf-cb').click();
       } else if (r.art === 'fest' && r.alternativen) {
@@ -398,9 +402,97 @@ async function main() {
   }, async (e) => erwarteGleich(e.rot, 4, 'rote Kästchen (je Zeile beide)'));
 
   await fall('Seite 2 Mängel leer: rot', () => {
-    const ab = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Mängel');
+    const ab = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Folgende Mängel wurden festgestellt');
     ab.querySelectorAll('input').forEach((i) => { i.value = ''; });
   }, async (e) => erwarteGleich(e.rot, 11, 'rote Linien (alle 11 der leeren Mängel-Tabelle)'));
+
+  // sim-03t: Schlüsselwörter. Vergleich als Einheit.
+  await pruefe('Schlüsselwörter (sim-03t): Wortanfang, mehrere Wörter, Umlaute, kurze Wörter nur ganz', async () => {
+    const page = await neueSeite();
+    const ergebnis = await page.evaluate(async () => {
+      const { enthaeltSchluesselwort: e, allePunkteGenannt } = await import('/controller/protokoll_check.js');
+      return [
+        e('Steckdose nicht IP 44', 'IP44'), e('Schutzart ip44', 'IP 44'), e('Ik liegt im 2 / 3 Bereich', '2/3'),
+        e('Kurzschlussströme zu klein', 'Kurzschlussstrom'), e('LINKSDREHFELD an SK2', 'Linksdrehfeld'),
+        e('Maengel am Schutzleiter', 'Mängel'), e('Ik-Wert zu klein', 'Ik'), e('Strasse', 'Straße'),
+        // falsch:
+        e('Elektrik geprüft', 'Ik'), e('Personal informiert', 'PE'), e('Steckdosenschutzart', 'Schutzart'),
+        e('IP4 4', 'IP445'), e('', 'Ik'), e('irgendwas', ''),
+        e('IP 440', 'IP44'), e('Schutzart IP44X', 'IP44'), e('2/30', '2/3'),
+        allePunkteGenannt('Drehfeld links', [{ punkt: 'A', schluesselwoerter: ['Phasenfolge', 'Drehfeld'] }]),
+        allePunkteGenannt('Drehfeld links', [{ punkt: 'A', schluesselwoerter: ['Drehfeld'] }, { punkt: 'B', schluesselwoerter: ['PE'] }]),
+        allePunkteGenannt('nichts auffällig', [])
+      ].join();
+    });
+    erwarteGleich(ergebnis, 'true,true,true,true,true,true,true,true,false,false,false,false,false,false,false,false,false,true,false,true', 'Ergebnisse');
+    await page.close();
+  });
+
+  // testcase_10 erwartet unter Mängel "Phasenfolge" und "Schutzleiter", unter
+  // Beurteilung "Phasenfolge". Gezählt wird nur in den beiden Feldern.
+  const schreibeSeite2 = (maengel, beurteilung) => new Function(`
+    const ab = (t) => [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === t);
+    const setze = (t, zeilen) => { const f = ab(t).querySelectorAll('input.pf-feld'); f.forEach((i) => { i.value = ''; }); zeilen.forEach((z, k) => { f[k].value = z; }); };
+    setze('Folgende Mängel wurden festgestellt', ${JSON.stringify(maengel)});
+    setze('Beurteilung zu den gemessenen Stromkreisen', ${JSON.stringify(beurteilung)});`);
+  const rotInSeite2 = (page) => page.evaluate(() => Object.fromEntries(
+    ['Folgende Mängel wurden festgestellt', 'Beurteilung zu den gemessenen Stromkreisen'].map((t) => [t,
+      [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === t)
+        .querySelectorAll('.pf-fehler').length])));
+
+  await fall('Mängel und Beurteilung (sim-03t): alle Punkte genannt, auf mehrere Zeilen verteilt: nicht rot',
+    schreibeSeite2(['SK2: Linksdrehfeld an der CEE-Dose', 'Hutschiene H1 ohne Verbindung zum PE', 'SK1, SK2: Ik unter 1,5 x Ia (2/3-Regel)'], ['Phasenfolge SK2 falsch', 'Kurzschlussstrom SK1/SK2 zu knapp', 'sonst i.O.']),
+    async (e, page) => {
+      erwarteGleich(JSON.stringify(await rotInSeite2(page)), JSON.stringify({ 'Folgende Mängel wurden festgestellt': 0, 'Beurteilung zu den gemessenen Stromkreisen': 0 }), 'rote Linien');
+      erwarteGleich(e.rot, 0, 'rote Felder im ganzen Protokoll');
+    },
+    'testcase_10');
+
+  // Mit Mängel-Punkten sind die Ergebnis-Kreuze vorgegeben: jeweils die
+  // andere Option angekreuzt -> diese vier Gruppen rot.
+  await fall('Mängel-Punkte (sim-03t): "Keine Mängel", Plakette Ja, entspricht Regeln Ja: 4 Gruppen rot',
+    () => {
+      const ab = (t) => [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === t);
+      ab('Folgende Mängel wurden festgestellt').querySelector('input.pf-feld').value = 'Linksdrehfeld, Hutschiene ohne PE, Ik zu klein';
+      ab('Beurteilung zu den gemessenen Stromkreisen').querySelector('input.pf-feld').value = 'Drehfeld SK2 falsch, Ik SK1/SK2 zu knapp';
+      for (const g of document.querySelectorAll('#protokoll .pf-cbgroup')) {
+        const opts = [...g.querySelectorAll('.pf-cboption')];
+        const an = opts.find((o) => o.querySelector('.pf-cb').textContent === '☒');
+        if (!an || !['Mängel festgestellt', 'Nein'].includes(an.textContent.replace(/[☐☒]/g, '').trim())) continue;
+        opts.forEach((o) => o.querySelector('.pf-cb').click());
+      }
+    },
+    async (e) => erwarteGleich(e.rot, 4, 'rote Gruppen'),
+    'testcase_10');
+
+  await fall('Mängel und Beurteilung (sim-03t): ein Punkt fehlt bzw. nur "keine": ganzes Feld rot',
+    schreibeSeite2(['SK2: Linksdrehfeld'], ['Keine']),
+    async (e, page) => erwarteGleich(JSON.stringify(await rotInSeite2(page)), JSON.stringify({ 'Folgende Mängel wurden festgestellt': 11, 'Beurteilung zu den gemessenen Stromkreisen': 11 }), 'rote Linien'),
+    'testcase_10');
+
+  // sim-g0o: Liegt ein Stromkreis im 2/3-Band, sind die Ergebnis-Kreuze auch
+  // ohne Mängel-Punkte vorgegeben. Check direkt mit punkte = {} aufgerufen.
+  await pruefe('2/3-Regel (sim-g0o): testcase_10 ohne Mängel-Punkte, "Keine Mängel" und Plakette Ja: 4 Gruppen rot; testcase_05 ohne 2/3-Fall: 0', async () => {
+    const ergebnis = [];
+    for (const testcase of ['testcase_10', 'testcase_05']) {
+      const page = await neueSeite(testcase);
+      await fuelleRichtig(page);
+      ergebnis.push(await page.evaluate(async (tc) => {
+        const { pruefeProtokoll, zweiDrittelMangel } = await import('/controller/protokoll_check.js');
+        const fahrplan = await (await fetch(`/tests/visuell/${tc}/fahrplan.json`)).json();
+        for (const g of document.querySelectorAll('#protokoll .pf-cbgroup')) {
+          const opts = [...g.querySelectorAll('.pf-cboption')].filter((o) => o.querySelector('.pf-cb'));
+          const text = (o) => o.textContent.replace(/[☐☒]/g, '').trim();
+          const ziel = opts.find((o) => ['Keine Mängel festgestellt', 'Ja'].includes(text(o)));
+          if (!ziel) continue;
+          opts.forEach((o) => { o.querySelector('.pf-cb').textContent = o === ziel ? '☒' : '☐'; });
+        }
+        return `${tc}:${zweiDrittelMangel(fahrplan)}:${pruefeProtokoll(document.getElementById('protokoll'), { fahrplan, drehstrom: true, punkte: {} }).anzahl}`;
+      }, testcase));
+      await page.close();
+    }
+    erwarteGleich(ergebnis.join(' '), 'testcase_10:true:4 testcase_05:false:0', 'Mangel/rote Felder');
+  });
 
   await fall('Zustandsbericht auf Seite 1 nicht angekreuzt: rot', () => {
     const ab = [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === 'Abschluss – Auftraggeber');

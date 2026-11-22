@@ -67,7 +67,23 @@ Raster für die Anordnung der Steckdosen/Anschlussdosen oberhalb des Schaltkaste
 | Feld | Wert | Einheit |
 |---|---|---|
 | Name | Sonderfälle | – |
-| Beschreibung | Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer | – |
+| Beschreibung | Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer | – |
 | Netzform | TN-S | – |
 | Spannung Einspeisung | 400 | V |
 | Spannung Stromkreise | 400 | V |
+| Vorimpedanz | 1 | Ω |
+
+## Mängel
+
+| Punkt | Schlüsselwörter |
+|---|---|
+| Phasenfolge | Linksdrehfeld; Drehfeld; Phasenfolge; Drehrichtung |
+| Schutzleiter | Schutzleiter; PE; Hutschiene |
+| Kurzschlussstrom | Kurzschlussstrom; Ik; Schleifenimpedanz; 2/3 |
+
+## Beurteilung
+
+| Punkt | Schlüsselwörter |
+|---|---|
+| Phasenfolge | Linksdrehfeld; Drehfeld; Phasenfolge |
+| Kurzschlussstrom | Kurzschlussstrom; Ik; Schleifenimpedanz; 2/3 |

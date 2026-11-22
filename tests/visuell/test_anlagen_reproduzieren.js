@@ -40,7 +40,7 @@ const anlagen = findeAnlagen();
 
 pruefe('Findet Demos und Testcases mit anforderung.md', () => {
   const namen = anlagen.map((o) => path.basename(o));
-  for (const erwartet of ['demo_09', 'demo_15', 'testcase_07', 'testcase_08', 'testcase_09']) {
+  for (const erwartet of ['demo_09', 'demo_15', 'testcase_08', 'testcase_09', 'testcase_10']) {
     bedingung(namen.includes(erwartet), `${erwartet} fehlt in ${namen.join(', ')}`);
   }
   bedingung(!namen.includes('testcase_01'), 'testcase_01 hat keine anforderung.md und gehört nicht dazu');

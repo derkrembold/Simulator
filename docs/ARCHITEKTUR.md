@@ -60,7 +60,7 @@ Simulator/
 |
 |-- demos/                   <- Demo-Anlagen, getrennt von den Testcases (tools/demo_erstellung.js)
 |   |-- anforderung_vorlage.md
-|   +-- demo_04/
+|   +-- demo_NN/
 |
 |-- docs/                    <- Konzept, Architektur, Referenz
 |   |-- KONZEPT.md
@@ -1264,7 +1264,7 @@ die Besichtigen-Tabelle enthält alle 14 Prüfpunkte aus der .md-Vorlage.
 `data-netz` seiner Ader - so können Werkzeug und Replay eine Messspitze an
 eine bestimmte Dose setzen, auch wenn mehrere Dosen desselben Stromkreises
 dieselben Netz-IDs haben. Der Typ je Dose ist `platz.endstelle`, sonst
-`stromkreis.endstelle` (gemischte Endstellen, sim-lfi; Beispiel testcase_07). Viertes View-Objekt, gerendert in `#steckdosen`,
+`stromkreis.endstelle` (gemischte Endstellen, sim-lfi; Beispiel testcase_10 SK3, früher testcase_07). Viertes View-Objekt, gerendert in `#steckdosen`,
 **oberhalb** von `#schaltkasten` (`index.html`: neues `<div id="steckdosen">`
 vor `<div id="schaltkasten">`, plus `#steckdosen { margin-bottom: 20px; }`
 - bewusst KEIN `display: flex; justify-content: center` wie bei Messgerät,
@@ -5688,7 +5688,7 @@ Eine Demo, die als festes Prüfstück dienen soll, wird zum Testcase (sim-qlp): 
 `node tools/demo_erstellung.js testcase_NN` neu erzeugen (das Werkzeug liest dann
 `tests/visuell/testcase_NN/anforderung.md`). Danach `anlage.svg` als Referenzbild rendern und den
 Testcase in die `TESTCASES`-Listen von `test_pruefprotokoll.js` und `test_fahrplan_ausfuehrung.js`
-aufnehmen. So entstanden `testcase_07` (aus demo_06) und `testcase_08` (aus demo_08).
+aufnehmen. So entstanden `testcase_08` (aus demo_08) und `testcase_10` (Sonderfälle, sim-unq); `testcase_07` (aus demo_06) ist in testcase_10 aufgegangen.
 
 ```
 node tools/demo_erstellung.js demo_02 --neu        # legt demos/demo_02/anforderung.md aus der Vorlage an
@@ -5811,7 +5811,7 @@ der erwarteten Meldung (u. a. `SK01`, `16abc`, negativer oder unlesbarer Fehlerw
 Anzahl Werte je Außenleiter, Gruppen-Fehler ohne RCD, Vorimpedanz 0, alte Spalte
 `Fehler Zuleitung (Ω)`, AFDD an 3-poligem LS, ohne RCD oder mit ungültigem Wert, unlesbare RCD-Polzahl, die nicht still als `ohne` gilt). Bei den erzeugten Anlagen muss jede L1/L2/L3/N-Ader jedes Stromkreises über
 `istSpannungFuehrend()` mit der Einspeisung verbunden sein. Zusätzlich prüft der Test im headless
-Browser, dass bei `demos/demo_04`, `demos/demo_15` (AFDD), `demos/demo_18` (Linksdrehfeld), `demos/demo_19` (Hutschienen und PE), `demos/demo_20` (Riso Elektronik), `testcase_07` und `testcase_08` alle Pfade im Graphen und
+Browser, dass bei `testcase_08` und `testcase_10` (Sonderfälle: AFDD, Linksdrehfeld, Hutschienen und PE, Riso Elektronik; seit sim-unq statt der Demos) alle Pfade im Graphen und
 im gerenderten Schaltkasten gleich sind (`pruefeVerdrahtung()`).
 
 **Review (Codex, Ticket sim-m31):** Drei Befunde umgesetzt. Stromkreisnamen müssen kanonisch sein

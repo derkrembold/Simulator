@@ -121,16 +121,17 @@ async function risoNPe(ctx, vorher = async () => {}) {
     await ctx.schliessen();
   });
 
-  // --- Hutschienen als Messpunkt (sim-kfb), demos/demo_19 ---
+  // --- Hutschienen als Messpunkt (sim-kfb), testcase_10 ---
   // H1: PE-Klemme ohne Kontakt zur Hutschiene; H2: eigene PE-Klemme mit Ader
-  // von unten; H3: Reihenklemmen-Hutschiene, PE über Zubringer (0,05 Ω).
-  const DEMO = '../../demos/demo_19';
-  const demoAnlage = require('../../demos/demo_19/anlage.json');
-  const sk1 = demoAnlage.hutschienen.flatMap((h) => h.gruppen).flatMap((g) => g.stromkreise).find((s) => s.bezeichnung === 'SK1');
+  // von unten; H4: Reihenklemmen-Hutschiene, PE über Zubringer (0,05 Ω).
+  // Einphasiger Stromkreis für V~/Zs: SK3 (L1).
+  const DEMO = 'testcase_10';
+  const demoAnlage = require('./testcase_10/anlage.json');
+  const sk1 = demoAnlage.hutschienen.flatMap((h) => h.gruppen).flatMap((g) => g.stromkreise).find((s) => s.bezeichnung === 'SK3');
   const sk1Netz = (f) => sk1.leitung.adern.find((a) => a.funktion === f).netz;
   const demoUmgebung = () => messgeraet.starteTestUmgebung(DEMO);
 
-  for (const [name, soll] of [['H1', null], ['H2', 0], ['H3', 0.05]]) {
+  for (const [name, soll] of [['H1', null], ['H2', 0], ['H4', 0.05]]) {
     await pruefe(`Rpe Hutschiene ${name} gegen PE-Klemme: ${soll === null ? 'kein Durchgang' : `${soll} Ω`} (sim-kfb)`, async () => {
       const ctx = await demoUmgebung();
       const wert = await rlow(ctx, { bauteil: name }, { bauteil: 'PE-Klemme' });

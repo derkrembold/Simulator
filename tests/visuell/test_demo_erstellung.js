@@ -360,14 +360,15 @@ pruefe('Gemischte Endstellen: Steckdose + Lichtauslass (2 + 1) ergibt drei Dosen
   pruefeErreichbarkeit(ergebnis);
 });
 
-// Codex-Review zu sim-lfi: die erzeugte Anlage testcase_07 (früher demo_06)
-// trägt im Fahrplan die gemischte Bezeichnung ins Protokoll ein.
-pruefe('testcase_07: Protokoll-Bezeichnung "LS1: 2 Steckdosen, 1 Lichtauslass"', () => {
-  const fahrplan = require(path.join(__dirname, 'testcase_07', 'fahrplan.json'));
+// Codex-Review zu sim-lfi: eine erzeugte Anlage mit gemischten Endstellen
+// (früher testcase_07, seit sim-unq testcase_10 SK3 an LS5) trägt im Fahrplan
+// die gemischte Bezeichnung ins Protokoll ein.
+pruefe('testcase_10: Protokoll-Bezeichnung "LS5: 2 Steckdosen, 1 Lichtauslass"', () => {
+  const fahrplan = require(path.join(__dirname, 'testcase_10', 'fahrplan.json'));
   const bezeichnungen = fahrplan.abschnitte.flatMap((a) => a.schritte)
     .filter((s) => s.funktion === 'protokollEintragen' && s.argumente[0].spalte === 1)
     .map((s) => s.argumente[1]);
-  bedingung(bezeichnungen.join(' | ') === 'LS1: 2 Steckdosen, 1 Lichtauslass | LS2: 1 Lichtauslass', `Bezeichnungen: ${bezeichnungen.join(' | ')}`);
+  bedingung(bezeichnungen.includes('LS5: 2 Steckdosen, 1 Lichtauslass'), `Bezeichnungen: ${bezeichnungen.join(' | ')}`);
 });
 
 // --- Prüfregeln: die Anforderung muss mit einer klaren Meldung abgelehnt werden ---
@@ -583,7 +584,7 @@ pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['../../demos/demo_15', '../../demos/demo_18', '../../demos/demo_19', '../../demos/demo_20', 'testcase_07', 'testcase_08']) {
+  for (const demo of ['testcase_08', 'testcase_10']) {
     const name = `Verdrahtung ${path.basename(demo)}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
       const { abweichungen, geprueft } = await pruefeVerdrahtung(demo);

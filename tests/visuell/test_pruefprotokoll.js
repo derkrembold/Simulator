@@ -22,15 +22,17 @@ const path = require('path');
 const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
 const { parseBauteile } = require('./generate_anlage.js');
 
-const TESTCASES = ['testcase_01', 'testcase_02', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06', 'testcase_07', 'testcase_08', 'testcase_09'];
+// testcase_02 bleibt Fixture für billige Einzeltests und wird hier nicht
+// vollständig gemessen (sim-unq); Sonderfälle stehen in testcase_10.
+const TESTCASES = ['testcase_01', 'testcase_03', 'testcase_04', 'testcase_05', 'testcase_06', 'testcase_08', 'testcase_09', 'testcase_10'];
 
 // Querschnitt der Zuleitung an der Einspeisung (sim-aon), unabhängig vom
-// Code aus den Anlagen abgelesen: testcase_02/03 führen die Zuleitung direkt
+// Code aus den Anlagen abgelesen: testcase_03 führt die Zuleitung direkt
 // auf den Hauptschalter (10 mm²), die anderen über Einspeiseklemmen bzw.
 // mit 16 mm² auf den Hauptschalter.
 const HAUPTLEITUNG_QUERSCHNITT = {
-  testcase_01: '16', testcase_02: '10', testcase_03: '10', testcase_04: '16', testcase_05: '16', testcase_06: '16',
-  testcase_07: '16', testcase_08: '16', testcase_09: '16'
+  testcase_01: '16', testcase_03: '10', testcase_04: '16', testcase_05: '16', testcase_06: '16',
+  testcase_08: '16', testcase_09: '16', testcase_10: '16'
 };
 
 // sim-vdo: Sollwerte für testcase_09, von Hand aus der Fehlertabelle in
@@ -56,6 +58,11 @@ const SOLL_FEHLERORTE = {
     rpe: { SK1: '0,26', SK2: '0,06', SK3: '0,06', SK4: '0,06', SK5: '0,06', SK6: '0,16' }
   }
 };
+
+// Rpe aller Stromkreise eines Testcases, wenn alle denselben Wert haben:
+// testcase_10 hat 0,05 Ω am Kontakt des Zubringers, über den der PE aller
+// Stromkreise läuft (Reihenklemmen-Hutschiene).
+const RPE_ALLE = { testcase_10: '0,05' };
 
 // Sollwerte Zi je Außenleiter, siehe Kopfkommentar Punkt 2.
 const ZI_JE_AUSSENLEITER = {
@@ -160,7 +167,7 @@ async function berechneAlle(namen) {
 }
 
 async function main() {
-  const vorab = await berechneAlle([...TESTCASES, '../../demos/demo_18', '../../demos/demo_19', '../../demos/demo_20']);
+  const vorab = await berechneAlle(TESTCASES);
 
   await pruefe('kleinsterRiso: kleinster endlicher Wert gewinnt, >999 zählt als unendlich', async () => {
     erwarteGleich(kleinsterRiso(['>999', '12,5', '3', '450']), '3', 'gemischte Werte');
@@ -355,7 +362,7 @@ async function main() {
       await pruefe(`${testcase} ${erg.sk}: Rpe an jeder Endstelle gemessen`, async () => {
         const endstellen = (anlage.steckdosen_platzierung ?? []).filter((p) => p.sk === erg.sk).length;
         erwarteGleich(erg.rpeMessungen.length, Math.max(endstellen, 1), `${erg.sk} Anzahl Rpe-Messungen`);
-        erwarteGleich(erg.rpe, SOLL_FEHLERORTE[testcase]?.rpe?.[erg.sk] ?? '0,00', `${erg.sk} Rpe`);
+        erwarteGleich(erg.rpe, SOLL_FEHLERORTE[testcase]?.rpe?.[erg.sk] ?? RPE_ALLE[testcase] ?? '0,00', `${erg.sk} Rpe`);
       });
 
       await pruefe(`${testcase} ${erg.sk}: Riso Verbraucher ohne ist >999MΩ (kein Isolationsfehler in diesem Testcase)`, async () => {
@@ -481,31 +488,20 @@ async function main() {
     }
   }
 
-  // sim-qha: demos/demo_20 - RCD Typ B (0,15 MΩ) und AFDD (0,3 MΩ): der
-  // Fahrplan öffnet die Trennstellen, Riso ist überall >999.
+  // testcase_10 'Sonderfälle' (sim-unq, früher demo_18/19/20 einzeln):
+  // RCD Typ B 0,15 MΩ und AFDD 0,3 MΩ, Fahrplan klemmt ab (sim-qha); Rpe der
+  // Hutschienen: H1 ohne Kontakt, H2 mit eigener PE-Klemme, Reihenklemmen-
+  // Hutschiene H4 über den Zubringerfehler 0,05 (sim-kfb); eine Drehstromdose
+  // mit vertauschten Außenleitern (sim-wme).
   {
-    const { ergebnisse } = vorab['../../demos/demo_20'];
-    await pruefe('demo_20: Riso mit Abklemmen überall >999 trotz Elektronik 0,15/0,3 MΩ (sim-qha)', async () => {
+    const { ergebnisse, hutschienenRpe, erprobenPunkte } = vorab.testcase_10;
+    await pruefe('testcase_10: Riso mit Abklemmen überall >999 trotz Elektronik 0,15/0,3 MΩ (sim-qha)', async () => {
       for (const e of ergebnisse) for (const m of e.risoMessungen) erwarteGleich(m.wert, '>999', `${e.sk} ${m.paar}`);
     });
-  }
-
-  // sim-kfb: demos/demo_19 - Rpe der Hutschienen mit PE-Klemme bzw.
-  // PE-Reihenklemmen: H1 ohne Kontakt (kein Durchgang), H2 mit eigener
-  // PE-Klemme 0, Reihenklemmen-Hutschiene H3 über den Zubringer 0,05.
-  {
-    const { hutschienenRpe } = vorab['../../demos/demo_19'];
-    await pruefe('demo_19: Rpe der Hutschienen H1 ---, H2 0,00, H3 0,05 (sim-kfb)', async () => {
-      erwarteGleich(hutschienenRpe.map((m) => `${m.hutschiene}:${m.wert}`).join(), 'H1:---,H2:0,00,H3:0,05', 'Hutschienen-Rpe');
+    await pruefe('testcase_10: Rpe der Hutschienen H1 ---, H2 0,00, H4 0,05 (sim-kfb)', async () => {
+      erwarteGleich(hutschienenRpe.map((m) => `${m.hutschiene}:${m.wert}`).join(), 'H1:---,H2:0,00,H4:0,05', 'Hutschienen-Rpe');
     });
-  }
-
-  // sim-wme: demos/demo_18 hat eine richtig (SK1) und eine mit vertauschten
-  // Außenleitern angeklemmte Drehstromsteckdose (SK2). Gemessen wird an den
-  // Dosenkontakten; eine falsche Dose reicht für n.i.O.
-  {
-    const { erprobenPunkte } = vorab['../../demos/demo_18'];
-    await pruefe('demo_18: Rechtsdrehfeld n.i.O., weil eine Drehstromsteckdose Linksdrehfeld hat (sim-wme)', async () => {
+    await pruefe('testcase_10: Rechtsdrehfeld n.i.O., weil eine Drehstromsteckdose Linksdrehfeld hat (sim-wme)', async () => {
       const punkt = erprobenPunkte.find((p) => p.punkt === 'Rechtsdrehfeld (Drehstromsteckdosen)');
       erwarteGleich(punkt?.ergebnis, 'n.i.O.', 'Erproben Rechtsdrehfeld');
     });

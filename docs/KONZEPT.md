@@ -2398,14 +2398,14 @@ Schraube hängt.
 ```
 tests/visuell/
   testcase_01/   ← einfach: 1 RCD, 2 LS
-  testcase_02/   ← 2 RCDs auf einer Hutschiene
+  testcase_02/   ← 2 RCDs auf einer Hutschiene (seit sim-unq nur noch Fixture für billige Einzeltests, nicht in den teuren Protokoll-/Replay-Tests)
   testcase_03/   ← 3 RCDs auf 2 Hutschienen (Gruppe 1 allein, Gruppe 2+3 zusammen)
   testcase_04/   ← 3-poliger Hauptschalter (L1+L2+L3, kein N), 4-poliger RCD auf allen 3 Phasen
   testcase_05/   ← Gruppe G1: 3-poliger LS (EINE Komponente statt drei einpoliger) hinter 4-poligem RCD, Drehstromsteckdose als Endstelle; Gruppe G2: 2-poliger RCD + 2x "LS mit AFDD"-Kombigerät (beide auf derselben Hutschiene)
   testcase_06/   ← Gruppe G1: 3-poliger LS OHNE RCD, 5-polige Anschlussdose; Gruppe G2: 2-poliger RCD + 2x 1-poliger LS (beide auf derselben Hutschiene)
-  testcase_07/   ← aus Anforderung erzeugt (früher demo_06): gemischte Endstellen, Steckdosen + Lichtauslass in einem Stromkreis
   testcase_08/   ← aus Anforderung erzeugt (früher demo_08): 3-poliger LS ohne RCD mit 5-poliger Anschlussdose, daneben RCD Typ B auf L1
-  testcase_09/   ← aus Anforderung erzeugt (sim-vdo): Fehler an Einspeisung, RCD-Ausgang (L und N) und Stromkreisen (L, N, je Außenleiter), Vorimpedanz 0,2 Ω
+  testcase_09/   ← aus Anforderung erzeugt (sim-vdo): Fehler an Einspeisung, RCD-Ausgang (L und N) und Stromkreisen (L, N, je Außenleiter), Vorimpedanz 0,2 Ω, PE-Kontaktfehler
+  testcase_10/   ← aus Anforderung erzeugt (sim-unq), Sonderfälle: Linksdrehfeld, gemischte Endstellen (früher testcase_07), AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene
   ...
 ```
 
@@ -2426,7 +2426,10 @@ teuren Tests sind umgebaut:
   (`beendeTestUmgebungen()` am Ende); jede Testumgebung bekommt eine eigene Seite.
 
 Gesamt danach etwa 3,5 Minuten. Grundsatz: teure Tests (vollständige Messung, Replay) nur für
-Testcases; Demos nur mit billigen Prüfungen (`tools/anlagen_reproduzieren.js`).
+Testcases; Demos nur mit billigen Prüfungen (`tools/anlagen_reproduzieren.js`). Teil 2: die
+Merkmale der Demos 15/18/19/20 und von testcase_07 stehen in testcase_10 "Sonderfälle";
+testcase_07 ist entfallen, testcase_02 ist nur noch Fixture für billige Einzeltests;
+demo_04/05/07 sind entfallen (Entscheidung Mensch).
 
 ---
 

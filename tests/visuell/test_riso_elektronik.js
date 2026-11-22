@@ -1,11 +1,11 @@
 // Riso-Widerstand der Elektronik von RCD Typ B und LS mit AFDD je Gerät
-// einstellbar (sim-qha), an demos/demo_20: RCD1 Typ B 0,15 MΩ, LS3 mit AFDD
-// 0,3 MΩ. Ohne Abklemmen misst Riso die Elektronik (n.i.O.), der Fahrplan
+// einstellbar (sim-qha), an testcase_10 (seit sim-unq, früher demos/demo_20):
+// RCD1 Typ B 0,15 MΩ (Gruppe G1), LS4 mit AFDD 0,3 MΩ hinter RCD2 Typ A. Ohne Abklemmen misst Riso die Elektronik (n.i.O.), der Fahrplan
 // klemmt ab und misst >999 MΩ (tests/visuell/test_pruefprotokoll.js).
 // Aufruf: node tests/visuell/test_riso_elektronik.js
 
 const messgeraet = require('../../tools/messgeraet_steuerung.js');
-const anlage = require('../../demos/demo_20/anlage.json');
+const anlage = require('./testcase_10/anlage.json');
 
 let alleBestanden = true;
 
@@ -29,12 +29,12 @@ const netz = (sk, f) => sks.find((s) => s.bezeichnung === sk).leitung.adern.find
 // Riso L-N an den Abgangsklemmen eines Stromkreises, freigeschaltet, ohne
 // abzuklemmen. Liefert Anzeige und Ampel (links rot).
 async function risoOhneAbklemmen(sk, phase, rcdWertMOhm) {
-  const ctx = await messgeraet.starteTestUmgebung('../../demos/demo_20');
+  const ctx = await messgeraet.starteTestUmgebung('testcase_10');
   // Optional einen anderen Gerätewert für RCD1 einspielen (Review Codex).
   if (rcdWertMOhm !== undefined) {
-    await ctx.page.route((url) => url.pathname.endsWith('/demo_20/anlage.json'), async (route) => {
+    await ctx.page.route((url) => url.pathname.endsWith('/testcase_10/anlage.json'), async (route) => {
       const daten = await (await route.fetch()).json();
-      daten.hutschienen[0].gruppen[0].rcd.riso_elektronik_mohm = rcdWertMOhm;
+      daten.hutschienen.flatMap((h) => h.gruppen).find((g) => g.rcd?.name === 'RCD1').rcd.riso_elektronik_mohm = rcdWertMOhm;
       await route.fulfill({ json: daten });
     });
     await ctx.page.reload();
@@ -54,33 +54,38 @@ async function risoOhneAbklemmen(sk, phase, rcdWertMOhm) {
 }
 
 (async () => {
-  await pruefe('anlage.json trägt die eingestellten Werte (RCD1 0,15 MΩ, LS3 0,3 MΩ), andere Geräte nicht', async () => {
-    const rcd = anlage.hutschienen[0].gruppen[0].rcd;
+  await pruefe('anlage.json trägt die eingestellten Werte (RCD1 0,15 MΩ, LS4 0,3 MΩ), andere Geräte nicht', async () => {
+    const rcd = anlage.hutschienen.flatMap((h) => h.gruppen).find((g) => g.rcd?.name === 'RCD1').rcd;
     erwarteGleich(rcd.riso_elektronik_mohm, 0.15, 'RCD1');
-    erwarteGleich(sks.find((s) => s.bezeichnung === 'SK3').ls.riso_elektronik_mohm, 0.3, 'LS3');
-    erwarteGleich('riso_elektronik_mohm' in sks.find((s) => s.bezeichnung === 'SK2').ls, false, 'LS2 ohne Wert');
+    erwarteGleich(sks.find((s) => s.bezeichnung === 'SK4').ls.riso_elektronik_mohm, 0.3, 'LS4');
+    erwarteGleich('riso_elektronik_mohm' in sks.find((s) => s.bezeichnung === 'SK3').ls, false, 'LS3 ohne Wert');
   });
 
   await pruefe('Riso ohne Abklemmen hinter RCD Typ B: 0,15 MΩ, Ampel rot (sim-qha)', async () => {
-    const { wert, rot } = await risoOhneAbklemmen('SK2', 'L2');
+    const { wert, rot } = await risoOhneAbklemmen('SK3', 'L1');
     erwarteGleich(wert, 'R:0,15MΩ', 'Anzeige');
     erwarteGleich(rot, true, 'Ampel rot');
   });
 
-  await pruefe('Riso ohne Abklemmen hinter RCD Typ B und AFDD: parallel 0,15 || 0,3 = 0,10 MΩ (sim-qha)', async () => {
-    const { wert } = await risoOhneAbklemmen('SK3', 'L3');
+  // SK4 hängt hinter RCD2 Typ A und LS4 mit AFDD (0,3 MΩ). Bei offenem
+  // Hauptschalter erreicht die Messung über die Sammelschiene (L2 und N am
+  // Hauptschalter-Ausgang) auch die Elektronik von RCD1 Typ B (0,15 MΩ) der
+  // anderen Gruppe - wie in der Realität, deshalb klemmt der Fahrplan ab
+  // (sim-f7j). Gemessen wird die Parallelschaltung 0,15 || 0,3 = 0,10 MΩ.
+  await pruefe('Riso ohne Abklemmen hinter AFDD, dazu RCD Typ B über die Sammelschiene: 0,15 || 0,3 = 0,10 MΩ (sim-qha)', async () => {
+    const { wert } = await risoOhneAbklemmen('SK4', 'L2');
     erwarteGleich(wert, 'R:0,10MΩ', 'Anzeige');
   });
 
   // Review Codex zu sim-qha: nicht vor der Ampel runden.
   await pruefe('Sehr kleiner Elektronikwert 0,004 MΩ: endlicher Widerstand in Ω, kein Kurzschluss 0,00, Ampel rot', async () => {
-    const { wert, rot } = await risoOhneAbklemmen('SK2', 'L2', 0.004);
+    const { wert, rot } = await risoOhneAbklemmen('SK3', 'L1', 0.004);
     erwarteGleich(wert, 'R:4000,00Ω', 'Anzeige');
     erwarteGleich(rot, true, 'Ampel rot');
   });
 
   await pruefe('Elektronikwert 49,999 MΩ knapp unter dem Grenzwert 50 MΩ: Ampel rot', async () => {
-    const { rot } = await risoOhneAbklemmen('SK2', 'L2', 49.999);
+    const { rot } = await risoOhneAbklemmen('SK3', 'L1', 49.999);
     erwarteGleich(rot, true, 'Ampel rot');
   });
 

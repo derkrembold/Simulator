@@ -197,13 +197,13 @@ async function main() {
 
   // sim-lfi: gemischte Endstellen in einem Stromkreis - jede Dose wird mit
   // ihrem eigenen Typ gezeichnet (Platzierung "SK1:Lichtauslass").
-  await pruefe('Steckdosen: testcase_07 - SK1 mit zwei Steckdosen und einem Lichtauslass (gemischte Typen)', async () => {
+  await pruefe('Steckdosen: testcase_10 - SK3 mit zwei Steckdosen und einem Lichtauslass (gemischte Typen)', async () => {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
-    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/testcase_07/anlage.json`);
+    await page.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/testcase_10/anlage.json`);
     await page.waitForSelector('#steckdosen svg [data-endstelle]');
     const typen = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#steckdosen [data-endstelle]')]
       .map((g) => [g.getAttribute('data-endstelle'), g.querySelectorAll('rect[rx]').length === 2 ? 'Steckdose' : 'Anschlussdose'])));
-    const erwartet = { '0-0': 'Steckdose', '1-0': 'Steckdose', '2-0': 'Anschlussdose', '0-1': 'Anschlussdose' };
+    const erwartet = { '0-2': 'Steckdose', '1-2': 'Steckdose', '2-2': 'Anschlussdose', '3-1': 'Anschlussdose' };
     if (JSON.stringify(typen, Object.keys(erwartet)) !== JSON.stringify(erwartet)) {
       throw new Error(`Typen je Dose: ${JSON.stringify(typen)}, erwartet ${JSON.stringify(erwartet)}`);
     }

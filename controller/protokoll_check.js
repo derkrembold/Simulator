@@ -284,6 +284,8 @@ function pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll = {}, 
 const SPALTE_NR = 0;
 const SPALTE_ZIEL = 1;
 const HAUPTLEITUNG_ZEILE = 2;
+const ERSTE_RCD_SPALTE = 14;
+const LETZTE_RCD_SPALTE = 18;
 
 // Sollzeilen aus den protokollEintragen-Schritten: [{ zeile, werte: { spalte: wert } }],
 // inklusive der Hauptleitung (Zeile HAUPTLEITUNG_ZEILE).
@@ -357,6 +359,12 @@ function pruefeMesstabelle(wurzel, fahrplan, markiere) {
     for (const spalte of Object.keys(s.werte)) {
       const input = b.inputs[Number(spalte)];
       if (!richtigeZelle(spalte, wert(b, spalte), s.werte[spalte])) markiere(input);
+    }
+    // Bei einem RCD Typ B/B+ stehen die RCD-Werte in eigenen Zeilen (sim-24l):
+    // die Zeile des Stromkreises hat dann keinen Sollwert in den RCD-Spalten
+    // und muss dort leer bleiben.
+    for (let spalte = ERSTE_RCD_SPALTE; spalte <= LETZTE_RCD_SPALTE; spalte++) {
+      if (s.werte[spalte] === undefined && wert(b, spalte).trim() !== '') markiere(b.inputs[spalte]);
     }
   });
 

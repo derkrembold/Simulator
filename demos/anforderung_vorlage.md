@@ -51,6 +51,12 @@ in einer Gruppe mit RCD.
 Eine Gruppe ist ein RCD mit den dahinter liegenden LS. `ohne` bei RCD Pole = LS direkt am
 Hauptschalter.
 
+Optional die Messwerte des RCD-Tests als weitere Spalten: `Imess AC (mA)` und `tA AC (ms)` für
+die Prüfung mit Wechselstrom (jeder RCD, leer = 60 % von IΔN und 22 ms), `Imess DC (mA)` und
+`tA DC (ms)` für die Prüfung mit glattem Gleichstrom (nur Typ B und B+, leer = 58 mA bei 30 mA,
+bei anderem Fehlerstrom im selben Verhältnis, und 25 ms). Ein RCD Typ B/B+ bekommt im
+Prüfprotokoll zwei eigene Zeilen (F3-n, Wechselstrom und Gleichstrom).
+
 | Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen | Fehler L (Ω) | Fehler N (Ω) |
 | ------ | -------- | ------- | ---------------- | ----------------- | -------- | --------- | ------------ | ------------ |
 | G1     | 2        | A       | 30               | 40                | nein     | nein      |              |              |

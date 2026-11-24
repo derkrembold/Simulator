@@ -5822,8 +5822,97 @@
       ]
     },
     {
-      "titel": "SK1: RCD-Auslösung (FI/RCD)",
-      "begruendung": "RCD1-Typenschild (30mA, Typ B) am Messgerät einstellen, dann Fehlerstrom-Auslösung testen - löst den RCD danach automatisch aus.",
+      "titel": "SK1: RCD-Auslösung mit Wechselstrom (Einstellung AC) (FI/RCD)",
+      "begruendung": "RCD1-Typenschild (30mA, Typ B) am Messgerät einstellen, Typ auf AC stellen, dann Fehlerstrom-Auslösung testen - löst den RCD danach automatisch aus. Ein RCD Typ B wird mit Wechselstrom und mit glattem Gleichstrom geprüft, jede Prüfung bekommt eine eigene Zeile im Protokoll.",
+      "schritte": [
+        {
+          "funktion": "drehknopfAufModus",
+          "argumente": [
+            "FI/RCD"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "fehlerstrom",
+            "30mA"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "stelleEin",
+          "argumente": [
+            "typ",
+            "AC"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N32"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "netz": "N35"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "messspitzeSetzen",
+          "argumente": [
+            {
+              "bauteil": "PE-Klemme"
+            }
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "testDruecken",
+          "argumente": [],
+          "ergebnis": null
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "hauptmesswert"
+          ],
+          "ergebnis": "I:18,0mA"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "t"
+          ],
+          "ergebnis": "t:22,0ms"
+        },
+        {
+          "funktion": "leseWert",
+          "argumente": [
+            "uci"
+          ],
+          "ergebnis": "Uci:1,0V"
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD1"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "SK1: RCD-Auslösung mit glattem Gleichstrom (Einstellung B) (FI/RCD)",
+      "begruendung": "RCD1-Typenschild (30mA, Typ B) am Messgerät einstellen, Typ auf B stellen, dann Fehlerstrom-Auslösung testen - löst den RCD danach automatisch aus. Ein RCD Typ B wird mit Wechselstrom und mit glattem Gleichstrom geprüft, jede Prüfung bekommt eine eigene Zeile im Protokoll.",
       "schritte": [
         {
           "funktion": "drehknopfAufModus",
@@ -5885,14 +5974,14 @@
           "argumente": [
             "hauptmesswert"
           ],
-          "ergebnis": "I:18,0mA"
+          "ergebnis": "I:58,0mA"
         },
         {
           "funktion": "leseWert",
           "argumente": [
             "t"
           ],
-          "ergebnis": "t:22,0ms"
+          "ergebnis": "t:25,0ms"
         },
         {
           "funktion": "leseWert",
@@ -6268,13 +6357,277 @@
     },
     {
       "titel": "Protokoll: RCD eintragen",
-      "begruendung": "Je Stromkreis die RCD-Daten vom Typenschild und die Messwerte des RCD-Tests eintragen.",
+      "begruendung": "Je Stromkreis die RCD-Daten vom Typenschild und die Messwerte des RCD-Tests eintragen. Ein RCD Typ B oder B+ bekommt zwei eigene Zeilen ohne Stromkreis, eine für die Prüfung mit Wechselstrom und eine für glatten Gleichstrom: in Nr. das Kennzeichen des RCD (F3-1, F3-2, … von links oben nach rechts unten gezählt), in der Zielbezeichnung RCD und Prüfart. Die Zeile des Stromkreises bleibt in den RCD-Spalten leer.",
       "schritte": [
         {
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 3,
+              "zeile": 4,
+              "spalte": 14,
+              "spaltenName": "RCD In/Art"
+            },
+            "40/A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 15,
+              "spaltenName": "RCD IΔn (mA)"
+            },
+            "30"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 16,
+              "spaltenName": "RCD Imess (mA)"
+            },
+            "18,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 17,
+              "spaltenName": "RCD Auslösezeit (ms)"
+            },
+            "22,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 4,
+              "spalte": 18,
+              "spaltenName": "RCD Umess (V)"
+            },
+            "1,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 14,
+              "spaltenName": "RCD In/Art"
+            },
+            "40/A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 15,
+              "spaltenName": "RCD IΔn (mA)"
+            },
+            "30"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 16,
+              "spaltenName": "RCD Imess (mA)"
+            },
+            "18,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 17,
+              "spaltenName": "RCD Auslösezeit (ms)"
+            },
+            "22,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 5,
+              "spalte": 18,
+              "spaltenName": "RCD Umess (V)"
+            },
+            "1,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 6,
+              "spalte": 14,
+              "spaltenName": "RCD In/Art"
+            },
+            "40/A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 6,
+              "spalte": 15,
+              "spaltenName": "RCD IΔn (mA)"
+            },
+            "30"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 6,
+              "spalte": 16,
+              "spaltenName": "RCD Imess (mA)"
+            },
+            "18,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 6,
+              "spalte": 17,
+              "spaltenName": "RCD Auslösezeit (ms)"
+            },
+            "22,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 6,
+              "spalte": 18,
+              "spaltenName": "RCD Umess (V)"
+            },
+            "1,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 7,
+              "spalte": 14,
+              "spaltenName": "RCD In/Art"
+            },
+            "40/A"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 7,
+              "spalte": 15,
+              "spaltenName": "RCD IΔn (mA)"
+            },
+            "30"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 7,
+              "spalte": 16,
+              "spaltenName": "RCD Imess (mA)"
+            },
+            "18,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 7,
+              "spalte": 17,
+              "spaltenName": "RCD Auslösezeit (ms)"
+            },
+            "22,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 7,
+              "spalte": 18,
+              "spaltenName": "RCD Umess (V)"
+            },
+            "1,0"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 8,
+              "spalte": 0,
+              "spaltenName": "Nr."
+            },
+            "F3-1"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 8,
+              "spalte": 1,
+              "spaltenName": "Stromkreis / Zielbezeichnung"
+            },
+            "RCD1 Typ B: Prüfung Wechselstrom"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 8,
               "spalte": 14,
               "spaltenName": "RCD In/Art"
             },
@@ -6286,7 +6639,7 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 3,
+              "zeile": 8,
               "spalte": 15,
               "spaltenName": "RCD IΔn (mA)"
             },
@@ -6298,7 +6651,7 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 3,
+              "zeile": 8,
               "spalte": 16,
               "spaltenName": "RCD Imess (mA)"
             },
@@ -6310,7 +6663,7 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 3,
+              "zeile": 8,
               "spalte": 17,
               "spaltenName": "RCD Auslösezeit (ms)"
             },
@@ -6322,7 +6675,7 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 3,
+              "zeile": 8,
               "spalte": 18,
               "spaltenName": "RCD Umess (V)"
             },
@@ -6334,11 +6687,11 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 4,
-              "spalte": 14,
-              "spaltenName": "RCD In/Art"
+              "zeile": 9,
+              "spalte": 0,
+              "spaltenName": "Nr."
             },
-            "40/A"
+            "F3-1"
           ],
           "ergebnis": null
         },
@@ -6346,7 +6699,31 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 4,
+              "zeile": 9,
+              "spalte": 1,
+              "spaltenName": "Stromkreis / Zielbezeichnung"
+            },
+            "RCD1 Typ B: Prüfung Gleichstrom"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 9,
+              "spalte": 14,
+              "spaltenName": "RCD In/Art"
+            },
+            "40/B"
+          ],
+          "ergebnis": null
+        },
+        {
+          "funktion": "protokollEintragen",
+          "argumente": [
+            {
+              "zeile": 9,
               "spalte": 15,
               "spaltenName": "RCD IΔn (mA)"
             },
@@ -6358,11 +6735,11 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 4,
+              "zeile": 9,
               "spalte": 16,
               "spaltenName": "RCD Imess (mA)"
             },
-            "18,0"
+            "58,0"
           ],
           "ergebnis": null
         },
@@ -6370,11 +6747,11 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 4,
+              "zeile": 9,
               "spalte": 17,
               "spaltenName": "RCD Auslösezeit (ms)"
             },
-            "22,0"
+            "25,0"
           ],
           "ergebnis": null
         },
@@ -6382,187 +6759,7 @@
           "funktion": "protokollEintragen",
           "argumente": [
             {
-              "zeile": 4,
-              "spalte": 18,
-              "spaltenName": "RCD Umess (V)"
-            },
-            "1,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 5,
-              "spalte": 14,
-              "spaltenName": "RCD In/Art"
-            },
-            "40/A"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 5,
-              "spalte": 15,
-              "spaltenName": "RCD IΔn (mA)"
-            },
-            "30"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 5,
-              "spalte": 16,
-              "spaltenName": "RCD Imess (mA)"
-            },
-            "18,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 5,
-              "spalte": 17,
-              "spaltenName": "RCD Auslösezeit (ms)"
-            },
-            "22,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 5,
-              "spalte": 18,
-              "spaltenName": "RCD Umess (V)"
-            },
-            "1,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 6,
-              "spalte": 14,
-              "spaltenName": "RCD In/Art"
-            },
-            "40/A"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 6,
-              "spalte": 15,
-              "spaltenName": "RCD IΔn (mA)"
-            },
-            "30"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 6,
-              "spalte": 16,
-              "spaltenName": "RCD Imess (mA)"
-            },
-            "18,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 6,
-              "spalte": 17,
-              "spaltenName": "RCD Auslösezeit (ms)"
-            },
-            "22,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 6,
-              "spalte": 18,
-              "spaltenName": "RCD Umess (V)"
-            },
-            "1,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 7,
-              "spalte": 14,
-              "spaltenName": "RCD In/Art"
-            },
-            "40/A"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 7,
-              "spalte": 15,
-              "spaltenName": "RCD IΔn (mA)"
-            },
-            "30"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 7,
-              "spalte": 16,
-              "spaltenName": "RCD Imess (mA)"
-            },
-            "18,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 7,
-              "spalte": 17,
-              "spaltenName": "RCD Auslösezeit (ms)"
-            },
-            "22,0"
-          ],
-          "ergebnis": null
-        },
-        {
-          "funktion": "protokollEintragen",
-          "argumente": [
-            {
-              "zeile": 7,
+              "zeile": 9,
               "spalte": 18,
               "spaltenName": "RCD Umess (V)"
             },

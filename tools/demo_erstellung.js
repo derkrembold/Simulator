@@ -150,6 +150,13 @@ function parseAnforderung(text) {
     // Optionale Spalte (sim-qha): Riso-Widerstand der Elektronik eines RCD Typ
     // B/B+ in MΩ, leer = Standard der App.
     risoElektronikRoh: (z['Riso Elektronik (MΩ)'] ?? '').trim(),
+    // Optionale Spalten (sim-24l): Messwerte des RCD-Tests je Prüfstromform. AC
+    // gilt für jeden RCD, DC nur für Typ B/B+. Leer = Standardwert (siehe
+    // RCD_STANDARD).
+    imessAcRoh: (z['Imess AC (mA)'] ?? '').trim(),
+    tAcRoh: (z['tA AC (ms)'] ?? '').trim(),
+    imessDcRoh: (z['Imess DC (mA)'] ?? '').trim(),
+    tDcRoh: (z['tA DC (ms)'] ?? '').trim(),
     fehlerL: leseFehler(z['Fehler L (Ω)']),
     fehlerN: leseFehler(z['Fehler N (Ω)'])
   }));
@@ -241,6 +248,12 @@ function pruefeAnforderung(anf) {
     if (g.risoElektronikRoh !== '') {
       muss(zahl(g.risoElektronikRoh) > 0, `Gruppe ${g.id}: Riso Elektronik (MΩ) "${g.risoElektronikRoh}" ungültig (eine Zahl größer 0, leer = Standard)`);
       muss(['B', 'B+'].includes(g.typ), `Gruppe ${g.id}: Riso Elektronik gibt es nur bei einem RCD Typ B oder B+`);
+    }
+    for (const [roh, name] of [[g.imessAcRoh, 'Imess AC (mA)'], [g.tAcRoh, 'tA AC (ms)'], [g.imessDcRoh, 'Imess DC (mA)'], [g.tDcRoh, 'tA DC (ms)']]) {
+      if (roh === '') continue;
+      muss(zahl(roh) > 0, `Gruppe ${g.id}: ${name} "${roh}" ungültig (eine Zahl größer 0, leer = Standard)`);
+      muss(!g.ohneRcd, `Gruppe ${g.id}: ${name} gibt es nur bei einem RCD`);
+      muss(!name.includes('DC') || ['B', 'B+'].includes(g.typ), `Gruppe ${g.id}: ${name} gibt es nur bei einem RCD Typ B oder B+`);
     }
     gruppenIds.add(g.id);
     if (g.ohneRcd) {
@@ -667,13 +680,20 @@ function schreibeNetzplan(anf, modell, demoName) {
 // Der Schaltkasten ist 640 px breit, eine Dosen-Zelle 190 px: mehr als 3 Spalten ragen über den Rand.
 const MAX_DOSEN_SPALTEN = 3;
 
+// Angegebener Zahlenwert (Komma oder Punkt), sonst der Standard.
+function wertOderStandard(roh, standard) {
+  return roh === '' ? standard : zahl(roh);
+}
+
 function schreibeBauteile(anf, modell) {
   const { gruppenInfo, sks, hs3, qHS } = modell;
   // Spalte AFDD nur, wenn es einen LS mit AFDD gibt (generate_anlage.js liest
   // sie optional).
   // Ebenso die Spalte Riso Elektronik nur, wenn ein Wert gesetzt ist (sim-qha).
   const mitRisoElektronik = anf.gruppen.some((g) => g.risoElektronikRoh) || sks.some((s) => s.risoElektronikRoh);
+  const mitGleichstrom = gruppenInfo.some((i) => i.rcdName && generator.RCD_GLEICHSTROM_TYPEN.includes(i.gruppe.typ));
   const SPALTEN = ['Bauteil', 'Gruppe', 'Typ/Charakteristik', 'Fehlerstrom', 'Nennstrom', 'Max. Querschnitt', 'Pole', 'Selektiv', 'Abklemmen', 'Anzahl LS', 'tA', 'IA', 'UB',
+    ...(mitGleichstrom ? ['tA DC', 'IA DC'] : []),
     ...(sks.some((s) => s.afdd) ? ['AFDD'] : []), ...(mitRisoElektronik ? ['Riso Elektronik (MΩ)'] : [])];
   const zeile = (werte) => `| ${SPALTEN.map((s) => werte[s] ?? '–').join(' | ')} |`;
 
@@ -683,7 +703,7 @@ function schreibeBauteile(anf, modell) {
   zeilen.push('## Bauteile', '');
   zeilen.push(`| ${SPALTEN.join(' | ')} |`);
   zeilen.push(`|${SPALTEN.map(() => '---').join('|')}|`);
-  zeilen.push(zeile({ Bauteil: '**Einheit**', Gruppe: '', 'Typ/Charakteristik': '', Fehlerstrom: 'mA', Nennstrom: 'A', 'Max. Querschnitt': 'mm²', Pole: '', Selektiv: '', Abklemmen: '', 'Anzahl LS': '', tA: 'ms', IA: 'mA', UB: 'V' }));
+  zeilen.push(zeile({ Bauteil: '**Einheit**', Gruppe: '', 'Typ/Charakteristik': '', Fehlerstrom: 'mA', Nennstrom: 'A', 'Max. Querschnitt': 'mm²', Pole: '', Selektiv: '', Abklemmen: '', 'Anzahl LS': '', tA: 'ms', IA: 'mA', UB: 'V', 'tA DC': 'ms', 'IA DC': 'mA' }));
   zeilen.push(zeile({ Bauteil: 'Hauptschalter', Nennstrom: anf.hsA, 'Max. Querschnitt': Math.max(16, qHS), Pole: anf.hsPole }));
   const klemmen = hs3 ? ['L1-Klemme', 'L2-Klemme', 'L3-Klemme', 'N-Klemme', 'PE-Klemme'] : ['PE-Klemme'];
   for (const k of klemmen) zeilen.push(zeile({ Bauteil: k, Nennstrom: 63, 'Max. Querschnitt': 16 }));
@@ -697,7 +717,12 @@ function schreibeBauteile(anf, modell) {
       zeilen.push(zeile({
         Bauteil: info.rcdName, Gruppe: g.id, 'Typ/Charakteristik': g.typ, Fehlerstrom: g.fehlerstrom,
         Nennstrom: g.nennstrom, 'Max. Querschnitt': 16, Pole: g.rcdPole, Selektiv: g.selektiv, Abklemmen: g.abklemmen,
-        'Anzahl LS': info.sks.length, tA: 22, IA: Math.round(g.fehlerstrom * 0.6), UB: 1,
+        'Anzahl LS': info.sks.length, UB: 1,
+        tA: wertOderStandard(g.tAcRoh, 22), IA: wertOderStandard(g.imessAcRoh, Math.round(g.fehlerstrom * 0.6)),
+        ...(generator.RCD_GLEICHSTROM_TYPEN.includes(g.typ) ? {
+          'tA DC': wertOderStandard(g.tDcRoh, generator.rcdGleichstromStandard(g.fehlerstrom).tA),
+          'IA DC': wertOderStandard(g.imessDcRoh, generator.rcdGleichstromStandard(g.fehlerstrom).iA)
+        } : {}),
         ...(g.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': g.risoElektronikRoh } : {})
       }));
     }

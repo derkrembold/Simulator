@@ -557,15 +557,22 @@ async function messeZi(testcase, anlage, sk, phase) {
   return { zi: nurZahl(zi), ik: nurZahl(ik), deltaU: nurZahl(deltaU) };
 }
 
-async function messeRcd(testcase, sk, gruppe) {
+// Ein RCD Typ B/B+ wird zweimal geprüft (sim-24l): mit Wechselstrom (Einstellung
+// AC) und mit glattem Gleichstrom (Einstellung B bzw. B+). `art` = 'AC' oder
+// 'DC'; ohne `art` stellt der Fahrplan den Typ vom Typenschild ein.
+async function messeRcd(testcase, sk, gruppe, art = null) {
   const ctx = await basis.starteTestUmgebung(testcase);
+  const typEinstellung = art === 'AC' ? 'AC' : gruppe.rcd.typ;
+  const stromart = art === 'AC' ? ' mit Wechselstrom (Einstellung AC)' : art === 'DC' ? ` mit glattem Gleichstrom (Einstellung ${gruppe.rcd.typ})` : '';
   messgeraet.abschnittBeginnen(
-    `${sk.bezeichnung}: RCD-Auslösung (FI/RCD)`,
-    `${gruppe.rcd.name}-Typenschild (${gruppe.rcd.in_ma}mA, Typ ${gruppe.rcd.typ}) am Messgerät einstellen, dann Fehlerstrom-Auslösung testen - löst den RCD danach automatisch aus.`
+    `${sk.bezeichnung}: RCD-Auslösung${stromart} (FI/RCD)`,
+    art
+      ? `${gruppe.rcd.name}-Typenschild (${gruppe.rcd.in_ma}mA, Typ ${gruppe.rcd.typ}) am Messgerät einstellen, Typ auf ${typEinstellung} stellen, dann Fehlerstrom-Auslösung testen - löst den RCD danach automatisch aus. Ein RCD Typ ${gruppe.rcd.typ} wird mit Wechselstrom und mit glattem Gleichstrom geprüft, jede Prüfung bekommt eine eigene Zeile im Protokoll.`
+      : `${gruppe.rcd.name}-Typenschild (${gruppe.rcd.in_ma}mA, Typ ${gruppe.rcd.typ}) am Messgerät einstellen, dann Fehlerstrom-Auslösung testen - löst den RCD danach automatisch aus.`
   );
   await messgeraet.drehknopfAufModus(ctx, 'FI/RCD');
   await messgeraet.stelleEin(ctx, 'fehlerstrom', `${gruppe.rcd.in_ma}mA`);
-  await messgeraet.stelleEin(ctx, 'typ', gruppe.rcd.typ);
+  await messgeraet.stelleEin(ctx, 'typ', typEinstellung);
   await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, sk.phasen[0]) }); // schwarz
   await messgeraet.messspitzeSetzen(ctx, { netz: aderNetz(sk, 'N') }); // blau
   await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
@@ -615,6 +622,11 @@ async function messeRechtsdrehfeld(testcase, sk, endstelle) {
   messgeraet.abschnittEnde();
   await ctx.schliessen();
   return phasenfolge;
+}
+
+// RCD Typ B und B+ werden mit Wechsel- und mit Gleichstrom geprüft (sim-24l).
+function istGleichstromRcd(gruppe) {
+  return ['B', 'B+'].includes(gruppe.rcd?.typ);
 }
 
 function alleStromkreise(anlage) {
@@ -849,7 +861,7 @@ async function berechneProtokoll(testcase) {
   // 9. Drehfeld. Jede Messart läuft über
   // alle Stromkreise, bevor die nächste beginnt.
   const ergebnisse = stromkreise.map(({ sk, gruppe }, i) => ({
-    sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rcdName: gruppe.rcd?.name ?? null,
+    sk: sk.bezeichnung, phasen: sk.phasen, messungen: sk.messungen, rcdName: gruppe.rcd?.name ?? null, rcdTyp: gruppe.rcd?.typ ?? null,
     zeilenIndex: protokoll[i].zeile
   }));
   const ergebnisVon = (sk) => ergebnisse.find((e) => e.sk === sk.bezeichnung);
@@ -1044,9 +1056,34 @@ async function berechneProtokoll(testcase) {
     eintraegeFuer(['ueArt', 'ueIn', 'zs', 'ik', 'zi', 'ikLn'])));
 
   console.log('--- RCD ---');
+  // RCD Typ AC, A, F: eine Messung, die RCD-Werte stehen in der Zeile des
+  // Stromkreises. RCD Typ B, B+ (sim-24l): zwei Messungen (Wechselstrom und
+  // glatter Gleichstrom), jede in einer eigenen Zeile mit dem Kennzeichen
+  // F3-n des RCD; die Zeile des Stromkreises lässt den RCD-Teil leer.
+  const rcdZeilen = [];
+  let rcdNummer = 0;
+  const gezaehlteRcd = new Set();
   for (const { sk, gruppe } of stromkreise) {
-    if (!(sk.messungen.rcd && gruppe.rcd)) continue;
+    if (!gruppe.rcd) continue;
+    if (!gezaehlteRcd.has(gruppe.rcd.name)) { gezaehlteRcd.add(gruppe.rcd.name); rcdNummer += 1; }
+    if (!sk.messungen.rcd) continue;
     const e = ergebnisVon(sk);
+    if (istGleichstromRcd(gruppe)) {
+      if (rcdZeilen.some((z) => z.rcdName === gruppe.rcd.name)) continue;
+      for (const art of ['AC', 'DC']) {
+        const { imess, auslZeit, umess } = await messeRcd(testcase, sk, gruppe, art);
+        console.log(`${sk.bezeichnung} RCD ${art} Imess:`, imess, 'Auslösezeit:', auslZeit, 'Umess:', umess);
+        rcdZeilen.push({
+          rcdName: gruppe.rcd.name, art, zeile: stromkreise.length + 3 + rcdZeilen.length, werte: {
+            nr: `F3-${rcdNummer}`,
+            ziel: `RCD${rcdNummer} Typ ${gruppe.rcd.typ}: Prüfung ${art === 'AC' ? 'Wechselstrom' : 'Gleichstrom'}`,
+            rcdInArt: `${gruppe.rcd.nennstrom_a}/${gruppe.rcd.typ}`, rcdIdn: String(gruppe.rcd.in_ma),
+            rcdImess: imess, rcdAuslZeit: auslZeit, rcdUmess: umess
+          }
+        });
+      }
+      continue;
+    }
     const { imess, auslZeit, umess } = await messeRcd(testcase, sk, gruppe);
     console.log(`${sk.bezeichnung} RCD Imess:`, imess, 'Auslösezeit:', auslZeit, 'Umess:', umess);
     e.rcdImess = imess;
@@ -1054,16 +1091,18 @@ async function berechneProtokoll(testcase) {
     e.rcdUmess = umess;
   }
   stromkreise.forEach(({ sk, gruppe }, i) => {
-    if (!(sk.messungen.rcd && gruppe.rcd)) return;
+    if (!(sk.messungen.rcd && gruppe.rcd) || istGleichstromRcd(gruppe)) return;
     const e = ergebnisVon(sk);
     Object.assign(protokoll[i].werte, {
       rcdInArt: `${gruppe.rcd.nennstrom_a}/${gruppe.rcd.typ}`, rcdIdn: String(gruppe.rcd.in_ma),
       rcdImess: e.rcdImess, rcdAuslZeit: e.rcdAuslZeit, rcdUmess: e.rcdUmess
     });
   });
+  const rcdSpalten = ['rcdInArt', 'rcdIdn', 'rcdImess', 'rcdAuslZeit', 'rcdUmess'];
   protokollEintraege.push(...await trageEin(testcase, 'Protokoll: RCD eintragen',
-    'Je Stromkreis die RCD-Daten vom Typenschild und die Messwerte des RCD-Tests eintragen.',
-    eintraegeFuer(['rcdInArt', 'rcdIdn', 'rcdImess', 'rcdAuslZeit', 'rcdUmess'])));
+    'Je Stromkreis die RCD-Daten vom Typenschild und die Messwerte des RCD-Tests eintragen. Ein RCD Typ B oder B+ bekommt zwei eigene Zeilen ohne Stromkreis, eine für die Prüfung mit Wechselstrom und eine für glatten Gleichstrom: in Nr. das Kennzeichen des RCD (F3-1, F3-2, … von links oben nach rechts unten gezählt), in der Zielbezeichnung RCD und Prüfart. Die Zeile des Stromkreises bleibt in den RCD-Spalten leer.',
+    [...eintraegeFuer(rcdSpalten),
+      ...rcdZeilen.flatMap(({ zeile, werte }) => ['nr', 'ziel', ...rcdSpalten].map((spalte) => ({ zeile, spalte, wert: werte[spalte] })))]));
 
   // Rechtsdrehfeld (Erproben-Prüfpunkt, gilt EINMAL pro Anlage, nicht pro
   // Stromkreis) - nur relevant, wenn irgendein Stromkreis dreiphasig ist
@@ -1110,13 +1149,13 @@ async function berechneProtokoll(testcase) {
   // Zeilen für die PDF (fuelleProtokoll()) aus denselben Werten wie die
   // Protokoll-Einträge im Fahrplan, inklusive Kabeltyp.
   const zeilen = [
-    ...[hauptleitung, ...protokoll].map(({ zeile, werte }) => ({
+    ...[hauptleitung, ...protokoll, ...rcdZeilen].map(({ zeile, werte }) => ({
       zeilenIndex: zeile,
       werte: Object.fromEntries(Object.entries(werte).filter(([, w]) => w !== undefined).map(([k, w]) => [SPALTE[k], w]))
     }))
   ];
 
-  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs, hutschienenRpe, zweiDrittel };
+  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs, hutschienenRpe, zweiDrittel, rcdZeilen };
 }
 
 async function main() {

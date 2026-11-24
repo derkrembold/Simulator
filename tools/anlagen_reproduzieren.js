@@ -48,6 +48,11 @@ function vergleicheText(ist, soll) {
   return zeilen;
 }
 
+// Zeilenumbrüche vereinheitlichen: unter Windows legt Git die Dateien mit CRLF
+// ab (core.autocrlf), das Werkzeug schreibt LF. Das ist keine Abweichung
+// (sim-57c).
+const mitLf = (text) => text.replace(/\r\n/g, '\n');
+
 // Erzeugt die Anlage im Ordner neu und vergleicht. Liefert
 // { name, fehler: [Meldungen der Anforderungsprüfung], abweichungen: [{ datei, zeilen }] }.
 function pruefeAnlage(ordner) {
@@ -59,8 +64,8 @@ function pruefeAnlage(ordner) {
     const abweichungen = [];
     for (const datei of DATEIEN) {
       const pfad = path.join(ordner, datei);
-      const eingecheckt = fs.existsSync(pfad) ? fs.readFileSync(pfad, 'utf8') : '';
-      const neu = fs.readFileSync(path.join(temp, datei), 'utf8');
+      const eingecheckt = fs.existsSync(pfad) ? mitLf(fs.readFileSync(pfad, 'utf8')) : '';
+      const neu = mitLf(fs.readFileSync(path.join(temp, datei), 'utf8'));
       if (eingecheckt !== neu) abweichungen.push({ datei, zeilen: vergleicheText(eingecheckt, neu) });
     }
     return { name, fehler: [], abweichungen };
@@ -98,6 +103,6 @@ function main() {
   process.exit(gut ? 0 : 1);
 }
 
-module.exports = { findeAnlagen, pruefeAnlage };
+module.exports = { findeAnlagen, pruefeAnlage, mitLf };
 
 if (require.main === module) main();

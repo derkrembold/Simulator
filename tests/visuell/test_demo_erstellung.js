@@ -475,6 +475,31 @@ lehntAb('Riso Elektronik an einem RCD Typ A (sim-qha)', baueAnforderung({ gruppe
   .replace('| Fehler L (Ω) | Fehler N (Ω) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |', '| Fehler L (Ω) | Fehler N (Ω) | Riso Elektronik (MΩ) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
   .replace(/(\| G1 \|[^\n]*\|)$/m, '$1 0,15 |'), 'Riso Elektronik gibt es nur bei einem RCD Typ B oder B+');
 
+// sim-24l: Messwerte des RCD-Tests je Prüfstromform. Ohne Angabe gelten die
+// Standardwerte (AC 60 % IΔN und 22 ms, DC bei Typ B/B+ 58 mA und 25 ms).
+const RCD_MESS_SPALTEN = '| Fehler L (Ω) | Fehler N (Ω) | Imess AC (mA) | tA AC (ms) | Imess DC (mA) | tA DC (ms) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |';
+const mitRcdMesswerten = (text, werte) => text
+  .replace('| Fehler L (Ω) | Fehler N (Ω) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |', RCD_MESS_SPALTEN)
+  .replace(/(\| G1 \|[^\n]*\|)$/m, `$1 ${werte.join(' | ')} |`);
+
+pruefe('RCD-Messwerte (sim-24l): Standard bei Typ B, AC und DC in bauteile.md und anlage.json', () => {
+  const ergebnis = erzeuge(baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2, typ: 'B' }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] }));
+  const rcd = ergebnis.anlage.hutschienen[0].gruppen[0].rcd;
+  bedingung(`${rcd.iA}/${rcd.tA}/${rcd.iA_dc}/${rcd.tA_dc}` === '18/22/58/25', `RCD: ${rcd.iA}/${rcd.tA}/${rcd.iA_dc}/${rcd.tA_dc}`);
+});
+
+pruefe('RCD-Messwerte (sim-24l): angegebene Werte mit Komma, Typ A ohne Gleichstromwerte', () => {
+  const b = erzeuge(mitRcdMesswerten(baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2, typ: 'B+' }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] }), ['20', '24,5', '45', '30'])).anlage.hutschienen[0].gruppen[0].rcd;
+  bedingung(`${b.iA}/${b.tA}/${b.iA_dc}/${b.tA_dc}` === '20/24.5/45/30', `Typ B+: ${b.iA}/${b.tA}/${b.iA_dc}/${b.tA_dc}`);
+  const a = erzeuge(mitRcdMesswerten(baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2 }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] }), ['21', '', '', ''])).anlage.hutschienen[0].gruppen[0].rcd;
+  bedingung(a.iA === 21 && a.tA === 22 && !('iA_dc' in a), `Typ A: ${JSON.stringify({ iA: a.iA, tA: a.tA, iA_dc: a.iA_dc })}`);
+});
+
+lehntAb('Imess DC an einem RCD Typ A (sim-24l)', mitRcdMesswerten(baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2 }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] }), ['', '', '58', '']),
+  'Imess DC (mA) gibt es nur bei einem RCD Typ B oder B+');
+lehntAb('tA AC keine Zahl (sim-24l)', mitRcdMesswerten(baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2, typ: 'B' }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] }), ['', 'schnell', '', '']),
+  'tA AC (ms) "schnell" ungültig');
+
 lehntAb('AFDD an einem 3-poligen LS (sim-i4f)', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
   stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', afdd: 'ja' }]

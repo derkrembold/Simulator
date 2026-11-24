@@ -9,6 +9,14 @@ const fs = require('fs');
 const path = require('path');
 
 const KABELFARBEN = { L1: 'schwarz', L2: 'braun', L3: 'grau', N: 'blau', PE: 'gn-ge' };
+// Nur ein RCD Typ B/B+ wird mit glattem Gleichstrom geprüft und hat deshalb
+// eigene Auslösewerte (sim-24l). Standard bei 30 mA: 25 ms und 58 mA, bei
+// anderem Fehlerstrom der Strom im selben Verhältnis zu IΔN.
+const RCD_GLEICHSTROM_TYPEN = ['B', 'B+'];
+function rcdGleichstromStandard(fehlerstromMa) {
+  return { tA: 25, iA: Math.round(fehlerstromMa * 58 / 30) };
+}
+
 const TE_TABELLE = {
   'LS-1': 1, 'LS-2': 2, 'LS-3': 3,
   'RCD-2': 2, 'RCD-4': 4,
@@ -411,6 +419,11 @@ function parseBauteile(ordner) {
           tA: bereinige(z.tA) ? parseFloat(z.tA) : null,
           iA: bereinige(z.IA) ? parseFloat(z.IA) : null,
           uB: bereinige(z.UB) ? parseFloat(z.UB) : null,
+          // Auslösewerte bei Prüfung mit glattem Gleichstrom (Einstellung B/B+ am
+          // Messgerät), nur bei einem RCD Typ B/B+ (sim-24l). Fehlt die Spalte,
+          // gilt der Standard (rcdGleichstromStandard()).
+          tADc: bereinige(z['tA DC']) ? parseFloat(z['tA DC']) : null,
+          iADc: bereinige(z['IA DC']) ? parseFloat(z['IA DC']) : null,
           // "LS mit AFDD"-Kombigerät (siehe KONZEPT.md "AFDD"): baulich wie
           // ein 2-poliger RCD (L+N in einem Gehäuse), nur die Aufschrift
           // unterscheidet sich. Optionale Spalte - fehlt sie in einer
@@ -702,6 +715,10 @@ function generiereAnlage(ordner) {
         tA: rcd.tA,
         iA: rcd.iA,
         uB: rcd.uB,
+        ...(RCD_GLEICHSTROM_TYPEN.includes(rcd.typ) ? {
+          tA_dc: rcd.tADc ?? rcdGleichstromStandard(rcd.fehlerstrom).tA,
+          iA_dc: rcd.iADc ?? rcdGleichstromStandard(rcd.fehlerstrom).iA
+        } : {}),
         eingang: baueLeitung(netze, rcd.name, 'i', rcdFunktionen),
         ausgang: baueLeitung(netze, rcd.name, 'o', rcdFunktionen)
       } : null,
@@ -748,7 +765,7 @@ function generiereAnlage(ordner) {
   return anlage;
 }
 
-module.exports = { generiereAnlage, generiereGraph, findePfad, berechneWiderstand, istSpannungFuehrend, parseBauteile };
+module.exports = { RCD_GLEICHSTROM_TYPEN, rcdGleichstromStandard, generiereAnlage, generiereGraph, findePfad, berechneWiderstand, istSpannungFuehrend, parseBauteile };
 
 // --- Main (nur bei direktem Aufruf, nicht beim require() aus anderen Skripten) ---
 

@@ -889,7 +889,7 @@ Erdungswiderstand (1 Feld, freier Ω-Wert), Durchgängigkeit
 Potentialausgleich nachgewiesen (14 Prüfpunkte, eine Wert-Spalte statt
 i.O./n.i.O.), Verwendete Messgeräte (3 Zeilen), Messen –
 Stromkreisverteiler (19 Spalten in 4 Gruppen + 3 eigenständigen Spalten,
-zweizeiliger Tabellenkopf, 11 Zeilen, erste Zeile mit "Hauptleitung"
+zweizeiliger Tabellenkopf, 15 Zeilen, erste Zeile mit "Hauptleitung"
 vorausgefüllt), Prüfergebnis, Abschluss – Auftraggeber/Prüfer, und als
 eigenes zweites Blatt Seite 2 (Übergabe-/Zustandsbericht: „Folgende
 Mängel wurden festgestellt“ und „Beurteilung zu den gemessenen
@@ -935,8 +935,10 @@ User-Vorgabe. Spätere Erweiterung möglich.
 
 **Betriebsmittelkennzeichen:** Die Spalte Nr. der Messtabelle trägt bei jedem Stromkreis
 das Kennzeichen seines LS, F2-1, F2-2, … von links oben nach rechts unten gezählt, und der
-Check prüft es (sim-0ns). Ein RCD kann später eine eigene Zeile mit F3-XX bekommen (bei
-Typ B getrennt für DC und AC, sim-ovx), weitere Kennzeichen (Q, S, E, X) folgen mit sim-23w.
+Check prüft es (sim-0ns). Ein RCD Typ B oder B+ bekommt zwei eigene Zeilen mit F3-n, eine für
+die Prüfung mit Wechselstrom und eine mit glattem Gleichstrom; das Messgerät zeigt je nach
+Einstellung (AC/A/F oder B/B+) die passenden Auslösewerte aus `anlage.json` (`iA`/`tA` bzw.
+`iA_dc`/`tA_dc`, sim-24l). Weitere Kennzeichen (Q, S, E, X) folgen mit sim-23w.
 Nomenklatur und Regeln: `docs/BEDIENERPROZESS.md`, Abschnitt "Betriebsmittelkennzeichen".
 
 ---

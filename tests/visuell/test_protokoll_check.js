@@ -339,6 +339,26 @@ async function main() {
     erwarteGleich(e.rot, 1, 'rote Felder');
   });
 
+  // sim-24l: RCD Typ B/B+ (testcase_04, RCD1) hat zwei eigene Zeilen F3-n,
+  // die Zeile des Stromkreises bleibt in den RCD-Spalten leer.
+  const SPALTE_IMESS = 16;
+  const rcdZeilen = () => [...document.querySelector('#protokoll .pf-scroll table').rows]
+    .filter((z) => /^F3-/.test(z.cells[0]?.querySelector('input')?.value ?? ''));
+  await fall('RCD Typ B: richtig ausgefüllt mit zwei F3-Zeilen, nichts rot (sim-24l)', null, async (e, page) => {
+    erwarteGleich(e.rot, 0, 'rote Felder');
+    erwarteGleich(await page.evaluate(new Function(`return (${rcdZeilen.toString()})().length;`)), 2, 'F3-Zeilen');
+  }, 'testcase_04');
+
+  await fall('RCD Typ B: Imess der Wechsel- und Gleichstromzeile vertauscht, beide rot (sim-24l)', new Function(`
+    const [ac, dc] = (${rcdZeilen.toString()})().map((z) => z.cells[${SPALTE_IMESS}].querySelector('input'));
+    const t = ac.value; ac.value = dc.value; dc.value = t;`), async (e) => erwarteGleich(e.rot, 2, 'rote Felder'), 'testcase_04');
+
+  await fall('RCD Typ B: RCD-Wert in der Zeile des Stromkreises ist rot (sim-24l)', () => {
+    const tabelle = document.querySelector('#protokoll .pf-scroll table');
+    const lsZeile = [...tabelle.rows].find((z) => /^F2-/.test(z.cells[0]?.querySelector('input')?.value ?? '') && z.cells[16].querySelector('input').value === '');
+    lsZeile.cells[16].querySelector('input').value = '18,0';
+  }, async (e) => erwarteGleich(e.rot, 1, 'rote Felder'), 'testcase_04');
+
   await fall('Prüfer leer: rot', () => {
     const z = [...document.querySelectorAll('#protokoll .pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === 'Prüfer');
     z.querySelector('input').value = '';

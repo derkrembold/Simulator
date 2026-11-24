@@ -288,7 +288,7 @@ function baueStromkreisverteiler() {
   const ersteZeile = `<tr><td>${feld()}</td><td><input type="text" class="pf-feld" value="Hauptleitung"></td>${
     STROMKREIS_SPALTEN.slice(2).map(() => `<td>${feld()}</td>`).join('')
   }</tr>`;
-  const weitereZeilen = Array.from({ length: 10 }, () =>
+  const weitereZeilen = Array.from({ length: 14 }, () =>
     `<tr>${STROMKREIS_SPALTEN.map(() => `<td>${feld()}</td>`).join('')}</tr>`
   ).join('');
   return abschnitt('Messen – Stromkreisverteiler',

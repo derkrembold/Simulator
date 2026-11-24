@@ -70,6 +70,23 @@ pruefe('Geänderte Anforderung (LS-Nennstrom) wird als Abweichung erkannt', () =
   }
 });
 
+// sim-57c: Unter Windows liegen die eingecheckten Dateien mit CRLF im
+// Arbeitsordner (core.autocrlf). Das allein ist keine Abweichung.
+pruefe('Eingecheckte Dateien mit CRLF gelten als gleich (sim-57c)', () => {
+  const ordner = kopie('demo_15');
+  try {
+    for (const datei of ['netzplan.md', 'bauteile.md', 'anlage.json', 'graph.json']) {
+      const pfad = path.join(ordner, datei);
+      fs.writeFileSync(pfad, fs.readFileSync(pfad, 'utf8').replace(/\r?\n/g, '\r\n'));
+    }
+    const { fehler, abweichungen } = pruefeAnlage(ordner);
+    bedingung(fehler.length === 0, `Anforderung abgelehnt: ${fehler.join('; ')}`);
+    bedingung(abweichungen.length === 0, `Abweichungen in: ${abweichungen.map((a) => a.datei).join(', ')}`);
+  } finally {
+    fs.rmSync(path.dirname(ordner), { recursive: true, force: true });
+  }
+});
+
 pruefe('Ungültige Anforderung wird mit den Meldungen gemeldet, nicht als gleich', () => {
   const ordner = kopie('demo_15', (text) => text.replace('| Hauptschalter Pole   | 3 ', '| Hauptschalter Pole   | 5 '));
   try {

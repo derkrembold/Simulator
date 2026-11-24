@@ -165,6 +165,8 @@
             "tA": 22,
             "iA": 18,
             "uB": 1,
+            "tA_dc": 25,
+            "iA_dc": 58,
             "eingang": {
               "leitung": {
                 "typ": "NYM-J",
@@ -409,6 +411,8 @@
             "tA": 22,
             "iA": 18,
             "uB": 1,
+            "tA_dc": 25,
+            "iA_dc": 58,
             "eingang": {
               "leitung": {
                 "typ": "NYM-J",

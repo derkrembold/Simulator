@@ -20,7 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
-const { parseBauteile } = require('./generate_anlage.js');
+const { parseBauteile, rcdGleichstromStandard, RCD_GLEICHSTROM_TYPEN: GLEICHSTROM_RCD } = require('./generate_anlage.js');
 
 // testcase_02 bleibt Fixture für billige Einzeltests und wird hier nicht
 // vollständig gemessen (sim-unq); Sonderfälle stehen in testcase_10.
@@ -224,7 +224,7 @@ async function main() {
   for (const testcase of TESTCASES) {
     const ordner = path.join(__dirname, testcase);
     const { bauteile } = parseBauteile(ordner);
-    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref, erprobenPunkte, hauptleitungZs } = vorab[testcase];
+    const { ergebnisse, anlage, zeilen, einspeisung, zuordnung, protokollEintraege, zref, erprobenPunkte, hauptleitungZs, rcdZeilen } = vorab[testcase];
     anlagen[testcase] = anlage;
 
     // sim-f7j, integriert: testcase_08 (früher demo_08) hat einen Stromkreis
@@ -308,6 +308,27 @@ async function main() {
       });
     }
 
+    // RCD Typ B/B+ (sim-24l): je RCD zwei eigene Zeilen F3-n, Wechselstrom mit
+    // tA/IA, Gleichstrom mit tA DC/IA DC aus bauteile.md (ohne Spalte der
+    // Standard aus generate_anlage.js).
+    const gleichstromRcds = [...new Set(ergebnisse.filter((e) => GLEICHSTROM_RCD.includes(e.rcdTyp) && e.messungen.rcd).map((e) => e.rcdName))];
+    for (const name of gleichstromRcds) {
+      await pruefe(`${testcase}: ${name} hat zwei eigene Zeilen F3-n mit Wechsel- und Gleichstromwerten (sim-24l)`, async () => {
+        const rcd = bauteile.find((b) => b.name === name);
+        const eigene = rcdZeilen.filter((z) => z.rcdName === name);
+        erwarteGleich(eigene.map((z) => z.art).join('/'), 'AC/DC', `${name} Prüfarten`);
+        const dc = rcdGleichstromStandard(rcd.fehlerstrom);
+        const soll = { AC: [rcd.iA, rcd.tA], DC: [rcd.iADc ?? dc.iA, rcd.tADc ?? dc.tA] };
+        for (const z of eigene) {
+          if (!/^F3-\d+$/.test(z.werte.nr)) throw new Error(`${name} ${z.art}: Nr. "${z.werte.nr}" ist kein F3-Kennzeichen`);
+          erwarteNahe(parseKomma(z.werte.rcdImess), soll[z.art][0], `${name} ${z.art} Imess`);
+          erwarteNahe(parseKomma(z.werte.rcdAuslZeit), soll[z.art][1], `${name} ${z.art} tA`);
+          erwarteGleich(z.werte.rcdInArt, `${rcd.nennstrom}/${rcd.typ}`, `${name} ${z.art} In/Art`);
+        }
+        erwarteGleich(eigene[0].werte.nr, eigene[1].werte.nr, `${name} beide Zeilen gleiches Kennzeichen`);
+      });
+    }
+
     // sim-nt2: Das Replay trägt genau die Werte ein, die auch in der PDF
     // stehen - außer dem Kabeltyp, der in der Anlage nicht ablesbar ist.
     await pruefe(`${testcase}: Protokoll-Einträge im Fahrplan stimmen mit den PDF-Zeilen überein`, async () => {
@@ -387,7 +408,7 @@ async function main() {
         });
       });
 
-      if (erg.rcdName) {
+      if (erg.rcdName && !GLEICHSTROM_RCD.includes(erg.rcdTyp)) {
         const rcd = bauteile.find((b) => b.name === erg.rcdName);
         await pruefe(`${testcase} ${erg.sk}: RCD-Werte (${erg.rcdName}) stimmen mit bauteile.md überein`, async () => {
           if (!rcd) throw new Error(`${erg.rcdName} nicht in bauteile.md gefunden`);
@@ -473,6 +494,15 @@ async function main() {
         await pruefe(`${testcase} ${erg.sk}: Zs/Ik(L-PE) sind plausible positive Zahlen`, async () => {
           erwartePositiv(parseKomma(erg.zs), `${erg.sk} Zs`);
           erwartePositiv(parseKomma(erg.ik), `${erg.sk} Ik(L-PE)`);
+        });
+      }
+
+      if (GLEICHSTROM_RCD.includes(erg.rcdTyp)) {
+        await pruefe(`${testcase} ${erg.sk}: Zeile des Stromkreises ohne RCD-Werte, ${erg.rcdName} ist Typ ${erg.rcdTyp} (sim-24l)`, async () => {
+          const zeile = zeilen.find((z) => z.zeilenIndex === erg.zeilenIndex);
+          for (const spalte of ['rcdInArt', 'rcdIdn', 'rcdImess', 'rcdAuslZeit', 'rcdUmess']) {
+            erwarteGleich(zeile.werte[SPALTE[spalte]] ?? '', '', `${erg.sk} ${spalte} in der Zeile`);
+          }
         });
       }
 

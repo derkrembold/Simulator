@@ -4,30 +4,30 @@ Aus `anforderung.md` erzeugt (`tools/demo_erstellung.js`), nicht von Hand änder
 
 ## Bauteile
 
-| Bauteil | Gruppe | Typ/Charakteristik | Fehlerstrom | Nennstrom | Max. Querschnitt | Pole | Selektiv | Abklemmen | Anzahl LS | tA | IA | UB | AFDD | Riso Elektronik (MΩ) |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **Einheit** |  |  | mA | A | mm² |  |  |  |  | ms | mA | V | – | – |
-| Hauptschalter | – | – | – | 35 | 16 | 3 | – | – | – | – | – | – | – | – |
-| L1-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – |
-| L2-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – |
-| L3-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – |
-| N-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – |
-| PE-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – |
-| RCD1 | G1 | B | 30 | 40 | 16 | 4 | nein | nein | 3 | 22 | 18 | 1 | – | 0,15 |
-| LS1 | G1 | C | – | 16 | 16 | 3 | – | – | – | – | – | – | – | – |
-| LS2 | G1 | B | – | 16 | 16 | 1 | – | – | – | – | – | – | – | – |
-| LS3 | G1 | B | – | 16 | 16 | 2 | – | – | – | – | – | – | ja | 0,3 |
-| Reihenklemme_L1_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_L2_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_L3_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_N_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_PE_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_L_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_N_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_PE_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_L_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_N_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
-| Reihenklemme_PE_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – |
+| Bauteil | Gruppe | Typ/Charakteristik | Fehlerstrom | Nennstrom | Max. Querschnitt | Pole | Selektiv | Abklemmen | Anzahl LS | tA | IA | UB | tA DC | IA DC | AFDD | Riso Elektronik (MΩ) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Einheit** |  |  | mA | A | mm² |  |  |  |  | ms | mA | V | ms | mA | – | – |
+| Hauptschalter | – | – | – | 35 | 16 | 3 | – | – | – | – | – | – | – | – | – | – |
+| L1-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
+| L2-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
+| L3-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
+| N-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
+| PE-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
+| RCD1 | G1 | B | 30 | 40 | 16 | 4 | nein | nein | 3 | 22 | 18 | 1 | 25 | 58 | – | 0,15 |
+| LS1 | G1 | C | – | 16 | 16 | 3 | – | – | – | – | – | – | – | – | – | – |
+| LS2 | G1 | B | – | 16 | 16 | 1 | – | – | – | – | – | – | – | – | – | – |
+| LS3 | G1 | B | – | 16 | 16 | 2 | – | – | – | – | – | – | – | – | ja | 0,3 |
+| Reihenklemme_L1_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L2_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L3_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_N_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_PE_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_N_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_PE_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_N_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_PE_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
 
 ## Stromkreise
 

@@ -174,10 +174,21 @@ Die erste Reihe betrifft immer die Hauptleitung. Bei Hauptleitung sind Überstro
 | RCD <br>Ausl. Zeit tA (ms)         | Ja, falls RCD vorhanden | FI/RCD-Messung (Modus `FI/RCD`)            |                                                                                                                                                        |
 | RCD Umess (V)                      | Ja                      | Live-Spannungsanzeige des jeweiligen Modus | Defaultwert: 50V                                                                                                                                       |
 
+**RCD Typ B und B+ (sim-24l):** Ein RCD Typ AC, A oder F steht mit seinen Werten in der Zeile des
+Stromkreises, an dem er gemessen wird (LS-Teil, danach RCD-Teil). Ein RCD Typ B oder B+ wird zweimal
+geprüft, mit Wechselstrom (Einstellung AC am Messgerät) und mit glattem Gleichstrom (Einstellung B
+bzw. B+). Jede Prüfung bekommt eine eigene Zeile ohne LS-Teil: in Nr. das Kennzeichen des RCD
+(F3-n), in der Zielbezeichnung RCD und Prüfart, dazu In/Art, IΔN, Imess, tA und Umess. In der Zeile
+des Stromkreises bleibt der RCD-Teil dann leer, steht dort etwas, ist es im Check rot. Das Messgerät
+zeigt bei Einstellung B/B+ an einem RCD Typ B/B+ dessen Gleichstromwerte, sonst die Wechselstromwerte.
+Eine Prüfung mit Einstellung AC oder A an einem RCD Typ B ist zulässig, sie liefert die Werte für die
+Wechselstrom-Zeile. Die Messwerte stehen je Gruppe in `anforderung.md` (Spalten `Imess AC (mA)`,
+`tA AC (ms)`, `Imess DC (mA)`, `tA DC (ms)`, siehe `demos/anforderung_vorlage.md`).
+
 ### Betriebsmittelkennzeichen
 
-**Status:** F2 für LS-Stromkreise ist umgesetzt (sim-0ns), F3 und die weiteren Kennzeichen
-sind geplant.
+**Status:** F2 für LS-Stromkreise ist umgesetzt (sim-0ns), F3 für die eigenen Zeilen eines RCD
+Typ B/B+ ebenfalls (sim-24l). Die weiteren Kennzeichen sind geplant.
 
 In die Spalte Nr. gehört das Betriebsmittelkennzeichen des Schutzorgans, durchnummeriert:
 
@@ -206,10 +217,11 @@ In die Spalte Nr. gehört das Betriebsmittelkennzeichen des Schutzorgans, durchn
   - Die Zeile Hauptleitung bleibt wie bisher: der Fahrplan schreibt `1`, der Check verlangt
     nur ein ausgefülltes Feld.
   - Die Zielbezeichnung bleibt bei der LS-Position (`LS1: 2 Steckdosen`).
-- **RCD als eigene Zeile (sim-ovx, Ausblick, nach sim-0ns):** Ein RCD kann auch separat
-  betrachtet werden: eine eigene Zeile mit F3-XX und den RCD-Messwerten. Vorteil: Ein RCD
-  Typ B bekommt zwei Zeilen, eine für die Messung mit DC (Typ B) und eine für die Messung mit AC
-  (Typ A), weil beide Messungen getrennt durchgeführt werden.
+- **RCD als eigene Zeile (sim-24l, umgesetzt für Typ B/B+):** Ein RCD Typ B oder B+ bekommt
+  zwei eigene Zeilen mit F3-n, eine für die Prüfung mit Wechselstrom und eine mit glattem
+  Gleichstrom (Abschnitt "RCD Typ B und B+" oben). Die RCD werden wie die LS von links oben
+  nach rechts unten gezählt, über alle RCD der Anlage. Ein RCD Typ AC, A oder F bleibt in der
+  Zeile seines Stromkreises. Für alle RCD eine eigene Zeile war die ursprüngliche Idee (sim-ovx).
 - **Weitere Kennzeichen (sim-23w, P3, nach sim-0ns):** S, E, Q und X aus der Tabelle oben für
   Endstellen und Schalter. Noch offen: wo sie erscheinen (Zielbezeichnung, Schaltkasten, Dosen,
   Check), die Nummerierung, und welche Kennzeichen Lichtauslass, Drehstromsteckdose und

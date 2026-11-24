@@ -901,7 +901,8 @@ async function start() {
   // FI/RCD-Messwert, ausgelöst über die TEST-Taste - wie ZS nicht
   // kontinuierlich. `null` = noch kein gültiger TEST-Klick ODER kein RCD
   // gefunden (Platzhalter bleiben stehen), sonst `{iA, tA, uB}` des
-  // gefundenen RCD-Bauteils.
+  // gefundenen RCD-Bauteils, bei Einstellung B/B+ an einem RCD Typ B/B+ mit
+  // den Gleichstromwerten.
   let fircdMesswert = null;
   // Ampel: `null` = noch kein TEST-Klick seit dem letzten Reset, `'gruen'` =
   // RCD gefunden, `'rot'` = kein RCD auf dem Pfad zur Einspeisung gefunden
@@ -926,7 +927,14 @@ async function start() {
 
     const rcd = findeErstesRcdAufPfad(schwarzAder.funktion, schwarzAder);
     if (rcd) {
-      fircdMesswert = { iA: rcd.iA, tA: rcd.tA, uB: rcd.uB };
+      // Die Einstellung am Messgerät bestimmt die Prüfstromform (sim-24l): B und
+      // B+ prüfen mit glattem Gleichstrom, AC, A und F mit Wechsel- bzw.
+      // pulsierendem Strom. Nur ein RCD Typ B/B+ hat eigene Gleichstromwerte;
+      // jeder andere RCD zeigt in beiden Fällen dieselben Werte.
+      const gleichstrom = ['B', 'B+'].includes(FIRCD_TYPEN[fircdTypIndex]) && rcd.iA_dc !== undefined;
+      fircdMesswert = gleichstrom
+        ? { iA: rcd.iA_dc, tA: rcd.tA_dc, uB: rcd.uB }
+        : { iA: rcd.iA, tA: rcd.tA, uB: rcd.uB };
       fircdAmpel = 'gruen';
       // Erfolgreicher RCD-Test -> der gefundene RCD löst aus, sein Hebel
       // öffnet sich automatisch (Hebel UND Verbindungsgraph, über denselben

@@ -5,6 +5,9 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+// ES-Module über eine file://-URL laden: ein Windows-Pfad wie C:\... wird
+// sonst als URL mit Schema "c:" gelesen (sim-jot).
+const { pathToFileURL } = require('url');
 const { generiereGraph } = require('./generate_anlage.js');
 
 const PROJEKT_ROOT = path.resolve(__dirname, '..', '..');
@@ -40,15 +43,20 @@ function mitFehlerzeilen(quelle, zeilen) {
 }
 
 (async () => {
-  const { berechneErsatzwiderstand, peKnoten } = await import(path.join(PROJEKT_ROOT, 'model', 'pfad.js'));
+  const { berechneErsatzwiderstand, peKnoten } = await import(pathToFileURL(path.join(PROJEKT_ROOT, 'model', 'pfad.js')).href);
   const netz = (id) => peKnoten('netz', id);
   const bauteil = (name) => peKnoten('bauteil', name);
   const R = (g, a, b) => berechneErsatzwiderstand(g, a, b);
 
   // --- graph.PE aus den Anlagen ---
+  // Jeder Testcase zählt. Bei den Demos nur Ordner mit Anlagendateien: lokal
+  // können Reste entfernter Demos liegen (nur die nicht eingecheckten PDFs)
+  // oder eigene Notizen. Fehlt einer Anlage der Netzplan, schlägt der Test fehl.
+  const istDemoAnlage = (ordner) => ['anforderung.md', 'netzplan.md', 'anlage.json'].some((datei) => fs.existsSync(path.join(ordner, datei)));
   const anlagen = [
     ...fs.readdirSync(__dirname).filter((d) => /^testcase_\d+$/.test(d)).map((d) => path.join(__dirname, d)),
     ...fs.readdirSync(path.join(PROJEKT_ROOT, 'demos')).filter((d) => /^demo_\d+$/.test(d)).map((d) => path.join(PROJEKT_ROOT, 'demos', d))
+      .filter(istDemoAnlage)
   ];
   for (const ordner of anlagen) {
     const name = path.basename(ordner);

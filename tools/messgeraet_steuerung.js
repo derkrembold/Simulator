@@ -390,6 +390,10 @@ async function messspitzeSetzen(ctx, ziel) {
 // Schraube - siehe test_messgeraet.js findeSchalterHandleNaheBauteil() für
 // die Bugfix-Historie (volle euklidische statt nur horizontale Distanz).
 async function findeHebel(ctx, bauteilName) {
+  // Eindeutig über data-schalter (sim-024); die Nähe-Suche unten bleibt nur
+  // als Rückfall.
+  const eindeutig = ctx.page.locator(`#schaltkasten svg g[data-schalter="${bauteilName}"]`);
+  if (await eindeutig.count() === 1) return eindeutig;
   const kreisBox = await ctx.page.locator(`#schaltkasten svg circle[data-bauteil="${bauteilName}"]`).first().boundingBox();
   const kreisCx = kreisBox.x + kreisBox.width / 2;
   const kreisCy = kreisBox.y + kreisBox.height / 2;
@@ -408,6 +412,15 @@ async function findeHebel(ctx, bauteilName) {
 async function hebelSchalten(ctx, bauteilName) {
   const hebel = await findeHebel(ctx, bauteilName);
   await hebel.click();
+}
+
+// Drückt die Prüftaste T eines RCD (sim-q3h). Liefert, ob der RCD danach
+// ausgelöst hat: der offene Hebel ist um 180° gedreht (zeichneSchalter() in
+// view/schaltkasten.js).
+async function pruefTasteDruecken(ctx, rcdName) {
+  await ctx.page.locator(`#schaltkasten svg g[data-prueftaste="${rcdName}"] rect`).last().click(); // die Taste, sie liegt über dem Rahmen
+  const hebel = await findeHebel(ctx, rcdName);
+  return (await hebel.locator('g').first().getAttribute('transform')) !== null;
 }
 
 // Löst oder dreht eine Schraube wieder ein (Schraubendreher-Werkzeug siehe
@@ -598,6 +611,7 @@ module.exports = {
   leseWert,
   messspitzeSetzen,
   hebelSchalten,
+  pruefTasteDruecken,
   schraubeSchalten,
   testDruecken,
   calDruecken,

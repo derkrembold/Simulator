@@ -4503,7 +4503,7 @@
     },
     {
       "titel": "Protokoll: RCD eintragen",
-      "begruendung": "Je Stromkreis die RCD-Daten vom Typenschild und die Messwerte des RCD-Tests eintragen.",
+      "begruendung": "Je Stromkreis die RCD-Daten vom Typenschild und die Messwerte des RCD-Tests eintragen. Ein RCD Typ B oder B+ bekommt zwei eigene Zeilen ohne Stromkreis, eine für die Prüfung mit Wechselstrom und eine für glatten Gleichstrom: in Nr. das Kennzeichen des RCD (F3-1, F3-2, … von links oben nach rechts unten gezählt), in der Zielbezeichnung RCD und Prüfart. Die Zeile des Stromkreises bleibt in den RCD-Spalten leer.",
       "schritte": [
         {
           "funktion": "protokollEintragen",
@@ -4748,9 +4748,57 @@
       ]
     },
     {
-      "titel": "Protokoll: Erproben ankreuzen",
-      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.",
+      "titel": "Erproben: Prüftaste von RCD1",
+      "begruendung": "Anlage normal energisiert - die Prüftaste T am RCD1 drücken. Der RCD muss auslösen (Hebel geht auf). Danach den RCD wieder einschalten.",
       "schritte": [
+        {
+          "funktion": "pruefTasteDruecken",
+          "argumente": [
+            "RCD1"
+          ],
+          "ergebnis": true
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD1"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "Erproben: Prüftaste von RCD2",
+      "begruendung": "Anlage normal energisiert - die Prüftaste T am RCD2 drücken. Der RCD muss auslösen (Hebel geht auf). Danach den RCD wieder einschalten.",
+      "schritte": [
+        {
+          "funktion": "pruefTasteDruecken",
+          "argumente": [
+            "RCD2"
+          ],
+          "ergebnis": true
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD2"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
+      "titel": "Protokoll: Erproben ankreuzen",
+      "begruendung": "Unter Erproben ankreuzen: FI-Schutzschalter (RCD) i.O., wenn jeder RCD über die Prüftaste ausgelöst hat, sonst n.i.O.; Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.",
+      "schritte": [
+        {
+          "funktion": "protokollAnkreuzen",
+          "argumente": [
+            "FI-Schutzschalter (RCD)",
+            "i.O."
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "protokollAnkreuzen",
           "argumente": [

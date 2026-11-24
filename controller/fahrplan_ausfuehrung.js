@@ -133,6 +133,10 @@ function drehknopfAufModus(zielModus) {
 // `view/schaltkasten.js`), deshalb die Umwegsuche über die räumlich
 // nächstgelegene klickbare `<g>` (`style.cursor === 'pointer'`).
 function findeHebel(bauteilName) {
+  // Eindeutig über data-schalter (sim-024); die Nähe-Suche unten bleibt nur
+  // als Rückfall.
+  const eindeutig = document.querySelector(`#schaltkasten svg g[data-schalter="${bauteilName}"]`);
+  if (eindeutig) return eindeutig;
   const kreis = document.querySelector(`#schaltkasten svg circle[data-bauteil="${bauteilName}"]`);
   if (!kreis) return null;
   const kreisBox = kreis.getBoundingClientRect();
@@ -153,6 +157,11 @@ function findeHebel(bauteilName) {
 
 function hebelSchalten(bauteilName) {
   klicke(findeHebel(bauteilName));
+}
+
+// Prüftaste T eines RCD (sim-q3h), gefunden über ihr data-prueftaste-Attribut.
+function pruefTasteDruecken(rcdName) {
+  klicke(document.querySelector(`#schaltkasten svg g[data-prueftaste="${rcdName}"] rect`));
 }
 
 // Wertelisten je Settable-Feld, 1:1 aus `tools/messgeraet_steuerung.js`
@@ -310,6 +319,8 @@ export function fuehreSchrittAus(schritt) {
     drehknopfAufModus(schritt.argumente[0]);
   } else if (schritt.funktion === 'hebelSchalten') {
     hebelSchalten(schritt.argumente[0]);
+  } else if (schritt.funktion === 'pruefTasteDruecken') {
+    pruefTasteDruecken(schritt.argumente[0]);
   } else if (schritt.funktion === 'stelleEin') {
     stelleEin(schritt.argumente[0], schritt.argumente[1]);
   } else if (schritt.funktion === 'wechsleAnsicht') {

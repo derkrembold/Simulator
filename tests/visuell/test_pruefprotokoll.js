@@ -329,6 +329,16 @@ async function main() {
       });
     }
 
+    // sim-q3h: Prüftaste je RCD gedrückt, jeder löst aus, Erproben
+    // "FI-Schutzschalter (RCD)" i.O.; ohne RCD kein Kreuz aus dem Fahrplan.
+    await pruefe(`${testcase}: Prüftaste je RCD löst aus, FI-Schutzschalter (RCD) i.O. (sim-q3h)`, async () => {
+      const rcdNamen = [...new Set(ergebnisse.map((e) => e.rcdName).filter(Boolean))].sort();
+      erwarteGleich(vorab[testcase].pruefTasten.map((p) => p.rcd).sort().join(','), rcdNamen.join(','), 'gedrückte Prüftasten');
+      if (!vorab[testcase].pruefTasten.every((p) => p.ausgeloest)) throw new Error('nicht jeder RCD hat ausgelöst');
+      const punkt = erprobenPunkte.find((p) => p.punkt === 'FI-Schutzschalter (RCD)');
+      erwarteGleich(punkt?.ergebnis ?? null, rcdNamen.length > 0 ? 'i.O.' : null, 'Erproben FI-Schutzschalter (RCD)');
+    });
+
     // sim-nt2: Das Replay trägt genau die Werte ein, die auch in der PDF
     // stehen - außer dem Kabeltyp, der in der Anlage nicht ablesbar ist.
     await pruefe(`${testcase}: Protokoll-Einträge im Fahrplan stimmen mit den PDF-Zeilen überein`, async () => {

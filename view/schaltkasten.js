@@ -33,6 +33,13 @@ const SCHALTER_ZUSATZ_PRO_POL_AB_3 = 6;
 const SCHALTER_HEBEL_RAND = 4;
 const SCHALTER_HEBEL_BALKEN_HOEHE = 4;
 const SCHALTER_HEBEL_LINIEN_PADDING = 2;
+// Prüftaste T des RCD (sim-q3h): quadratische Umrandung mit der Taste darin,
+// kleiner als die Schalter-Box. Sitzt in der Spalte der rechten Schrauben,
+// mittig zwischen oben und unten, im freien Rand rechts der Schalter-Box
+// (SCHALTER_RCD_RAND_RECHTS).
+const PRUEFTASTE_RAHMEN = 18;
+const PRUEFTASTE_TASTE = 12;
+const PRUEFTASTE_GEDRUECKT_MS = 150;
 
 const FARBEN = {
   ls: { gehaeuse: '#e0e0e0', header: '#aaaaaa' },
@@ -141,11 +148,13 @@ function schraube(svg, x, y, ader, onKlick, bauteilName) {
 // auf wie ein echter Mausklick - beides landet im selben Callback, siehe
 // controller/app.js `schalterHandles`). No-op, wenn der Zielzustand bereits
 // erreicht ist.
-function zeichneSchalter(svg, mitteX, mitteY, breite, onKlick, initialGeschlossen = true) {
+function zeichneSchalter(svg, mitteX, mitteY, breite, onKlick, initialGeschlossen = true, bauteilName = null) {
   const x = mitteX - breite / 2;
   const boxY = mitteY - SCHALTER_HOEHE / 2;
 
-  const g = svgEl('g', {});
+  // data-schalter: eindeutige Zuordnung Hebel -> Bauteil für die Hebel-Suche
+  // im Fahrplan (sim-024), statt über die Nähe zu einer Schraube.
+  const g = svgEl('g', bauteilName ? { 'data-schalter': bauteilName } : {});
   // Rand-Farbe #555555 - dieselbe Grau-Farbe wie der Bauteil-Rand selbst
   // (siehe `stroke: '#555555'` am äußeren Gehäuse-Rect in geraet()).
   g.appendChild(svgEl('rect', {
@@ -223,7 +232,37 @@ function schalterBreite(schalterTyp, teAnzahl) {
   return teAnzahl * SCHALTER_BASISBREITE + zusatz;
 }
 
-function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang, onSchraubeKlick, schalterTyp, bauteilName, onSchalterKlick, schalterHandles }) {
+// Prüftaste (sim-q3h): Klick ruft `onKlick` auf, die Taste wird kurz grau.
+// Ob der RCD dann auslöst, entscheidet der Aufrufer (controller/app.js). Das
+// "T" ist bewusst klein und blass wie auf echten Geräten. Der Zeiger-Cursor
+// sitzt auf den Rechtecken, nicht auf der Gruppe: die Hebel-Suche im Fahrplan
+// (findeHebel()) wertet nur Gruppen mit Zeiger-Cursor aus.
+function zeichnePruefTaste(svg, mitteX, mitteY, bauteilName, onKlick) {
+  const g = svgEl('g', { 'data-prueftaste': bauteilName });
+  const rahmen = svgEl('rect', {
+    x: mitteX - PRUEFTASTE_RAHMEN / 2, y: mitteY - PRUEFTASTE_RAHMEN / 2, width: PRUEFTASTE_RAHMEN, height: PRUEFTASTE_RAHMEN,
+    fill: '#ffffff', stroke: '#555555', 'stroke-width': 1
+  });
+  const taste = svgEl('rect', {
+    x: mitteX - PRUEFTASTE_TASTE / 2, y: mitteY - PRUEFTASTE_TASTE / 2, width: PRUEFTASTE_TASTE, height: PRUEFTASTE_TASTE,
+    fill: '#ffffff', stroke: '#999999', 'stroke-width': 0.8
+  });
+  const t = svgEl('text', {
+    x: mitteX, y: mitteY + 2.5, 'text-anchor': 'middle', 'font-size': 7, fill: '#c8c8c8', 'pointer-events': 'none'
+  });
+  t.textContent = 'T';
+  for (const el of [rahmen, taste]) el.style.cursor = 'pointer';
+  g.append(rahmen, taste, t);
+  g.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    taste.setAttribute('fill', '#bbbbbb');
+    setTimeout(() => taste.setAttribute('fill', '#ffffff'), PRUEFTASTE_GEDRUECKT_MS);
+    onKlick();
+  });
+  svg.appendChild(g);
+}
+
+function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang, onSchraubeKlick, schalterTyp, bauteilName, onSchalterKlick, schalterHandles, onPruefTaste }) {
   const breite = teAnzahl * TE_PX;
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: GERAET_H, fill: farben.gehaeuse, stroke: '#555555', 'stroke-width': 1 }));
   svg.appendChild(svgEl('rect', { x, y, width: breite, height: HEADER_H, fill: farben.header }));
@@ -251,8 +290,12 @@ function geraet(svg, { x, y, teAnzahl, farben, label, adernEingang, adernAusgang
     const sMitteX = schalterTyp === 'rcd'
       ? x + SCHALTER_RCD_RAND_LINKS + sBreite / 2
       : x + breite / 2;
-    const handle = zeichneSchalter(svg, sMitteX, sMitteY, sBreite, (geschlossen) => onSchalterKlick?.(bauteilName, geschlossen));
+    const handle = zeichneSchalter(svg, sMitteX, sMitteY, sBreite, (geschlossen) => onSchalterKlick?.(bauteilName, geschlossen), true, bauteilName);
     schalterHandles?.set(bauteilName, handle);
+  }
+
+  if (onPruefTaste) {
+    zeichnePruefTaste(svg, x + (teAnzahl - 1) * TE_PX + TE_PX / 2, y + GERAET_H / 2, bauteilName, () => onPruefTaste(bauteilName));
   }
 
   for (let i = 0; i < teAnzahl; i++) {
@@ -278,7 +321,7 @@ function findeAder(adern, funktion) {
 }
 
 export const SchaltkastenView = {
-  render(anlage, container, onSchraubeKlick, onSchalterKlick) {
+  render(anlage, container, onSchraubeKlick, onSchalterKlick, onPruefTaste) {
     const svg = svgEl('svg', {});
     container.innerHTML = '';
     container.appendChild(svg);
@@ -376,7 +419,7 @@ export const SchaltkastenView = {
             label: [`${gruppe.rcd.typ} ${gruppe.rcd.in_ma}mA`, `${gruppe.rcd.nennstrom_a}A`],
             adernEingang: gruppe.rcd.eingang.leitung.adern,
             adernAusgang: gruppe.rcd.ausgang.leitung.adern,
-            onSchraubeKlick, schalterTyp: 'rcd', bauteilName: gruppe.rcd.name, onSchalterKlick, schalterHandles
+            onSchraubeKlick, schalterTyp: 'rcd', bauteilName: gruppe.rcd.name, onSchalterKlick, schalterHandles, onPruefTaste
           });
         }
         for (const sk of gruppe.stromkreise) {

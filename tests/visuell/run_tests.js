@@ -102,7 +102,7 @@ async function renderTestcase(page, port, testcaseName) {
 
     const container = document.getElementById('schaltkasten');
     const anlage = await Anlage.laden('${jsonPfad}');
-    SchaltkastenView.render(anlage, container, () => {});
+    SchaltkastenView.render(anlage, container, () => {}, () => {}, () => {});
     document.title = 'gerendert';
   </script>
 </body>

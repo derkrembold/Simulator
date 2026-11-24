@@ -4307,6 +4307,26 @@
       ]
     },
     {
+      "titel": "Erproben: Prüftaste von RCD1",
+      "begruendung": "Anlage normal energisiert - die Prüftaste T am RCD1 drücken. Der RCD muss auslösen (Hebel geht auf). Danach den RCD wieder einschalten.",
+      "schritte": [
+        {
+          "funktion": "pruefTasteDruecken",
+          "argumente": [
+            "RCD1"
+          ],
+          "ergebnis": true
+        },
+        {
+          "funktion": "hebelSchalten",
+          "argumente": [
+            "RCD1"
+          ],
+          "ergebnis": null
+        }
+      ]
+    },
+    {
       "titel": "Rechtsdrehfeld an SK1 Endstelle 0-0",
       "begruendung": "Anlage normal energisiert - Phasenfolge über V~ an den Kontakten L1/L2/L3 der Dose prüfen (Schwarz/Blau/Grün).",
       "schritte": [
@@ -4358,8 +4378,16 @@
     },
     {
       "titel": "Protokoll: Erproben ankreuzen",
-      "begruendung": "Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.",
+      "begruendung": "Unter Erproben ankreuzen: FI-Schutzschalter (RCD) i.O., wenn jeder RCD über die Prüftaste ausgelöst hat, sonst n.i.O.; Spannungsfall i.O., wenn kein Stromkreis über 3,5 % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.",
       "schritte": [
+        {
+          "funktion": "protokollAnkreuzen",
+          "argumente": [
+            "FI-Schutzschalter (RCD)",
+            "i.O."
+          ],
+          "ergebnis": null
+        },
         {
           "funktion": "protokollAnkreuzen",
           "argumente": [

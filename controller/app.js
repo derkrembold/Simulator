@@ -317,7 +317,22 @@ async function start() {
     }
   }
 
-  const { svg: schaltkastenSvg, schalterHandles } = SchaltkastenView.render(anlage, container, onSchraubeKlick, schalterUmschalten);
+  const { svg: schaltkastenSvg, schalterHandles } = SchaltkastenView.render(anlage, container, onSchraubeKlick, schalterUmschalten, pruefTasteDruecken);
+
+  // Prüftaste T eines RCD (sim-q3h): Der RCD löst nur aus, wenn an seinem
+  // Eingang Spannung anliegt (ein Außenleiter und N mit der Einspeisung
+  // verbunden), wie die Prüfschaltung eines echten Geräts. Ohne Spannung oder
+  // mit schon offenem Hebel passiert nichts. Auslösen läuft über denselben
+  // Weg wie ein Klick auf den Hebel.
+  function pruefTasteDruecken(rcdName) {
+    const rcd = alleRcds().find((r) => r.name === rcdName);
+    if (!rcd || !graph) return;
+    const adern = rcd.eingang.leitung.adern;
+    const lebt = (ader) => istSpannungFuehrend(graph, ader.funktion, ader.netz);
+    const n = adern.find((a) => a.funktion === 'N');
+    if (!n || !lebt(n) || !adern.some((a) => a.funktion !== 'N' && lebt(a))) return;
+    schalterHandles.get(rcdName)?.setGeschlossen(false);
+  }
 
   // Viertes View-Objekt, oberhalb des Schaltkastens (siehe view/steckdosen.js).
   // Breite exakt wie der Schaltkasten (derselbe Rahmen-Look). Kontaktpunkte

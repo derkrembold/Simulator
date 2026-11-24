@@ -1104,11 +1104,31 @@ async function berechneProtokoll(testcase) {
     [...eintraegeFuer(rcdSpalten),
       ...rcdZeilen.flatMap(({ zeile, werte }) => ['nr', 'ziel', ...rcdSpalten].map((spalte) => ({ zeile, spalte, wert: werte[spalte] })))]));
 
+  // Prüftaste T (sim-q3h, Erproben "FI-Schutzschalter (RCD)"): je RCD unter
+  // Spannung drücken, der RCD löst aus, danach wieder einschalten. i.O. nur,
+  // wenn jeder RCD ausgelöst hat.
+  console.log('--- Prüftaste RCD ---');
+  const pruefTasten = [];
+  for (const rcd of [...new Map(stromkreise.filter(({ gruppe }) => gruppe.rcd).map(({ gruppe }) => [gruppe.rcd.name, gruppe.rcd])).values()]) {
+    const ctx = await basis.starteTestUmgebung(testcase);
+    messgeraet.abschnittBeginnen(`Erproben: Prüftaste von ${rcd.name}`,
+      `Anlage normal energisiert - die Prüftaste T am ${rcd.name} drücken. Der RCD muss auslösen (Hebel geht auf). Danach den RCD wieder einschalten.`);
+    const ausgeloest = await messgeraet.pruefTasteDruecken(ctx, rcd.name);
+    if (ausgeloest) await messgeraet.hebelSchalten(ctx, rcd.name);
+    messgeraet.abschnittEnde();
+    await ctx.schliessen();
+    console.log(`Prüftaste ${rcd.name}:`, ausgeloest ? 'löst aus' : 'löst nicht aus');
+    pruefTasten.push({ rcd: rcd.name, ausgeloest });
+  }
+
   // Rechtsdrehfeld (Erproben-Prüfpunkt, gilt EINMAL pro Anlage, nicht pro
   // Stromkreis) - nur relevant, wenn irgendein Stromkreis dreiphasig ist
   // (Drehstromsteckdose).
   // Erproben-Punkte: [{ punkt, ergebnis: 'i.O.' | 'n.i.O.' }].
   const erprobenPunkte = [];
+  if (pruefTasten.length > 0) {
+    erprobenPunkte.push({ punkt: 'FI-Schutzschalter (RCD)', ergebnis: pruefTasten.every((p) => p.ausgeloest) ? 'i.O.' : 'n.i.O.' });
+  }
   // Spannungsfall (sim-lgf): i.O., wenn an keinem Stromkreis/Außenleiter
   // der Grenzwert überschritten ist. Ein ungültiger Wert ("___") zählt als
   // nicht i.O.
@@ -1140,7 +1160,7 @@ async function berechneProtokoll(testcase) {
   if (erprobenPunkte.length > 0) {
     const ctx = await basis.starteTestUmgebung(testcase);
     messgeraet.abschnittBeginnen('Protokoll: Erproben ankreuzen',
-      `Unter Erproben ankreuzen: Spannungsfall i.O., wenn kein Stromkreis über ${String(SPANNUNGSFALL_GRENZWERT_PROZENT).replace('.', ',')} % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.`);
+      `Unter Erproben ankreuzen: FI-Schutzschalter (RCD) i.O., wenn jeder RCD über die Prüftaste ausgelöst hat, sonst n.i.O.; Spannungsfall i.O., wenn kein Stromkreis über ${String(SPANNUNGSFALL_GRENZWERT_PROZENT).replace('.', ',')} % liegt, sonst n.i.O.; Rechtsdrehfeld i.O., wenn jede Drehstrom-Endstelle 1.2.3. zeigt, sonst n.i.O.`);
     for (const { punkt, ergebnis } of erprobenPunkte) await messgeraet.protokollAnkreuzen(ctx, punkt, ergebnis);
     messgeraet.abschnittEnde();
     await ctx.schliessen();
@@ -1155,7 +1175,7 @@ async function berechneProtokoll(testcase) {
     }))
   ];
 
-  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs, hutschienenRpe, zweiDrittel, rcdZeilen };
+  return { anlage, zeilen, erprobenPunkte, ergebnisse, einspeisung, zuordnung, protokollEintraege, zref, hauptleitungZs, hutschienenRpe, zweiDrittel, rcdZeilen, pruefTasten };
 }
 
 async function main() {

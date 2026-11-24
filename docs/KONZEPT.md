@@ -58,7 +58,7 @@ Der Teilnehmer sollte in dem Phasen auf die angegebenen Punkte hingewiesen werde
 - Zugänglichkeit
 
 ### Phase 3 – Erproben
-- RCD-Prüftaste betätigen
+- RCD-Prüftaste betätigen (im Simulator die Taste T am RCD, löst nur unter Spannung aus, sim-q3h)
 - Drehfeld an Drehstromsteckdosen prüfen
 - Not-Aus / Sicherheitseinrichtungen
 - Schalt- und Meldeleuchten

@@ -81,6 +81,8 @@ function beschreibeSchritt(schritt, sondenZaehler) {
     }
     case 'hebelSchalten':
       return `Hebel von ${a} betätigen.`;
+    case 'pruefTasteDruecken':
+      return `Prüftaste T von ${a} drücken: ${schritt.ergebnis ? 'RCD löst aus' : 'RCD löst nicht aus'}.`;
     case 'schraubeSchalten':
       return `Schraube von ${a} (Netz ${b}) mit dem Schraubendreher lösen bzw. wieder eindrehen.`;
     case 'testDruecken':

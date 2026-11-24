@@ -4,42 +4,42 @@ Aus `anforderung.md` erzeugt (`tools/demo_erstellung.js`), nicht von Hand änder
 
 ## Bauteile
 
-| Bauteil | Gruppe | Typ/Charakteristik | Fehlerstrom | Nennstrom | Max. Querschnitt | Pole | Selektiv | Abklemmen | Anzahl LS | tA | IA | UB | tA DC | IA DC | AFDD | Riso Elektronik (MΩ) |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **Einheit** |  |  | mA | A | mm² |  |  |  |  | ms | mA | V | ms | mA | – | – |
-| Hauptschalter | – | – | – | 35 | 16 | 3 | – | – | – | – | – | – | – | – | – | – |
-| L1-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
-| L2-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
-| L3-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
-| N-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
-| PE-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
-| PE-Klemme_H2 | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – |
-| RCD1 | G1 | B | 30 | 40 | 16 | 4 | nein | nein | 3 | 22 | 18 | 1 | 25 | 58 | – | 0,15 |
-| LS1 | G1 | C | – | 16 | 16 | 3 | – | – | – | – | – | – | – | – | – | – |
-| LS2 | G1 | C | – | 16 | 16 | 3 | – | – | – | – | – | – | – | – | – | – |
-| LS3 | G1 | B | – | 16 | 16 | 1 | – | – | – | – | – | – | – | – | – | – |
-| RCD2 | G2 | A | 30 | 40 | 16 | 2 | nein | nein | 2 | 22 | 18 | 1 | – | – | – | – |
-| LS4 | G2 | B | – | 16 | 16 | 2 | – | – | – | – | – | – | – | – | ja | 0,3 |
-| LS5 | G2 | B | – | 10 | 16 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L1_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L2_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L3_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_N_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_PE_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L1_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L2_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L3_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_N_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_PE_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_N_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_PE_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L_SK4 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_N_SK4 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_PE_SK4 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_L_SK5 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_N_SK5 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
-| Reihenklemme_PE_SK5 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – |
+| Bauteil | Gruppe | Typ/Charakteristik | Fehlerstrom | Nennstrom | Max. Querschnitt | Pole | Selektiv | Abklemmen | Anzahl LS | tA | IA | UB | tA DC | IA DC | Prüftaste defekt | AFDD | Riso Elektronik (MΩ) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Einheit** |  |  | mA | A | mm² |  |  |  |  | ms | mA | V | ms | mA | – | – | – |
+| Hauptschalter | – | – | – | 35 | 16 | 3 | – | – | – | – | – | – | – | – | – | – | – |
+| L1-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – | – |
+| L2-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – | – |
+| L3-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – | – |
+| N-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – | – |
+| PE-Klemme | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – | – |
+| PE-Klemme_H2 | – | – | – | 63 | 16 | – | – | – | – | – | – | – | – | – | – | – | – |
+| RCD1 | G1 | B | 30 | 40 | 16 | 4 | nein | nein | 3 | 22 | 18 | 1 | 25 | 58 | nein | – | 0,15 |
+| LS1 | G1 | C | – | 16 | 16 | 3 | – | – | – | – | – | – | – | – | – | – | – |
+| LS2 | G1 | C | – | 16 | 16 | 3 | – | – | – | – | – | – | – | – | – | – | – |
+| LS3 | G1 | B | – | 16 | 16 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| RCD2 | G2 | A | 30 | 40 | 16 | 2 | nein | nein | 2 | 22 | 18 | 1 | – | – | ja | – | – |
+| LS4 | G2 | B | – | 16 | 16 | 2 | – | – | – | – | – | – | – | – | – | ja | 0,3 |
+| LS5 | G2 | B | – | 10 | 16 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L1_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L2_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L3_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_N_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_PE_SK1 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L1_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L2_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L3_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_N_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_PE_SK2 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_N_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_PE_SK3 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L_SK4 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_N_SK4 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_PE_SK4 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_L_SK5 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_N_SK5 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
+| Reihenklemme_PE_SK5 | – | – | – | 16 | 4 | 1 | – | – | – | – | – | – | – | – | – | – | – |
 
 ## Stromkreise
 
@@ -67,7 +67,7 @@ Raster für die Anordnung der Steckdosen/Anschlussdosen oberhalb des Schaltkaste
 | Feld | Wert | Einheit |
 |---|---|---|
 | Name | Sonderfälle | – |
-| Beschreibung | Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer | – |
+| Beschreibung | Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer, RCD2 mit defekter Prüftaste | – |
 | Netzform | TN-S | – |
 | Spannung Einspeisung | 400 | V |
 | Spannung Stromkreise | 400 | V |
@@ -80,6 +80,7 @@ Raster für die Anordnung der Steckdosen/Anschlussdosen oberhalb des Schaltkaste
 | Phasenfolge | Linksdrehfeld; Drehfeld; Phasenfolge; Drehrichtung |
 | Schutzleiter | Schutzleiter; PE; Hutschiene |
 | Kurzschlussstrom | Kurzschlussstrom; Ik; Schleifenimpedanz; 2/3 |
+| RCD Prüftaste | F3-1 defekt; Prüftaste; Testtaste |
 
 ## Beurteilung
 

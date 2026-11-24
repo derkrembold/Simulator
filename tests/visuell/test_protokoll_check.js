@@ -312,6 +312,31 @@ async function main() {
     await page.close();
   });
 
+  // sim-iw3: Sagt der Fahrplan FI-Schutzschalter (RCD) n.i.O. (defekte
+  // Prüftaste), hat die Anlage einen Mangel: "Keine Mängel festgestellt" und
+  // Plakette "Ja" sind dann rot.
+  await pruefe('Fahrplan sagt FI-Schutzschalter (RCD) n.i.O.: Mangel, "Keine Mängel" und Plakette Ja rot (sim-iw3)', async () => {
+    const page = await neueSeite();
+    await fuelleRichtig(page);
+    const rot = await page.evaluate(async () => {
+      const { pruefeProtokoll } = await import('/controller/protokoll_check.js');
+      const fahrplan = await (await fetch('/tests/visuell/testcase_05/fahrplan.json')).json();
+      const wurzel = document.getElementById('protokoll');
+      const vorher = pruefeProtokoll(wurzel, { fahrplan }).anzahl;
+      for (const a of fahrplan.abschnitte) for (const s of a.schritte) {
+        if (s.funktion === 'protokollAnkreuzen' && s.argumente[0] === 'FI-Schutzschalter (RCD)') s.argumente[1] = 'n.i.O.';
+      }
+      const z = [...document.querySelectorAll('#protokoll .pf-tabelle tr')].find((x) => x.cells[0]?.textContent === 'FI-Schutzschalter (RCD)');
+      z.querySelectorAll('.pf-cb').forEach((cb) => cb.click());
+      pruefeProtokoll(wurzel, { fahrplan });
+      const zeile = (label) => [...wurzel.querySelectorAll('.pf-zeile')].find((x) => x.querySelector('.pf-label')?.textContent === label);
+      return [vorher, zeile('Ergebnis').querySelector('.pf-cbgroup').classList.contains('pf-fehler'),
+        zeile('Prüf-Plakette angebracht').querySelector('.pf-cbgroup').classList.contains('pf-fehler')].join();
+    });
+    erwarteGleich(rot, '0,true,true', 'vorher rote Felder, Ergebnis rot, Plakette rot');
+    await page.close();
+  });
+
   await fall('Riso <999 statt >999: rot', new Function(`${zelle(3, 6)}.value = '<999';`), async (e, page) => {
     erwarteGleich(e.rot, 1, 'rote Felder');
     erwarteGleich(await page.evaluate(new Function(`return ${zelle(3, 6)}.classList.contains('pf-fehler');`)), true, 'Riso-Zelle rot');
@@ -448,7 +473,8 @@ async function main() {
     await page.close();
   });
 
-  // testcase_10 erwartet unter Mängel "Phasenfolge" und "Schutzleiter", unter
+  // testcase_10 erwartet unter Mängel "Phasenfolge", "Schutzleiter",
+  // "Kurzschlussstrom" und "RCD Prüftaste" (F3-1 defekt, sim-iw3), unter
   // Beurteilung "Phasenfolge". Gezählt wird nur in den beiden Feldern.
   const schreibeSeite2 = (maengel, beurteilung) => new Function(`
     const ab = (t) => [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === t);
@@ -461,7 +487,7 @@ async function main() {
         .querySelectorAll('.pf-fehler').length])));
 
   await fall('Mängel und Beurteilung (sim-03t): alle Punkte genannt, auf mehrere Zeilen verteilt: nicht rot',
-    schreibeSeite2(['SK2: Linksdrehfeld an der CEE-Dose', 'Hutschiene H1 ohne Verbindung zum PE', 'SK1, SK2: Ik unter 1,5 x Ia (2/3-Regel)'], ['Phasenfolge SK2 falsch', 'Kurzschlussstrom SK1/SK2 zu knapp', 'sonst i.O.']),
+    schreibeSeite2(['SK2: Linksdrehfeld an der CEE-Dose', 'Hutschiene H1 ohne Verbindung zum PE', 'SK1, SK2: Ik unter 1,5 x Ia (2/3-Regel)', 'F3-1 defekt, löst über die Prüftaste nicht aus'], ['Phasenfolge SK2 falsch', 'Kurzschlussstrom SK1/SK2 zu knapp', 'sonst i.O.']),
     async (e, page) => {
       erwarteGleich(JSON.stringify(await rotInSeite2(page)), JSON.stringify({ 'Folgende Mängel wurden festgestellt': 0, 'Beurteilung zu den gemessenen Stromkreisen': 0 }), 'rote Linien');
       erwarteGleich(e.rot, 0, 'rote Felder im ganzen Protokoll');
@@ -473,7 +499,7 @@ async function main() {
   await fall('Mängel-Punkte (sim-03t): "Keine Mängel", Plakette Ja, entspricht Regeln Ja: 4 Gruppen rot',
     () => {
       const ab = (t) => [...document.querySelectorAll('#protokoll .pf-abschnitt')].find((x) => x.querySelector('.pf-abschnitt-titel')?.textContent === t);
-      ab('Folgende Mängel wurden festgestellt').querySelector('input.pf-feld').value = 'Linksdrehfeld, Hutschiene ohne PE, Ik zu klein';
+      ab('Folgende Mängel wurden festgestellt').querySelector('input.pf-feld').value = 'Linksdrehfeld, Hutschiene ohne PE, Ik zu klein, Prüftaste F3-1 defekt';
       ab('Beurteilung zu den gemessenen Stromkreisen').querySelector('input.pf-feld').value = 'Drehfeld SK2 falsch, Ik SK1/SK2 zu knapp';
       for (const g of document.querySelectorAll('#protokoll .pf-cbgroup')) {
         const opts = [...g.querySelectorAll('.pf-cboption')];

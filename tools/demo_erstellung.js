@@ -157,6 +157,9 @@ function parseAnforderung(text) {
     tAcRoh: (z['tA AC (ms)'] ?? '').trim(),
     imessDcRoh: (z['Imess DC (mA)'] ?? '').trim(),
     tDcRoh: (z['tA DC (ms)'] ?? '').trim(),
+    // Optionale Spalte (sim-iw3): Der RCD löst über die Prüftaste nicht aus.
+    // Leer = nein.
+    pruefTasteDefektRoh: (z['Prüftaste defekt (ja/nein)'] ?? '').trim(),
     fehlerL: leseFehler(z['Fehler L (Ω)']),
     fehlerN: leseFehler(z['Fehler N (Ω)'])
   }));
@@ -255,6 +258,8 @@ function pruefeAnforderung(anf) {
       muss(!g.ohneRcd, `Gruppe ${g.id}: ${name} gibt es nur bei einem RCD`);
       muss(!name.includes('DC') || ['B', 'B+'].includes(g.typ), `Gruppe ${g.id}: ${name} gibt es nur bei einem RCD Typ B oder B+`);
     }
+    muss(['', 'ja', 'nein'].includes(g.pruefTasteDefektRoh), `Gruppe ${g.id}: Prüftaste defekt "${g.pruefTasteDefektRoh}" ungültig (ja/nein, leer = nein)`);
+    muss(!(g.ohneRcd && g.pruefTasteDefektRoh === 'ja'), `Gruppe ${g.id}: Prüftaste defekt gibt es nur bei einem RCD`);
     gruppenIds.add(g.id);
     if (g.ohneRcd) {
       muss(g.fehlerL.roh === '' && g.fehlerN.roh === '', `Gruppe ${g.id}: ohne RCD gibt es keinen Gruppen-Fehler, den Fehler am Stromkreis angeben`);
@@ -691,9 +696,10 @@ function schreibeBauteile(anf, modell) {
   // sie optional).
   // Ebenso die Spalte Riso Elektronik nur, wenn ein Wert gesetzt ist (sim-qha).
   const mitRisoElektronik = anf.gruppen.some((g) => g.risoElektronikRoh) || sks.some((s) => s.risoElektronikRoh);
+  const mitPruefTasteDefekt = anf.gruppen.some((g) => g.pruefTasteDefektRoh === 'ja');
   const mitGleichstrom = gruppenInfo.some((i) => i.rcdName && generator.RCD_GLEICHSTROM_TYPEN.includes(i.gruppe.typ));
   const SPALTEN = ['Bauteil', 'Gruppe', 'Typ/Charakteristik', 'Fehlerstrom', 'Nennstrom', 'Max. Querschnitt', 'Pole', 'Selektiv', 'Abklemmen', 'Anzahl LS', 'tA', 'IA', 'UB',
-    ...(mitGleichstrom ? ['tA DC', 'IA DC'] : []),
+    ...(mitGleichstrom ? ['tA DC', 'IA DC'] : []), ...(mitPruefTasteDefekt ? ['Prüftaste defekt'] : []),
     ...(sks.some((s) => s.afdd) ? ['AFDD'] : []), ...(mitRisoElektronik ? ['Riso Elektronik (MΩ)'] : [])];
   const zeile = (werte) => `| ${SPALTEN.map((s) => werte[s] ?? '–').join(' | ')} |`;
 
@@ -723,7 +729,8 @@ function schreibeBauteile(anf, modell) {
           'tA DC': wertOderStandard(g.tDcRoh, generator.rcdGleichstromStandard(g.fehlerstrom).tA),
           'IA DC': wertOderStandard(g.imessDcRoh, generator.rcdGleichstromStandard(g.fehlerstrom).iA)
         } : {}),
-        ...(g.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': g.risoElektronikRoh } : {})
+        ...(g.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': g.risoElektronikRoh } : {}),
+        ...(mitPruefTasteDefekt ? { 'Prüftaste defekt': g.pruefTasteDefektRoh === 'ja' ? 'ja' : 'nein' } : {})
       }));
     }
     for (const s of info.sks) {

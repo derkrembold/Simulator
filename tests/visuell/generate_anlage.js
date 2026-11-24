@@ -424,6 +424,8 @@ function parseBauteile(ordner) {
           // gilt der Standard (rcdGleichstromStandard()).
           tADc: bereinige(z['tA DC']) ? parseFloat(z['tA DC']) : null,
           iADc: bereinige(z['IA DC']) ? parseFloat(z['IA DC']) : null,
+          // RCD löst über die Prüftaste nicht aus (sim-iw3). Optionale Spalte.
+          pruefTasteDefekt: bereinige(z['Prüftaste defekt']) === 'ja',
           // "LS mit AFDD"-Kombigerät (siehe KONZEPT.md "AFDD"): baulich wie
           // ein 2-poliger RCD (L+N in einem Gehäuse), nur die Aufschrift
           // unterscheidet sich. Optionale Spalte - fehlt sie in einer
@@ -715,6 +717,7 @@ function generiereAnlage(ordner) {
         tA: rcd.tA,
         iA: rcd.iA,
         uB: rcd.uB,
+        ...(rcd.pruefTasteDefekt ? { prueftaste_defekt: true } : {}),
         ...(RCD_GLEICHSTROM_TYPEN.includes(rcd.typ) ? {
           tA_dc: rcd.tADc ?? rcdGleichstromStandard(rcd.fehlerstrom).tA,
           iA_dc: rcd.iADc ?? rcdGleichstromStandard(rcd.fehlerstrom).iA

@@ -1,6 +1,6 @@
 {
   "name": "Sonderfälle",
-  "beschreibung": "Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer",
+  "beschreibung": "Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer, RCD2 mit defekter Prüftaste",
   "netzform": "TN-S",
   "spannung_einspeisung": 400,
   "spannung_stromkreise": 400,
@@ -30,6 +30,14 @@
         "Ik",
         "Schleifenimpedanz",
         "2/3"
+      ]
+    },
+    {
+      "punkt": "RCD Prüftaste",
+      "schluesselwoerter": [
+        "F3-1 defekt",
+        "Prüftaste",
+        "Testtaste"
       ]
     }
   ],
@@ -212,6 +220,7 @@
             "tA": 22,
             "iA": 18,
             "uB": 1,
+            "prueftaste_defekt": true,
             "eingang": {
               "leitung": {
                 "typ": "NYM-J",

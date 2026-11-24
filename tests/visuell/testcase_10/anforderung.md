@@ -35,7 +35,7 @@ in einer Gruppe mit RCD.
 | Feld                 | Wert                                                                    |
 | -------------------- | ----------------------------------------------------------------------- |
 | Name                 | Sonderfälle                                                             |
-| Beschreibung         | Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer |
+| Beschreibung         | Vorimpedanz 1 Ω (C16 im 2/3-Band), Linksdrehfeld, gemischte Endstellen, AFDD, Riso-Elektronik Typ B/AFDD, Hutschiene ohne PE, PE-Klemme auf Gruppen-Hutschiene, PE-Fehler am Zubringer, RCD2 mit defekter Prüftaste |
 | Netzform             | TN-S                                                                    |
 | Hauptschalter Pole   | 3                                                                       |
 | Hauptschalter (A)    | 35                                                                      |
@@ -51,10 +51,10 @@ in einer Gruppe mit RCD.
 Eine Gruppe ist ein RCD mit den dahinter liegenden LS. `ohne` bei RCD Pole = LS direkt am
 Hauptschalter.
 
-| Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen | Fehler L (Ω) | Fehler N (Ω) | PE-Klemme (ja/nein) | Riso Elektronik (MΩ) |
-| ------ | -------- | ------- | ---------------- | ----------------- | -------- | --------- | ------------ | ------------ | ------------------- | -------------------- |
-| G1     | 4        | B       | 30               | 40                | nein     | nein      |              |              | ja                  | 0,15                 |
-| G2     | 2        | A       | 30               | 40                | nein     | nein      |              |              |                     |                      |
+| Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen | Fehler L (Ω) | Fehler N (Ω) | PE-Klemme (ja/nein) | Riso Elektronik (MΩ) | Prüftaste defekt (ja/nein) |
+| ------ | -------- | ------- | ---------------- | ----------------- | -------- | --------- | ------------ | ------------ | ------------------- | -------------------- | -------------------------- |
+| G1     | 4        | B       | 30               | 40                | nein     | nein      |              |              | ja                  | 0,15                 |                            |
+| G2     | 2        | A       | 30               | 40                | nein     | nein      |              |              |                     |                      | ja                         |
 
 ## Stromkreise
 
@@ -126,6 +126,7 @@ keinen PE). Die Spalte `Fehler PE (Ω)` in der Stromkreis-Tabelle darf fehlen.
 | Phasenfolge   | Linksdrehfeld; Drehfeld; Phasenfolge; Drehrichtung |           |
 | Schutzleiter  | Schutzleiter; PE; Hutschiene                       |           |
 | Kurzschlussstrom | Kurzschlussstrom; Ik; Schleifenimpedanz; 2/3    |           |
+| RCD Prüftaste | F3-1 defekt; Prüftaste; Testtaste                  |           |
 | Schutzart     |                                                    | Schutzart; IP44 |
 
 ## Beurteilung

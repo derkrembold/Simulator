@@ -407,7 +407,10 @@ export function pruefeProtokoll(wurzel, { fahrplan = null, heute = new Date(), d
     anzahl += 1;
   };
   const kreuzSoll = erwarteteKreuze(fahrplan);
-  const mangel = (punkte.maengel ?? []).length > 0 || zweiDrittelMangel(fahrplan);
+  // Ein RCD, der über die Prüftaste nicht auslöst (Erproben n.i.O., sim-iw3),
+  // ist ebenfalls ein Mangel.
+  const mangel = (punkte.maengel ?? []).length > 0 || zweiDrittelMangel(fahrplan)
+    || kreuzSoll['FI-Schutzschalter (RCD)'] === 'n.i.O.';
   for (const regel of PROTOKOLL_REGELN) pruefeRegel(wurzel, regel, heute, drehstrom, markiere, kreuzSoll, punkte, mangel);
   if (fahrplan) pruefeMesstabelle(wurzel, fahrplan, markiere);
   return { anzahl };

@@ -30,8 +30,9 @@
 // `alternativen` (bei fest): mehrere zulässige Schreibweisen.
 // `beiMaengeln` (bei einsAus): Hat die Anlage einen Mangel, muss genau
 //              diese Option angekreuzt sein, sonst genügt ein Kreuz. Mangel =
-//              Mängel-Punkte in der Anlage (sim-03t) oder ein Stromkreis im
-//              2/3-Band laut Fahrplan (zweiDrittelMangel(), sim-g0o).
+//              Mängel-Punkte in der Anlage (sim-03t), ein Stromkreis im
+//              2/3-Band laut Fahrplan (zweiDrittelMangel(), sim-g0o) oder ein
+//              RCD, der über die Prüftaste nicht auslöst (sim-iw3).
 // `nurMitDrehstrom`: Regel gilt nur, wenn die Anlage eine Drehstrom-
 //              Endstelle hat (siehe hatDrehstromEndstelle()); sonst darf
 //              das Feld leer bleiben.

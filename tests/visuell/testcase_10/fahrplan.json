@@ -7247,14 +7247,7 @@
           "argumente": [
             "RCD2"
           ],
-          "ergebnis": true
-        },
-        {
-          "funktion": "hebelSchalten",
-          "argumente": [
-            "RCD2"
-          ],
-          "ergebnis": null
+          "ergebnis": false
         }
       ]
     },
@@ -7386,7 +7379,7 @@
           "funktion": "protokollAnkreuzen",
           "argumente": [
             "FI-Schutzschalter (RCD)",
-            "i.O."
+            "n.i.O."
           ],
           "ergebnis": null
         },

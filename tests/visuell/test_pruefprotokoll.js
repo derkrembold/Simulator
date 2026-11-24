@@ -19,7 +19,7 @@
 // Aufruf: node tests/visuell/test_pruefprotokoll.js
 const fs = require('fs');
 const path = require('path');
-const { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
+const { berechneProtokoll, rcdNummern, ungenannteDefektePruefTasten, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE } = require('../../tools/pruefprotokoll_erstellung.js');
 const { parseBauteile, rcdGleichstromStandard, RCD_GLEICHSTROM_TYPEN: GLEICHSTROM_RCD } = require('./generate_anlage.js');
 
 // testcase_02 bleibt Fixture für billige Einzeltests und wird hier nicht
@@ -329,14 +329,16 @@ async function main() {
       });
     }
 
-    // sim-q3h: Prüftaste je RCD gedrückt, jeder löst aus, Erproben
-    // "FI-Schutzschalter (RCD)" i.O.; ohne RCD kein Kreuz aus dem Fahrplan.
-    await pruefe(`${testcase}: Prüftaste je RCD löst aus, FI-Schutzschalter (RCD) i.O. (sim-q3h)`, async () => {
-      const rcdNamen = [...new Set(ergebnisse.map((e) => e.rcdName).filter(Boolean))].sort();
-      erwarteGleich(vorab[testcase].pruefTasten.map((p) => p.rcd).sort().join(','), rcdNamen.join(','), 'gedrückte Prüftasten');
-      if (!vorab[testcase].pruefTasten.every((p) => p.ausgeloest)) throw new Error('nicht jeder RCD hat ausgelöst');
+    // sim-q3h: Prüftaste je RCD gedrückt; jeder löst aus, außer bei
+    // prueftaste_defekt (sim-iw3). Erproben "FI-Schutzschalter (RCD)" i.O. nur,
+    // wenn alle auslösen; ohne RCD kein Kreuz aus dem Fahrplan.
+    await pruefe(`${testcase}: Prüftaste je RCD, FI-Schutzschalter (RCD) passend angekreuzt (sim-q3h, sim-iw3)`, async () => {
+      const rcds = anlage.hutschienen.flatMap((h) => h.gruppen).filter((g) => g.rcd).map((g) => g.rcd);
+      const soll = rcds.map((rcd) => `${rcd.name}:${rcd.prueftaste_defekt ? 'nein' : 'ja'}`).sort().join(',');
+      erwarteGleich(vorab[testcase].pruefTasten.map((p) => `${p.rcd}:${p.ausgeloest ? 'ja' : 'nein'}`).sort().join(','), soll, 'Prüftasten ausgelöst');
       const punkt = erprobenPunkte.find((p) => p.punkt === 'FI-Schutzschalter (RCD)');
-      erwarteGleich(punkt?.ergebnis ?? null, rcdNamen.length > 0 ? 'i.O.' : null, 'Erproben FI-Schutzschalter (RCD)');
+      const erwartet = rcds.length === 0 ? null : rcds.some((rcd) => rcd.prueftaste_defekt) ? 'n.i.O.' : 'i.O.';
+      erwarteGleich(punkt?.ergebnis ?? null, erwartet, 'Erproben FI-Schutzschalter (RCD)');
     });
 
     // sim-nt2: Das Replay trägt genau die Werte ein, die auch in der PDF
@@ -527,6 +529,20 @@ async function main() {
       }
     }
   }
+
+  // sim-iw3: testcase_10 RCD2 (F3-1) hat eine defekte Prüftaste, ein
+  // Mängel-Punkt nennt sie. Ohne diesen Punkt meldet das Werkzeug den RCD,
+  // auch wenn andere Mängel-Punkte da sind (Review Codex).
+  await pruefe('Defekte Prüftaste (sim-iw3): Mängel-Punkt nennt RCD2/F3-1, ohne ihn wird RCD2 gemeldet', async () => {
+    const anlage = anlagen.testcase_10;
+    erwarteGleich(rcdNummern(anlage).get('RCD2'), 1, 'Nummer von RCD2');
+    erwarteGleich(ungenannteDefektePruefTasten(anlage).join(','), '', 'mit Mängel-Punkt');
+    const ohne = { ...anlage, erwartete_maengel: anlage.erwartete_maengel.filter((p) => p.punkt !== 'RCD Prüftaste') };
+    if (ohne.erwartete_maengel.length === 0) throw new Error('testcase_10 soll weitere Mängel-Punkte haben');
+    erwarteGleich(ungenannteDefektePruefTasten(ohne).join(','), 'RCD2', 'ohne Mängel-Punkt');
+    const nurNummer = { ...ohne, erwartete_maengel: [...ohne.erwartete_maengel, { punkt: 'RCD', schluesselwoerter: ['F3 1'] }] };
+    erwarteGleich(ungenannteDefektePruefTasten(nurNummer).join(','), '', 'Kennzeichen F3 1 genügt');
+  });
 
   // testcase_10 'Sonderfälle' (sim-unq, früher demo_18/19/20 einzeln):
   // RCD Typ B 0,15 MΩ und AFDD 0,3 MΩ, Fahrplan klemmt ab (sim-qha); Rpe der

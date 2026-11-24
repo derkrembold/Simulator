@@ -323,10 +323,12 @@ async function start() {
   // Eingang Spannung anliegt (ein Außenleiter und N mit der Einspeisung
   // verbunden), wie die Prüfschaltung eines echten Geräts. Ohne Spannung oder
   // mit schon offenem Hebel passiert nichts. Auslösen läuft über denselben
-  // Weg wie ein Klick auf den Hebel.
+  // Weg wie ein Klick auf den Hebel. Ein RCD mit `prueftaste_defekt` löst
+  // über die Taste nie aus (sim-iw3); die Messung mit dem Messgerät ist davon
+  // nicht betroffen.
   function pruefTasteDruecken(rcdName) {
     const rcd = alleRcds().find((r) => r.name === rcdName);
-    if (!rcd || !graph) return;
+    if (!rcd || !graph || rcd.prueftaste_defekt) return;
     const adern = rcd.eingang.leitung.adern;
     const lebt = (ader) => istSpannungFuehrend(graph, ader.funktion, ader.netz);
     const n = adern.find((a) => a.funktion === 'N');

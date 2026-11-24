@@ -500,6 +500,22 @@ lehntAb('Imess DC an einem RCD Typ A (sim-24l)', mitRcdMesswerten(baueAnforderun
 lehntAb('tA AC keine Zahl (sim-24l)', mitRcdMesswerten(baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2, typ: 'B' }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] }), ['', 'schnell', '', '']),
   'tA AC (ms) "schnell" ungültig');
 
+// sim-iw3: Prüftaste defekt je Gruppe, nur mit RCD.
+const mitPruefTasteDefekt = (text, wert) => text
+  .replace('| Fehler L (Ω) | Fehler N (Ω) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |', '| Fehler L (Ω) | Fehler N (Ω) | Prüftaste defekt (ja/nein) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
+  .replace(/(\| G1 \|[^\n]*\|)$/m, `$1 ${wert} |`);
+
+pruefe('Prüftaste defekt (sim-iw3): ja landet als prueftaste_defekt in anlage.json, leer nicht', () => {
+  const text = baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2 }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] });
+  bedingung(erzeuge(mitPruefTasteDefekt(text, 'ja')).anlage.hutschienen[0].gruppen[0].rcd.prueftaste_defekt === true, 'ja');
+  bedingung(!('prueftaste_defekt' in erzeuge(mitPruefTasteDefekt(text, '')).anlage.hutschienen[0].gruppen[0].rcd), 'leer');
+});
+
+lehntAb('Prüftaste defekt ungültig (sim-iw3)', mitPruefTasteDefekt(baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2 }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] }), 'vielleicht'),
+  'Prüftaste defekt "vielleicht" ungültig');
+lehntAb('Prüftaste defekt ohne RCD (sim-iw3)', mitPruefTasteDefekt(baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 'ohne' }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] }), 'ja'),
+  'Prüftaste defekt gibt es nur bei einem RCD');
+
 lehntAb('AFDD an einem 3-poligen LS (sim-i4f)', baueAnforderung({
   gruppen: [{ id: 'G1', rcdPole: 4, nennstrom: 63 }],
   stromkreise: [{ name: 'SK1', gruppe: 'G1', lsPole: 3, endstelle: 'Drehstromsteckdose', afdd: 'ja' }]

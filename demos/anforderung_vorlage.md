@@ -57,6 +57,11 @@ die Prüfung mit Wechselstrom (jeder RCD, leer = 60 % von IΔN und 22 ms), `Imes
 bei anderem Fehlerstrom im selben Verhältnis, und 25 ms). Ein RCD Typ B/B+ bekommt im
 Prüfprotokoll zwei eigene Zeilen (F3-n, Wechselstrom und Gleichstrom).
 
+Optional `Prüftaste defekt (ja/nein)`: bei `ja` löst der RCD über die Prüftaste T nicht aus
+(leer = nein). Unter Erproben muss dann „FI-Schutzschalter (RCD)“ n.i.O. angekreuzt sein, und die
+Anlage hat einen Mangel. Die Messung mit dem Messgerät bleibt normal. Passend dazu unten in
+`## Mängel` die Zeile „RCD Prüftaste“ aktivieren und die Nummer des RCD (F3-n) anpassen.
+
 | Gruppe | RCD Pole | RCD Typ | Fehlerstrom (mA) | RCD Nennstrom (A) | Selektiv | Abklemmen | Fehler L (Ω) | Fehler N (Ω) |
 | ------ | -------- | ------- | ---------------- | ----------------- | -------- | --------- | ------------ | ------------ |
 | G1     | 2        | A       | 30               | 40                | nein     | nein      |              |              |
@@ -142,6 +147,7 @@ alles mit Ziffern müssen ganz passen („IP44“ passt zu „IP 44“, nicht zu
 | Schutzleiter           |                 | Schutzleiter; PE; Hutschiene; Potentialausgleich                   |
 | Isolationswiderstand   |                 | Isolationswiderstand; Isolation; Riso                              |
 | RCD                    |                 | RCD; FI; Fehlerstromschutzschalter; Auslösezeit; Auslösestrom      |
+| RCD Prüftaste          |                 | F3-1 defekt; Prüftaste; Testtaste                                  |
 | Spannungsfall          |                 | Spannungsfall; Spannungsabfall                                     |
 | Kabel und Leitungen    |                 | Leitung; Kabel; Querschnitt; Verdrahtung                           |
 | Schutzart              |                 | Schutzart; IP44; IPX4; spritzwassergeschützt                       |

@@ -629,6 +629,32 @@ function istGleichstromRcd(gruppe) {
   return ['B', 'B+'].includes(gruppe.rcd?.typ);
 }
 
+// Nummer n des Kennzeichens F3-n je RCD (sim-24l): alle RCD der Anlage von
+// links oben nach rechts unten gezählt, in derselben Reihenfolge wie
+// alleStromkreise(). Liefert Map Bauteilname -> n.
+function rcdNummern(anlage) {
+  const nummern = new Map();
+  for (const { gruppe } of alleStromkreise(anlage)) {
+    if (gruppe.rcd && !nummern.has(gruppe.rcd.name)) nummern.set(gruppe.rcd.name, nummern.size + 1);
+  }
+  return nummern;
+}
+
+// RCD mit defekter Prüftaste (sim-iw3), die kein erwarteter Mängel-Punkt
+// nennt. Genannt heißt: ein Schlüsselwort enthält "Prüftaste" oder
+// "Testtaste" oder das Kennzeichen F3-n dieses RCD. Liefert die Bauteilnamen.
+function ungenannteDefektePruefTasten(anlage) {
+  const norm = (text) => String(text).toLowerCase().replace(/ä|ae/g, 'a').replace(/ü|ue/g, 'u').replace(/[^a-z0-9]/g, '');
+  const woerter = (anlage.erwartete_maengel ?? []).flatMap((p) => p.schluesselwoerter.map(norm));
+  const nummern = rcdNummern(anlage);
+  return [...nummern.keys()].filter((name) => {
+    const rcd = alleStromkreise(anlage).find(({ gruppe }) => gruppe.rcd?.name === name).gruppe.rcd;
+    if (!rcd.prueftaste_defekt) return false;
+    const kennzeichen = `f3${nummern.get(name)}`;
+    return !woerter.some((w) => w.includes('pruftaste') || w.includes('testtaste') || w === kennzeichen || w.startsWith(`${kennzeichen}defekt`));
+  });
+}
+
 function alleStromkreise(anlage) {
   const liste = [];
   for (const hutschiene of anlage.hutschienen ?? []) {
@@ -1061,12 +1087,10 @@ async function berechneProtokoll(testcase) {
   // glatter Gleichstrom), jede in einer eigenen Zeile mit dem Kennzeichen
   // F3-n des RCD; die Zeile des Stromkreises lässt den RCD-Teil leer.
   const rcdZeilen = [];
-  let rcdNummer = 0;
-  const gezaehlteRcd = new Set();
+  const nummern = rcdNummern(anlage);
   for (const { sk, gruppe } of stromkreise) {
-    if (!gruppe.rcd) continue;
-    if (!gezaehlteRcd.has(gruppe.rcd.name)) { gezaehlteRcd.add(gruppe.rcd.name); rcdNummer += 1; }
-    if (!sk.messungen.rcd) continue;
+    if (!gruppe.rcd || !sk.messungen.rcd) continue;
+    const rcdNummer = nummern.get(gruppe.rcd.name);
     const e = ergebnisVon(sk);
     if (istGleichstromRcd(gruppe)) {
       if (rcdZeilen.some((z) => z.rcdName === gruppe.rcd.name)) continue;
@@ -1119,6 +1143,10 @@ async function berechneProtokoll(testcase) {
     await ctx.schliessen();
     console.log(`Prüftaste ${rcd.name}:`, ausgeloest ? 'löst aus' : 'löst nicht aus');
     pruefTasten.push({ rcd: rcd.name, ausgeloest });
+  }
+  const ungenannt = ungenannteDefektePruefTasten(anlage);
+  if (ungenannt.length > 0) {
+    console.log(`Hinweis Prüftaste: ${ungenannt.map((name) => `${name} (F3-${nummern.get(name)})`).join(', ')} löst nicht aus, kein Mängel-Punkt nennt das. Mängel-Punkt (z.B. RCD Prüftaste: F3-${nummern.get(ungenannt[0])} defekt; Prüftaste) in anforderung.md eintragen?`);
   }
 
   // Rechtsdrehfeld (Erproben-Prüfpunkt, gilt EINMAL pro Anlage, nicht pro
@@ -1213,7 +1241,7 @@ async function main() {
   await basis.beendeTestUmgebungen();
 }
 
-module.exports = { berechneProtokoll, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE };
+module.exports = { berechneProtokoll, rcdNummern, ungenannteDefektePruefTasten, kleinsterRiso, schlechtesteMessung, groessterRpe, naechsteTrennstelle, SPALTE };
 
 // Nur bei direktem Aufruf ausführen, nicht beim require() aus
 // test_pruefprotokoll.js (analog zum Muster in generate_anlage.js).

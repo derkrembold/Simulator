@@ -98,6 +98,15 @@ async function main() {
     await ctx.schliessen();
   });
 
+  // sim-iw3: testcase_10 RCD2 hat eine defekte Prüftaste, löst also unter
+  // Spannung nicht aus; RCD1 derselben Anlage löst normal aus.
+  await pruefe('Defekte Prüftaste (sim-iw3): RCD2 in testcase_10 löst unter Spannung nicht aus, RCD1 schon', async () => {
+    const ctx = await steuerung.starteTestUmgebung('testcase_10');
+    erwarteGleich(await steuerung.pruefTasteDruecken(ctx, 'RCD2'), false, 'RCD2 ausgelöst');
+    erwarteGleich(await steuerung.pruefTasteDruecken(ctx, 'RCD1'), true, 'RCD1 ausgelöst');
+    await ctx.schliessen();
+  });
+
   await steuerung.beendeTestUmgebungen();
   process.exit(alleBestanden ? 0 : 1);
 }

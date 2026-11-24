@@ -29,6 +29,23 @@ Antworten und Tickets auf Deutsch.
 - Jeder Agent schreibt unter eigener Kennung: Codex mit `BEADS_ACTOR=codex`, Claude mit
   `BEADS_ACTOR=claude`. Sonst übernimmt `bd` Name und E-Mail aus der Git-Konfiguration.
 
+### Beads auf einem neuen Rechner einrichten
+
+Im Simulator-Repo steht nur die Konfiguration (`.beads/config.yaml`, `sync.remote` zeigt auf
+`derkrembold/trei`). Die Ticket-Datenbank wird nicht eingecheckt, nach einem `git clone` fehlt
+sie also. So holt man sie:
+
+1. Zugriff auf das private Repo prüfen: `git ls-remote https://github.com/derkrembold/trei.git`.
+   Schlägt das fehl: `gh auth login` mit dem Konto `derkrembold`, dann `gh auth setup-git`.
+2. `bd version` muss `bootstrap` kennen (getestet mit 1.3.2).
+3. Im Simulator-Ordner: `git pull`, `bd bootstrap --dry-run`, `bd bootstrap`, dann `bd ready`.
+4. Gab es dort schon ein `bd init`, meldet `bootstrap` nur eine vorhandene Datenbank. Dann
+   `.beads/embeddeddolt` umbenennen (nicht löschen) und `bd bootstrap` wiederholen.
+5. Anonyme Git-Identität im Simulator-Ordner, damit kein Name ins öffentliche Repo kommt:
+   `git config user.name derkrembold` und
+   `git config user.email 182214423+derkrembold@users.noreply.github.com`.
+6. Für den lesbaren Export trei nach `~/Documents/trei` klonen (nur beim Committen nötig).
+
 ## Ablauf
 
 1. Offene Arbeit finden: `bd ready`, Details mit `bd show <id>`.

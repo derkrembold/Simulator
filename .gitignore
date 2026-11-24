@@ -24,3 +24,6 @@ demos/*/fahrplan.pdf
 # Beads-Export liegt im privaten Repo derkrembold/trei (TREI80 Teil B/beads/),
 # nicht im öffentlichen Simulator-Repo (enthält Name/E-Mail der Beteiligten).
 .beads/issues.jsonl
+
+# Chrome-Protokoll aus Testläufen
+debug.log

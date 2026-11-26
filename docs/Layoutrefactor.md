@@ -2,7 +2,7 @@
 
 Abgestimmte Arbeitsgrundlage für die schrittweise Verbesserung von Usability und Look & Feel im TREI Prüfungs-Simulator, inklusive aller technischen Korrekturen aus dem Doppel-Review (`sim-uqo`, Codex & Claude).
 
-**Arbeitsweise:** Die Punkte werden iterativ Ticket für Ticket umgesetzt und optisch/funktional am Ergebnis geprüft – was gut aussieht und funktioniert, bleibt drin; was nicht überzeugt, wird angepasst oder wieder herausgenommen.
+**Arbeitsweise:** Die Punkte werden nicht blind 1:1 übernommen, sondern vor der Umsetzung einzeln besprochen, iterativ Ticket für Ticket umgesetzt und optisch/funktional am Ergebnis geprüft – was gut aussieht und funktioniert, bleibt drin; was nicht überzeugt, wird angepasst oder wieder herausgenommen.
 
 ---
 
@@ -32,14 +32,15 @@ Abgestimmte Arbeitsgrundlage für die schrittweise Verbesserung von Usability un
   - **Eine zentrale, einspaltige Arbeitsfläche** in der bewährten Reihenfolge (*Steckdosen → Schaltkasten → Werkzeugzeile → Protokoll*):
     - **Auf dem Handy:** volle Bildschirmbreite mit minimalem Rand/Padding → Grafiken werden ~50 % größer als heute.
     - **Auf dem Desktop:** horizontal **zentriert** (`margin: 0 auto`) und per SVG-`viewBox` sanft auf **~760–820 px** Maximalbreite hochskaliert (gestochen scharf, ~20–25 % größere Klickziele & breiteres Protokoll), eingebettet in einen ruhigen, leicht abgetönten Hintergrund.
-  - **Bestehende Struktur bleibt erhalten:** `Handy | Messgerät | Schraubendreher` bleiben in einer Reihe nebeneinander, aber per **CSS-Flexbox + proportionaler SVG-Skalierung (`viewBox`)** auf 100 % der Spaltenbreite (ebenso `#steckdosen` und `#schaltkasten`).
-  - Bestehende Layout-Tests (`tests/visuell/test_protokoll.js`, `tests/visuell/test_schraubendreher.js`) auf die neue Spaltenbreite anpassen und um Prüfungen für schmale Handy-Viewports ergänzen.
+  - **Snapshot-neutrale Skalierung:** `view/schaltkasten.js` bleibt unverändert (`anlage.svg`-Snapshots bleiben unberührt); die Skalierung läuft rein per CSS am Container (z. B. `#schaltkasten svg { width: 100%; height: auto }`), und die Breitenkette für Steckdosen, Protokoll und Werkzeugzeile in `controller/app.js` wird auf die tatsächliche Spaltenbreite umgestellt.
+  - **Werkzeugzeile auf dem Handy (offener Diskussionspunkt vor Umsetzung):** Das Messgerät soll in seiner Darstellungsgröße/Lesbarkeit **nicht** verkleinert werden – kein blindes proportionales Herunterskalieren der 3er-Reihe auf Handybreite; die konkrete Anordnung wird vor Umsetzung von `sim-rng` abgestimmt.
+  - Bestehende Layout-Tests (`tests/visuell/test_protokoll.js`, `tests/visuell/test_schraubendreher.js`, `tests/visuell/test_handy_timer.js`) auf die neue Spaltenbreite anpassen und um Prüfungen für schmale Handy-Viewports ergänzen.
 
 ### P1.2 Fehlklicks an Schrauben & Kontakten reduzieren
 - **Problem:** Schrauben (`view/schaltkasten.js:91-125`, `r=4`) und Dosen-Kontakte (`view/steckdosen.js:116-117,165`, `r=4`) sind auf kleinem Laptop-Screen und per Finger auf dem Handy schwer zu treffen.
 - **Lösung (testsicher & snapshot-neutral):**
   - **Kein separates Overlay über der Schraube** (würde Playwright-Klicks blockieren und die Kreis-Identität in `controller/app.js` stören). Stattdessen die Trefferfläche direkt **per CSS am Original-Element** vergrößern (z. B. `stroke: transparent; stroke-width: ...` in `index.html`). Das lässt alle Selektoren und `anlage.svg`-Snapshots 100 % unverändert.
-  - Zielgröße in echten Bildschirm-Pixeln nach P1.1-Skalierung bemessen; bei 12px-Reihenklemmen maximal ±6px Gesamtradius (kein Überlappen mit Nachbarklemmen), bei 36px-Geräteschrauben und Dosen-Kontakten großzügiger.
+  - **Reihenklemmen (offener Diskussionspunkt vor Umsetzung von `sim-mi0`):** Zielgröße in echten Bildschirm-Pixeln nach P1.1-Skalierung bemessen. Für die engen 12px-Reihenklemmen wird vor Umsetzung entschieden, ob die Reihenklemmen selbst breiter werden (ändert dann `anlage.svg`) oder unverändert bleiben und nur die übrigen Geräteschrauben (`36px`) und Dosen-Kontakte vergrößert werden.
   - **Deutliches Hover-Feedback** am Desktop; für Touch-Geräte und enge Klemmen gezielte Interaktionstests (Messspitze, Schraubendreher, Popup, Replay) ergänzen.
 
 ### P1.3 Lichtanschlussdosen & Wago-Klemmen besser sichtbar + schlichter Tiefeneffekt

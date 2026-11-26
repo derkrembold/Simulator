@@ -61,7 +61,7 @@ async function risoNPe(ctx, vorher = async () => {}) {
   await messgeraet.messspitzeSetzen(ctx, { bauteil: 'PE-Klemme' }); // grün
   await messgeraet.testDruecken(ctx);
   const [links] = await messgeraet.leseWert(ctx, 'ampel');
-  return { wert: nurZahl(await messgeraet.leseWert(ctx, 'hauptmesswert')), rot: links === '#ff6666' };
+  return { wert: nurZahl(await messgeraet.leseWert(ctx, 'hauptmesswert')), rot: links === '#ff3b30' };
 }
 
 (async () => {

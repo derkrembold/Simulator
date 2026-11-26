@@ -109,13 +109,11 @@ async function displayTexte(ctx) {
 }
 
 // Ampel-Leuchtstreifen links/rechts im Display-Rahmen (siehe
-// view/messgeraet.js zeichneDisplay(), 6px breit, Display-Höhe 190) - in
+// view/messgeraet.js zeichneDisplay(), erkannt am Attribut data-ampel) - in
 // der Reihenfolge [links, rechts].
 async function ampelFarben(ctx) {
   return ctx.page.evaluate(() =>
-    [...document.querySelectorAll('#messgeraet svg rect')]
-      .filter((r) => r.getAttribute('width') === '6' && r.getAttribute('height') === '190')
-      .map((r) => r.getAttribute('fill'))
+    ['links', 'rechts'].map((seite) => document.querySelector(`#messgeraet svg rect[data-ampel="${seite}"]`)?.getAttribute('fill'))
   );
 }
 

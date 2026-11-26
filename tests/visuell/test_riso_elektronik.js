@@ -50,7 +50,7 @@ async function risoOhneAbklemmen(sk, phase, rcdWertMOhm) {
   const wert = await messgeraet.leseWert(ctx, 'hauptmesswert');
   const [links] = await messgeraet.leseWert(ctx, 'ampel');
   await ctx.schliessen();
-  return { wert, rot: links === '#ff6666' };
+  return { wert, rot: links === '#ff3b30' };
 }
 
 (async () => {

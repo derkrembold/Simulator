@@ -45,13 +45,11 @@ async function displayTexte(page) {
 }
 
 // Füllfarben der beiden Ampel-Leuchtstreifen links/rechts im Display-Rahmen
-// (siehe view/messgeraet.js zeichneDisplay(), 6px breit, Display-Höhe) - in
+// (siehe view/messgeraet.js zeichneDisplay(), erkannt am Attribut data-ampel) - in
 // der Reihenfolge [links, rechts].
 async function ampelFarben(page) {
   return page.evaluate(() =>
-    [...document.querySelectorAll('#messgeraet svg rect')]
-      .filter((r) => r.getAttribute('width') === '6' && r.getAttribute('height') === '190')
-      .map((r) => r.getAttribute('fill'))
+    ['links', 'rechts'].map((seite) => document.querySelector(`#messgeraet svg rect[data-ampel="${seite}"]`)?.getAttribute('fill'))
   );
 }
 
@@ -1171,7 +1169,7 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:>999MΩ', 'kein artifizieller Isolationsfehler modelliert');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'hoher Widerstand -> Ampel grün rechts');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'hoher Widerstand -> Ampel grün rechts');
     await page.close();
   });
 
@@ -1264,7 +1262,7 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:13MΩ', 'RCD1 (Typ B) allein in der Schnittmenge, keine AFDD in testcase_04 -> eigener Wert ohne Kombination');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '13MΩ liegt unter dem Default-Grenzwert (50MΩ) -> Ampel rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], '13MΩ liegt unter dem Default-Grenzwert (50MΩ) -> Ampel rot');
     await page.close();
   });
 
@@ -1317,7 +1315,7 @@ async function main() {
     await ls1Handle.click(); // LS1s Hebel wieder schließen
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:13MΩ', 'LS1-Hebel wieder zu -> RCD1 wieder über beide Zweige erreichbar');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '13MΩ < 50MΩ Default-Grenzwert -> Ampel rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], '13MΩ < 50MΩ Default-Grenzwert -> Ampel rot');
 
     await page.locator('#schraubendreher svg').click();
     await page.locator('#schaltkasten svg circle[data-bauteil="LS3"][data-netz="N22"]').click(); // LS3-EINGANGS-Schraube lösen (Ausgang trägt schon die blaue Messspitze)
@@ -1380,12 +1378,12 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:0,10Ω', 'RCD1 geschlossen -> Fehlertabellen-Wert von N6 (0,1Ω) wie bei RLOW, in Ω');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '0,10Ω liegt weit unter dem MΩ-Grenzwert -> Ampel rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], '0,10Ω liegt weit unter dem MΩ-Grenzwert -> Ampel rot');
 
     await rcd1.click(); // RCD1 öffnen -> Pfad zwischen den beiden L1-Punkten unterbrochen
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:>999MΩ', 'RCD1 offen -> kein Pfad mehr, >999MΩ');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '>999MΩ liegt immer über dem Grenzwert -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], '>999MΩ liegt immer über dem Grenzwert -> Ampel grün');
     await page.close();
   });
 
@@ -1464,14 +1462,14 @@ async function main() {
   await pruefe('RISO: Ampel zeigt rot, solange Spannung anliegt', async () => {
     const page = await neueSeiteMitTestcase('testcase_01');
     await drehknopfKlick(page);
-    erwarteGleich(await ampelFarben(page), ['#999999', '#999999'], 'Ampel-Default vor TEST');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#4a4a4a'], 'Ampel-Default vor TEST');
 
     await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz, L1
     await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click(); // blau, N
     await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
 
     await klick(page, 'TEST');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Ampel rot bei anliegender Spannung');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], 'Ampel rot bei anliegender Spannung');
     await page.close();
   });
 
@@ -1489,7 +1487,7 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:>999MΩ', 'Kein Pfad zwischen L1 und N (getrennte Teilgraphen)');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '>999MΩ ist immer über jedem Grenzwert -> grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], '>999MΩ ist immer über jedem Grenzwert -> grün');
     await page.close();
   });
 
@@ -1507,7 +1505,7 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:0,10Ω', 'Fehlertabellen-Wert von N6 (0,1Ω)');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '0,10Ω < 50MΩ (=50.000.000Ω) -> rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], '0,10Ω < 50MΩ (=50.000.000Ω) -> rot');
 
     await klick(page, '◄►'); // 0=Titel -> 1=Prüfspannung
     await klick(page, '◄►'); // 1=Prüfspannung -> 2=Grenzwert
@@ -1516,7 +1514,7 @@ async function main() {
 
     await klick(page, 'TEST'); // erneut messen, jetzt mit gesenktem Grenzwert
     erwarte(await displayTexte(page), 'R:0,10Ω', 'Messwert unverändert');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '0,10Ω >= 0Ω (Grenzwert 0MΩ) -> grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], '0,10Ω >= 0Ω (Grenzwert 0MΩ) -> grün');
     await page.close();
   });
 
@@ -1528,12 +1526,12 @@ async function main() {
     await page.locator('#schaltkasten svg circle[data-netz="N5"]').first().click(); // blau, N
     await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün, PE
     await klick(page, 'TEST');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Ampel rot vor dem Drehknopf-Wechsel');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], 'Ampel rot vor dem Drehknopf-Wechsel');
 
     await drehknopfKlick(page); // RISO -> ZI
     await drehknopfKlick(page); // ZI -> ZS
     for (let i = 0; i < 4; i++) await drehknopfKlick(page); // ZS -> FI/RCD -> V~ -> RLOW -> RISO
-    erwarteGleich(await ampelFarben(page), ['#999999', '#999999'], 'Ampel wieder grau nach vollem Zyklus zurück zu RISO');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#4a4a4a'], 'Ampel wieder grau nach vollem Zyklus zurück zu RISO');
     await page.close();
   });
 
@@ -1586,7 +1584,7 @@ async function main() {
     erwarte(await displayTexte(page), '0V', 'Hauptschalter offen -> spannungsfrei');
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:13MΩ', 'RCD2 (Typ B) allein liefert seinen hinterlegten Elektronik-Widerstand, LS2/LS3 sind abgeklemmt');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '13MΩ liegt unter dem Default-Grenzwert (50MΩ) -> Ampel rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], '13MΩ liegt unter dem Default-Grenzwert (50MΩ) -> Ampel rot');
     await page.close();
   });
 
@@ -1860,14 +1858,14 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:10MΩ', 'RCD1 leckt selbst nicht, aber seine geschlossene Kante gibt Sicht auf die Sammelschiene -> RCD2+LS2+LS3');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], '10MΩ < 50MΩ Default-Grenzwert -> rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], '10MΩ < 50MΩ Default-Grenzwert -> rot');
 
     await page.locator('#schraubendreher svg').click();
     await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N9"]').click(); // RCD1 L1-Eingang lösen (kappt RCD1s eigene Kante komplett)
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:>999MΩ', 'RCD1s eigene Kante weg -> Sammelschiene von der Sonde aus nicht mehr erreichbar');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '>999MΩ -> grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], '>999MΩ -> grün');
 
     await page.locator('#schraubendreher svg').click();
     await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz="N9"]').click(); // Schraube wieder rein
@@ -1891,7 +1889,7 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'R:13MΩ', 'Messwert unverändert gegenüber dem gesenkten Grenzwert');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], '13MΩ liegt jetzt über dem neuen 10MΩ-Grenzwert -> Ampel kippt auf grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], '13MΩ liegt jetzt über dem neuen 10MΩ-Grenzwert -> Ampel kippt auf grün');
     await page.close();
   });
 
@@ -1917,7 +1915,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'Z:0,24Ω', 'Vorimpedanz 0,14Ω + Fehlertabelle N6 (0,1Ω) + N-Seite (0Ω)');
     erwarte(await displayTexte(page), 'Isc:862,5A', 'Isc = 0,9*230V/0,24Ω');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (862,5A) > Lim (80,0A, B16A) -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (862,5A) > Lim (80,0A, B16A) -> Ampel grün');
     await page.close();
   });
 
@@ -1933,7 +1931,7 @@ async function main() {
     await page.locator('#schaltkasten svg circle[data-netz="N6"]').first().click(); // schwarz
     await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau
     await klick(page, 'TEST');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (862,5A) > Lim (80,0A) -> zunächst grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (862,5A) > Lim (80,0A) -> zunächst grün');
 
     await klick(page, '◄►'); // Titel -> LS-Typ
     await klick(page, '▲'); // B -> C
@@ -1942,7 +1940,7 @@ async function main() {
     for (let i = 0; i < 10; i++) await klick(page, '▲'); // 16A -> 125A (an der oberen Grenze geklemmt)
 
     erwarte(await displayTexte(page), 'Lim: 2500,0A', 'Lim (D, 125A) liegt jetzt weit über Isc');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Isc (862,5A) < Lim (2500,0A) -> Ampel kippt auf rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], 'Isc (862,5A) < Lim (2500,0A) -> Ampel kippt auf rot');
     await page.close();
   });
 
@@ -1972,7 +1970,7 @@ async function main() {
     erwarte(await displayTexte(page), 'Z:0,74Ω', 'Messung läuft normal durch (0,1+0,2+0,3 Fehlertabelle + 0,14 Vorimpedanz)');
     erwarte(await displayTexte(page), 'Isc:279,7A', 'Isc = 0,9*230V/0,74Ω');
     erwarte(await displayTexte(page), 'Lim: 625,0A', 'Lim (B, 125A) = 5*125');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Isc (279,7A) < Lim (625,0A) -> Ampel rot, obwohl die Messung selbst erfolgreich war');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], 'Isc (279,7A) < Lim (625,0A) -> Ampel rot, obwohl die Messung selbst erfolgreich war');
     await page.close();
   });
 
@@ -2016,7 +2014,7 @@ async function main() {
     erwarte(await displayTexte(page), 'Z:0,94Ω', 'Messung läuft normal durch (unverändert gegenüber B/16A)');
     erwarte(await displayTexte(page), 'Isc:220,2A', 'Isc = 0,9*230V/0,94Ω');
     erwarte(await displayTexte(page), 'Lim: 630,0A', 'Lim (C, 63A) = 10*63');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Isc (220,2A) < Lim (630,0A) -> Ampel rot, obwohl die Messung selbst erfolgreich war');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], 'Isc (220,2A) < Lim (630,0A) -> Ampel rot, obwohl die Messung selbst erfolgreich war');
     await page.close();
   });
 
@@ -2064,7 +2062,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'Z:0,46Ω', 'Fehlertabelle N22 (0,15Ω) + N26 (0,17Ω) + Vorimpedanz (0,14Ω)');
     erwarte(await displayTexte(page), 'Isc:450,0A', 'Isc = 0,9*230V/0,46Ω');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (450,0A) > Lim (80,0A) -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (450,0A) > Lim (80,0A) -> Ampel grün');
     await page.close();
   });
 
@@ -2222,7 +2220,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'Z:0,24Ω', 'Fehlertabelle N6 (0,1Ω) + Vorimpedanz (0,14Ω), PE/N ignoriert');
     erwarte(await displayTexte(page), 'Isc:862,5A', 'Isc = 0,9*230V/0,24Ω');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (862,5A) > Lim (80,0A) -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (862,5A) > Lim (80,0A) -> Ampel grün');
     await page.close();
   });
 
@@ -2238,7 +2236,7 @@ async function main() {
     await page.locator('#schaltkasten svg circle[data-netz="N8"]').first().click(); // blau
     await page.locator('#schaltkasten svg circle[data-netz="N3"]').click(); // grün
     await klick(page, 'TEST');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (862,5A) > Lim (80,0A) -> zunächst grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (862,5A) > Lim (80,0A) -> zunächst grün');
 
     await klick(page, '◄►'); // Titel -> LS-Typ
     await klick(page, '▲'); // B -> C
@@ -2247,7 +2245,7 @@ async function main() {
     for (let i = 0; i < 10; i++) await klick(page, '▲'); // 16A -> 125A (an der oberen Grenze geklemmt)
 
     erwarte(await displayTexte(page), 'Lim: 2500,0A', 'Lim (D, 125A) liegt jetzt weit über Isc');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Isc (862,5A) < Lim (2500,0A) -> Ampel kippt auf rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], 'Isc (862,5A) < Lim (2500,0A) -> Ampel kippt auf rot');
     await page.close();
   });
 
@@ -2272,7 +2270,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'Z:0,54Ω', 'Fehlertabelle N20 (0,13Ω) + N24 (0,27Ω) + Vorimpedanz (0,14Ω)');
     erwarte(await displayTexte(page), 'Isc:383,3A', 'Isc = 0,9*230V/0,54Ω');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (383,3A) > Lim (80,0A) -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (383,3A) > Lim (80,0A) -> Ampel grün');
     await page.close();
   });
 
@@ -2297,7 +2295,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'Z:0,67Ω', 'Fehlertabelle N21 (0,19Ω) + N25 (0,34Ω) + Vorimpedanz (0,14Ω)');
     erwarte(await displayTexte(page), 'Isc:309,0A', 'Isc = 0,9*230V/0,67Ω');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (309,0A) > Lim (80,0A) -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (309,0A) > Lim (80,0A) -> Ampel grün');
     await page.close();
   });
 
@@ -2320,7 +2318,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'Z:0,63Ω', 'Fehlertabelle N22 (0,41Ω) + N26 (0,08Ω) + Vorimpedanz (0,14Ω)');
     erwarte(await displayTexte(page), 'Isc:328,6A', 'Isc = 0,9*230V/0,63Ω');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (328,6A) > Lim (80,0A) -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (328,6A) > Lim (80,0A) -> Ampel grün');
     await page.close();
   });
 
@@ -2345,7 +2343,7 @@ async function main() {
     erwarte(await displayTexte(page), 'Z:0,63Ω', 'Messwert unverändert gegenüber B/16A');
     erwarte(await displayTexte(page), 'Isc:328,6A', 'Isc unverändert');
     erwarte(await displayTexte(page), 'Lim: 400,0A', 'Lim (B, 80A) = 5*80');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Isc (328,6A) < Lim (400,0A) -> Ampel rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], 'Isc (328,6A) < Lim (400,0A) -> Ampel rot');
     await page.close();
   });
 
@@ -2533,7 +2531,7 @@ async function main() {
     }
     erwarte(texte, 'I:___mA', 'kein RCD gefunden - Platzhalter bleibt');
     const ampel = await ampelFarben(page);
-    if (ampel[0] !== '#ff6666') throw new Error(`erwarte rote Ampel links, gefunden: ${JSON.stringify(ampel)}`);
+    if (ampel[0] !== '#ff3b30') throw new Error(`erwarte rote Ampel links, gefunden: ${JSON.stringify(ampel)}`);
     await page.close();
   });
 
@@ -2567,7 +2565,7 @@ async function main() {
     erwarte(texte, 't:21,0ms', 'RCD2s Abschaltzeit übernommen');
     erwarte(texte, '0V', 'RCD2 hat automatisch ausgelöst, Spannung fällt auf 0V');
     if (!(await indikatorDurchgestrichen(page))) throw new Error('Pfeil-Kasten sollte nach dem automatischen Auslösen durchgestrichen sein');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'RCD gefunden -> Ampel grün');
     await page.close();
   });
 
@@ -2667,7 +2665,7 @@ async function main() {
     erwarte(texte, 'Uci:0,9V', 'RCD2s Berührungsspannung übernommen');
     erwarte(texte, 't:21,0ms', 'RCD2s Abschaltzeit übernommen');
     erwarte(texte, '0V', 'RCD2 hat automatisch ausgelöst, Spannung fällt auf 0V');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'RCD gefunden -> Ampel grün');
     await page.close();
   });
 
@@ -2706,7 +2704,7 @@ async function main() {
     erwarte(texte, 'Uci:0,9V', 'RCD2s Berührungsspannung übernommen');
     erwarte(texte, 't:21,0ms', 'RCD2s Abschaltzeit übernommen');
     erwarte(texte, '0V', 'RCD2 hat automatisch ausgelöst, Spannung fällt auf 0V');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'RCD gefunden -> Ampel grün');
 
     const hebelNach = await page.evaluate((box) => {
       const g = [...document.querySelectorAll('#schaltkasten svg g[style*="cursor: pointer"]')].find((g) => g.querySelector(`rect[x="${box.x}"][y="${box.y}"]`));
@@ -2754,7 +2752,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'Z:0,42Ω', 'wie direkt am Schaltkasten-Netz N24 (L2) gemessen');
     erwarte(await displayTexte(page), 'Isc:492,9A', 'Isc = 0,9*230V/0,42Ω');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (492,9A) > Lim (80,0A) -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (492,9A) > Lim (80,0A) -> Ampel grün');
     await page.close();
   });
 
@@ -2779,7 +2777,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'Z:0,14Ω', 'reine Vorimpedanz, L-Pfad ohne eigenen Fehlertabellen-Eintrag');
     erwarte(await displayTexte(page), 'Isc:1478,6A', 'Isc = 0,9*230V/0,14Ω');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Isc (1478,6A) > Lim (80,0A) -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Isc (1478,6A) > Lim (80,0A) -> Ampel grün');
     await page.close();
   });
 
@@ -2983,7 +2981,7 @@ async function main() {
     erwarte(await displayTexte(page), 'I:18,0mA', 'RCD1.iA übernommen');
     erwarte(await displayTexte(page), 'Uci:1,0V', 'RCD1.uB übernommen');
     erwarte(await displayTexte(page), 't:22,0ms', 'RCD1.tA übernommen');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'RCD gefunden -> Ampel grün');
     await page.close();
   });
 
@@ -3022,7 +3020,7 @@ async function main() {
     }
     erwarte(await displayTexte(page), '0V', 'Spannung fällt live auf 0V, da der Pfad jetzt durch den offenen RCD unterbrochen ist');
     erwarte(await displayTexte(page), 'I:18,0mA', 'übernommene Messwerte bleiben trotz offenem Hebel im Display stehen');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'Ampel bleibt grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'Ampel bleibt grün');
     await page.close();
   });
 
@@ -3104,7 +3102,7 @@ async function main() {
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'I:20,0mA', 'RCD3.iA übernommen');
     erwarte(await displayTexte(page), 'Uci:0,8V', 'RCD3.uB übernommen');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'RCD gefunden -> Ampel grün');
     erwarte(await displayTexte(page), '0V', 'Spannung fällt live auf 0V, da RCD3 jetzt offen ist');
     if (!(await indikatorDurchgestrichen(page))) {
       throw new Error('Pfeil-Kasten sollte nach dem Auslösen wieder durchgestrichen sein (keine Spannung mehr)');
@@ -3149,7 +3147,7 @@ async function main() {
     erwarte(await displayTexte(page), 'I:16,0mA', 'RCD1.iA übernommen');
     erwarte(await displayTexte(page), 'Uci:0,9V', 'RCD1.uB übernommen');
     erwarte(await displayTexte(page), 't:20,0ms', 'RCD1.tA übernommen');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#66ee66'], 'RCD gefunden -> Ampel grün');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#18c936'], 'RCD gefunden -> Ampel grün');
     if (!(await indikatorDurchgestrichen(page))) {
       throw new Error('Pfeil-Kasten sollte nach dem Auslösen wieder durchgestrichen sein (keine Spannung mehr)');
     }
@@ -3176,11 +3174,11 @@ async function main() {
     erwarte(await displayTexte(page), 'I:___mA', 'Kein RCD gefunden -> I bleibt Platzhalter');
     erwarte(await displayTexte(page), 'Uci:___V', 'Kein RCD gefunden -> Uci bleibt Platzhalter');
     erwarte(await displayTexte(page), 't:___ms', 'Kein RCD gefunden -> t bleibt Platzhalter');
-    erwarteGleich(await ampelFarben(page), ['#ff6666', '#999999'], 'Kein RCD gefunden -> Ampel rot');
+    erwarteGleich(await ampelFarben(page), ['#ff3b30', '#4a4a4a'], 'Kein RCD gefunden -> Ampel rot');
 
     // Messspitzen-Änderung setzt Werte UND Ampel zurück auf grau.
     await page.locator('#schaltkasten svg circle[data-netz="N4"]').first().click(); // schwarz entfernen
-    erwarteGleich(await ampelFarben(page), ['#999999', '#999999'], 'Messspitzen-Änderung setzt Ampel zurück auf grau');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#4a4a4a'], 'Messspitzen-Änderung setzt Ampel zurück auf grau');
     await page.close();
   });
 
@@ -3207,7 +3205,7 @@ async function main() {
 
     await klick(page, 'TEST');
     erwarte(await displayTexte(page), 'I:___mA', 'TEST bleibt wirkungslos, Platzhalter unverändert');
-    erwarteGleich(await ampelFarben(page), ['#999999', '#999999'], 'TEST bleibt wirkungslos, Ampel bleibt grau');
+    erwarteGleich(await ampelFarben(page), ['#4a4a4a', '#4a4a4a'], 'TEST bleibt wirkungslos, Ampel bleibt grau');
     await page.close();
   });
 

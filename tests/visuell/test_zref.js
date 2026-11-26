@@ -192,9 +192,7 @@ async function main() {
 
   // --- Spannungsfall ΔU (sim-lgf) ---
   const ampel = (page) => page.evaluate(() =>
-    [...document.querySelectorAll('#messgeraet svg rect')]
-      .filter((r) => r.getAttribute('width') === '6' && r.getAttribute('height') === '190')
-      .map((r) => r.getAttribute('fill')));
+    ['links', 'rechts'].map((seite) => document.querySelector(`#messgeraet svg rect[data-ampel="${seite}"]`)?.getAttribute('fill')));
   const zahl = (text, label, einheit) => parseFloat(text.replace(label, '').replace(einheit, '').replace(',', '.'));
   // An SK2 in der ΔU-Ansicht TEST (Bemessungsstrom wählbar).
   const deltaUAnSk2 = (bemessungsstrom) => [

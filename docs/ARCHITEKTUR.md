@@ -1108,21 +1108,25 @@ Drehstromsteckdose + beide neuen Steckdosen SK2/SK3).
   bzw. `ziTestKlick()` auf, siehe dort) - für ZS/FI/RCD/V~ ist sie weiterhin
   ohne Effekt, da `testKlick()` für diese Funktionen keinen Handler aufruft
   (siehe `schraube()`/`taste()`-Muster in `schaltkasten.js`).
-- **Display-Rahmen + Ampel-Leuchtstreifen:** `zeichneDisplay()` zeichnet vor
-  dem eigentlichen Display-Rechteck einen 6px breiten Rahmen
-  (`DISPLAY_RAHMEN_BREITE`), gefüllt in derselben Farbe wie das
-  ausgeschaltete Display (`DISPLAY_AUS_FARBE = '#333333'`) - wirkt dadurch
-  wie ein durchgehender Bezel, egal ob das Gerät an oder aus ist. Darüber
-  liegen zwei schmale Streifen-Rechtecke, exakt auf Display-Höhe begrenzt
-  (nicht die volle Rahmenhöhe, damit die runden Rahmen-Ecken oben/unten
-  dunkel bleiben): links `zustand.leuchteLinksAn` steuert
-  `DISPLAY_LEUCHTE_LINKS_AN_FARBE` (`#ff6666`, hellrot) vs.
-  `DISPLAY_LEUCHTE_AUS_FARBE` (`#999999`, grau), rechts analog
-  `zustand.leuchteRechtsAn` → `DISPLAY_LEUCHTE_RECHTS_AN_FARBE` (`#66ee66`,
-  hellgrün). Beide Felder sind optional und nur von RISO belegt (siehe
-  `risoAmpel` in `app.js` unten) - bei jeder anderen Funktion bleiben beide
-  Streifen grau, da `zustand.leuchteLinksAn`/`RechtsAn` dort `undefined`
-  sind.
+- **Display-Rahmen + Ampel-Leuchtstreifen (sim-opm):** `zeichneDisplay()`
+  zeichnet vor dem eigentlichen Display-Rechteck einen Rahmen in derselben
+  Farbe wie das ausgeschaltete Display (`DISPLAY_AUS_FARBE = '#333333'`) -
+  wirkt dadurch wie ein durchgehender Bezel, egal ob das Gerät an oder aus
+  ist. Oben/unten ist er 6 Einheiten breit (`DISPLAY_RAHMEN_BREITE`, Abstand
+  zu „INSTALLATIONSTESTER“), links/rechts 13 (`DISPLAY_RAHMEN_SEITE` =
+  10 Leuchte `DISPLAY_LEUCHTE_BREITE` + 3 dunkler Steg `DISPLAY_STEG_BREITE`,
+  damit sich das rote Leuchten vom roten Gehäuse abhebt). Die beiden
+  Leuchtstreifen liegen direkt am Display, exakt auf Display-Höhe (die runden
+  Rahmen-Ecken bleiben dunkel), und tragen `data-ampel="links"`/`"rechts"`,
+  über das Tests und `tools/messgeraet_steuerung.js` (`ampelFarben()`) sie
+  finden: links `zustand.leuchteLinksAn` → `DISPLAY_LEUCHTE_LINKS_AN_FARBE`
+  (`#ff3b30`, Signalrot), rechts `zustand.leuchteRechtsAn` →
+  `DISPLAY_LEUCHTE_RECHTS_AN_FARBE` (`#18c936`, Signalgrün), sonst
+  `DISPLAY_LEUCHTE_AUS_FARBE` (`#4a4a4a`, dunkel). Belegt werden die Felder
+  von RISO (`risoAmpel`), ZI/ZS (Isc gegen Lim), dem Spannungsfall ΔU und
+  FI/RCD (`fircdAmpel`), siehe `app.js` unten; bei allen anderen Zuständen
+  bleiben beide Streifen aus. Vergleichsbilder:
+  `docs/referenz/messgeraet_ampel_vorher_v1.png`, `…_nachher_v1.png`.
 
 ```javascript
 // Beispiel (siehe controller/app.js)

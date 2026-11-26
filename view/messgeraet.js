@@ -319,11 +319,19 @@ function zeichneKastenIndikator(svg, cx, cy, { durchgestrichen = false, icon = '
   svg.appendChild(g);
 }
 
+// Rahmen um das Display: oben/unten schmal (Abstand zu "INSTALLATIONSTESTER"),
+// links/rechts breiter für die Ampel-Leuchten. Zwischen Leuchte und Gehäuse
+// bleibt ein dunkler Steg, damit sich das rote Leuchten vom roten Gehäuse
+// abhebt (sim-opm, Durchsicht Gemini).
 const DISPLAY_RAHMEN_BREITE = 6;
+const DISPLAY_LEUCHTE_BREITE = 10;
+const DISPLAY_STEG_BREITE = 3;
+const DISPLAY_RAHMEN_SEITE = DISPLAY_LEUCHTE_BREITE + DISPLAY_STEG_BREITE;
 const DISPLAY_AUS_FARBE = '#333333';
-const DISPLAY_LEUCHTE_AUS_FARBE = '#999999';
-const DISPLAY_LEUCHTE_LINKS_AN_FARBE = '#ff6666'; // hellrot, heller als das Gehäuse-Rot
-const DISPLAY_LEUCHTE_RECHTS_AN_FARBE = '#66ee66'; // hellgrün
+// Aus dunkel, an satt: an/aus soll sofort unterscheidbar sein (sim-opm).
+const DISPLAY_LEUCHTE_AUS_FARBE = '#4a4a4a';
+const DISPLAY_LEUCHTE_LINKS_AN_FARBE = '#ff3b30'; // Signalrot
+const DISPLAY_LEUCHTE_RECHTS_AN_FARBE = '#18c936'; // Signalgrün
 
 function zeichneDisplay(svg, zustand) {
   const { x, y, breite, hoehe } = DISPLAY;
@@ -331,22 +339,22 @@ function zeichneDisplay(svg, zustand) {
   // Display selbst - wirkt dadurch wie ein durchgehender Rand, egal ob das
   // Gerät gerade an oder aus ist.
   svg.appendChild(svgEl('rect', {
-    x: x - DISPLAY_RAHMEN_BREITE, y: y - DISPLAY_RAHMEN_BREITE,
-    width: breite + 2 * DISPLAY_RAHMEN_BREITE, height: hoehe + 2 * DISPLAY_RAHMEN_BREITE,
+    x: x - DISPLAY_RAHMEN_SEITE, y: y - DISPLAY_RAHMEN_BREITE,
+    width: breite + 2 * DISPLAY_RAHMEN_SEITE, height: hoehe + 2 * DISPLAY_RAHMEN_BREITE,
     rx: 6, fill: DISPLAY_AUS_FARBE
   }));
-  // Leuchtstreifen links/rechts im Rahmen (Breite = Rahmenbreite, Höhe = exakt
+  // Leuchtstreifen links/rechts im Rahmen, direkt am Display (Höhe = exakt
   // die Display-Höhe, damit die runden Rahmen-Ecken oben/unten dunkel
-  // bleiben) - Ampel-Funktion (aktuell nur von RISO genutzt, siehe
-  // controller/app.js risoTestKlick()/risoAmpel): links rot = "durchgefallen"
+  // bleiben) - Ampel-Funktion (RISO, ZI/ZS, Spannungsfall, FI/RCD, siehe
+  // controller/app.js baueAnzeigeZustand()): links rot = "durchgefallen"
   // (Spannung lag an, oder Messwert unter dem Grenzwert), rechts grün =
-  // "bestanden". Default (kein zustand.leuchteLinksAn/RechtsAn) ist grau.
+  // "bestanden". Default (kein zustand.leuchteLinksAn/RechtsAn) ist aus.
   svg.appendChild(svgEl('rect', {
-    x: x - DISPLAY_RAHMEN_BREITE, y, width: DISPLAY_RAHMEN_BREITE, height: hoehe,
+    x: x - DISPLAY_LEUCHTE_BREITE, y, width: DISPLAY_LEUCHTE_BREITE, height: hoehe, 'data-ampel': 'links',
     fill: zustand.leuchteLinksAn ? DISPLAY_LEUCHTE_LINKS_AN_FARBE : DISPLAY_LEUCHTE_AUS_FARBE
   }));
   svg.appendChild(svgEl('rect', {
-    x: x + breite, y, width: DISPLAY_RAHMEN_BREITE, height: hoehe,
+    x: x + breite, y, width: DISPLAY_LEUCHTE_BREITE, height: hoehe, 'data-ampel': 'rechts',
     fill: zustand.leuchteRechtsAn ? DISPLAY_LEUCHTE_RECHTS_AN_FARBE : DISPLAY_LEUCHTE_AUS_FARBE
   }));
   svg.appendChild(svgEl('rect', {

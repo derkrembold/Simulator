@@ -73,6 +73,12 @@ sie also. So holt man sie:
 3. **Codex** prüft Tickets mit dem Label `review`: liest die verwiesenen Dateien und den Diff
    und schreibt die Ergebnisse als Review-Kommentar ans Ticket (mit Dateiverweisen). Codex
    ändert keinen Code und legt keine eigenen Tickets an.
+   - **Review-Aufteilung:** Das Code-Review liegt bei Codex. Betrifft ein Ticket die Bedienung
+     oder Darstellung (z.B. Label `layout`), macht Gemini zusätzlich ein Bedienbarkeits-Review
+     und schreibt es ebenfalls als Kommentar ans Ticket. Setzt Gemini selbst um, entfällt dessen
+     Bedienbarkeits-Review; das Code-Review bleibt bei Codex. Bei reinen Code-Änderungen ohne
+     Auswirkung auf Bedienung oder Darstellung (z.B. Fachlogik, Werkzeuge, Tests) reviewt Gemini
+     nicht.
 4. **Claude** liest die Review-Kommentare und bewertet sie kritisch. Was sinnvoll ist, setzt
    Claude um. Was Claude nicht umsetzt, begründet Claude in einem Kommentar am Ticket. Danach
    geht das Ticket zum Menschen.

@@ -81,6 +81,13 @@ function sorgeFuerCss() {
     .pf-cbgroup { display: flex; flex-wrap: wrap; gap: 2px 12px; }
     .pf-cboption { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
     .pf-cb { cursor: pointer; user-select: none; font-size: 13px; }
+    /* Tastatur-Bedienung (sim-k3t): Text neben einem Kästchen ist klickbar,
+       der Fokus ist deutlich sichtbar. */
+    .pf-cboption:has(.pf-cb), .pf-tabelle td.pf-cb-zelle { cursor: pointer; }
+    .pf-cb:focus-visible, .pf-feld:focus-visible, .pf-textarea:focus-visible { outline: 2px solid #1a5fb4; outline-offset: 1px; }
+    /* Auch ein rot markiertes Feld zeigt den Fokus (blauer Rahmen, rot bleibt
+       als äußerer Ring sichtbar). */
+    .pf-fehler:focus-visible, .pf-feld.pf-fehler:focus-visible { outline: 2px solid #1a5fb4; outline-offset: 1px; box-shadow: 0 0 0 4px #d00000; }
     .pf-tabelle { width: 100%; border-collapse: collapse; }
     .pf-tabelle th, .pf-tabelle td {
       border: 1px solid #999;
@@ -332,6 +339,134 @@ function baueSeite2() {
   `;
 }
 
+// --- Tastatur-Bedienung (sim-k3t) ---
+
+function umschalten(cb) {
+  cb.textContent = cb.textContent === '☒' ? '☐' : '☒';
+  cb.setAttribute('aria-checked', String(cb.textContent === '☒'));
+}
+
+// Zusammengehörige Kästchen: eine Tabellenzeile, eine Ankreuz-Gruppe oder
+// eine Formularzeile mit einzelnem Kästchen.
+const kaestchenGruppe = (cb) => cb.closest('tr') ?? cb.closest('.pf-cbgroup') ?? cb.closest('.pf-zeile');
+
+// Kästchen per Tastatur erreichbar: Tab hält nur am ersten Kästchen jeder
+// Gruppe, die übrigen erreicht man mit Pfeil links/rechts (Entscheidung zu
+// sim-k3t, sonst wären es über 40 Tab-Halte).
+function richteKaestchenEin(container) {
+  const ersteJeGruppe = new Set();
+  for (const cb of container.querySelectorAll('.pf-cb')) {
+    const gruppe = kaestchenGruppe(cb);
+    cb.setAttribute('role', 'checkbox');
+    cb.setAttribute('aria-checked', String(cb.textContent === '☒'));
+    cb.setAttribute('aria-label', kaestchenName(cb));
+    cb.tabIndex = ersteJeGruppe.has(gruppe) ? -1 : 0;
+    ersteJeGruppe.add(gruppe);
+  }
+}
+
+// Name eines Kästchens für Screenreader (Review Codex zu sim-k3t): der Text
+// der Option (z.B. "Ja") bzw. in Prüfpunkt-Tabellen "Prüfpunkt – Spalte"
+// (z.B. "Zugänglichkeit – n.i.O.").
+function kaestchenName(cb) {
+  const option = cb.closest('.pf-cboption');
+  if (option) return option.textContent.replace(/[☐☒]/g, '').trim();
+  const zelle = cb.closest('td');
+  const tabelle = zelle?.closest('table');
+  if (!tabelle) return '';
+  return `${zelle.parentElement.cells[0].textContent.trim()} – ${tabelle.rows[0].cells[zelle.cellIndex]?.textContent.trim() ?? ''}`;
+}
+
+// Bedienbares Element in einer Tabellenzelle bzw. allgemein.
+const BEDIENBAR = 'input, textarea, .pf-cb';
+const bedienbarIn = (zelle) => zelle?.querySelector(BEDIENBAR) ?? null;
+// Zelle (auch Kopfzelle mit Eingabefeld wie U_L in der Messtabelle).
+const zelleVon = (el) => el.closest('td, th');
+
+// Steht der Cursor ohne Markierung am Anfang bzw. Ende des Textfelds?
+function cursorAmRand(feld, richtung) {
+  if (feld.selectionStart !== feld.selectionEnd) return false;
+  return richtung < 0 ? feld.selectionStart === 0 : feld.selectionEnd === feld.value.length;
+}
+
+// Nachbar in der Tabelle: dieselbe Spalte eine Zeile höher/tiefer (nur
+// Datenzeilen, Kopfzeilen mit zusammengefassten Spalten werden übersprungen)
+// oder die nächste bedienbare Zelle links/rechts in derselben Zeile.
+// Die Spalte wird über die waagrechte Lage bestimmt, nicht über cellIndex:
+// Kopfzeilen fassen Spalten zusammen (colspan/rowspan), so findet auch das
+// U_L-Feld im Kopf der Messtabelle seine Spalte (Review Codex zu sim-k3t).
+function nachbarInTabelle(element, dZeile, dSpalte) {
+  const zelle = zelleVon(element);
+  const zeile = zelle?.parentElement;
+  const tabelle = zeile?.closest('table');
+  if (!zelle || !tabelle) return null;
+  if (dZeile !== 0) {
+    const box = zelle.getBoundingClientRect();
+    const mitteX = box.left + box.width / 2;
+    const zeilen = [...tabelle.rows];
+    for (let i = zeilen.indexOf(zeile) + dZeile; i >= 0 && i < zeilen.length; i += dZeile) {
+      const treffer = [...zeilen[i].cells].find((c) => {
+        const b = c.getBoundingClientRect();
+        return b.left <= mitteX && mitteX < b.right;
+      });
+      const ziel = bedienbarIn(treffer);
+      if (ziel) return ziel;
+    }
+    return null;
+  }
+  const inZeile = [...zeile.querySelectorAll(BEDIENBAR)];
+  return inZeile[inZeile.indexOf(element) + dSpalte] ?? null;
+}
+
+// Nächstes Feld in Tab-Reihenfolge (für Enter außerhalb von Tabellen).
+function naechstesFeld(container, element) {
+  const felder = [...container.querySelectorAll(BEDIENBAR)].filter((f) => f.tabIndex >= 0);
+  return felder[felder.indexOf(element) + 1] ?? null;
+}
+
+function tasteGedrueckt(container, ev) {
+  const el = ev.target;
+  const istKaestchen = el.classList?.contains('pf-cb');
+  const istTextfeld = el.tagName === 'INPUT';
+  if (!istKaestchen && !istTextfeld) return; // mehrzeilige Felder: Tasten wie gewohnt
+  // Mit Umschalt, Strg, Alt oder Meta bleiben die Tasten beim Browser
+  // (Text markieren, wortweise springen; Review Gemini zu sim-k3t).
+  if (ev.shiftKey || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+  const inTabelle = Boolean(zelleVon(el)?.closest('table.pf-tabelle'));
+  let ziel = null;
+
+  if (istKaestchen && (ev.key === ' ' || ev.key === 'Enter')) {
+    ev.preventDefault();
+    umschalten(el);
+    return;
+  }
+  if (ev.key === 'Enter') {
+    ziel = inTabelle ? nachbarInTabelle(el, 1, 0) : naechstesFeld(container, el);
+  } else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
+    if (inTabelle) ziel = nachbarInTabelle(el, ev.key === 'ArrowUp' ? -1 : 1, 0);
+  } else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+    const richtung = ev.key === 'ArrowLeft' ? -1 : 1;
+    if (istTextfeld && !cursorAmRand(el, richtung)) return;
+    if (inTabelle) {
+      ziel = nachbarInTabelle(el, 0, richtung);
+    } else if (istKaestchen) {
+      const geschwister = [...kaestchenGruppe(el).querySelectorAll('.pf-cb')];
+      ziel = geschwister[geschwister.indexOf(el) + richtung] ?? null;
+    }
+  } else {
+    return;
+  }
+  if (!ziel) return;
+  ev.preventDefault();
+  ziel.focus();
+  // Cursor so setzen, dass ein weiterer Pfeil in dieselbe Richtung direkt
+  // weiterspringt: nach links an den Anfang, sonst ans Ende (Review Gemini).
+  if (ziel.tagName === 'INPUT') {
+    const pos = ev.key === 'ArrowLeft' ? 0 : ziel.value.length;
+    ziel.setSelectionRange(pos, pos);
+  }
+}
+
 export const ProtokollView = {
   // `breitePx`: Zielbreite in Pixeln (siehe controller/app.js - dieselbe
   // Breite wie der gerenderte Schaltkasten, damit alle drei View-Objekte
@@ -358,15 +493,23 @@ export const ProtokollView = {
       ${baueSeite2()}
     `;
 
+    richteKaestchenEin(container);
+
     // Ankreuzen: Klick auf ein ☐/☒-Kästchen togglet unabhängig von jedem
     // anderen Kästchen (kein Radio-Verhalten - reine Ankreuz-Funktion,
     // Mehrfachauswahl/Validierung ist bewusst nicht Teil dieser ersten
-    // Ausbaustufe, siehe KONZEPT.md "Protokoll").
+    // Ausbaustufe, siehe KONZEPT.md "Protokoll"). Ein Klick auf den Text
+    // neben dem Kästchen zählt wie ein Klick auf das Kästchen (sim-k3t).
+    // Ebenso die freie Fläche einer Ankreuz-Zelle (Touch). Danach liegt der
+    // Fokus auf dem Kästchen, damit man mit der Tastatur weitermachen kann.
     container.addEventListener('click', (ev) => {
-      const cb = ev.target.closest('.pf-cb');
+      const direkt = ev.target.closest('.pf-cb');
+      const cb = direkt ?? (ev.target.closest('.pf-cboption') ?? ev.target.closest('td.pf-cb-zelle'))?.querySelector('.pf-cb');
       if (!cb) return;
-      cb.textContent = cb.textContent === '☒' ? '☐' : '☒';
+      umschalten(cb);
+      if (!direkt) cb.focus({ preventScroll: true });
     });
+    container.addEventListener('keydown', (ev) => tasteGedrueckt(container, ev));
   },
 
   // Ist irgendetwas eingetragen oder angekreuzt? Vorbelegte Felder (z.B.
@@ -382,7 +525,7 @@ export const ProtokollView = {
   // Klick-Listener aus render() erhalten (sim-ibp).
   leeren(container) {
     container.querySelectorAll('input, textarea').forEach((f) => { f.value = f.defaultValue; });
-    container.querySelectorAll('.pf-cb').forEach((cb) => { cb.textContent = '☐'; });
+    container.querySelectorAll('.pf-cb').forEach((cb) => { cb.textContent = '☐'; cb.setAttribute('aria-checked', 'false'); });
     container.querySelectorAll('.pf-fehler').forEach((el) => el.classList.remove('pf-fehler'));
   }
 };

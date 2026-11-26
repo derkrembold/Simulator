@@ -896,6 +896,14 @@ Mängel wurden festgestellt“ und „Beurteilung zu den gemessenen
 Stromkreisen“ als je 11 linierte Zeilen, plus dieselben Abschluss-Felder wie
 Seite 1).
 
+**Tastatur-Bedienung (sim-k3t):** Tab springt von Feld zu Feld und hält je Zeile bzw.
+Ankreuz-Gruppe nur am ersten Kästchen; weitere Kästchen der Zeile mit Pfeil links/rechts.
+Leertaste oder Enter kreuzt an, ein Klick auf den Text neben einem Kästchen ebenfalls. In
+Tabellen: Pfeil hoch/runter gleiche Spalte, links/rechts Nachbarzelle (im Textfeld erst, wenn
+der Cursor am Anfang bzw. Ende steht), Enter eine Zeile tiefer. Außerhalb von Tabellen springt
+Enter zum nächsten Feld; in mehrzeiligen Feldern bleibt Enter ein Zeilenumbruch. Code in
+`view/protokoll.js` (tasteGedrueckt()).
+
 **Mängel und Beurteilung über Schlüsselwörter (sim-03t):** Beide Felder
 müssen immer ausgefüllt sein (z.B. „nichts auffällig“). Zusätzlich kann eine
 Anlage Punkte vorgeben, die der Prüfling nennen muss: in `anforderung.md`

@@ -2111,6 +2111,28 @@ diesem Umbau falsch geworden) - `justify-content:center` selbst kann bleiben
 (harmlos, da die Container-Breite jetzt exakt der SVG-Breite entspricht,
 also kein Zentrierungs-Spielraum mehr existiert).
 
+**Abgelöst durch sim-rng (2026-11-26), Layout für Handy und Desktop:** Die
+gepackte Reihe oben (`passendRendern()`, `positioniereHandy()`,
+`positioniereSchraubendreher()`, absolute Positionierung) gibt es nicht mehr.
+`index.html` setzt eine Spalte (`#spalte`, höchstens 780 px, zentriert) mit
+fünf Blöcken untereinander: Steckdosen, Schaltkasten, Messgerät,
+Werkzeugzeile (`#werkzeugzeile`, Flexbox: Handy, Schraubendreher, später
+die Legende aus sim-4su) und Prüfprotokoll. Alles steht im normalen
+Layout-Fluss. Die SVGs skalieren per CSS über ihre viewBox
+(`width: 100%; height: auto`), die gerenderten SVGs und damit die
+Referenzbilder `anlage.svg` bleiben unverändert. Das Messgerät hat
+`max-width: 460px`: auf dem Desktop genau seine gerenderte Breite, auf dem
+Handy die volle Spaltenbreite. Handy und Schraubendreher werden auf eine
+feste Höhe von 200 px gerendert (`WERKZEUG_HOEHE` in `controller/app.js`);
+der Schraubendreher-Container behält seine Mindestgröße, solange das
+Werkzeug aufgenommen ist, damit das Handy nicht verrutscht. Das Protokoll
+bekommt keine Pixelbreite mehr, sondern füllt die Spalte; Eingabefelder in
+Tabellenzellen füllen ihre Zelle (`view/protokoll.js`), sonst würde die
+Tabelle auf 360 px über den Rand ragen. `<meta name="viewport">` ist gesetzt
+(ohne `user-scalable=no`, Pinch-Zoom bleibt möglich).
+
+Die beiden folgenden Absätze beschreiben den Stand vor sim-rng (historisch):
+
 **Regressionstest angepasst statt gelöscht:** `test_schraubendreher.js`
 hatte einen Test "Messgerät bleibt trotz Schraubendreher exakt mittig unter
 dem Schaltkasten zentriert" - dessen Prämisse durch die neue User-Vorgabe

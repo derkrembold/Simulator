@@ -97,6 +97,9 @@ function sorgeFuerCss() {
     }
     .pf-tabelle th { background: #f0f0f0; font-weight: bold; white-space: nowrap; }
     .pf-tabelle td.pf-cb-zelle { text-align: center; }
+    /* Eingabefelder füllen ihre Zelle, statt mit ihrer Standardbreite die
+       Tabelle auf schmalen Bildschirmen zu verbreitern (sim-rng). */
+    .pf-tabelle td > input.pf-feld { width: 100%; min-width: 0; box-sizing: border-box; }
     .pf-scroll { overflow-x: auto; }
     .pf-scroll .pf-tabelle td { white-space: nowrap; }
     .pf-scroll .pf-tabelle th { white-space: normal; max-width: 90px; }
@@ -468,12 +471,10 @@ function tasteGedrueckt(container, ev) {
 }
 
 export const ProtokollView = {
-  // `breitePx`: Zielbreite in Pixeln (siehe controller/app.js - dieselbe
-  // Breite wie der gerenderte Schaltkasten, damit alle drei View-Objekte
-  // bündig übereinander stehen).
-  render(container, breitePx) {
+  // Die Breite kommt aus der Seitenspalte (index.html, sim-rng): das Blatt
+  // steht bündig unter dem Schaltkasten.
+  render(container) {
     sorgeFuerCss();
-    container.style.width = `${breitePx}px`;
     container.innerHTML = `
       <div class="pf-blatt">
         <div class="pf-titel-zeile">

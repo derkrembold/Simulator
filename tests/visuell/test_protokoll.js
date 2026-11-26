@@ -60,23 +60,22 @@ async function main() {
     return page;
   }
 
-  await pruefe('Protokoll: Breite entspricht der gerenderten Schaltkasten-Breite', async () => {
+  await pruefe('Protokoll: Breite entspricht der dargestellten Schaltkasten-Breite', async () => {
     const page = await neueSeite();
     const breiten = await page.evaluate(() => ({
-      schaltkasten: document.querySelector('#schaltkasten svg').getAttribute('width'),
-      protokoll: getComputedStyle(document.getElementById('protokoll')).width.replace('px', '')
+      schaltkasten: document.querySelector('#schaltkasten svg').getBoundingClientRect().width,
+      protokoll: document.getElementById('protokoll').getBoundingClientRect().width
     }));
-    if (breiten.schaltkasten !== breiten.protokoll) {
+    if (Math.abs(breiten.schaltkasten - breiten.protokoll) > 0.5) {
       throw new Error(`erwarte Protokoll-Breite ${breiten.schaltkasten}px, gefunden ${breiten.protokoll}px`);
     }
     await page.close();
   });
 
-  // Absichtlich ein breiterer Viewport als die Schaltkasten-Breite - sonst
-  // fällt ein zentrierender `margin: auto` (siehe ARCHITEKTUR.md, dortiger
-  // "Linksbündig, nicht zentriert"-Abschnitt) nicht auf, weil der Container
-  // ohnehin schon die volle verfügbare Breite einnimmt.
-  await pruefe('Protokoll: linke Kante steht bündig unter der Schaltkasten-Kante (nicht zentriert)', async () => {
+  // Absichtlich ein breiterer Viewport als die Spalte (sim-rng: höchstens
+  // 780 px, zentriert) - Schaltkasten und Protokoll müssen dieselbe linke
+  // Kante haben.
+  await pruefe('Protokoll: linke Kante steht bündig unter der Schaltkasten-Kante', async () => {
     const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
     await page.goto(`http://localhost:${port}/index.html`);
     await page.waitForSelector('#protokoll .pf-blatt');

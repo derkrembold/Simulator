@@ -2,19 +2,39 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TREI Prüfungs-Simulator</title>
   <style>
     body { font-family: sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    /* Eine Spalte für Handy und Desktop (sim-rng): Steckdosen, Schaltkasten,
+       Messgerät, Werkzeugzeile und Prüfprotokoll untereinander. Auf dem
+       Desktop zentriert und höchstens 780 px breit, auf dem Handy volle
+       Breite. Die SVGs skalieren per CSS über ihre viewBox, die gerenderten
+       SVGs selbst bleiben unverändert. */
+    #spalte { max-width: 780px; margin: 0 auto; }
+    #steckdosen svg, #schaltkasten svg { display: block; width: 100%; height: auto; }
     #schaltkasten { background: #fff; }
     #steckdosen { margin-bottom: 20px; }
-    /* Handy/Messgerät/Schraubendreher bilden eine von links nach rechts
-       gepackte Reihe (Breiten/Ränder werden in controller/app.js gesetzt,
-       siehe dort "Layout: Handy/Messgerät/Schraubendreher") -
-       #messgeraet-zeile liefert nur den Positionierungs-Anker
-       (position: relative) für die absolut positionierten Handy-/
-       Schraubendreher-Container. */
-    #messgeraet-zeile { position: relative; margin-top: 20px; }
+    #messgeraet-zeile { margin-top: 20px; }
+    /* Messgerät nie größer als seine gerenderte Breite (460 px), auf
+       schmalen Bildschirmen volle Spaltenbreite. */
+    #messgeraet { max-width: 460px; margin: 0 auto; }
+    #messgeraet svg { display: block; width: 100%; height: auto; }
+    /* Werkzeugzeile: Handy, Schraubendreher und weitere kleine Objekte
+       nebeneinander. */
+    #werkzeugzeile {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    #werkzeugzeile svg { display: block; }
     #protokoll { margin-top: 20px; }
+    @media (max-width: 600px) {
+      body { padding: 12px 6px; }
+    }
     /* Schnelles Mehrfachklicken (Messspitzen-Zyklus, Drehknopf, ▲/▼/◄►) löst
        sonst die native Doppelklick-Textauswahl des Browsers aus, die zufällig
        Text irgendwo in der SVG markiert (z.B. "INSTALLATIONSTESTER" blau markiert). */
@@ -38,14 +58,18 @@
   </style>
 </head>
 <body>
-  <div id="steckdosen"></div>
-  <div id="schaltkasten"></div>
-  <div id="messgeraet-zeile">
-    <div id="handy"></div>
-    <div id="messgeraet"></div>
-    <div id="schraubendreher"></div>
+  <div id="spalte">
+    <div id="steckdosen"></div>
+    <div id="schaltkasten"></div>
+    <div id="messgeraet-zeile">
+      <div id="messgeraet"></div>
+      <div id="werkzeugzeile">
+        <div id="handy"></div>
+        <div id="schraubendreher"></div>
+      </div>
+    </div>
+    <div id="protokoll"></div>
   </div>
-  <div id="protokoll"></div>
   <script type="module" src="controller/app.js"></script>
 </body>
 </html>

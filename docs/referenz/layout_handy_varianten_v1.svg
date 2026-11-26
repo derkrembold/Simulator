@@ -1,0 +1,307 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="790" viewBox="0 0 1200 790" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <filter id="schatten" x="-8%" y="-8%" width="116%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.16"/>
+    </filter>
+    <filter id="sticky-schatten" x="-10%" y="-25%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="-3" stdDeviation="4" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <!-- Hintergrund -->
+  <rect width="1200" height="790" fill="#f3f5f7"/>
+
+  <!-- Kopftitel -->
+  <text x="30" y="34" font-size="19" font-weight="bold" fill="#1a1a1a">sim-rng – Layout-Varianten für Handy (~360 px) &amp; Desktop (~780 px zentriert)</text>
+  <text x="30" y="54" font-size="12" fill="#555555">Alle Varianten: viewport-Meta aktiv (kein 980-px-Zoom mehr), kein Quer-Scrollen der Seite (Ausnahme Messtabelle), Schaltkasten-SVG unverändert (CSS-Skalierung).</text>
+
+  <!-- ==================== VARIANTE A ==================== -->
+  <g transform="translate(30, 76)">
+    <text x="0" y="16" font-size="14" font-weight="bold" fill="#1a1a1a">Variante A: Umbruch im Fluss</text>
+    <text x="0" y="33" font-size="11" fill="#555555">Schlichtester Weg, kein Sticky/Overlay</text>
+
+    <!-- Smartphone-Rahmen -->
+    <rect x="0" y="44" width="256" height="552" rx="18" fill="#2c2c2c" filter="url(#schatten)"/>
+    <rect x="8" y="60" width="240" height="520" rx="8" fill="#eceff1"/>
+    <rect x="104" y="50" width="48" height="4" rx="2" fill="#555555"/>
+    <text x="128" y="75" font-size="10" fill="#666666" text-anchor="middle">Handy 360 px (Inhalt ~348 px)</text>
+
+    <!-- 1. Steckdosen -->
+    <rect x="14" y="84" width="228" height="82" rx="4" fill="#ffffff" stroke="#888888" stroke-width="1.2"/>
+    <text x="128" y="102" font-size="11" font-weight="bold" fill="#222222" text-anchor="middle">Steckdosen / Dosen (100%)</text>
+    <rect x="30" y="112" width="38" height="38" rx="4" fill="#f7f7f7" stroke="#555555"/>
+    <circle cx="49" cy="131" r="11" fill="none" stroke="#555555"/>
+    <rect x="109" y="112" width="38" height="38" rx="4" fill="#f7f7f7" stroke="#555555"/>
+    <circle cx="128" cy="131" r="11" fill="none" stroke="#555555"/>
+    <circle cx="204" cy="131" r="19" fill="#efefef" stroke="#555555"/>
+    <text x="128" y="160" font-size="9" fill="#666666" text-anchor="middle">348 px breit (+48% ggü. heute)</text>
+
+    <!-- 2. Schaltkasten -->
+    <rect x="14" y="174" width="228" height="122" rx="4" fill="#e5e5e5" stroke="#888888" stroke-width="1.2"/>
+    <text x="128" y="191" font-size="11" font-weight="bold" fill="#222222" text-anchor="middle">Schaltkasten (100%)</text>
+    <rect x="24" y="200" width="208" height="18" fill="#a0a0a0"/>
+    <rect x="24" y="228" width="208" height="24" fill="#a0a0a0"/>
+    <rect x="28" y="222" width="36" height="36" fill="#d8d8d8" stroke="#555555"/>
+    <rect x="64" y="222" width="20" height="36" fill="#d8d8d8" stroke="#555555"/>
+    <rect x="84" y="222" width="20" height="36" fill="#d8d8d8" stroke="#555555"/>
+    <rect x="24" y="264" width="208" height="20" fill="#a0a0a0"/>
+    <rect x="28" y="258" width="30" height="30" fill="#444444" stroke="#222222"/>
+
+    <!-- 3. Messgerät volle Breite -->
+    <rect x="14" y="304" width="228" height="98" rx="6" fill="#dd1111" stroke="#aa0000" stroke-width="1.2"/>
+    <text x="128" y="317" font-size="8" fill="#ffffff" text-anchor="middle" letter-spacing="1">INSTALLATIONSTESTER</text>
+    <rect x="74" y="323" width="106" height="68" rx="3" fill="#dddddd" stroke="#333333" stroke-width="3"/>
+    <rect x="176" y="325" width="4" height="64" fill="#18c936"/>
+    <text x="126" y="360" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle" font-family="Courier New, monospace">Z:0,64Ω</text>
+    <circle cx="38" cy="356" r="12" fill="#eeeeee" stroke="#999999"/>
+    <circle cx="212" cy="352" r="13" fill="#222222" stroke="#666666"/>
+    <text x="128" y="399" font-size="9" fill="#ffe5e5" text-anchor="middle">Volle Breite 348 px (+106% ggü. heute!)</text>
+
+    <!-- 4. Handy + Schraubendreher darunter -->
+    <rect x="14" y="410" width="228" height="72" rx="4" fill="#e2e6ea" stroke="#b0b8c0" stroke-dasharray="3,2"/>
+    <rect x="44" y="418" width="42" height="56" rx="5" fill="#333333"/>
+    <rect x="47" y="422" width="36" height="46" rx="2" fill="#ffffff"/>
+    <rect x="52" y="428" width="11" height="10" rx="2" fill="#0082fe"/>
+    <rect x="66" y="428" width="11" height="10" rx="2" fill="#ffffff" stroke="#222222"/>
+    <rect x="59" y="442" width="11" height="10" rx="2" fill="#1e9e3e"/>
+    <text x="108" y="443" font-size="10" font-weight="bold" fill="#333333">Handy</text>
+    <text x="108" y="456" font-size="9" fill="#666666">&amp; Werkzeug</text>
+    <!-- Schraubendreher -->
+    <rect x="186" y="416" width="36" height="60" rx="4" fill="#ffffff" stroke="#cccccc"/>
+    <rect x="202" y="422" width="4" height="18" fill="#888888"/>
+    <rect x="200" y="440" width="8" height="30" rx="2" fill="#e15517"/>
+    <rect x="199" y="440" width="10" height="4" fill="#f7b500"/>
+
+    <!-- 5. Protokoll -->
+    <rect x="14" y="490" width="228" height="82" rx="3" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+    <text x="22" y="506" font-size="10" font-weight="bold" fill="#111111">Prüfprotokoll (100%)</text>
+    <line x1="20" y1="513" x2="236" y2="513" stroke="#999999"/>
+    <rect x="22" y="520" width="212" height="12" fill="#f5f5f5" stroke="#cccccc"/>
+    <rect x="22" y="536" width="212" height="28" fill="#eef4fb" stroke="#7aa7d9"/>
+    <text x="128" y="554" font-size="9" fill="#1a5fb4" text-anchor="middle">Messtabelle (einziger ↔ Scroll)</text>
+
+    <!-- Pro / Contra -->
+    <rect x="0" y="608" width="256" height="90" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+    <text x="10" y="626" font-size="11" font-weight="bold" fill="#1e7e34">+ Maximal schlicht, null Risiko</text>
+    <text x="10" y="642" font-size="10" fill="#333333">• Verdeckt nie Schrauben/Kontakte</text>
+    <text x="10" y="656" font-size="10" fill="#333333">• Kein Sticky-Sonderfall für Tests</text>
+    <text x="10" y="674" font-size="11" font-weight="bold" fill="#b45309">− Scrollweg bei vielen Dosen</text>
+    <text x="10" y="689" font-size="10" fill="#333333">• Oben messen → runter zum Gerät</text>
+  </g>
+
+  <!-- ==================== VARIANTE B (EMPFEHLUNG) ==================== -->
+  <g transform="translate(316, 76)">
+    <rect x="-4" y="-4" width="264" height="708" rx="10" fill="#eef6ff" stroke="#1a5fb4" stroke-width="1.5"/>
+    <text x="4" y="16" font-size="14" font-weight="bold" fill="#1a5fb4">Variante B: Sticky Messgerät ★</text>
+    <text x="4" y="33" font-size="11" fill="#1a5fb4">Empfehlung – nur beim Messen angepinnt</text>
+
+    <!-- Smartphone-Rahmen -->
+    <rect x="0" y="44" width="256" height="552" rx="18" fill="#2c2c2c" filter="url(#schatten)"/>
+    <rect x="8" y="60" width="240" height="520" rx="8" fill="#eceff1"/>
+    <rect x="104" y="50" width="48" height="4" rx="2" fill="#555555"/>
+    <text x="128" y="75" font-size="10" fill="#666666" text-anchor="middle">Handy 360 px – Arbeitsbereich</text>
+
+    <!-- Arbeitsbereich-Rahmen -->
+    <rect x="11" y="81" width="234" height="330" rx="6" fill="none" stroke="#1a5fb4" stroke-width="1.2" stroke-dasharray="4,3"/>
+
+    <!-- 1. Steckdosen (gerade im Blick!) -->
+    <rect x="15" y="86" width="226" height="120" rx="4" fill="#ffffff" stroke="#888888" stroke-width="1.2"/>
+    <text x="128" y="103" font-size="11" font-weight="bold" fill="#222222" text-anchor="middle">Steckdosen / Dosen (100%)</text>
+    <rect x="30" y="113" width="38" height="38" rx="4" fill="#f7f7f7" stroke="#555555"/>
+    <circle cx="49" cy="132" r="11" fill="none" stroke="#555555"/>
+    <circle cx="45" cy="132" r="3" fill="#111111" stroke="#ffffff" stroke-width="1"/>
+    <rect x="109" y="113" width="38" height="38" rx="4" fill="#f7f7f7" stroke="#555555"/>
+    <circle cx="128" cy="132" r="11" fill="none" stroke="#555555"/>
+    <circle cx="204" cy="132" r="19" fill="#efefef" stroke="#555555"/>
+    <rect x="30" y="160" width="38" height="38" rx="4" fill="#f7f7f7" stroke="#555555"/>
+    <circle cx="49" cy="179" r="11" fill="none" stroke="#555555"/>
+    <circle cx="204" cy="179" r="19" fill="#efefef" stroke="#555555"/>
+
+    <!-- 2. Schaltkasten (scrollt hinter dem Sticky-Messgerät durch) -->
+    <rect x="15" y="214" width="226" height="82" rx="4" fill="#e5e5e5" stroke="#888888" stroke-width="1.2"/>
+    <text x="128" y="232" font-size="11" font-weight="bold" fill="#222222" text-anchor="middle">Schaltkasten (scrollt frei)</text>
+    <rect x="25" y="242" width="206" height="16" fill="#a0a0a0"/>
+    <rect x="25" y="266" width="206" height="22" fill="#a0a0a0"/>
+    <rect x="29" y="262" width="34" height="30" fill="#d8d8d8" stroke="#555555"/>
+
+    <!-- 3. STICKY Messgerät unten am Arbeitsbereich -->
+    <g filter="url(#sticky-schatten)">
+      <!-- Schlichter Anpinn-/Einklapp-Reiter -->
+      <rect x="78" y="294" width="100" height="16" rx="4" fill="#1a5fb4"/>
+      <text x="128" y="305" font-size="9" font-weight="bold" fill="#ffffff" text-anchor="middle">▾ Anpinnen / Aus</text>
+      <rect x="14" y="308" width="228" height="98" rx="6" fill="#dd1111" stroke="#1a5fb4" stroke-width="1.6"/>
+      <text x="128" y="321" font-size="8" fill="#ffffff" text-anchor="middle" letter-spacing="1">INSTALLATIONSTESTER</text>
+      <rect x="74" y="327" width="106" height="68" rx="3" fill="#dddddd" stroke="#333333" stroke-width="3"/>
+      <rect x="176" y="329" width="4" height="64" fill="#18c936"/>
+      <text x="126" y="364" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle" font-family="Courier New, monospace">Z:0,64Ω</text>
+      <circle cx="38" cy="360" r="12" fill="#eeeeee" stroke="#999999"/>
+      <circle cx="212" cy="356" r="13" fill="#222222" stroke="#666666"/>
+      <text x="128" y="403" font-size="8.5" fill="#ffe5e5" text-anchor="middle">sticky nur im Arbeitsbereich (optional)</text>
+    </g>
+
+    <!-- 4. Handy + Schraubendreher darunter -->
+    <rect x="14" y="418" width="228" height="64" rx="4" fill="#e2e6ea" stroke="#b0b8c0" stroke-dasharray="3,2"/>
+    <rect x="44" y="424" width="38" height="52" rx="5" fill="#333333"/>
+    <rect x="47" y="428" width="32" height="42" rx="2" fill="#ffffff"/>
+    <rect x="51" y="433" width="10" height="9" rx="2" fill="#0082fe"/>
+    <rect x="64" y="433" width="10" height="9" rx="2" fill="#ffffff" stroke="#222222"/>
+    <rect x="58" y="445" width="10" height="9" rx="2" fill="#1e9e3e"/>
+    <text x="96" y="446" font-size="10" font-weight="bold" fill="#333333">Handy &amp; Werkzeug</text>
+    <text x="96" y="459" font-size="9" fill="#666666">bleiben im Fluss</text>
+    <rect x="192" y="423" width="32" height="54" rx="4" fill="#ffffff" stroke="#cccccc"/>
+    <rect x="206" y="428" width="4" height="16" fill="#888888"/>
+    <rect x="204" y="444" width="8" height="27" rx="2" fill="#e15517"/>
+
+    <!-- 5. Protokoll (Messgerät löst sich oben, 100% freie Sicht) -->
+    <rect x="14" y="490" width="228" height="82" rx="3" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+    <text x="22" y="506" font-size="10" font-weight="bold" fill="#111111">Prüfprotokoll (100% freie Sicht)</text>
+    <line x1="20" y1="513" x2="236" y2="513" stroke="#999999"/>
+    <rect x="22" y="520" width="212" height="12" fill="#f5f5f5" stroke="#cccccc"/>
+    <rect x="22" y="536" width="212" height="28" fill="#eef4fb" stroke="#7aa7d9"/>
+    <text x="128" y="554" font-size="9" fill="#1a5fb4" text-anchor="middle">Messgerät scrollt hier sauber weg</text>
+
+    <!-- Pro / Contra -->
+    <rect x="0" y="608" width="256" height="90" rx="6" fill="#ffffff" stroke="#1a5fb4"/>
+    <text x="10" y="626" font-size="11" font-weight="bold" fill="#1e7e34">+ Dose + TEST sofort im Blick</text>
+    <text x="10" y="642" font-size="10" fill="#333333">• Default AUS → 100% testsicher</text>
+    <text x="10" y="656" font-size="10" fill="#333333">• Beim Anpinnen 0 Scrollen beim Messen</text>
+    <text x="10" y="674" font-size="11" font-weight="bold" fill="#b45309">− Nimmt ~25% Höhe solange angepinnt</text>
+    <text x="10" y="689" font-size="10" fill="#333333">• Per 1 Tipp sofort wieder lösbar</text>
+  </g>
+
+  <!-- ==================== VARIANTE C ==================== -->
+  <g transform="translate(602, 76)">
+    <text x="0" y="16" font-size="14" font-weight="bold" fill="#1a1a1a">Variante C: Schaltkasten einklappbar</text>
+    <text x="0" y="33" font-size="11" fill="#555555">Kein Sticky – Dosen direkt ans Messgerät</text>
+
+    <!-- Smartphone-Rahmen -->
+    <rect x="0" y="44" width="256" height="552" rx="18" fill="#2c2c2c" filter="url(#schatten)"/>
+    <rect x="8" y="60" width="240" height="520" rx="8" fill="#eceff1"/>
+    <rect x="104" y="50" width="48" height="4" rx="2" fill="#555555"/>
+    <text x="128" y="75" font-size="10" fill="#666666" text-anchor="middle">Handy 360 px (Start: alles offen)</text>
+
+    <!-- 1. Steckdosen (offen) -->
+    <rect x="14" y="84" width="228" height="148" rx="4" fill="#ffffff" stroke="#888888" stroke-width="1.2"/>
+    <rect x="14" y="84" width="228" height="20" rx="4" fill="#e8ecef" stroke="#888888" stroke-width="0.8"/>
+    <text x="24" y="98" font-size="10" font-weight="bold" fill="#222222">▾ Steckdosen / Dosen</text>
+    <rect x="30" y="114" width="38" height="38" rx="4" fill="#f7f7f7" stroke="#555555"/>
+    <circle cx="49" cy="133" r="11" fill="none" stroke="#555555"/>
+    <rect x="109" y="114" width="38" height="38" rx="4" fill="#f7f7f7" stroke="#555555"/>
+    <circle cx="128" cy="133" r="11" fill="none" stroke="#555555"/>
+    <circle cx="204" cy="133" r="19" fill="#efefef" stroke="#555555"/>
+    <rect x="30" y="166" width="38" height="38" rx="4" fill="#f7f7f7" stroke="#555555"/>
+    <circle cx="49" cy="185" r="11" fill="none" stroke="#555555"/>
+    <circle cx="204" cy="185" r="19" fill="#efefef" stroke="#555555"/>
+
+    <!-- 2. Schaltkasten ZUGEKLAPPT -->
+    <rect x="14" y="240" width="228" height="28" rx="4" fill="#d8dde2" stroke="#666666" stroke-width="1.2"/>
+    <text x="24" y="258" font-size="10.5" font-weight="bold" fill="#222222">▸ Schaltkasten (zugeklappt)</text>
+    <text x="234" y="258" font-size="9" fill="#555555" text-anchor="end">öffnen</text>
+
+    <!-- 3. Messgerät rutscht direkt unter die Dosen! -->
+    <rect x="14" y="276" width="228" height="98" rx="6" fill="#dd1111" stroke="#aa0000" stroke-width="1.2"/>
+    <text x="128" y="289" font-size="8" fill="#ffffff" text-anchor="middle" letter-spacing="1">INSTALLATIONSTESTER</text>
+    <rect x="74" y="295" width="106" height="68" rx="3" fill="#dddddd" stroke="#333333" stroke-width="3"/>
+    <rect x="176" y="297" width="4" height="64" fill="#18c936"/>
+    <text x="126" y="332" font-size="16" font-weight="bold" fill="#111111" text-anchor="middle" font-family="Courier New, monospace">Z:0,64Ω</text>
+    <circle cx="38" cy="328" r="12" fill="#eeeeee" stroke="#999999"/>
+    <circle cx="212" cy="324" r="13" fill="#222222" stroke="#666666"/>
+    <text x="128" y="371" font-size="9" fill="#ffe5e5" text-anchor="middle">Direkt unter den Dosen – kein Sticky!</text>
+
+    <!-- 4. Handy + Schraubendreher darunter -->
+    <rect x="14" y="384" width="228" height="72" rx="4" fill="#e2e6ea" stroke="#b0b8c0" stroke-dasharray="3,2"/>
+    <rect x="44" y="392" width="42" height="56" rx="5" fill="#333333"/>
+    <rect x="47" y="396" width="36" height="46" rx="2" fill="#ffffff"/>
+    <rect x="52" y="402" width="11" height="10" rx="2" fill="#0082fe"/>
+    <rect x="66" y="402" width="11" height="10" rx="2" fill="#ffffff" stroke="#222222"/>
+    <rect x="59" y="416" width="11" height="10" rx="2" fill="#1e9e3e"/>
+    <text x="108" y="417" font-size="10" font-weight="bold" fill="#333333">Handy</text>
+    <text x="108" y="430" font-size="9" fill="#666666">&amp; Werkzeug</text>
+    <rect x="186" y="390" width="36" height="60" rx="4" fill="#ffffff" stroke="#cccccc"/>
+    <rect x="202" y="396" width="4" height="18" fill="#888888"/>
+    <rect x="200" y="414" width="8" height="30" rx="2" fill="#e15517"/>
+
+    <!-- 5. Protokoll -->
+    <rect x="14" y="466" width="228" height="106" rx="3" fill="#ffffff" stroke="#222222" stroke-width="1.2"/>
+    <text x="22" y="482" font-size="10" font-weight="bold" fill="#111111">Prüfprotokoll (100%)</text>
+    <line x1="20" y1="489" x2="236" y2="489" stroke="#999999"/>
+    <rect x="22" y="496" width="212" height="14" fill="#f5f5f5" stroke="#cccccc"/>
+    <rect x="22" y="516" width="212" height="42" fill="#eef4fb" stroke="#7aa7d9"/>
+    <text x="128" y="541" font-size="9" fill="#1a5fb4" text-anchor="middle">Messtabelle (einziger ↔ Scroll)</text>
+
+    <!-- Pro / Contra -->
+    <rect x="0" y="608" width="256" height="90" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+    <text x="10" y="626" font-size="11" font-weight="bold" fill="#1e7e34">+ Volle Fläche, null Sticky-Bugs</text>
+    <text x="10" y="642" font-size="10" fill="#333333">• Start: alles offen (100% testsicher)</text>
+    <text x="10" y="656" font-size="10" fill="#333333">• Dosen + Gerät sofort direkt zusammen</text>
+    <text x="10" y="674" font-size="11" font-weight="bold" fill="#b45309">− Hilft nicht beim Rpe (Dose ↔ PE)</text>
+    <text x="10" y="689" font-size="10" fill="#333333">• Extra Klick-Balken im UI</text>
+  </g>
+
+  <!-- ==================== DESKTOP (FÜR ALLE VARIANTEN) ==================== -->
+  <g transform="translate(890, 76)">
+    <text x="0" y="16" font-size="14" font-weight="bold" fill="#1a1a1a">Desktop (gilt für A, B &amp; C)</text>
+    <text x="0" y="33" font-size="11" fill="#555555">Zentriert, max. ~780 px (statt 640 links)</text>
+
+    <!-- Desktop-Fenster -->
+    <rect x="0" y="44" width="280" height="420" rx="8" fill="#dfe4e8" stroke="#99a3ad" stroke-width="1.2" filter="url(#schatten)"/>
+    <rect x="0" y="44" width="280" height="22" rx="8" fill="#cbd2d9"/>
+    <circle cx="14" cy="55" r="4" fill="#e57373"/>
+    <circle cx="28" cy="55" r="4" fill="#ffb74d"/>
+    <circle cx="42" cy="55" r="4" fill="#81c784"/>
+    <text x="148" y="59" font-size="9" fill="#444444" text-anchor="middle">Browser (z. B. 1440 px)</text>
+
+    <!-- Symmetrische Ränder links/rechts -->
+    <text x="27" y="250" font-size="9" fill="#77838f" text-anchor="middle">ruhiger</text>
+    <text x="27" y="262" font-size="9" fill="#77838f" text-anchor="middle">Rand</text>
+    <text x="253" y="250" font-size="9" fill="#77838f" text-anchor="middle">ruhiger</text>
+    <text x="253" y="262" font-size="9" fill="#77838f" text-anchor="middle">Rand</text>
+
+    <!-- Zentrierte Spalte 780 px -->
+    <rect x="52" y="76" width="176" height="62" rx="3" fill="#ffffff" stroke="#888888"/>
+    <text x="140" y="111" font-size="10" font-weight="bold" fill="#222222" text-anchor="middle">Steckdosen (~780 px)</text>
+
+    <rect x="52" y="145" width="176" height="102" rx="3" fill="#e5e5e5" stroke="#888888"/>
+    <text x="140" y="196" font-size="10" font-weight="bold" fill="#222222" text-anchor="middle">Schaltkasten (~780 px)</text>
+    <text x="140" y="210" font-size="8.5" fill="#555555" text-anchor="middle">per CSS skaliert (SVG unverändert)</text>
+
+    <!-- 3er-Reihe nebeneinander wie heute! -->
+    <rect x="52" y="255" width="32" height="58" rx="4" fill="#333333"/>
+    <rect x="54" y="258" width="28" height="50" rx="2" fill="#ffffff"/>
+    <text x="68" y="287" font-size="7.5" fill="#222222" text-anchor="middle">Handy</text>
+
+    <rect x="89" y="255" width="124" height="58" rx="4" fill="#dd1111"/>
+    <rect x="122" y="263" width="56" height="42" rx="2" fill="#dddddd" stroke="#333333" stroke-width="2"/>
+    <text x="150" y="287" font-size="9" font-weight="bold" fill="#111111" text-anchor="middle">~560 px</text>
+
+    <rect x="217" y="255" width="11" height="58" rx="2" fill="#ffffff" stroke="#cccccc"/>
+    <rect x="221" y="260" width="3" height="16" fill="#888888"/>
+    <rect x="220" y="276" width="5" height="32" rx="1" fill="#e15517"/>
+
+    <rect x="52" y="321" width="176" height="133" rx="3" fill="#ffffff" stroke="#222222"/>
+    <text x="140" y="384" font-size="10" font-weight="bold" fill="#222222" text-anchor="middle">Prüfprotokoll (~780 px)</text>
+    <text x="140" y="399" font-size="8.5" fill="#555555" text-anchor="middle">+22% breiter → mehr Spalten sichtbar</text>
+
+    <!-- Größenvergleich-Box Handy Heute vs. Neu -->
+    <rect x="0" y="480" width="280" height="218" rx="6" fill="#ffffff" stroke="#d0d7de"/>
+    <text x="12" y="502" font-size="12" font-weight="bold" fill="#1a1a1a">Größengewinn auf 360-px-Handy</text>
+    <text x="12" y="519" font-size="10" fill="#555555">Heute fehlt viewport-Meta → 980-px-Zoom!</text>
+
+    <text x="12" y="544" font-size="10" font-weight="bold" fill="#333333">Schaltkasten:</text>
+    <rect x="12" y="550" width="84" height="12" rx="2" fill="#bbbbbb"/>
+    <text x="102" y="560" font-size="9.5" fill="#666666">heute ~235 px</text>
+    <rect x="12" y="566" width="124" height="12" rx="2" fill="#1a5fb4"/>
+    <text x="142" y="576" font-size="9.5" font-weight="bold" fill="#1a5fb4">neu ~348 px (+48%)</text>
+
+    <text x="12" y="602" font-size="10" font-weight="bold" fill="#333333">Messgerät (Display):</text>
+    <rect x="12" y="608" width="60" height="12" rx="2" fill="#bbbbbb"/>
+    <text x="78" y="618" font-size="9.5" fill="#666666">heute ~169 px</text>
+    <rect x="12" y="624" width="89" height="12" rx="2" fill="#d97706"/>
+    <text x="107" y="634" font-size="9.5" fill="#b45309">3er-Reihe ~250 px</text>
+    <rect x="12" y="640" width="124" height="12" rx="2" fill="#18a33a"/>
+    <text x="142" y="650" font-size="9.5" font-weight="bold" fill="#1e7e34">volle Breite 348 px (+106%)</text>
+
+    <text x="12" y="676" font-size="9.5" fill="#555555">Breakpoint ≥ 620 px (Handy quer / Tablet / Desktop):</text>
+    <text x="12" y="689" font-size="9.5" fill="#555555">alle 3 Werkzeuge wieder in 1 Reihe nebeneinander.</text>
+  </g>
+</svg>

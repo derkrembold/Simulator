@@ -1,5 +1,5 @@
 // Tests für das Schraubendreher-Werkzeug (view/schraubendreher.js,
-// onSchraubeKlick() in controller/app.js). Darstellung neben dem Messgerät,
+// onSchraubeKlick() in controller/app.js). Darstellung in der Werkzeugzeile,
 // Aufnehmen/Lösen/Wiedereindrehen, Einschränkungen, UND die tatsächliche
 // Kanten-Kappung im Verbindungsgraphen (siehe KONZEPT.md "Schrauben lösen").
 // Aufruf: node tests/visuell/test_schraubendreher.js
@@ -117,56 +117,72 @@ async function main() {
     await page.close();
   });
 
-  await pruefe('Schraubendreher: Höhe entspricht exakt der Messgerät-Höhe', async () => {
+  await pruefe('Schraubendreher: gleiche Höhe wie das Handy (Werkzeugzeile)', async () => {
     const page = await neueSeite();
     const hoehen = await page.evaluate(() => ({
-      messgeraet: document.querySelector('#messgeraet svg').getAttribute('height'),
+      handy: document.querySelector('#handy svg').getAttribute('height'),
       schraubendreher: document.querySelector('#schraubendreher svg').getAttribute('height')
     }));
-    if (hoehen.messgeraet !== hoehen.schraubendreher) {
-      throw new Error(`erwarte Schraubendreher-Höhe ${hoehen.messgeraet}, gefunden ${hoehen.schraubendreher}`);
+    if (hoehen.handy !== hoehen.schraubendreher) {
+      throw new Error(`erwarte Schraubendreher-Höhe ${hoehen.handy}, gefunden ${hoehen.schraubendreher}`);
     }
     await page.close();
   });
 
-  await pruefe('Schraubendreher: sitzt rechts neben dem Messgerät, für Rechtshänder (kein Überlappen)', async () => {
-    const page = await neueSeite();
-    const boxen = await page.evaluate(() => {
-      const s = document.querySelector('#schraubendreher svg').getBoundingClientRect();
-      const m = document.querySelector('#messgeraet svg').getBoundingClientRect();
-      return { schraubendreherLinks: s.left, messgeraetRechts: m.right };
-    });
-    if (boxen.schraubendreherLinks < boxen.messgeraetRechts) {
-      throw new Error(`Schraubendreher (linke Kante ${boxen.schraubendreherLinks}) überlappt das Messgerät (rechte Kante ${boxen.messgeraetRechts})`);
-    }
-    await page.close();
-  });
-
-  // Ersetzt einen früheren Test ("Messgerät bleibt exakt mittig unter dem
-  // Schaltkasten zentriert") - diese Zentrierung wurde bewusst aufgegeben
-  // (User-Vorgabe 2026-08-04: "du darfst jetzt mit dem Messgerät und
-  // Schraubenzieher etwas nach rechts. Dafür sollte das Handy grösser.").
-  // Neue Invariante: Handy/Messgerät/Schraubendreher bilden eine von links
-  // nach rechts gepackte Reihe (Handy linksbündig an der Schaltkasten-Kante,
-  // Messgerät direkt danach), die INSGESAMT nicht breiter wird als der
-  // Schaltkasten (siehe controller/app.js "Layout: Handy/Messgerät/
-  // Schraubendreher").
-  await pruefe('Schraubendreher: Handy+Messgerät+Schraubendreher bleiben zusammen nicht breiter als der Schaltkasten, Messgerät sitzt direkt rechts vom Handy', async () => {
+  // Layout sim-rng: Messgerät in eigener Zeile, darunter die Werkzeugzeile
+  // mit Handy links und Schraubendreher rechts (für Rechtshänder).
+  await pruefe('Schraubendreher: Werkzeugzeile unter dem Messgerät, Schraubendreher rechts vom Handy', async () => {
     const page = await neueSeite();
     const boxen = await page.evaluate(() => ({
-      schaltkasten: document.querySelector('#schaltkasten svg').getBoundingClientRect(),
       handy: document.querySelector('#handy svg').getBoundingClientRect(),
       messgeraet: document.querySelector('#messgeraet svg').getBoundingClientRect(),
       schraubendreher: document.querySelector('#schraubendreher svg').getBoundingClientRect()
     }));
-    if (Math.abs(boxen.handy.left - boxen.schaltkasten.left) > 0.5) {
-      throw new Error(`erwarte Handy linksbündig an der Schaltkasten-Kante (${boxen.schaltkasten.left}), gefunden ${boxen.handy.left}`);
+    if (boxen.handy.top < boxen.messgeraet.bottom || boxen.schraubendreher.top < boxen.messgeraet.bottom) {
+      throw new Error(`Werkzeugzeile (Handy oben ${boxen.handy.top}, Schraubendreher oben ${boxen.schraubendreher.top}) steht nicht unter dem Messgerät (unten ${boxen.messgeraet.bottom})`);
     }
-    if (boxen.messgeraet.left < boxen.handy.right) {
-      throw new Error(`Messgerät (linke Kante ${boxen.messgeraet.left}) überlappt das Handy (rechte Kante ${boxen.handy.right})`);
+    if (boxen.schraubendreher.left < boxen.handy.right) {
+      throw new Error(`Schraubendreher (linke Kante ${boxen.schraubendreher.left}) überlappt das Handy (rechte Kante ${boxen.handy.right})`);
     }
-    if (boxen.schraubendreher.right > boxen.schaltkasten.right + 0.5) {
-      throw new Error(`Handy+Messgerät+Schraubendreher (rechte Kante ${boxen.schraubendreher.right}) breiter als der Schaltkasten (rechte Kante ${boxen.schaltkasten.right})`);
+    await page.close();
+  });
+
+  // Das Messgerät wird auf dem Desktop nie größer oder kleiner als seine
+  // gerenderte Breite, auf dem Handy füllt es die Spalte.
+  await pruefe('Layout: Messgerät auf dem Desktop in gerenderter Breite und zentriert unter dem Schaltkasten', async () => {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.goto(`http://localhost:${port}/index.html`);
+    await page.waitForSelector('#messgeraet svg');
+    const werte = await page.evaluate(() => {
+      const m = document.querySelector('#messgeraet svg');
+      const s = document.querySelector('#schaltkasten svg').getBoundingClientRect();
+      const b = m.getBoundingClientRect();
+      return { attrBreite: Number(m.getAttribute('width')), breite: b.width, mitteM: b.left + b.width / 2, mitteS: s.left + s.width / 2 };
+    });
+    if (Math.abs(werte.breite - werte.attrBreite) > 0.5) {
+      throw new Error(`erwarte Messgerät-Breite ${werte.attrBreite}px, gefunden ${werte.breite}px`);
+    }
+    if (Math.abs(werte.mitteM - werte.mitteS) > 0.5) {
+      throw new Error(`Messgerät-Mitte ${werte.mitteM} nicht unter der Schaltkasten-Mitte ${werte.mitteS}`);
+    }
+    await page.close();
+  });
+
+  await pruefe('Layout: Handybreite 360 px - kein waagrechtes Scrollen, Messgerät in Spaltenbreite', async () => {
+    const page = await browser.newPage({ viewport: { width: 360, height: 800 }, isMobile: true });
+    await page.goto(`http://localhost:${port}/index.html`);
+    await page.waitForSelector('#protokoll .pf-blatt');
+    const werte = await page.evaluate(() => ({
+      seitenBreite: document.documentElement.scrollWidth,
+      fensterBreite: document.documentElement.clientWidth,
+      messgeraet: document.querySelector('#messgeraet svg').getBoundingClientRect().width,
+      spalte: document.getElementById('spalte').getBoundingClientRect().width
+    }));
+    if (werte.seitenBreite > werte.fensterBreite) {
+      throw new Error(`Seite ist ${werte.seitenBreite}px breit, Fenster nur ${werte.fensterBreite}px`);
+    }
+    if (Math.abs(werte.messgeraet - werte.spalte) > 0.5) {
+      throw new Error(`erwarte Messgerät in Spaltenbreite ${werte.spalte}px, gefunden ${werte.messgeraet}px`);
     }
     await page.close();
   });
@@ -496,15 +512,11 @@ async function main() {
   });
 
   // Regressionstest für einen User-gemeldeten Bug (testcase_06): die
-  // Position wurde ursprünglich aus einer beim Start EINMALIG gecachten
-  // `messgeraetSvg`-Referenz berechnet - `MessgeraetView.render()` leert den
-  // Container aber bei JEDEM Re-Render (hier: ON/OFF-Klick) und hängt ein
-  // komplett NEUES `<svg>`-Element ein. Der gecachte Verweis zeigte danach
-  // auf ein aus dem DOM entferntes Element, `getBoundingClientRect()` lieferte
-  // nur noch Nullen - der Schraubendreher landete dadurch irgendwo links im
-  // Schaltschrank statt rechts vom Messgerät. Fix: `positioniereSchraubendreher()`
-  // liest die Messgerät-SVG jetzt bei JEDEM Aufruf frisch aus dem DOM.
-  await pruefe('Schraubendreher: BUGFIX - Position bleibt korrekt (rechts vom Messgerät), auch nachdem das Messgerät zwischendurch neu gerendert wurde (ON/OFF + Messspitze)', async () => {
+  // Position hing früher an einer beim Start gecachten Messgerät-SVG, die
+  // `MessgeraetView.render()` bei jedem Re-Render ersetzt. Seit sim-rng steht
+  // der Schraubendreher im Layout-Fluss der Werkzeugzeile; die Position muss
+  // nach einem Re-Render des Messgeräts trotzdem dieselbe bleiben.
+  await pruefe('Schraubendreher: BUGFIX - Position bleibt gleich, auch nachdem das Messgerät zwischendurch neu gerendert wurde (ON/OFF + Messspitze)', async () => {
     const page = await neueSeiteMitTestcase();
 
     // Erstes Lösen VOR jeder Messgerät-Interaktion, als Ausgangswert.
@@ -519,15 +531,13 @@ async function main() {
     await page.locator('#schaltkasten svg circle[data-netz]').nth(1).click();
 
     // Erneut aufnehmen und eine weitere Schraube lösen - die Position muss
-    // exakt dieselbe wie vorher sein (rechts vom Messgerät).
+    // exakt dieselbe wie vorher sein.
     await page.locator('#schraubendreher svg').click();
     await page.locator('#schaltkasten svg circle[data-netz]').nth(2).click();
     const posNachher = await page.locator('#schraubendreher svg').boundingBox();
 
-    const messgeraet = await page.locator('#messgeraet svg').boundingBox();
-    const erwarteX = messgeraet.x + messgeraet.width + 16;
-    if (Math.abs(posNachher.x - erwarteX) > 1) {
-      throw new Error(`erwarte Schraubendreher bei x≈${erwarteX} (rechts vom Messgerät), gefunden x=${posNachher.x} (vorher: x=${posVorher.x})`);
+    if (Math.abs(posNachher.x - posVorher.x) > 1 || Math.abs(posNachher.y - posVorher.y) > 1) {
+      throw new Error(`erwarte Schraubendreher bei (${posVorher.x}, ${posVorher.y}), gefunden (${posNachher.x}, ${posNachher.y})`);
     }
     await page.close();
   });

@@ -11,22 +11,26 @@ Antworten und Tickets auf Deutsch.
 | Mensch | Koordiniert von außen: setzt Prioritäten, entscheidet, schließt Tickets    |
 | Claude | Setzt um: schreibt und ändert Code, Tests und Doku                         |
 | Codex  | Liest Dateien und macht Reviews: schreibt keinen Code, ändert keine Dateien |
-| Gemini | Product Engineer: führt die App zur Marktreife (Design/UI/UX, SVG-Grafiken, Layout, Refactoring, PWA, Härtung) |
+| Gemini | Product Engineer: entwirft und prüft Design/UI/UX, Layout und Bedienbarkeit; setzt in der Regel keinen Code um |
 
 ### Rolle: Gemini (Product Engineer)
 
 - **Schwerpunkt:** Visuelle Gestaltung (SVGs, Kontraste, Lesbarkeit), responsives Layout (Handy &
   Desktop), UX/Bedienbarkeit, Frontend-Refactoring, PWA-/Offline-Fähigkeit, Persistenz und Härtung
   gegen Randfälle.
-- **Abgrenzung zu Claude:** Elektrotechnik-/VDE-Fachlogik, Netzplan-Generatoren, Fahrpläne,
-  Protokoll-Check und Testcases liegen primär bei Claude; Gemini ändert dort nur im Rahmen
-  abgestimmter Refactorings. Fachliche Normfragen entscheidet immer der Mensch.
-- **Ablauf & Kennung:** Gemini arbeitet im gleichen Beads-Ablauf wie Claude (`BEADS_ACTOR=gemini`):
-  Ticket übernehmen (`--claim`), Code/Tests/Doku umsetzen, `npm test` grün laufen lassen, gerenderte
-  Vorher-/Nachher-Bilder in `docs/referenz/` ablegen, am Ticket kommentieren und Label `review` für
-  Codex setzen. Review-Bewertung erfolgt durch den jeweiligen Umsetzer.
-- **Commits & Schließen:** Commits macht weiterhin nur Claude auf Wunsch des Menschen; Tickets
-  schließt der Mensch.
+- **Aufgabe:** Gemini macht Vorschläge und Entwürfe, sieht Vorschläge von Claude durch und macht
+  das Bedienbarkeits-Review (siehe „Ablauf“, Schritt 3). Alles als Kommentar am Ticket.
+- **Umsetzung liegt bei Claude:** Den Code setzt Claude um, auch bei Design und Layout.
+  Ausnahme: Grafikarbeiten (z.B. SVG-Zeichnungen) kann Gemini selbst umsetzen, wenn der Mensch
+  das für das Ticket so festlegt. Dann arbeitet Gemini im gleichen Ablauf wie Claude: Ticket
+  übernehmen (`--claim`), umsetzen, `npm test` grün, gerenderte Vorher-/Nachher-Bilder in
+  `docs/referenz/`, Kommentar am Ticket, Label `review` für Codex. Die Review-Bewertung macht
+  dann Gemini als Umsetzer.
+- **Fachlogik:** Elektrotechnik-/VDE-Fachlogik, Netzplan-Generatoren, Fahrpläne, Protokoll-Check und
+  Testcases liegen bei Claude. Fachliche Normfragen entscheidet immer der Mensch.
+- **Kennung:** `BEADS_ACTOR=gemini`.
+- **Commits & Schließen:** Commits macht nur Claude auf Wunsch des Menschen, auch für Änderungen
+  von Gemini; Tickets schließt der Mensch.
 
 ## Kommunikation nur über Beads
 
@@ -65,11 +69,12 @@ sie also. So holt man sie:
 ## Ablauf
 
 1. Offene Arbeit finden: `bd ready`, Details mit `bd show <id>`.
-2. **Claude** (oder **Gemini** bei Tickets aus seinem Schwerpunkt, siehe „Rolle: Gemini“)
-   übernimmt ein Ticket (`bd update <id> --claim`), setzt es um und lässt `npm test` laufen.
-   Dann kommentiert der Umsetzer am Ticket, was geändert wurde (mit Dateiverweisen), und setzt
-   das Label `review` (`bd label add <id> review`). In den folgenden Schritten gilt für Gemini
-   dasselbe wie für Claude, außer beim Committen.
+2. **Claude** übernimmt ein Ticket (`bd update <id> --claim`), setzt es um und lässt `npm test`
+   laufen. Dann kommentiert Claude am Ticket, was geändert wurde (mit Dateiverweisen), und
+   setzt das Label `review` (`bd label add <id> review`). Bei Design- und Layout-Tickets stellt
+   Claude den Vorschlag vorher ans Ticket, Gemini sieht ihn durch. Setzt Gemini ausnahmsweise
+   eine Grafikarbeit selbst um (siehe „Rolle: Gemini“), gilt für Gemini in den folgenden
+   Schritten dasselbe wie für Claude, außer beim Committen.
 3. **Codex** prüft Tickets mit dem Label `review`: liest die verwiesenen Dateien und den Diff
    und schreibt die Ergebnisse als Review-Kommentar ans Ticket (mit Dateiverweisen). Codex
    ändert keinen Code und legt keine eigenen Tickets an.

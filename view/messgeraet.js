@@ -333,6 +333,10 @@ const DISPLAY_LEUCHTE_AUS_FARBE = '#4a4a4a';
 const DISPLAY_LEUCHTE_LINKS_AN_FARBE = '#ff3b30'; // Signalrot
 const DISPLAY_LEUCHTE_RECHTS_AN_FARBE = '#18c936'; // Signalgrün
 
+// Schriftgrößen der kleinen Anzeigen im Display (sim-3kr).
+const NEBENWERT_SCHRIFT = 16;
+const SPANNUNG_UNTER_PE_SCHRIFT = 14;
+
 function zeichneDisplay(svg, zustand) {
   const { x, y, breite, hoehe } = DISPLAY;
   // Rahmen/Bezel um das Display, in derselben Farbe wie das ausgeschaltete
@@ -446,16 +450,19 @@ function zeichneDisplay(svg, zustand) {
       : { x: x + breite / 2, y: (linieObenY + linieUntenY) / 2 + 8, 'text-anchor': 'middle', 'font-size': 52, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace" }
     ));
   }
+  // Nebenwerte unter dem Hauptwert (Isc/Lim bei ZI/ZS, Uci/t bei FI/RCD,
+  // R+/R- bei R LOW). Schriftgröße für Lesbarkeit nach der Skalierung auf
+  // 460 px (sim-3kr); auch Isc:1478,6A neben Lim:2500,0A passen nebeneinander.
   if (zustand.nebenwertLinks) {
     svg.appendChild(text(zustand.nebenwertLinks, {
       x: x + 8, y: linieUntenY - 8,
-      'font-size': 12, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
+      'font-size': NEBENWERT_SCHRIFT, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
     }));
   }
   if (zustand.nebenwertRechts) {
     svg.appendChild(text(zustand.nebenwertRechts, {
       x: x + breite - 8, y: linieUntenY - 8, 'text-anchor': 'end',
-      'font-size': 12, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
+      'font-size': NEBENWERT_SCHRIFT, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
     }));
   }
 
@@ -472,15 +479,15 @@ function zeichneDisplay(svg, zustand) {
     messpunktKreis(svg, cx, kreisY, mp[label.toLowerCase()] ?? 'leer');
   }
 
-  // Spannungsanzeige unter dem PE-Kreis (aktuell nur bei RISO genutzt, siehe
-  // controller/app.js "berechneRisoSpannung()") - live, unabhängig von der
+  // Spannungsanzeige unter dem PE-Kreis (bei RISO, ZI, ZS und FI/RCD, siehe
+  // controller/app.js baueAnzeigeZustand()) - live, unabhängig von der
   // TEST-Taste (Sicherheitsfunktion: anliegende Spannung soll sofort
-  // sichtbar sein). Kleine Schrift, damit es unter dem Kreis noch in den
-  // Display-Rand passt.
+  // sichtbar sein). Schrift so groß, wie es zwischen PE-Kreis und
+  // Display-Rand passt (sim-3kr, mittig mit je etwa 5 Einheiten Luft).
   if (zustand.spannungUnterPe) {
     svg.appendChild(text(zustand.spannungUnterPe, {
-      x: x + 177, y: kreisY + 19, 'text-anchor': 'middle',
-      'font-size': 9, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
+      x: x + 177, y: kreisY + 23, 'text-anchor': 'middle',
+      'font-size': SPANNUNG_UNTER_PE_SCHRIFT, 'font-weight': 'bold', fill: '#111111', 'font-family': "'Courier New', monospace"
     }));
   }
 

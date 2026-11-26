@@ -3816,8 +3816,11 @@ Neu in `app.js`:
   oben).
 
 Neu in `messgeraet.js`: `zeichneDisplay()` rendert `zustand.spannungUnterPe`
-unter dem halb gefüllten PE-Kreis (`x+177, kreisY+19`, Schriftgröße 9,
-zentriert) - passt noch knapp vor die untere Display-Kante.
+unter dem halb gefüllten PE-Kreis (`x+177, kreisY+23`, Schriftgröße 14
+`SPANNUNG_UNTER_PE_SCHRIFT`, zentriert) - mittig zwischen PE-Kreis und
+unterer Display-Kante, je etwa 5 Einheiten Luft (sim-3kr, vorher 9 bei
+`kreisY+19`). Die Nebenwerte unter dem Hauptwert (Isc/Lim, Uci/t, R+/R-)
+haben seit sim-3kr Schriftgröße 16 (`NEBENWERT_SCHRIFT`, vorher 12).
 
 Grenzen des Prototyps (teilweise durch die AFDD-/RCD-Typ-B-Elektronik-
 Leckage unten aufgelöst): mit dem heutigen Graph-Modell sind L1/L2/L3/N

@@ -146,10 +146,37 @@ const KLEMMEN = [
   { funktion: 'PE', winkelGrad: 150, farbe: '#44aa00' }
 ];
 
+// Darstellung der Wago-Klemmen (sim-s30, Durchsicht Gemini): Gehäuse grau mit
+// Rand, damit es sich vom weißen Dosengrund abhebt. Der Messkontakt behält
+// seine Füllung #666666 (Tests und Werkzeuge finden Kontakte darüber) und
+// bekommt einen kräftigen dunklen Rand wie eine Prüfbuchse; der farbige
+// Aderpunkt ist gleich groß (Farbe gut erkennbar) mit dünnem dunklem Rand, so
+// ist links = Messpunkt, rechts = Aderfarbe auch bei hellgrauem L3 erkennbar.
+const WAGO_GEHAEUSE = { fill: '#d2d2d2', stroke: '#666666', 'stroke-width': 1 };
+const MESSKONTAKT_RAND = { stroke: '#1a1a1a', 'stroke-width': 1.4 };
+const ADERPUNKT_R_MM = 2;
+const ADERPUNKT_RAND = { stroke: '#555555', 'stroke-width': 0.7 };
+
+// Dezenter Tiefeneffekt (sim-s30): kreisförmiger Verlauf, hell in der Mitte,
+// dunkler zum Rand, dazu ein schmaler Schattenring am Innenrand. Der Verlauf
+// ist ungerichtet, gedrehte Dosen sehen deshalb gleich aus. Einmal je SVG in
+// <defs> angelegt (siehe SteckdosenView.render()).
+const TIEFE_VERLAUF_ID = 'dose-tiefe';
+const TIEFE_SCHATTEN = { fill: 'none', stroke: '#b0b0b0', 'stroke-width': 2 };
+function legeTiefenVerlaufAn(svg) {
+  const defs = svgEl('defs', {});
+  const verlauf = svgEl('radialGradient', { id: TIEFE_VERLAUF_ID, cx: '50%', cy: '50%', r: '50%' });
+  verlauf.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#f8f8f8' }));
+  verlauf.appendChild(svgEl('stop', { offset: '70%', 'stop-color': '#f8f8f8' }));
+  verlauf.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#d4d4d4' }));
+  defs.appendChild(verlauf);
+  svg.appendChild(defs);
+}
+
 function zeichneWagoKlemme(g, bcx, bcy, farbe, ader, onSchraubeKlick) {
   g.appendChild(svgEl('rect', {
     x: bcx - BLOCK_BOX_W * MM / 2, y: bcy - BLOCK_BOX_H * MM / 2,
-    width: BLOCK_BOX_W * MM, height: BLOCK_BOX_H * MM, fill: '#ececec'
+    width: BLOCK_BOX_W * MM, height: BLOCK_BOX_H * MM, ...WAGO_GEHAEUSE
   }));
   g.appendChild(svgEl('rect', {
     x: bcx + BLOCK_CAP1_DX * MM - BLOCK_CAP_W * MM / 2, y: bcy + BLOCK_CAP1_DY * MM - BLOCK_CAP_H * MM / 2,
@@ -162,14 +189,15 @@ function zeichneWagoKlemme(g, bcx, bcy, farbe, ader, onSchraubeKlick) {
   // Messspitzen-Kontakt (grau) - r=2mm, derselbe reale Radius wie die
   // Reihenklemmen-Schraube. Der farbige Kreis daneben ist nur eine
   // Funktions-Kennzeichnung, kein eigener Kontakt - nicht klickbar.
-  g.appendChild(klickbar(svgEl('circle', { cx: bcx + BLOCK_GREY_DX * MM, cy: bcy + BLOCK_GREY_DY * MM, r: 2 * MM, fill: '#666666' }), ader, onSchraubeKlick));
-  g.appendChild(svgEl('circle', { cx: bcx + BLOCK_COLOR_DX * MM, cy: bcy + BLOCK_COLOR_DY * MM, r: 2 * MM, fill: farbe }));
+  g.appendChild(klickbar(svgEl('circle', { cx: bcx + BLOCK_GREY_DX * MM, cy: bcy + BLOCK_GREY_DY * MM, r: 2 * MM, fill: '#666666', ...MESSKONTAKT_RAND }), ader, onSchraubeKlick));
+  g.appendChild(svgEl('circle', { cx: bcx + BLOCK_COLOR_DX * MM, cy: bcy + BLOCK_COLOR_DY * MM, r: ADERPUNKT_R_MM * MM, fill: farbe, ...ADERPUNKT_RAND }));
 }
 
 function zeichneAnschlussdose(svg, cx, cy, rotationGrad, adern, onSchraubeKlick) {
   const g = svgEl('g', { transform: `rotate(${rotationGrad}, ${cx}, ${cy})` });
 
-  g.appendChild(svgEl('circle', { cx, cy, r: 31.084093 * MM, fill: 'none', stroke: '#000000', 'stroke-width': 1.05648 }));
+  g.appendChild(svgEl('circle', { cx, cy, r: 31.084093 * MM, fill: `url(#${TIEFE_VERLAUF_ID})`, stroke: '#000000', 'stroke-width': 1.05648 }));
+  g.appendChild(svgEl('circle', { cx, cy, r: 31.084093 * MM - 1.5, ...TIEFE_SCHATTEN }));
   g.appendChild(svgEl('circle', { cx, cy, r: 32.500786 * MM, fill: 'none', stroke: '#000000', 'stroke-width': 1.05648 }));
 
   for (const { funktion, winkelGrad, farbe } of KLEMMEN) {
@@ -267,7 +295,7 @@ const HERD_KLEMMEN = [
 function zeichneHerdKlemme(g, bcx, bcy, farbe, ader, onSchraubeKlick) {
   g.appendChild(svgEl('rect', {
     x: bcx - HERD_BOX_W * MM / 2, y: bcy - HERD_BOX_H * MM / 2,
-    width: HERD_BOX_W * MM, height: HERD_BOX_H * MM, fill: '#ececec'
+    width: HERD_BOX_W * MM, height: HERD_BOX_H * MM, ...WAGO_GEHAEUSE
   }));
   g.appendChild(svgEl('rect', {
     x: bcx + HERD_CAP1_DX * MM - HERD_CAP_W * MM / 2, y: bcy + HERD_CAP_DY * MM - HERD_CAP_H * MM / 2,
@@ -283,8 +311,8 @@ function zeichneHerdKlemme(g, bcx, bcy, farbe, ader, onSchraubeKlick) {
   // Schaltkasten auf den realen Schraubenradius vereinheitlicht). Der
   // farbige Kreis daneben ist nur eine Funktions-Kennzeichnung, kein eigener
   // Kontakt - nicht klickbar.
-  g.appendChild(klickbar(svgEl('circle', { cx: bcx + HERD_GREY_DX * MM, cy: bcy + HERD_GREY_DY * MM, r: 2 * MM, fill: '#666666' }), ader, onSchraubeKlick));
-  g.appendChild(svgEl('circle', { cx: bcx + HERD_COLOR_DX * MM, cy: bcy + HERD_COLOR_DY * MM, r: 2 * MM, fill: farbe }));
+  g.appendChild(klickbar(svgEl('circle', { cx: bcx + HERD_GREY_DX * MM, cy: bcy + HERD_GREY_DY * MM, r: 2 * MM, fill: '#666666', ...MESSKONTAKT_RAND }), ader, onSchraubeKlick));
+  g.appendChild(svgEl('circle', { cx: bcx + HERD_COLOR_DX * MM, cy: bcy + HERD_COLOR_DY * MM, r: ADERPUNKT_R_MM * MM, fill: farbe, ...ADERPUNKT_RAND }));
 }
 
 function zeichneFuenfpoligeAnschlussdose(svg, cx, cy, rotationGrad, adern, onSchraubeKlick) {
@@ -294,6 +322,12 @@ function zeichneFuenfpoligeAnschlussdose(svg, cx, cy, rotationGrad, adern, onSch
     x: cx - HERD_GEHAEUSE_MM * MM / 2, y: cy - HERD_GEHAEUSE_MM * MM / 2,
     width: HERD_GEHAEUSE_MM * MM, height: HERD_GEHAEUSE_MM * MM, rx: HERD_GEHAEUSE_RX * MM,
     fill: 'none', stroke: '#000000', 'stroke-width': 1.05648
+  }));
+  // Innenschatten am Gehäuserand wie bei der Lichtanschlussdose (sim-s30).
+  g.appendChild(svgEl('rect', {
+    x: cx - HERD_GEHAEUSE_MM * MM / 2 + 1.5, y: cy - HERD_GEHAEUSE_MM * MM / 2 + 1.5,
+    width: HERD_GEHAEUSE_MM * MM - 3, height: HERD_GEHAEUSE_MM * MM - 3, rx: HERD_GEHAEUSE_RX * MM,
+    ...TIEFE_SCHATTEN
   }));
 
   for (const { funktion, dx, dy, farbe } of HERD_KLEMMEN) {
@@ -337,6 +371,7 @@ export const SteckdosenView = {
       width: gesamtBreite, height: gesamtHoehe, viewBox: `0 0 ${gesamtBreite} ${gesamtHoehe}`
     });
     container.appendChild(svg);
+    legeTiefenVerlaufAn(svg);
 
     // Äußere Rahmenlinie, leichtes Grau.
     svg.appendChild(svgEl('rect', {

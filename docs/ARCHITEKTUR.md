@@ -1319,7 +1319,17 @@ siehe "Linksbündig, direkt über dem Schaltkasten" unten). Reines SVG (wie
     PE/grün bei 150°, identisch zur Vorlage). Nur der graue
     Messspitzen-Kontaktkreis jeder Steckklemme ist klickbar (über
     `findeAder(adern, funktion)`), der farbige Kennzeichnungskreis daneben
-    nicht (reine Funktions-Anzeige, kein eigener Anschlusspunkt). Die
+    nicht (reine Funktions-Anzeige, kein eigener Anschlusspunkt). Darstellung
+    seit sim-s30 (gilt auch für die Klemmen der 5-poligen Anschlussdose):
+    Klemmengehäuse grau mit Rand (`WAGO_GEHAEUSE`), Messkontakt weiter mit
+    Füllung `#666666` (Tests/Werkzeuge suchen Kontakte darüber) plus dunklem
+    Rand (`MESSKONTAKT_RAND`), Aderfarbpunkt gleich groß (`ADERPUNKT_R_MM` = 2 mm)
+    mit dünnem dunklem Rand, damit auch das hellgraue L3 sichtbar bleibt. Dezenter
+    Tiefeneffekt: radialer Verlauf `dose-tiefe` (einmal je SVG in `<defs>`,
+    `legeTiefenVerlaufAn()`) in der Lichtanschlussdose, schmaler Schattenring
+    am Innenrand von Licht- und Herdanschlussdose (`TIEFE_SCHATTEN`).
+    Vergleichsbilder: `docs/referenz/dosen_wago_vorher_v1.png`,
+    `dosen_wago_nachher_v2.png`, `dosen_wago_nachher_zoom_v2.png`. Die
     grauen/farbigen Kontaktkreise (`BLOCK_GREY_DX/DY`, `BLOCK_COLOR_DX/DY`)
     mussten nachträglich korrigiert werden - die erste Vermessung der Vorlage
     nutzte versehentlich den Startpunkt des Bogenpfads (ein Punkt auf dem

@@ -173,6 +173,17 @@ function legeTiefenVerlaufAn(svg) {
   svg.appendChild(defs);
 }
 
+// Dunkler Prüfbuchsen-Ring als eigenes dekoratives <path>-Element statt
+// stroke am Kontaktkreis: so bleibt der Ring sichtbar, wenn CSS den
+// klickbaren Kreis über einen transparenten Stroke vergrößert (sim-mi0),
+// und Kreis-/Rechteck-Zähler in den Tests bleiben unberührt.
+function zeichnePruefbuchsenRand(g, cx, cy, r) {
+  g.appendChild(svgEl('path', {
+    d: `M ${cx - r} ${cy} a ${r} ${r} 0 1 0 ${2 * r} 0 a ${r} ${r} 0 1 0 ${-2 * r} 0`,
+    fill: 'none', ...MESSKONTAKT_RAND, 'pointer-events': 'none'
+  }));
+}
+
 function zeichneWagoKlemme(g, bcx, bcy, farbe, ader, onSchraubeKlick) {
   g.appendChild(svgEl('rect', {
     x: bcx - BLOCK_BOX_W * MM / 2, y: bcy - BLOCK_BOX_H * MM / 2,
@@ -189,7 +200,9 @@ function zeichneWagoKlemme(g, bcx, bcy, farbe, ader, onSchraubeKlick) {
   // Messspitzen-Kontakt (grau) - r=2mm, derselbe reale Radius wie die
   // Reihenklemmen-Schraube. Der farbige Kreis daneben ist nur eine
   // Funktions-Kennzeichnung, kein eigener Kontakt - nicht klickbar.
-  g.appendChild(klickbar(svgEl('circle', { cx: bcx + BLOCK_GREY_DX * MM, cy: bcy + BLOCK_GREY_DY * MM, r: 2 * MM, fill: '#666666', ...MESSKONTAKT_RAND }), ader, onSchraubeKlick));
+  const kx = bcx + BLOCK_GREY_DX * MM, ky = bcy + BLOCK_GREY_DY * MM;
+  g.appendChild(klickbar(svgEl('circle', { cx: kx, cy: ky, r: 2 * MM, fill: '#666666' }), ader, onSchraubeKlick));
+  zeichnePruefbuchsenRand(g, kx, ky, 2 * MM);
   g.appendChild(svgEl('circle', { cx: bcx + BLOCK_COLOR_DX * MM, cy: bcy + BLOCK_COLOR_DY * MM, r: ADERPUNKT_R_MM * MM, fill: farbe, ...ADERPUNKT_RAND }));
 }
 
@@ -311,7 +324,9 @@ function zeichneHerdKlemme(g, bcx, bcy, farbe, ader, onSchraubeKlick) {
   // Schaltkasten auf den realen Schraubenradius vereinheitlicht). Der
   // farbige Kreis daneben ist nur eine Funktions-Kennzeichnung, kein eigener
   // Kontakt - nicht klickbar.
-  g.appendChild(klickbar(svgEl('circle', { cx: bcx + HERD_GREY_DX * MM, cy: bcy + HERD_GREY_DY * MM, r: 2 * MM, fill: '#666666', ...MESSKONTAKT_RAND }), ader, onSchraubeKlick));
+  const kx = bcx + HERD_GREY_DX * MM, ky = bcy + HERD_GREY_DY * MM;
+  g.appendChild(klickbar(svgEl('circle', { cx: kx, cy: ky, r: 2 * MM, fill: '#666666' }), ader, onSchraubeKlick));
+  zeichnePruefbuchsenRand(g, kx, ky, 2 * MM);
   g.appendChild(svgEl('circle', { cx: bcx + HERD_COLOR_DX * MM, cy: bcy + HERD_COLOR_DY * MM, r: ADERPUNKT_R_MM * MM, fill: farbe, ...ADERPUNKT_RAND }));
 }
 

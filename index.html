@@ -43,6 +43,38 @@
       -webkit-user-select: none;
       -moz-user-select: none;
     }
+    /* Größere Klick- und Touch-Flächen direkt am Original-Element (sim-mi0):
+       transparenter Stroke vergrößert den Trefferbereich, ohne Overlays über
+       die Schrauben zu legen (Playwright-Klicks und anlage.svg bleiben
+       unberührt). Geräte-/Klemmen-Schrauben (24–36 px Abstand) und
+       Dosen-Kontakte erreichen 22 px Trefferdurchmesser (r=4 + 7 px Stroke);
+       die engen 12-px-Reihenklemmen bleiben bei 11 px (1 px Abstand zum
+       Nachbarn). */
+    #schaltkasten svg circle[data-bauteil],
+    #steckdosen svg circle[data-netz],
+    #steckdosen svg rect[data-netz] {
+      stroke: transparent;
+      stroke-width: 14;
+      paint-order: stroke fill;
+      pointer-events: visible;
+    }
+    #steckdosen svg rect[data-netz] {
+      stroke-linejoin: round;
+    }
+    #schaltkasten svg circle[data-bauteil^="Reihenklemme_"] {
+      stroke-width: 3;
+    }
+    @media (hover: hover) {
+      #schaltkasten svg circle[data-bauteil]:hover,
+      #steckdosen svg circle[data-netz]:hover,
+      #steckdosen svg rect[data-netz]:hover {
+        stroke: rgba(37, 99, 235, 0.32);
+      }
+      #schaltkasten svg circle[data-bauteil^="Reihenklemme_"]:hover {
+        stroke: rgba(37, 99, 235, 0.65);
+        fill: #444444;
+      }
+    }
     .popup {
       position: fixed;
       display: none;

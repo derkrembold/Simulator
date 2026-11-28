@@ -597,6 +597,125 @@ async function main() {
     await page.close();
   });
 
+  // sim-mi0: Größere Klick-/Touch-Flächen per CSS am Originalelement und
+  // Hover-Feedback, ohne Nachbarschrauben zu treffen.
+  await pruefe('Klickflächen (sim-mi0): Klick neben Geräteschraube (8 SVG-px) trifft exakt diese Schraube, Mitte zum Nachbarn trifft nichts', async () => {
+    const page = await seiteMitTestcase('testcase_01');
+    const koords = await page.evaluate(() => {
+      const rcdLEl = document.querySelector('#schaltkasten svg circle[data-bauteil="RCD1"][data-farbe="schwarz"]');
+      rcdLEl.scrollIntoView({ block: 'center' });
+      const svg = document.querySelector('#schaltkasten svg');
+      const faktor = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+      const pin = (sel) => {
+        const b = document.querySelector(sel).getBoundingClientRect();
+        return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      };
+      return {
+        faktor,
+        rcdL: pin('#schaltkasten svg circle[data-bauteil="RCD1"][data-farbe="schwarz"]'),
+        rcdN: pin('#schaltkasten svg circle[data-bauteil="RCD1"][data-farbe="blau"]')
+      };
+    });
+
+    // 8 SVG-px rechts neben RCD1-L (außerhalb r=4, innerhalb r=11): muss RCD1-L (schwarz) treffen.
+    await page.mouse.click(koords.rcdL.x + 8 * koords.faktor, koords.rcdL.y);
+    const popupL = await page.evaluate(() => {
+      const p = document.querySelector('.popup');
+      return { display: p ? getComputedStyle(p).display : 'missing', text: p?.textContent ?? '' };
+    });
+    if (popupL.display !== 'block' || !popupL.text.includes('schwarz')) {
+      throw new Error(`erwarte Popup für RCD1-L (schwarz), gefunden: ${JSON.stringify(popupL)}`);
+    }
+
+    // Klick genau mittig zwischen RCD1-L und RCD1-N (18 SVG-px Abstand): darf keine Schraube treffen.
+    await page.mouse.click((koords.rcdL.x + koords.rcdN.x) / 2, koords.rcdL.y);
+    const popupMitte = await page.evaluate(() => {
+      const p = document.querySelector('.popup');
+      return p ? getComputedStyle(p).display : 'none';
+    });
+    if (popupMitte !== 'none') {
+      throw new Error(`erwarte kein Popup mittig zwischen zwei Geräteschrauben, display: ${popupMitte}`);
+    }
+    await page.close();
+  });
+
+  await pruefe('Klickflächen (sim-mi0): enge 12-px-Reihenklemmen überlappen nicht und treffen keine Nachbarschraube', async () => {
+    const page = await seiteMitTestcase('testcase_01');
+    const koords = await page.evaluate(() => {
+      const svg = document.querySelector('#schaltkasten svg');
+      const faktor = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+      const pin = (sel) => {
+        const b = document.querySelector(sel).getBoundingClientRect();
+        return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      };
+      return {
+        faktor,
+        rkL: pin('#schaltkasten svg circle[data-bauteil="Reihenklemme_L_SK1"]'),
+        rkN: pin('#schaltkasten svg circle[data-bauteil="Reihenklemme_N_SK1"]')
+      };
+    });
+
+    // 4.5 SVG-px rechts neben Reihenklemme_L_SK1 (außerhalb r=4, innerhalb r=5.5): trifft L (schwarz), nicht N (blau).
+    await page.mouse.click(koords.rkL.x + 4.5 * koords.faktor, koords.rkL.y);
+    const popupL = await page.evaluate(() => ({
+      display: getComputedStyle(document.querySelector('.popup')).display,
+      text: document.querySelector('.popup').textContent
+    }));
+    if (popupL.display !== 'block' || !popupL.text.includes('schwarz')) {
+      throw new Error(`erwarte Popup für Reihenklemme_L_SK1 (schwarz), gefunden: ${JSON.stringify(popupL)}`);
+    }
+
+    // Exakt auf der Grenze zwischen L und N (+6 SVG-px): darf keine Schraube treffen (1 px Schutzabstand).
+    await page.mouse.click((koords.rkL.x + koords.rkN.x) / 2, koords.rkL.y);
+    const popupGrenze = await page.evaluate(() => getComputedStyle(document.querySelector('.popup')).display);
+    if (popupGrenze !== 'none') {
+      throw new Error(`erwarte kein Popup auf der Grenze zweier Reihenklemmen, display: ${popupGrenze}`);
+    }
+    await page.close();
+  });
+
+  await pruefe('Klickflächen (sim-mi0): Klick neben Schuko- und Wago-Kontakt (8 SVG-px) trifft Kontakt, Hover-Feedback aktiv', async () => {
+    const page = await seiteMitTestcase('testcase_01');
+    const koords = await page.evaluate(() => {
+      const svg = document.querySelector('#steckdosen svg');
+      const faktor = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+      const kreise = [...svg.querySelectorAll('circle[fill="#666666"]')];
+      const mitte = (el) => {
+        const b = el.getBoundingClientRect();
+        return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+      };
+      return {
+        faktor,
+        schukoL: mitte(kreise[0]),
+        wagoN: mitte(kreise[2])
+      };
+    });
+
+    // 8 SVG-px links neben Schuko-L-Kontakt: muss L (schwarz) treffen.
+    await page.mouse.click(koords.schukoL.x - 8 * koords.faktor, koords.schukoL.y);
+    const popupSchuko = await page.evaluate(() => document.querySelector('.popup').textContent);
+    if (!popupSchuko.includes('schwarz')) {
+      throw new Error(`erwarte Schuko-L-Popup (schwarz) bei 8px Versatz, gefunden: "${popupSchuko}"`);
+    }
+
+    // 8 SVG-px links neben Wago-N-Kontakt: muss N (blau) treffen.
+    await page.mouse.click(koords.wagoN.x - 8 * koords.faktor, koords.wagoN.y);
+    const popupWago = await page.evaluate(() => document.querySelector('.popup').textContent);
+    if (!popupWago.includes('blau')) {
+      throw new Error(`erwarte Wago-N-Popup (blau) bei 8px Versatz, gefunden: "${popupWago}"`);
+    }
+
+    // Hover-Feedback: berechneter Stroke wechselt von transparent auf sichtbar.
+    await page.mouse.move(koords.wagoN.x, koords.wagoN.y);
+    const hoverStroke = await page.evaluate(() =>
+      getComputedStyle(document.querySelectorAll('#steckdosen svg circle[fill="#666666"]')[2]).stroke
+    );
+    if (!hoverStroke || hoverStroke === 'none' || hoverStroke.endsWith(', 0)')) {
+      throw new Error(`erwarte sichtbaren Hover-Stroke am Wago-Kontakt, gefunden: ${hoverStroke}`);
+    }
+    await page.close();
+  });
+
   await browser.close();
   server.close();
   process.exit(alleBestanden ? 0 : 1);

@@ -797,6 +797,107 @@ async function main() {
     await page.close();
   });
 
+  // sim-04u: Info-Popups mit Ader-Farbpunkten (inkl. grün-gelb), mehreren Adern
+  // sauber untereinander und automatischer Rand-Korrektur im Viewport.
+  await pruefe('Info-Popup (sim-04u): Ader-Farbpunkte, mehrere Adern untereinander, gn-ge-Streifen und Rand-Korrektur auf Handy', async () => {
+    const page = await seiteMitTestcase('testcase_01');
+
+    // 1) Mehrfachader am RCD1-Ausgang: zwei Zeilen untereinander mit Farbpunkten
+    const rcdAusgang = page.locator('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz-weitere]').first();
+    await rcdAusgang.scrollIntoViewIfNeeded();
+    await rcdAusgang.click();
+    const mehrfach = await page.evaluate(() => {
+      const zeilen = [...document.querySelectorAll('.popup .popup-zeile')];
+      const punkte = [...document.querySelectorAll('.popup .popup-punkt')];
+      return {
+        zeilenAnzahl: zeilen.length,
+        punkteAnzahl: punkte.length,
+        untereinander: zeilen.length === 2 && zeilen[1].getBoundingClientRect().top > zeilen[0].getBoundingClientRect().top,
+        text: document.querySelector('.popup').textContent
+      };
+    });
+    if (mehrfach.zeilenAnzahl !== 2 || mehrfach.punkteAnzahl !== 2 || !mehrfach.untereinander) {
+      throw new Error(`erwarte 2 Ader-Zeilen untereinander mit Farbpunkten, gefunden: ${JSON.stringify(mehrfach)}`);
+    }
+    if (!mehrfach.text.includes('2.5 mm²') || !mehrfach.text.includes('1.5 mm²')) {
+      throw new Error(`erwarte beide Querschnitte im Mehrfach-Popup, gefunden: "${mehrfach.text}"`);
+    }
+
+    // 2) PE-Ader (gn-ge): gestreifter Farbpunkt
+    const peKlemme = page.locator('#schaltkasten svg circle[data-bauteil="PE-Klemme"]').first();
+    await peKlemme.scrollIntoViewIfNeeded();
+    await peKlemme.click();
+    const hatGngePunkt = await page.evaluate(() => !!document.querySelector('.popup .popup-punkt.popup-punkt-gnge'));
+    if (!hatGngePunkt) {
+      throw new Error('erwarte grün-gelben Farbpunkt (.popup-punkt-gnge) bei PE-Ader');
+    }
+    await page.close();
+
+    // 3) Handy-Viewport 360px: Klick ganz links + Klick nahe oberem Rand bleiben voll im Viewport
+    const mobile = await browser.newPage({ viewport: { width: 360, height: 640 } });
+    await mobile.goto(`http://localhost:${port}/index.html?anlage=tests/visuell/testcase_01/anlage.json`);
+    await mobile.waitForSelector('#schaltkasten svg');
+
+    const rkLinks = mobile.locator('#schaltkasten svg circle[data-bauteil="Reihenklemme_L_SK1"]').first();
+    await rkLinks.scrollIntoViewIfNeeded();
+    await rkLinks.click();
+    const randLinks = await mobile.evaluate(() => {
+      const r = document.querySelector('.popup').getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, vw: window.innerWidth, vh: window.innerHeight };
+    });
+    if (randLinks.left < 8 || randLinks.right > randLinks.vw - 8 || randLinks.top < 8 || randLinks.bottom > randLinks.vh - 8) {
+      throw new Error(`Popup auf 360px-Handy am linken Rand abgeschnitten: ${JSON.stringify(randLinks)}`);
+    }
+
+    // Ganz an den oberen Viewport-Rand scrollen, sodass oberhalb kein Platz ist -> Popup klappt nach unten
+    await mobile.evaluate(() => {
+      const el = document.querySelector('#schaltkasten svg circle[data-bauteil="Reihenklemme_L_SK1"]');
+      const rect = el.getBoundingClientRect();
+      window.scrollBy(0, rect.top - 10);
+    });
+    const obenKoord = await mobile.evaluate(() => {
+      const b = document.querySelector('#schaltkasten svg circle[data-bauteil="Reihenklemme_L_SK1"]').getBoundingClientRect();
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    });
+    await mobile.mouse.click(obenKoord.x, obenKoord.y);
+    const randOben = await mobile.evaluate(() => {
+      const r = document.querySelector('.popup').getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, vh: window.innerHeight };
+    });
+    if (randOben.top < obenKoord.y || randOben.bottom > randOben.vh - 8) {
+      throw new Error(`Popup nahe oberem Rand hätte nach unten klappen müssen: ${JSON.stringify({ obenKoord, randOben })}`);
+    }
+
+    // 4) Handy-Pinch-Zoom: 2x (180x320) und 3x (120x213, schmaler als die
+    // natürliche einzeilige Popup-Breite) bleiben voll innerhalb von
+    // window.visualViewport (Reproduktion Codex-P3).
+    const cdp = await mobile.context().newCDPSession(mobile);
+    for (const faktor of [2, 3]) {
+      await cdp.send('Emulation.setPageScaleFactor', { pageScaleFactor: faktor });
+      const zoomPruefung = await mobile.evaluate(async () => {
+        const { Popup } = await import('./view/popup.js');
+        const vv = window.visualViewport;
+        const klickX = vv.offsetLeft + vv.width - 10;
+        const klickY = vv.offsetTop + 12;
+        Popup.zeige({ querschnitt: '2.5 mm²', farbe: 'schwarz' }, klickX, klickY);
+        const r = document.querySelector('.popup').getBoundingClientRect();
+        return {
+          left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width,
+          vvLeft: vv.offsetLeft, vvTop: vv.offsetTop, vvWidth: vv.width,
+          vvRight: vv.offsetLeft + vv.width, vvBottom: vv.offsetTop + vv.height, scale: vv.scale
+        };
+      });
+      if (zoomPruefung.scale < faktor - 0.1) {
+        throw new Error(`erwarte ${faktor}x Zoom im Test, gefunden scale=${zoomPruefung.scale}`);
+      }
+      if (zoomPruefung.left < zoomPruefung.vvLeft || zoomPruefung.right > zoomPruefung.vvRight
+        || zoomPruefung.top < zoomPruefung.vvTop || zoomPruefung.bottom > zoomPruefung.vvBottom) {
+        throw new Error(`Popup ragt bei ${faktor}x Handy-Zoom aus visualViewport heraus: ${JSON.stringify(zoomPruefung)}`);
+      }
+    }
+    await mobile.close();
+  });
+
   await browser.close();
   server.close();
   process.exit(alleBestanden ? 0 : 1);

@@ -81,11 +81,35 @@
       background: #222;
       color: #fff;
       padding: 6px 10px;
-      border-radius: 4px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
       font-size: 12px;
+      line-height: 1.35;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+      max-width: calc(100vw - 16px);
       pointer-events: none;
-      transform: translate(-50%, -120%);
       z-index: 10;
+    }
+    .popup-zeile {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .popup-zeile + .popup-zeile {
+      margin-top: 4px;
+    }
+    .popup-punkt {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-sizing: border-box;
+    }
+    .popup-punkt-gnge {
+      background: linear-gradient(-45deg, #00b838 0 34%, #ffe01b 34% 60%, #00b838 60% 100%);
     }
   </style>
 </head>

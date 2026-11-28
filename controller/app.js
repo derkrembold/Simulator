@@ -19,10 +19,61 @@ import { findePfad, findeErreichbareKanten, berechneWiderstand, istSpannungFuehr
 const MESSSPITZEN_FARBEN = ['schwarz', 'blau', 'grün'];
 const MESSSPITZEN_FARBWERTE = { schwarz: '#111111', blau: '#2255cc', 'grün': '#22aa44' };
 
-function svgKreis(attrs) {
-  const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+function svgEl(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   return el;
+}
+
+function svgKreis(attrs) {
+  return svgEl('circle', attrs);
+}
+
+// Messspitzen-Markierung (sim-2p0): doppelter Kontrastring (dunkel außen, weiß
+// innen) auf normalen Schrauben/Kontakten für hohe Sichtbarkeit auf jedem
+// Untergrund. An engen 12-px-Reihenklemmen bleibt der Ring <= 12 px breit, und
+// ein schlanker vertikaler Prüfspitzen-Schaft weicht nach oben bzw. unten in
+// den freien Raum aus, sodass Nachbarschrauben immer sichtbar bleiben. Der
+// innere Kreis mit `stroke="#ffffff"` und MESSSPITZEN_FARBWERTE bleibt direktes
+// Kind von `kreis.parentNode` (Tests und tools/messgeraet_steuerung.js).
+function erstelleMessspitzenOverlay(kreis, farbeWert) {
+  const { cx, cy } = schraubenMitte(kreis);
+  const x = parseFloat(cx), y = parseFloat(cy);
+  const bauteil = kreis.getAttribute('data-bauteil') ?? '';
+  const istReihenklemme = bauteil.startsWith('Reihenklemme_');
+  const elemente = [];
+
+  if (istReihenklemme) {
+    const schrauben = [...kreis.parentNode.querySelectorAll(`circle[data-bauteil="${CSS.escape(bauteil)}"]`)];
+    const andere = schrauben.find((el) => el !== kreis);
+    const dir = andere && y < parseFloat(andere.getAttribute('cy')) ? -1 : 1;
+
+    const y0 = y + dir * 5;
+    const y1 = y + dir * 9;
+    const y2 = y + dir * 21;
+    const schaftD = `M ${x - 2} ${y0} L ${x - 4} ${y1} L ${x - 4} ${y2} A 4 4 0 0 ${dir > 0 ? 0 : 1} ${x + 4} ${y2} L ${x + 4} ${y1} L ${x + 2} ${y0} Z`;
+    elemente.push(
+      svgEl('path', { d: schaftD, fill: 'none', stroke: '#111111', 'stroke-width': 3.2, 'stroke-linejoin': 'round' }),
+      svgEl('path', { d: schaftD, fill: farbeWert, stroke: '#ffffff', 'stroke-width': 1.4, 'stroke-linejoin': 'round' }),
+      svgKreis({ cx: x, cy: y, r: 5.1, fill: 'none', stroke: '#111111', 'stroke-width': 1.2 }),
+      svgKreis({ cx: x, cy: y, r: 4.0, fill: farbeWert, stroke: '#ffffff', 'stroke-width': 1.4 })
+    );
+  } else {
+    elemente.push(
+      svgKreis({ cx: x, cy: y, r: 9.4, fill: 'none', stroke: '#111111', 'stroke-width': 1.8 }),
+      svgKreis({ cx: x, cy: y, r: 7.5, fill: farbeWert, stroke: '#ffffff', 'stroke-width': 2.2 })
+    );
+  }
+
+  for (const el of elemente) {
+    el.style.pointerEvents = 'none'; // Klicks sollen weiter beim Schrauben-Kreis ankommen (Zyklus geht weiter)
+    kreis.parentNode.appendChild(el);
+  }
+  return {
+    remove() {
+      for (const el of elemente) el.remove();
+    }
+  };
 }
 
 // Mittelpunkt eines Schrauben-Elements - meist ein <circle> (hat schon
@@ -279,13 +330,7 @@ async function start() {
       if (naechsteFarbe !== null) {
         messspitzenFarbe.set(kreis, naechsteFarbe);
         messspitzenAder.set(kreis, ader);
-        const { cx, cy } = schraubenMitte(kreis);
-        const overlay = svgKreis({
-          cx, cy, r: 7,
-          fill: MESSSPITZEN_FARBWERTE[naechsteFarbe], stroke: '#ffffff', 'stroke-width': 2.5
-        });
-        overlay.style.pointerEvents = 'none'; // Klicks sollen weiter beim Schrauben-Kreis ankommen (Zyklus geht weiter)
-        kreis.parentNode.appendChild(overlay);
+        const overlay = erstelleMessspitzenOverlay(kreis, MESSSPITZEN_FARBWERTE[naechsteFarbe]);
         messspitzenOverlay.set(kreis, overlay);
       }
 

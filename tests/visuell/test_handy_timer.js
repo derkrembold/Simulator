@@ -68,7 +68,7 @@ async function main() {
   }
 
   function anzahlMessspitzen(page) {
-    return page.evaluate(() => document.querySelectorAll('#schaltkasten svg circle[r="7"]').length);
+    return page.evaluate(() => document.querySelectorAll('#schaltkasten svg circle[stroke="#ffffff"]').length);
   }
 
   function zeitText(page) {
@@ -138,7 +138,7 @@ async function main() {
     // der Fahrplan beginnt mit Schaltschritten (Hauptschalter, Drehknopf),
     // die Anzahl Schritte bis zur ersten Sonde hängt vom Fahrplan ab.
     await page.waitForFunction(
-      (anzahl) => document.querySelectorAll('#schaltkasten svg circle[r="7"]').length > anzahl,
+      (anzahl) => document.querySelectorAll('#schaltkasten svg circle[stroke="#ffffff"]').length > anzahl,
       vorher,
       { timeout: 10000 }
     ).catch(() => {});

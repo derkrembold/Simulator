@@ -716,6 +716,87 @@ async function main() {
     await page.close();
   });
 
+  // sim-2p0: Auffällige Messspitzen mit doppeltem Kontrastring und kompakter
+  // 12-px-tauglicher Reihenklemmen-Darstellung (inkl. vollständigem Entfernen).
+  await pruefe('Messspitzen (sim-2p0): doppelter Kontrastring, 12-px-Reihenklemmen kompakt mit vertikalem Schaft, sauberes Entfernen', async () => {
+    const page = await seiteMitTestcase('testcase_01');
+    await klick(page, 'ON/OFF');
+
+    // 1) Normale Schraube (RCD1): äußerer Kontrastring + weiß geränderter Kernkreis
+    await page.locator('#schaltkasten svg circle[data-bauteil="RCD1"]').first().click({ force: true });
+    // 2) Obere 12-px-Reihenklemme (L): kompakt <= 12 px + Schaft nach oben
+    await page.locator('#schaltkasten svg circle[data-bauteil="Reihenklemme_L_SK1"]').first().click({ force: true });
+    // 3) Untere 12-px-Reihenklemme (N): kompakt <= 12 px + Schaft nach unten
+    await page.locator('#schaltkasten svg circle[data-bauteil="Reihenklemme_N_SK1"]').nth(1).click({ force: true });
+
+    const info = await page.evaluate(() => {
+      const svg = document.querySelector('#schaltkasten svg');
+      const weissKreise = [...svg.querySelectorAll('circle[stroke="#ffffff"]')];
+      const dunkelRinge = [...svg.querySelectorAll('circle[fill="none"][stroke="#111111"]')];
+      const schaefte = [...svg.querySelectorAll('path[stroke="#ffffff"]')];
+      const schaefteAussen = [...svg.querySelectorAll('path[fill="none"][stroke="#111111"]')];
+
+      const pinKoord = (el) => ({ cx: parseFloat(el.getAttribute('cx')), cy: parseFloat(el.getAttribute('cy')) });
+      const obenPin = pinKoord(document.querySelector('#schaltkasten svg circle[data-bauteil="Reihenklemme_L_SK1"]'));
+      const untenPin = pinKoord(document.querySelectorAll('#schaltkasten svg circle[data-bauteil="Reihenklemme_N_SK1"]')[1]);
+      const rkPins = [obenPin, untenPin];
+
+      // Reihenklemmen-Außenringe über ihre Position an den angeklickten
+      // Reihenklemmen identifizieren (nicht über einen Radius-Filter).
+      const rkRinge = dunkelRinge.filter((c) => {
+        const cx = parseFloat(c.getAttribute('cx'));
+        const cy = parseFloat(c.getAttribute('cy'));
+        return rkPins.some((p) => Math.abs(p.cx - cx) < 0.5 && Math.abs(p.cy - cy) < 0.5);
+      });
+      const ringBreiten = rkRinge.map((c) => 2 * (parseFloat(c.getAttribute('r')) + parseFloat(c.getAttribute('stroke-width')) / 2));
+      const schaftBreiten = schaefteAussen.map((p) => p.getBBox().width + parseFloat(p.getAttribute('stroke-width')));
+
+      const schaftBoxen = schaefte.map((p) => p.getBBox());
+      const alleOverlays = [...weissKreise, ...dunkelRinge, ...schaefte, ...schaefteAussen];
+      window.__sim2p0Overlays = alleOverlays;
+      const allePointerNone = alleOverlays.every((el) => el.style.pointerEvents === 'none');
+      return {
+        weiss: weissKreise.length,
+        dunkel: dunkelRinge.length,
+        rkRinge: rkRinge.length,
+        schaefte: schaefte.length,
+        schaefteAussen: schaefteAussen.length,
+        ringBreiten,
+        schaftBreiten,
+        obenNachOben: schaftBoxen[0] ? schaftBoxen[0].y + schaftBoxen[0].height <= obenPin.cy : false,
+        untenNachUnten: schaftBoxen[1] ? schaftBoxen[1].y >= untenPin.cy : false,
+        allePointerNone
+      };
+    });
+
+    if (info.weiss !== 3 || info.dunkel !== 3 || info.rkRinge !== 2 || info.schaefte !== 2 || info.schaefteAussen !== 2) {
+      throw new Error(`erwarte 3 Kernkreise, 3 Außenringe (davon 2 an Reihenklemmen) und 2x2 Schaft-Pfade, gefunden: ${JSON.stringify(info)}`);
+    }
+    for (const breite of [...info.ringBreiten, ...info.schaftBreiten]) {
+      if (breite > 12) {
+        throw new Error(`Reihenklemmen-Messspitze überschreitet 12 px Breite (${breite} px): ${JSON.stringify(info)}`);
+      }
+    }
+    if (!info.obenNachOben || !info.untenNachUnten) {
+      throw new Error(`Schäfte zeigen nicht in den freien Raum ober-/unterhalb: ${JSON.stringify(info)}`);
+    }
+    if (!info.allePointerNone) {
+      throw new Error('alle Messspitzen-Overlays müssen pointer-events:none tragen');
+    }
+
+    // Ausschalten muss ALLE zuvor angelegten Overlay-Elemente restlos entfernen
+    // (ohne andere/künftige Dekorations-Pfade im Schaltkasten mitzuzählen).
+    await klick(page, 'ON/OFF');
+    const reste = await page.evaluate(() => ({
+      verbunden: (window.__sim2p0Overlays ?? []).filter((el) => el.isConnected).length,
+      weiss: document.querySelectorAll('#schaltkasten svg circle[stroke="#ffffff"]').length
+    }));
+    if (reste.verbunden !== 0 || reste.weiss !== 0) {
+      throw new Error(`erwarte 0 verbleibende Messspitzen-Overlays nach OFF, gefunden: ${JSON.stringify(reste)}`);
+    }
+    await page.close();
+  });
+
   await browser.close();
   server.close();
   process.exit(alleBestanden ? 0 : 1);

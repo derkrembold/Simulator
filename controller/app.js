@@ -1574,10 +1574,17 @@ async function start() {
   const handyHoehe = WERKZEUG_HOEHE;
 
   function aufSchraubendreherKlick() {
-    schraubendreherAufgenommen = true;
+    schraubendreherAufgenommen = !schraubendreherAufgenommen;
+    if (schraubendreherAufgenommen) Popup.verstecke();
     renderSchraubendreher();
   }
-  SchraubendreherView.render(schraubendreherContainer, WERKZEUG_HOEHE, { onKlick: aufSchraubendreherKlick });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && schraubendreherAufgenommen) {
+      schraubendreherAufgenommen = false;
+      renderSchraubendreher();
+    }
+  });
+  renderSchraubendreher();
   // Der Platz bleibt reserviert, solange der Schraubendreher aufgenommen ist,
   // sonst rutscht das Handy in der zentrierten Werkzeugzeile zur Seite.
   const schraubendreherSvg = schraubendreherContainer.querySelector('svg');
@@ -1714,6 +1721,12 @@ async function start() {
     const vorherigerAbschnitt = replaySchrittInfo[replayIndex - 1]?.abschnittIndex;
     const aktuellerAbschnitt = replaySchrittInfo[replayIndex].abschnittIndex;
     if (replayIndex > 0 && aktuellerAbschnitt !== vorherigerAbschnitt) entferneAlleMessspitzen();
+    // Manuell aufgenommener Schraubendreher (z.B. während einer Replay-Pause)
+    // darf keinen nachfolgenden Replay-Schritt verfälschen (sim-as0).
+    if (schraubendreherAufgenommen) {
+      schraubendreherAufgenommen = false;
+      renderSchraubendreher();
+    }
     fuehreSchrittAus(replaySchritte[replayIndex]);
     replayIndex += 1;
     if (replayIndex >= replaySchritte.length) stoppeReplayAutomatik();
@@ -1847,16 +1860,15 @@ async function start() {
   }
   renderHandy(handyHoehe);
 
-  // Solange aufgenommen (siehe onSchraubeKlick() oben), bleibt die
-  // Ruheposition leer - kein zweites Icon, keine "Werkzeug ablegen"-Klickfläche,
-  // exakt wie spezifiziert (kehrt nur automatisch nach einem Schrauben-Klick
-  // zurück, siehe onSchraubeKlick()).
+  // Solange aufgenommen, zeigt die Ruheposition eine gestrichelte
+  // Ablage-Silhouette (Klick oder Esc legt das Werkzeug ab), und der
+  // Schaltkasten erhält die Modus-Klasse für Rahmen und Cursor (sim-as0).
   function renderSchraubendreher() {
-    if (schraubendreherAufgenommen) {
-      schraubendreherContainer.innerHTML = '';
-      return;
-    }
-    SchraubendreherView.render(schraubendreherContainer, WERKZEUG_HOEHE, { onKlick: aufSchraubendreherKlick });
+    container.classList.toggle('schraubendreher-aktiv', schraubendreherAufgenommen);
+    SchraubendreherView.render(schraubendreherContainer, WERKZEUG_HOEHE, {
+      onKlick: aufSchraubendreherKlick,
+      aufgenommen: schraubendreherAufgenommen
+    });
   }
 }
 

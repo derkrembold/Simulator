@@ -21,21 +21,62 @@ function svgEl(tag, attrs = {}) {
   return el;
 }
 
+const GRIFF_PFAD = 'm 96.20033,110.96119 c -0.986946,0 -1.781287,0.79485 -1.781287,1.7818 v 7.46311 a 21.75964,29.394602 0 0 1 0,19.18901 v 28.85767 a 7.8484478,7.889173 0 0 1 0,6.62233 v 3.01946 c 0,0.98694 0.794341,1.78128 1.781287,1.78128 h 14.76086 c 0.98694,0 1.7818,-0.79434 1.7818,-1.78128 v -2.40296 a 8.015192,7.889173 0 0 1 0,-6.90965 v -27.36112 a 17.533375,28.122091 0 0 1 0,-21.02353 v -7.45432 c 0,-0.98695 -0.79486,-1.7818 -1.7818,-1.7818 z';
+
+// Gestrichelte Ablage-Silhouette als Data-URI-SVG für <img> in einem <button>:
+// so bleibt `#schraubendreher svg` im aufgenommenen Zustand frei, damit
+// Replay/Werkzeuge (`#schraubendreher svg g` bzw. `#schraubendreher svg`) ein
+// bereits aufgenommenes Werkzeug nicht versehentlich wieder ablegen (sim-as0).
+const SILHOUETTE_SVG_URI = 'data:image/svg+xml,' + encodeURIComponent(
+  `<svg xmlns="${SVG_NS}" viewBox="0 0 ${BREITE} ${HOEHE}">`
+  + `<g transform="translate(-93.890768,-37.049365)" fill="rgba(225,85,23,0.08)" stroke="#888888" stroke-width="1" stroke-dasharray="3.5 2.5">`
+  + `<path d="${GRIFF_PFAD}"/>`
+  + '<rect width="7.1259632" height="43.773781" x="100.33904" y="67.703255" rx="1.5269923" ry="1.5269923"/>'
+  + '<rect width="5.8534703" height="30.539846" x="101.036" y="37.197151"/>'
+  + '</g></svg>'
+);
+
 export const SchraubendreherView = {
   // `anzeigeHoehe`: reale Zielhöhe in px - soll der Höhe des Messgeräts
   // entsprechen (siehe controller/app.js, liest dafür die tatsächlich
   // gerenderte Messgerät-SVG-Höhe aus dem DOM, analog zur bereits
   // bestehenden Breiten-Angleichung zwischen Schaltkasten und Messgerät).
   // `onKlick` (optional): macht die ganze Zeichnung klickbar (Werkzeug
-  // "aufnehmen", siehe controller/app.js) - ohne wird nur gezeichnet, ohne
-  // Interaktion (z.B. für Tests, die nur die Darstellung prüfen).
-  render(container, anzeigeHoehe, { onKlick } = {}) {
+  // "aufnehmen" bzw. bei `aufgenommen: true` wieder ablegen).
+  render(container, anzeigeHoehe, { onKlick, aufgenommen = false } = {}) {
     const anzeigeBreite = BREITE * (anzeigeHoehe / HOEHE);
+    container.innerHTML = '';
+
+    if (aufgenommen) {
+      const ablage = document.createElement('button');
+      ablage.type = 'button';
+      ablage.className = 'schraubendreher-ablage';
+      ablage.dataset.zustand = 'aufgenommen';
+      ablage.title = 'Klick oder Esc zum Ablegen';
+      ablage.setAttribute('aria-label', 'Schraubendreher ablegen');
+      if (onKlick) ablage.addEventListener('click', onKlick);
+
+      const bild = document.createElement('img');
+      bild.src = SILHOUETTE_SVG_URI;
+      bild.width = anzeigeBreite;
+      bild.height = anzeigeHoehe;
+      bild.alt = '';
+      bild.draggable = false;
+      ablage.appendChild(bild);
+      container.appendChild(ablage);
+      return { svg: null, ablage };
+    }
 
     const svg = svgEl('svg', {
-      width: anzeigeBreite, height: anzeigeHoehe, viewBox: `0 0 ${BREITE} ${HOEHE}`
+      width: anzeigeBreite,
+      height: anzeigeHoehe,
+      viewBox: `0 0 ${BREITE} ${HOEHE}`,
+      'data-zustand': 'abgelegt',
+      'aria-label': 'Schraubendreher aufnehmen'
     });
-    container.innerHTML = '';
+    const titel = svgEl('title', {});
+    titel.textContent = 'Schraubendreher aufnehmen';
+    svg.appendChild(titel);
     container.appendChild(svg);
 
     // Gruppe mit derselben Verschiebung wie in der Vorlage - die
@@ -52,7 +93,7 @@ export const SchraubendreherView = {
     // Griff (orange).
     g.appendChild(svgEl('path', {
       fill: '#e15517', stroke: '#e15517', 'stroke-width': 1.05648,
-      d: 'm 96.20033,110.96119 c -0.986946,0 -1.781287,0.79485 -1.781287,1.7818 v 7.46311 a 21.75964,29.394602 0 0 1 0,19.18901 v 28.85767 a 7.8484478,7.889173 0 0 1 0,6.62233 v 3.01946 c 0,0.98694 0.794341,1.78128 1.781287,1.78128 h 14.76086 c 0.98694,0 1.7818,-0.79434 1.7818,-1.78128 v -2.40296 a 8.015192,7.889173 0 0 1 0,-6.90965 v -27.36112 a 17.533375,28.122091 0 0 1 0,-21.02353 v -7.45432 c 0,-0.98695 -0.79486,-1.7818 -1.7818,-1.7818 z'
+      d: GRIFF_PFAD
     }));
     // Schaft (orange).
     g.appendChild(svgEl('rect', {

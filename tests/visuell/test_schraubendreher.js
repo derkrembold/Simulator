@@ -189,11 +189,75 @@ async function main() {
 
   // --- Aufnehmen/Lösen (siehe onSchraubeKlick() in controller/app.js) ---
 
-  await pruefe('Schraubendreher: Klick nimmt ihn auf - verschwindet aus der Ruheposition', async () => {
+  await pruefe('Schraubendreher: Klick nimmt ihn auf - zeigt Ablage-Silhouette und aktiven Modus (sim-as0)', async () => {
     const page = await neueSeite();
     await page.locator('#schraubendreher svg').click();
-    const anzahl = await page.locator('#schraubendreher svg').count();
-    if (anzahl !== 0) throw new Error(`erwarte kein Schraubendreher-SVG nach dem Aufnehmen, gefunden ${anzahl}`);
+    const info = await page.evaluate(() => ({
+      svgAnzahl: document.querySelectorAll('#schraubendreher svg').length,
+      ablageZustand: document.querySelector('#schraubendreher .schraubendreher-ablage')?.dataset.zustand,
+      bildSrc: document.querySelector('#schraubendreher .schraubendreher-ablage img')?.getAttribute('src') ?? '',
+      aktiv: document.getElementById('schaltkasten').classList.contains('schraubendreher-aktiv'),
+      cursor: getComputedStyle(document.getElementById('schaltkasten')).cursor
+    }));
+    if (info.svgAnzahl !== 0 || info.ablageZustand !== 'aufgenommen' || !info.bildSrc.includes('stroke-dasharray')) {
+      throw new Error(`erwarte gestrichelte Ablage-Silhouette ohne aktives Werkzeug-SVG, gefunden ${JSON.stringify(info)}`);
+    }
+    if (!info.aktiv || !info.cursor.includes('url(')) {
+      throw new Error(`erwarte aktiven Modus-Rahmen und Schraubendreher-Cursor, gefunden ${JSON.stringify(info)}`);
+    }
+    await page.close();
+  });
+
+  await pruefe('Schraubendreher: Klick auf Ablage-Silhouette und Esc legen das Werkzeug wieder ab (sim-as0)', async () => {
+    const page = await neueSeiteMitTestcase();
+    await page.locator('#schraubendreher svg').click(); // aufnehmen
+    await page.locator('#schraubendreher .schraubendreher-ablage').click(); // Klick auf Silhouette -> ablegen
+    const nachSilhouette = await page.evaluate(() => ({
+      zustand: document.querySelector('#schraubendreher svg')?.getAttribute('data-zustand'),
+      ablagen: document.querySelectorAll('#schraubendreher .schraubendreher-ablage').length,
+      aktiv: document.getElementById('schaltkasten').classList.contains('schraubendreher-aktiv')
+    }));
+    if (nachSilhouette.zustand !== 'abgelegt' || nachSilhouette.ablagen !== 0 || nachSilhouette.aktiv) {
+      throw new Error(`erwarte abgelegten Zustand nach Klick auf Silhouette, gefunden ${JSON.stringify(nachSilhouette)}`);
+    }
+
+    await page.locator('#schraubendreher svg').click(); // erneut aufnehmen
+    await page.keyboard.press('Escape'); // Esc -> ablegen
+    const nachEsc = await page.evaluate(() => ({
+      zustand: document.querySelector('#schraubendreher svg')?.getAttribute('data-zustand'),
+      ablagen: document.querySelectorAll('#schraubendreher .schraubendreher-ablage').length,
+      aktiv: document.getElementById('schaltkasten').classList.contains('schraubendreher-aktiv')
+    }));
+    if (nachEsc.zustand !== 'abgelegt' || nachEsc.ablagen !== 0 || nachEsc.aktiv) {
+      throw new Error(`erwarte abgelegten Zustand nach Esc, gefunden ${JSON.stringify(nachEsc)}`);
+    }
+
+    // Nach dem Ablegen per Esc lösen normale Klicks wieder das Popup statt Schrauben aus.
+    await page.locator('#schaltkasten svg circle[data-netz]').first().click();
+    const popupSichtbar = await page.evaluate(() => document.querySelector('.popup')?.style.display === 'block');
+    if (!popupSichtbar) throw new Error('erwarte Popup nach Ablegen per Esc');
+    await page.close();
+  });
+
+  await pruefe('Schraubendreher: Replay-Schritt schraubeSchalten funktioniert auch bei bereits aufgenommenem Werkzeug (sim-as0)', async () => {
+    const page = await neueSeiteMitTestcase();
+    await page.locator('#schraubendreher svg').click(); // manuell aufnehmen
+    const ziel = await page.evaluate(() => {
+      const c = document.querySelector('#schaltkasten svg circle[data-bauteil="RCD1"][data-netz]');
+      return { bauteil: c.getAttribute('data-bauteil'), netz: c.getAttribute('data-netz') };
+    });
+    await page.evaluate(async ({ bauteil, netz }) => {
+      const { fuehreSchrittAus } = await import('./controller/fahrplan_ausfuehrung.js');
+      fuehreSchrittAus({ funktion: 'schraubeSchalten', argumente: [bauteil, netz] });
+    }, ziel);
+    const info = await page.evaluate(() => ({
+      weisseKreise: document.querySelectorAll('#schaltkasten svg circle[fill="#ffffff"][stroke="#000000"]').length,
+      popupSichtbar: document.querySelector('.popup')?.style.display === 'block',
+      zustand: document.querySelector('#schraubendreher svg')?.getAttribute('data-zustand')
+    }));
+    if (info.weisseKreise !== 1 || info.popupSichtbar || info.zustand !== 'abgelegt') {
+      throw new Error(`erwarte gelöste Schraube ohne Popup bei bereits aufgenommenem Werkzeug, gefunden ${JSON.stringify(info)}`);
+    }
     await page.close();
   });
 
@@ -204,10 +268,11 @@ async function main() {
 
     const info = await page.evaluate(() => ({
       weisseKreise: [...document.querySelectorAll('#schaltkasten svg circle[fill="#ffffff"][stroke="#000000"]')].length,
-      schraubendreher: document.querySelectorAll('#schraubendreher svg').length
+      zustand: document.querySelector('#schraubendreher svg')?.getAttribute('data-zustand'),
+      aktiv: document.getElementById('schaltkasten').classList.contains('schraubendreher-aktiv')
     }));
     if (info.weisseKreise !== 1) throw new Error(`erwarte einen weißen Kreis (gelöste Schraube), gefunden ${info.weisseKreise}`);
-    if (info.schraubendreher !== 1) throw new Error(`erwarte, dass der Schraubendreher zurückkehrt, gefunden ${info.schraubendreher} SVGs`);
+    if (info.zustand !== 'abgelegt' || info.aktiv) throw new Error(`erwarte, dass der Schraubendreher zurückkehrt, gefunden ${JSON.stringify(info)}`);
     await page.close();
   });
 
@@ -250,10 +315,11 @@ async function main() {
 
     const info = await page.evaluate(() => ({
       weisseKreise: [...document.querySelectorAll('#schaltkasten svg circle[fill="#ffffff"][stroke="#000000"]')].length,
-      schraubendreher: document.querySelectorAll('#schraubendreher svg').length
+      schraubendreherSvg: document.querySelectorAll('#schraubendreher svg').length,
+      zustand: document.querySelector('#schraubendreher .schraubendreher-ablage')?.dataset.zustand
     }));
     if (info.weisseKreise !== 0) throw new Error(`erwarte keinen weißen Kreis (Klick sollte wirkungslos bleiben), gefunden ${info.weisseKreise}`);
-    if (info.schraubendreher !== 0) throw new Error(`erwarte, dass das Werkzeug aufgenommen bleibt, gefunden ${info.schraubendreher} SVGs`);
+    if (info.schraubendreherSvg !== 0 || info.zustand !== 'aufgenommen') throw new Error(`erwarte, dass das Werkzeug aufgenommen bleibt, gefunden ${JSON.stringify(info)}`);
     await page.close();
   });
 
@@ -319,10 +385,11 @@ async function main() {
 
     const info = await page.evaluate(() => ({
       weisseKreiseSteckdosen: [...document.querySelectorAll('#steckdosen circle[fill="#ffffff"][stroke="#000000"]')].length,
-      schraubendreher: document.querySelectorAll('#schraubendreher svg').length
+      schraubendreherSvg: document.querySelectorAll('#schraubendreher svg').length,
+      zustand: document.querySelector('#schraubendreher .schraubendreher-ablage')?.dataset.zustand
     }));
     if (info.weisseKreiseSteckdosen !== 0) throw new Error(`erwarte keinen weißen Kreis an der Steckdose, gefunden ${info.weisseKreiseSteckdosen}`);
-    if (info.schraubendreher !== 0) throw new Error(`erwarte, dass das Werkzeug aufgenommen bleibt, gefunden ${info.schraubendreher} SVGs`);
+    if (info.schraubendreherSvg !== 0 || info.zustand !== 'aufgenommen') throw new Error(`erwarte, dass das Werkzeug aufgenommen bleibt, gefunden ${JSON.stringify(info)}`);
     await page.close();
   });
 

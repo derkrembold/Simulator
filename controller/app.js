@@ -826,11 +826,19 @@ async function start() {
   // gebraucht, um einen `kante.bauteil`-Namen aus dem Graphen einem echten
   // RCD-Objekt (mit tA/iA/uB) zuzuordnen. Wird bei jedem TEST-Klick frisch
   // eingesammelt statt gecacht - die Anlage ist klein, kein Performance-Thema.
+  // Ein RCBO (sim-8as) zählt mit: sein RCD-Teil (`ls.rcbo`) unter dem Namen
+  // des LS, mit dessen Nennstrom und Leitungen. RCD-Test, Prüftaste und
+  // Riso-Elektronik behandeln ihn damit wie einen RCD.
   function alleRcds() {
     const ergebnis = [];
     for (const hutschiene of anlage.hutschienen ?? []) {
       for (const gruppe of hutschiene.gruppen ?? []) {
         if (gruppe.rcd) ergebnis.push(gruppe.rcd);
+        for (const { ls } of gruppe.stromkreise ?? []) {
+          if (ls.rcbo) {
+            ergebnis.push({ ...ls.rcbo, name: ls.name, polig: ls.polig, nennstrom_a: ls.in, eingang: ls.eingang, ausgang: ls.ausgang });
+          }
+        }
       }
     }
     return ergebnis;

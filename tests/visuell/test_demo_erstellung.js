@@ -473,7 +473,7 @@ pruefe('Riso Elektronik (sim-qha): Wert landet in bauteile.md und anlage.json', 
 
 lehntAb('Riso Elektronik an einem RCD Typ A (sim-qha)', baueAnforderung({ gruppen: [{ id: 'G1', rcdPole: 2 }], stromkreise: [{ name: 'SK1', gruppe: 'G1', phase: 'L1' }] })
   .replace('| Fehler L (Ω) | Fehler N (Ω) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |', '| Fehler L (Ω) | Fehler N (Ω) | Riso Elektronik (MΩ) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
-  .replace(/(\| G1 \|[^\n]*\|)$/m, '$1 0,15 |'), 'Riso Elektronik gibt es nur bei einem RCD Typ B oder B+');
+  .replace(/(\| G1 \|[^\n]*\|)$/m, '$1 0,15 |'), 'Riso Elektronik gibt es nur bei einem RCD oder RCBO Typ B oder B+');
 
 // sim-24l: Messwerte des RCD-Tests je Prüfstromform. Ohne Angabe gelten die
 // Standardwerte (AC 60 % IΔN und 22 ms, DC bei Typ B/B+ 58 mA und 25 ms).
@@ -663,9 +663,54 @@ pruefe('Pfadtabelle ist unabhängig von der Reihenfolge der Kanten', () => {
 
 // Verdrahtung der eingecheckten, aus Anforderungen erzeugten Anlagen: jeder Pfad Endstelle -> Einspeisung (alle Stromkreise und
 // Phasen) muss im Graphen und im gerenderten Schaltkasten gleich sein (headless Browser).
+// sim-8as: RCBO (LS mit eingebautem RCD) über RCD Pole = RCBO. Die Gruppe hat
+// keinen RCD, der LS schaltet N mit (2-polig bzw. 4-polig) und trägt den
+// RCD-Teil mit Typ, Fehlerstrom und Testwerten der Gruppenzeile.
+const rcboGruppen = [{ id: 'G1', rcdPole: 'RCBO', nennstrom: '', selektiv: '', abklemmen: '' }, { id: 'G2', rcdPole: 'RCBO', typ: 'B', nennstrom: '', selektiv: '', abklemmen: '' }];
+const rcboStromkreise = [
+  { name: 'SK1', gruppe: 'G1', phase: 'L2' },
+  { name: 'SK2', gruppe: 'G2', lsPole: 3, lsChar: 'C', endstelle: 'Drehstromsteckdose' }
+];
+
+pruefe('RCBO (sim-8as): 2- und 4-polig, kein Gruppen-RCD, N über den RCBO, RCD-Teil mit Testwerten, alle Adern erreichbar', () => {
+  const ergebnis = erzeuge(baueAnforderung({ gruppen: rcboGruppen, stromkreise: rcboStromkreise }));
+  const { anlage, modell } = ergebnis;
+  const gruppen = anlage.hutschienen.flatMap((h) => h.gruppen);
+  bedingung(gruppen.every((g) => g.rcd === null), 'RCBO-Gruppen haben keinen RCD');
+  const [sk1, sk2] = gruppen.flatMap((g) => g.stromkreise);
+  bedingung(sk1.ls.polig === 2 && sk1.ls.te === 2 && sk1.phasen.join() === 'L2', `SK1: ${sk1.ls.polig}-polig, ${sk1.ls.te} TE, ${sk1.phasen}`);
+  bedingung(sk2.ls.polig === 4 && sk2.ls.te === 4 && sk2.phasen.join() === 'L1,L2,L3', `SK2: ${sk2.ls.polig}-polig, ${sk2.ls.te} TE, ${sk2.phasen}`);
+  bedingung(JSON.stringify(sk1.ls.rcbo) === JSON.stringify({ typ: 'A', in_ma: 30, tA: 22, iA: 18, uB: 1 }), `SK1 rcbo ${JSON.stringify(sk1.ls.rcbo)}`);
+  bedingung(sk2.ls.rcbo.typ === 'B' && sk2.ls.rcbo.iA_dc === 58 && sk2.ls.rcbo.tA_dc === 25, `SK2 rcbo ${JSON.stringify(sk2.ls.rcbo)}`);
+  const nNetz = (sk) => modell.netze.find((n) => n.pins.some((p) => p.pin === `Reihenklemme_N_${sk}.i1`));
+  bedingung(nNetz('SK1').pins.some((p) => p.pin === 'LS1.o2'), 'SK1: N-Reihenklemme soll vom RCBO-Ausgang LS1.o2 kommen');
+  bedingung(nNetz('SK2').pins.some((p) => p.pin === 'LS2.o4'), 'SK2: N-Reihenklemme soll vom RCBO-Ausgang LS2.o4 kommen');
+  pruefeErreichbarkeit(ergebnis);
+});
+
+lehntAb('RCBO mit RCD-Nennstrom (sim-8as)', baueAnforderung({
+  gruppen: [{ ...rcboGruppen[0], nennstrom: 40 }], stromkreise: [rcboStromkreise[0]]
+}), 'beim RCBO bleibt RCD Nennstrom (A) leer');
+
+lehntAb('RCBO-Gruppe mit zwei Stromkreisen (sim-8as)', baueAnforderung({
+  gruppen: [rcboGruppen[0]], stromkreise: [rcboStromkreise[0], { name: 'SK2', gruppe: 'G1', phase: 'L2' }]
+}), 'eine Gruppe mit RCBO darf genau einen Stromkreis haben');
+
+lehntAb('RCBO mit ungültigem RCD-Typ (sim-8as)', baueAnforderung({
+  gruppen: [{ ...rcboGruppen[0], typ: 'G' }], stromkreise: [rcboStromkreise[0]]
+}), 'RCD Typ "G" des RCBO ungültig');
+
+lehntAb('RCBO mit AFDD (sim-8as)', baueAnforderung({
+  gruppen: [rcboGruppen[0]], stromkreise: [{ ...rcboStromkreise[0], afdd: 'ja' }]
+}), 'AFDD nur in einer Gruppe mit RCD');
+
+lehntAb('RCBO mit Gruppen-Fehler (sim-8as)', baueAnforderung({
+  gruppen: [{ ...rcboGruppen[0], fehlerL: '0,1' }], stromkreise: [rcboStromkreise[0]]
+}), 'mit RCBO gibt es keinen Gruppen-Fehler');
+
 (async () => {
   const { pruefeVerdrahtung } = require('../../tools/pfad_zur_einspeisung.js');
-  for (const demo of ['testcase_08', 'testcase_10']) {
+  for (const demo of ['testcase_08', 'testcase_10', 'testcase_11']) {
     const name = `Verdrahtung ${path.basename(demo)}: Graph und gerenderter Schaltkasten stimmen für alle Stromkreise überein`;
     try {
       const { abweichungen, geprueft } = await pruefeVerdrahtung(demo);

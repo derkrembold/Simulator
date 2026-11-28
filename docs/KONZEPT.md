@@ -1988,6 +1988,44 @@ haben identische 24px-Schalter-Bauform, zweizeiliges Label "B20"/"AFDD" bzw.
 RLOW über LS3s N-Ader inkl. vertauschter Sondenreihenfolge; FI/RCD und V~
 jeweils geräteübergreifend über Drehstromsteckdose + beide neuen Steckdosen).
 
+### RCBO
+
+**Status: Modell, Schaltkasten und Messungen umgesetzt** (sim-8as.1, `testcase_11`). Fahrplan
+und Prüfprotokoll folgen mit sim-8as.2, die Werkstatt-Demo mit sim-8as.3.
+
+Ein RCBO ist ein LS mit eingebautem RCD in einem Gehäuse. Wie beim AFDD ist er kein eigenes
+Bauteil, sondern ein LS mit dem Feld `ls.rcbo`. Entscheidungen des Menschen (sim-8as):
+
+- 2-polig (L + N, 2 TE) an einem einphasigen Stromkreis, 4-polig (L1/L2/L3 + N, 4 TE) an einem
+  Drehstrom-Stromkreis. Der letzte Pol ist N, der RCBO schaltet N also mit (wie der AFDD).
+- Nur in einer Gruppe ohne RCD; die Gruppe hat genau diesen einen Stromkreis. Vor und hinter
+  einem RCBO sitzt kein weiterer LS oder RCD: jeder Eingang hängt direkt am Hauptschalter-Ausgang
+  bzw. an der N-Klemme, an keinem Ausgang hängt der Eingang eines LS oder RCD.
+  `generate_anlage.js` (`pruefeRcboEinbau()`) bricht sonst mit einem Fehler ab, auch ohne
+  Demo-Werkzeug (Review Codex).
+- RCD-Typen wie beim RCD: AC, A, F, B, B+.
+- Darstellung wie ein RCD (Schalter-Bauform `rcd`, Prüftaste T), Aufschrift zweizeilig:
+  LS-Charakteristik und Nennstrom, darunter RCD-Typ und Fehlerstrom (z.B. "B16" / "A 30mA").
+- Kennzeichen im Prüfprotokoll: F4-n (Umsetzung in sim-8as.2).
+
+**Daten:** In `bauteile.md` trägt die Zeile des LS die Spalte `RCBO` mit dem RCD-Typ,
+Fehlerstrom, `tA`/`IA`/`UB` (bei Typ B/B+ auch `tA DC`/`IA DC`), optional `Prüftaste defekt` und
+`Riso Elektronik (MΩ)` stehen in denselben Spalten wie beim RCD. `generate_anlage.js` legt daraus
+`ls.rcbo` an: `{ typ, in_ma, tA, iA, uB, tA_dc?, iA_dc?, prueftaste_defekt?, riso_elektronik_mohm? }`.
+Der Nennstrom des RCD-Teils ist der des LS. In der Anforderung des Demo-Werkzeugs steht in der
+Gruppen-Tabelle `RCD Pole` = `RCBO`; RCD Typ, Fehlerstrom und die RCD-Testwerte der Gruppenzeile
+gehören dann zum RCBO, `RCD Nennstrom (A)` bleibt leer.
+
+**Messungen:** `alleRcds()` in `controller/app.js` liefert den RCD-Teil jedes RCBO unter dem Namen
+des LS mit, zusammen mit dessen Leitungen. Dadurch gilt ohne weitere Sonderfälle:
+- FI/RCD findet den RCBO als erstes RCD auf dem Pfad, zeigt seine Auslösewerte (bei Typ B/B+ und
+  Einstellung B/B+ die Gleichstromwerte) und öffnet nach TEST seinen Hebel.
+- Die Prüftaste T löst den RCBO unter Spannung aus, wie beim RCD (sim-q3h, sim-iw3).
+- Riso: Ein RCBO Typ B/B+ liefert wie ein RCD Typ B die Elektronik-Leckage (Standard 13 MΩ),
+  bis seine Schrauben gelöst sind.
+
+Getestet in `tests/visuell/test_rcbo.js` und `tests/visuell/test_demo_erstellung.js`.
+
 ### Schrauben lösen
 
 Der Bediener soll Schrauben auch **lösen** können. Wirkung im Graphen:

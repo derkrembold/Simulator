@@ -508,16 +508,19 @@ export const SchaltkastenView = {
         }
         for (const sk of gruppe.stromkreise) {
           const ls = sk.ls;
-          // "LS mit AFDD"-Kombigerät (siehe KONZEPT.md "AFDD"): baulich wie
-          // ein 2-poliger RCD (schalterTyp 'rcd' statt 'einfach'), nur die
-          // Aufschrift unterscheidet sich (zweizeilig: LS-Charakteristik +
-          // Nennstrom, darunter "AFDD").
+          // "LS mit AFDD"-Kombigerät (siehe KONZEPT.md "AFDD") und RCBO
+          // (KONZEPT.md "RCBO"): baulich wie ein RCD (schalterTyp 'rcd' statt
+          // 'einfach'), Aufschrift zweizeilig: LS-Charakteristik + Nennstrom,
+          // darunter "AFDD" bzw. RCD-Typ + Fehlerstrom. Der RCBO hat die
+          // Prüftaste T wie ein RCD.
+          const zweiteZeile = ls.rcbo ? `${ls.rcbo.typ} ${ls.rcbo.in_ma}mA` : ls.afdd ? 'AFDD' : null;
           gx += geraet(g, {
             x: gx, y: rowY, teAnzahl: ls.te, farben: FARBEN.ls,
-            label: ls.afdd ? [`${ls.char}${ls.in}`, 'AFDD'] : `${ls.char}${ls.in}`,
+            label: zweiteZeile ? [`${ls.char}${ls.in}`, zweiteZeile] : `${ls.char}${ls.in}`,
             adernEingang: ls.eingang.leitung.adern,
             adernAusgang: ls.ausgang.leitung.adern,
-            onSchraubeKlick, schalterTyp: ls.afdd ? 'rcd' : 'einfach', bauteilName: ls.name, onSchalterKlick, schalterHandles
+            onSchraubeKlick, schalterTyp: zweiteZeile ? 'rcd' : 'einfach', bauteilName: ls.name, onSchalterKlick, schalterHandles,
+            onPruefTaste: ls.rcbo ? onPruefTaste : undefined
           });
         }
       }

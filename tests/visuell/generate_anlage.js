@@ -18,7 +18,7 @@ function rcdGleichstromStandard(fehlerstromMa) {
 }
 
 const TE_TABELLE = {
-  'LS-1': 1, 'LS-2': 2, 'LS-3': 3,
+  'LS-1': 1, 'LS-2': 2, 'LS-3': 3, 'LS-4': 4,
   'RCD-2': 2, 'RCD-4': 4,
   'Hauptschalter-2': 2, 'Hauptschalter-3': 3
 };
@@ -432,6 +432,10 @@ function parseBauteile(ordner) {
           // bauteile.md-Datei (ältere Testcases), ist `z.AFDD` einfach
           // undefined und `bereinige()` liefert null, also `false`.
           afdd: bereinige(z.AFDD) === 'ja',
+          // RCBO (LS mit eingebautem RCD, sim-8as): die Spalte trägt den
+          // RCD-Typ (AC, A, F, B, B+), Fehlerstrom und Auslösewerte stehen in
+          // denselben Spalten wie beim RCD. Optionale Spalte, leer = kein RCBO.
+          rcbo: bereinige(z.RCBO),
           // Riso-Widerstand der Elektronik eines RCD Typ B/B+ oder AFDD in MΩ
           // (sim-qha). Optionale Spalte; ohne Wert gilt der Standard der App.
           risoElektronik: bereinige(z['Riso Elektronik (MΩ)']) ? parseFloat(String(z['Riso Elektronik (MΩ)']).replace(',', '.')) : null
@@ -460,6 +464,75 @@ function parseBauteile(ordner) {
 }
 
 // --- Generator ---
+
+// Riso-Elektronik und Auslösewerte eines RCD-Geräts (siehe KONZEPT.md
+// "Berechnung der Messwerte" - FI/RCD): Abschaltzeit, Auslösestrom,
+// Berührungsspannung. Werden von TEST übernommen, sobald ein RCD auf dem
+// Pfad zur Einspeisung gefunden wird - reine Bauteil-Eigenschaft, kein
+// Pfad-Widerstand wie bei RLOW/ZI/ZS. `typ` ist der RCD-Typ (beim RCBO aus
+// der Spalte RCBO, sonst aus Typ/Charakteristik).
+function rcdMesswerte(bauteil, typ = bauteil.typ) {
+  return {
+    ...(bauteil.risoElektronik !== null ? { riso_elektronik_mohm: bauteil.risoElektronik } : {}),
+    tA: bauteil.tA,
+    iA: bauteil.iA,
+    uB: bauteil.uB,
+    ...(bauteil.pruefTasteDefekt ? { prueftaste_defekt: true } : {}),
+    ...(RCD_GLEICHSTROM_TYPEN.includes(typ) ? {
+      tA_dc: bauteil.tADc ?? rcdGleichstromStandard(bauteil.fehlerstrom).tA,
+      iA_dc: bauteil.iADc ?? rcdGleichstromStandard(bauteil.fehlerstrom).iA
+    } : {})
+  };
+}
+
+// Ein RCBO hat LS und RCD schon eingebaut, vor und hinter ihm sitzt kein
+// weiteres Schutzorgan (Entscheidung Mensch, sim-8as): seine Gruppe enthält
+// nur ihn, jeder Eingang hängt direkt am Ausgang des Hauptschalters bzw.
+// beim N an der N-Klemme, und hinter keinem Ausgang folgt - auch über
+// Klemmen hinweg - der Eingang eines weiteren LS oder RCD.
+function pruefeRcboEinbau(netze, ls, lsListe, hauptschalterName) {
+  if (lsListe.length > 1) {
+    throw new Error(`${ls.name}: ein RCBO steht allein in seiner Gruppe (${ls.gruppe} hat ${lsListe.map((b) => b.name).join(', ')})`);
+  }
+  const direkt = (pin) => pin.startsWith(`${hauptschalterName}.o`) || pin === 'N-Klemme.o1';
+  for (let i = 1; i <= ls.pole; i++) {
+    const pin = `${ls.name}.i${i}`;
+    const netzeAmPin = Object.entries(netze).filter(([, netz]) => netz.pins.some((p) => p.pin === pin));
+    if (netzeAmPin.length === 0 || !netzeAmPin.every(([, netz]) => netz.pins.some((p) => direkt(p.pin)))) {
+      throw new Error(`${ls.name}: Eingang ${pin} hängt nicht direkt am Hauptschalter bzw. an der N-Klemme (${netzeAmPin.map(([id]) => id).join(', ') || 'unverbunden'})`);
+    }
+    const schutzorgan = schutzorganHinter(netze, `${ls.name}.o${i}`);
+    if (schutzorgan) {
+      throw new Error(`${ls.name}: hinter dem Ausgang ${ls.name}.o${i} folgt ${schutzorgan}, hinter einem RCBO sitzt kein weiterer LS oder RCD`);
+    }
+  }
+}
+
+// Verfolgt die Netze ab einem Ausgangspin stromabwärts: durch jedes Bauteil,
+// das kein LS/RCD ist (Reihenklemmen, Dosen), vom Eingang `X.iN` zum Ausgang
+// `X.oN`. Liefert den ersten gefundenen Eingang eines LS oder RCD, sonst null.
+function schutzorganHinter(netze, startPin) {
+  const istSchutzorganEingang = (pin) => /^(LS|RCD)\d+\.i\d+$/.test(pin);
+  const netzeAm = (pin) => Object.values(netze).filter((n) => n.pins.some((p) => p.pin === pin));
+  const besucht = new Set();
+  const offen = netzeAm(startPin);
+  while (offen.length > 0) {
+    const netz = offen.pop();
+    if (besucht.has(netz)) continue;
+    besucht.add(netz);
+    for (const { pin } of netz.pins) {
+      if (istSchutzorganEingang(pin)) return pin;
+      const weiter = pin.match(/^(.+)\.i(\d+)$/);
+      if (weiter && !/^(LS|RCD)\d+$/.test(weiter[1])) offen.push(...netzeAm(`${weiter[1]}.o${weiter[2]}`));
+    }
+  }
+  return null;
+}
+
+// RCD-Teil eines RCBO (sim-8as) in anlage.json: `ls.rcbo`.
+function rcdTeil(ls, typ) {
+  return { typ, in_ma: ls.fehlerstrom, ...rcdMesswerte(ls, typ) };
+}
 
 function generiereAnlage(ordner) {
   const { netze, bauteilTabelle } = parseNetzplan(ordner);
@@ -570,22 +643,24 @@ function generiereAnlage(ordner) {
       // Stromkreis nur die EINE L-Phase, der zweite Pol ist der N-Durchgang
       // (analog zum eigenen N-Pol eines RCD, der auch nicht in `phasen`
       // auftaucht, siehe `rcdFunktionen` unten).
+      // Ein RCBO (sim-8as) schaltet wie das AFDD-Kombigerät N mit: 2-polig
+      // (L + N) oder 4-polig (L1/L2/L3 + N), der letzte Pol ist N.
+      if (ls.afdd && ls.rcbo) throw new Error(`${ls.name}: LS mit AFDD und RCBO zugleich gibt es nicht`);
+      if (ls.rcbo && rcd) throw new Error(`${ls.name}: ein RCBO sitzt nur in einer Gruppe ohne RCD (Gruppe ${gruppeId} hat ${rcd.name})`);
+      if (ls.rcbo && ![2, 4].includes(ls.pole)) throw new Error(`${ls.name}: ein RCBO ist 2- oder 4-polig, nicht ${ls.pole}-polig`);
+      if (ls.rcbo) pruefeRcboEinbau(netze, ls, lsListe, hauptschalter.name);
+      const schaltetN = ls.afdd || Boolean(ls.rcbo);
       const phasen = [];
-      if (ls.afdd) {
-        const pin = `${ls.name}.i1`;
+      const phasenPole = schaltetN ? (ls.pole ?? 2) - 1 : (ls.pole ?? 1);
+      for (let i = 1; i <= phasenPole; i++) {
+        const pin = `${ls.name}.i${i}`;
         const funktion = findeNetz(netze, pin)?.pins.find((p) => p.pin === pin)?.funktion;
         phasen.push(funktion ?? 'L1');
-      } else {
-        for (let i = 1; i <= (ls.pole ?? 1); i++) {
-          const pin = `${ls.name}.i${i}`;
-          const funktion = findeNetz(netze, pin)?.pins.find((p) => p.pin === pin)?.funktion;
-          phasen.push(funktion ?? 'L1');
-        }
       }
       // Adern-Funktionen für die LS-eigene Leitung (eingang/ausgang) - beim
-      // AFDD-Kombigerät zusätzlich der N-Pol, der bei `phasen` (s.o.) bewusst
-      // NICHT mitgezählt wird.
-      const lsFunktionen = ls.afdd ? [...phasen, 'N'] : phasen;
+      // AFDD-Kombigerät und beim RCBO zusätzlich der N-Pol, der bei `phasen`
+      // (s.o.) bewusst NICHT mitgezählt wird.
+      const lsFunktionen = schaltetN ? [...phasen, 'N'] : phasen;
 
       // Über die Endstelle-Pins gesucht (nicht über die Reihenklemme selbst) - robust
       // gegenüber PE-Klemmen, die eingehende+weiterführende Ader auf demselben `io1`
@@ -653,7 +728,10 @@ function generiereAnlage(ordner) {
           // RCD-Bauform mit zweizeiliger Aufschrift) - elektrisch verhält
           // sich das Gerät wie ein normaler 2-poliger LS (L+N geschaltet).
           afdd: ls.afdd,
-          ...(ls.risoElektronik !== null ? { riso_elektronik_mohm: ls.risoElektronik } : {}),
+          ...(ls.risoElektronik !== null && !ls.rcbo ? { riso_elektronik_mohm: ls.risoElektronik } : {}),
+          // RCBO (sim-8as): RCD-Teil mit denselben Feldern wie ein Gruppen-RCD,
+          // der Nennstrom ist der des LS. Nur vorhanden, wenn der LS ein RCBO ist.
+          ...(ls.rcbo ? { rcbo: rcdTeil(ls, ls.rcbo) } : {}),
           eingang: baueLeitung(netze, ls.name, 'i', lsFunktionen),
           ausgang: baueLeitung(netze, ls.name, 'o', lsFunktionen)
         },
@@ -708,20 +786,7 @@ function generiereAnlage(ordner) {
         selektiv: rcd.selektiv,
         abklemmen_bei_iso: rcd.abklemmen,
         max_ls_anzahl: rcd.anzahlLs,
-        ...(rcd.risoElektronik !== null ? { riso_elektronik_mohm: rcd.risoElektronik } : {}),
-        // Auslösewerte des RCD-Geräts selbst (siehe KONZEPT.md "Berechnung
-        // der Messwerte" - FI/RCD): Abschaltzeit, Auslösestrom,
-        // Berührungsspannung. Werden von TEST übernommen, sobald ein RCD auf
-        // dem Pfad zur Einspeisung gefunden wird - reine Bauteil-Eigenschaft,
-        // kein Pfad-Widerstand wie bei RLOW/ZI/ZS.
-        tA: rcd.tA,
-        iA: rcd.iA,
-        uB: rcd.uB,
-        ...(rcd.pruefTasteDefekt ? { prueftaste_defekt: true } : {}),
-        ...(RCD_GLEICHSTROM_TYPEN.includes(rcd.typ) ? {
-          tA_dc: rcd.tADc ?? rcdGleichstromStandard(rcd.fehlerstrom).tA,
-          iA_dc: rcd.iADc ?? rcdGleichstromStandard(rcd.fehlerstrom).iA
-        } : {}),
+        ...rcdMesswerte(rcd),
         eingang: baueLeitung(netze, rcd.name, 'i', rcdFunktionen),
         ausgang: baueLeitung(netze, rcd.name, 'o', rcdFunktionen)
       } : null,

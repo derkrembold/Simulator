@@ -13,7 +13,7 @@ Ausgefüllt ist ein Beispiel. Die von Hand gebaute Anlage dazu liegt in
 | Feld                 | Werte                                                                   |
 | -------------------- | ----------------------------------------------------------------------- |
 | Hauptschalter Pole   | 2, 3                                                                    |
-| RCD Pole             | 2, 4, ohne                                                              |
+| RCD Pole             | 2, 4, ohne, RCBO                                                        |
 | RCD Typ              | AC, A, F, B, B+                                                         |
 | RCD Fehlerstrom (mA) | 10, 30, 100, 300, 500                                                   |
 | RCD Nennstrom (A)    | 16, 25, 40, 63, 80, 100, 125                                            |
@@ -50,6 +50,13 @@ in einer Gruppe mit RCD.
 
 Eine Gruppe ist ein RCD mit den dahinter liegenden LS. `ohne` bei RCD Pole = LS direkt am
 Hauptschalter.
+
+`RCBO` bei RCD Pole (sim-8as): Die Gruppe hat genau einen Stromkreis, sein LS ist ein RCBO (LS mit
+eingebautem RCD), direkt am Hauptschalter. 1-poliger LS ergibt einen 2-poligen RCBO (2 TE), 3-poliger
+LS einen 4-poligen (4 TE); der RCBO schaltet N mit. RCD Typ, Fehlerstrom und die optionalen
+RCD-Spalten unten (Testwerte, Prüftaste defekt, Riso Elektronik) gehören zum RCBO. RCD Nennstrom,
+Selektiv, Abklemmen, Fehler L und Fehler N bleiben leer (Nennstrom = der des LS, Fehler am
+Stromkreis angeben).
 
 Optional die Messwerte des RCD-Tests als weitere Spalten: `Imess AC (mA)` und `tA AC (ms)` für
 die Prüfung mit Wechselstrom (jeder RCD, leer = 60 % von IΔN und 22 ms), `Imess DC (mA)` und

@@ -137,11 +137,16 @@ function parseAnforderung(text) {
   const gruppen = leseTabelle(finde('Gruppen') ?? '').filter((z) => z.Gruppe).map((z) => ({
     id: z.Gruppe,
     ohneRcd: /^ohne$/i.test(z['RCD Pole']),
-    rcdPole: /^ohne$/i.test(z['RCD Pole']) ? null : zahl(z['RCD Pole']),
+    // RCD Pole = RCBO (sim-8as): kein Gruppen-RCD, der eine Stromkreis der
+    // Gruppe bekommt einen RCBO mit RCD Typ, Fehlerstrom und RCD-Testwerten
+    // dieser Zeile.
+    rcbo: /^rcbo$/i.test(z['RCD Pole']),
+    rcdPole: /^(ohne|rcbo)$/i.test(z['RCD Pole']) ? null : zahl(z['RCD Pole']),
     rcdPoleRoh: z['RCD Pole'],
     typ: z['RCD Typ'],
     fehlerstrom: zahl(z['Fehlerstrom (mA)']),
     nennstrom: zahl(z['RCD Nennstrom (A)']),
+    nennstromRoh: (z['RCD Nennstrom (A)'] ?? '').trim(),
     selektiv: z.Selektiv,
     abklemmen: z.Abklemmen,
     // Optionale Spalte (sim-kfb): eigene PE-Klemme auf der Hutschiene dieser
@@ -199,6 +204,9 @@ function parseAnforderung(text) {
     };
   });
 
+  // Ein Stromkreis in einer RCBO-Gruppe hat einen RCBO statt eines LS.
+  for (const s of stromkreise) s.rcbo = Boolean(gruppen.find((g) => g.id === s.gruppe)?.rcbo);
+
   return {
     name: kopfdaten.Name,
     beschreibung: kopfdaten.Beschreibung,
@@ -250,7 +258,7 @@ function pruefeAnforderung(anf) {
     muss(['', 'ja', 'nein'].includes(g.peKlemmeRoh), `Gruppe ${g.id}: PE-Klemme "${g.peKlemmeRoh}" ungültig (ja/nein, leer = nein)`);
     if (g.risoElektronikRoh !== '') {
       muss(zahl(g.risoElektronikRoh) > 0, `Gruppe ${g.id}: Riso Elektronik (MΩ) "${g.risoElektronikRoh}" ungültig (eine Zahl größer 0, leer = Standard)`);
-      muss(['B', 'B+'].includes(g.typ), `Gruppe ${g.id}: Riso Elektronik gibt es nur bei einem RCD Typ B oder B+`);
+      muss(['B', 'B+'].includes(g.typ), `Gruppe ${g.id}: Riso Elektronik gibt es nur bei einem RCD oder RCBO Typ B oder B+`);
     }
     for (const [roh, name] of [[g.imessAcRoh, 'Imess AC (mA)'], [g.tAcRoh, 'tA AC (ms)'], [g.imessDcRoh, 'Imess DC (mA)'], [g.tDcRoh, 'tA DC (ms)']]) {
       if (roh === '') continue;
@@ -261,13 +269,20 @@ function pruefeAnforderung(anf) {
     muss(['', 'ja', 'nein'].includes(g.pruefTasteDefektRoh), `Gruppe ${g.id}: Prüftaste defekt "${g.pruefTasteDefektRoh}" ungültig (ja/nein, leer = nein)`);
     muss(!(g.ohneRcd && g.pruefTasteDefektRoh === 'ja'), `Gruppe ${g.id}: Prüftaste defekt gibt es nur bei einem RCD`);
     gruppenIds.add(g.id);
-    if (g.ohneRcd) {
-      muss(g.fehlerL.roh === '' && g.fehlerN.roh === '', `Gruppe ${g.id}: ohne RCD gibt es keinen Gruppen-Fehler, den Fehler am Stromkreis angeben`);
+    if (g.ohneRcd || g.rcbo) {
+      muss(g.fehlerL.roh === '' && g.fehlerN.roh === '', `Gruppe ${g.id}: ${g.rcbo ? 'mit RCBO' : 'ohne RCD'} gibt es keinen Gruppen-Fehler, den Fehler am Stromkreis angeben`);
+    }
+    if (g.rcbo) {
+      // Der RCBO bringt Typ und Fehlerstrom mit, der Nennstrom ist der des LS.
+      muss(aus(g.typ, ERLAUBT.rcdTyp), `Gruppe ${g.id}: RCD Typ "${g.typ}" des RCBO ungültig (erlaubt: ${liste(ERLAUBT.rcdTyp)})`);
+      muss(aus(g.fehlerstrom, ERLAUBT.fehlerstrom), `Gruppe ${g.id}: Fehlerstrom "${g.fehlerstrom}" des RCBO ungültig (erlaubt: ${liste(ERLAUBT.fehlerstrom)})`);
+      muss(g.nennstromRoh === '', `Gruppe ${g.id}: beim RCBO bleibt RCD Nennstrom (A) leer, es gilt der Nennstrom des LS`);
       continue;
     }
+    if (g.ohneRcd) continue;
     pruefeFehler(g.fehlerL, g.rcdPole === 4 ? 3 : 1, `Gruppe ${g.id}: Fehler L (Ω)`, muss);
     pruefeFehler(g.fehlerN, 1, `Gruppe ${g.id}: Fehler N (Ω)`, muss);
-    muss(aus(g.rcdPole, ERLAUBT.rcdPole), `Gruppe ${g.id}: RCD Pole "${g.rcdPoleRoh}" ungültig (erlaubt: ${liste(ERLAUBT.rcdPole)} oder ohne)`);
+    muss(aus(g.rcdPole, ERLAUBT.rcdPole), `Gruppe ${g.id}: RCD Pole "${g.rcdPoleRoh}" ungültig (erlaubt: ${liste(ERLAUBT.rcdPole)}, ohne oder RCBO)`);
     muss(aus(g.typ, ERLAUBT.rcdTyp), `Gruppe ${g.id}: RCD Typ "${g.typ}" ungültig (erlaubt: ${liste(ERLAUBT.rcdTyp)})`);
     muss(aus(g.fehlerstrom, ERLAUBT.fehlerstrom), `Gruppe ${g.id}: Fehlerstrom "${g.fehlerstrom}" ungültig (erlaubt: ${liste(ERLAUBT.fehlerstrom)})`);
     muss(aus(g.nennstrom, ERLAUBT.rcdNennstrom), `Gruppe ${g.id}: RCD Nennstrom "${g.nennstrom}" ungültig (erlaubt: ${liste(ERLAUBT.rcdNennstrom)})`);
@@ -299,7 +314,7 @@ function pruefeAnforderung(anf) {
       // LS mit AFDD ist ein Kombigerät, das L und N schaltet (docs/KONZEPT.md "AFDD").
       muss(s.lsPole === 1, `Stromkreis ${n}: AFDD gibt es nur bei einem 1-poligen LS (LS mit AFDD schaltet L und N)`);
       const gruppe = anf.gruppen.find((g) => g.id === s.gruppe);
-      muss(!gruppe?.ohneRcd, `Stromkreis ${n}: AFDD nur in einer Gruppe mit RCD`);
+      muss(!gruppe?.ohneRcd && !gruppe?.rcbo, `Stromkreis ${n}: AFDD nur in einer Gruppe mit RCD`);
     }
     muss(!s.alteMessSpalten, `Stromkreis ${n}: die Spalten "Zi" und "Zs" entfallen, Zi/Zs folgen aus der Anlage (mit RCD Zi, ohne RCD Zi und Zs; siehe demos/anforderung_vorlage.md)`);
     muss(!s.altesFehlerFeld, `Stromkreis ${n}: die Spalte "Fehler Zuleitung (Ω)" heißt jetzt "Fehler L (Ω)", dazu gibt es "Fehler N (Ω)" (siehe demos/anforderung_vorlage.md)`);
@@ -324,8 +339,8 @@ function pruefeAnforderung(anf) {
   for (const g of anf.gruppen) {
     const sks = anf.stromkreise.filter((s) => s.gruppe === g.id);
     muss(sks.length > 0, `Gruppe ${g.id}: kein Stromkreis zugeordnet`);
-    if (g.ohneRcd) {
-      muss(sks.length === 1, `Gruppe ${g.id}: eine Gruppe ohne RCD darf genau einen Stromkreis haben (hat ${sks.length})`);
+    if (g.ohneRcd || g.rcbo) {
+      muss(sks.length === 1, `Gruppe ${g.id}: eine Gruppe ${g.rcbo ? 'mit RCBO' : 'ohne RCD'} darf genau einen Stromkreis haben (hat ${sks.length})`);
       continue;
     }
     if (g.rcdPole === 2) {
@@ -371,9 +386,10 @@ function teDerGruppe(gruppe, stromkreise) {
   return (gruppe.rcdPole ?? 0) + sks.reduce((summe, s) => summe + lsGeraetePole(s), 0);
 }
 
-// Pole des LS-Geräts: ein LS mit AFDD ist ein 2-poliges Kombigerät (L + N).
+// Pole des LS-Geräts: ein LS mit AFDD ist ein 2-poliges Kombigerät (L + N),
+// ein RCBO schaltet N ebenfalls mit (2-polig oder 4-polig, sim-8as).
 function lsGeraetePole(s) {
-  return s.afdd ? 2 : s.lsPole;
+  return s.afdd || s.rcbo ? s.lsPole + 1 : s.lsPole;
 }
 
 // --- Modell aufbauen (Netze, Pins, Bauteile) ---
@@ -547,6 +563,8 @@ function baueModell(anf) {
       } else {
         const s = gruppenSks[0];
         s.phasen.forEach((p, j) => anPin(hsAus[p], tab, `LS${s.nr}.i${j + 1}`));
+        // Ein RCBO schaltet N mit: ungeschaltetes N an seinen letzten Pol.
+        if (s.rcbo) anPin(nUngeschaltet, tab, `LS${s.nr}.i${s.phasen.length + 1}`);
         gruppeN = nUngeschaltet;
       }
 
@@ -556,10 +574,10 @@ function baueModell(anf) {
           anPin(aus, tab, `LS${s.nr}.o${j + 1}`);
           return aus;
         });
-        if (s.afdd) {
-          // Geschaltetes N vom AFDD-Ausgang zur N-Reihenklemme.
+        if (s.afdd || s.rcbo) {
+          // Geschaltetes N vom Ausgang des AFDD bzw. RCBO zur N-Reihenklemme.
           s.gruppeN = neuesNetz(tab, 'N', s.q);
-          anPin(s.gruppeN, tab, `LS${s.nr}.o2`);
+          anPin(s.gruppeN, tab, `LS${s.nr}.o${s.phasen.length + 1}`);
         } else {
           s.gruppeN = gruppeN;
         }
@@ -635,6 +653,7 @@ function schreibeNetzplan(anf, modell, demoName) {
   for (const s of schienen) {
     const beschr = s.gruppen.map((g) => {
       const info = gruppenInfo.find((i) => i.gruppe === g);
+      if (g.rcbo) return `Gruppe ${g.id} (RCBO LS${info.sks[0].nr}, ${lsGeraetePole(info.sks[0])}-polig)`;
       return `Gruppe ${g.id} (${info.rcdName ? `${info.rcdName}, ${g.rcdPole}-polig, + ` : 'ohne RCD, '}${info.sks.map((k) => `LS${k.nr}${k.afdd ? ' mit AFDD' : ''}`).join('/')})`;
     }).join(' und ');
     zeilen.push(`- **${s.id}** = ${beschr}`);
@@ -697,10 +716,10 @@ function schreibeBauteile(anf, modell) {
   // Ebenso die Spalte Riso Elektronik nur, wenn ein Wert gesetzt ist (sim-qha).
   const mitRisoElektronik = anf.gruppen.some((g) => g.risoElektronikRoh) || sks.some((s) => s.risoElektronikRoh);
   const mitPruefTasteDefekt = anf.gruppen.some((g) => g.pruefTasteDefektRoh === 'ja');
-  const mitGleichstrom = gruppenInfo.some((i) => i.rcdName && generator.RCD_GLEICHSTROM_TYPEN.includes(i.gruppe.typ));
+  const mitGleichstrom = gruppenInfo.some((i) => (i.rcdName || i.gruppe.rcbo) && generator.RCD_GLEICHSTROM_TYPEN.includes(i.gruppe.typ));
   const SPALTEN = ['Bauteil', 'Gruppe', 'Typ/Charakteristik', 'Fehlerstrom', 'Nennstrom', 'Max. Querschnitt', 'Pole', 'Selektiv', 'Abklemmen', 'Anzahl LS', 'tA', 'IA', 'UB',
     ...(mitGleichstrom ? ['tA DC', 'IA DC'] : []), ...(mitPruefTasteDefekt ? ['Prüftaste defekt'] : []),
-    ...(sks.some((s) => s.afdd) ? ['AFDD'] : []), ...(mitRisoElektronik ? ['Riso Elektronik (MΩ)'] : [])];
+    ...(sks.some((s) => s.afdd) ? ['AFDD'] : []), ...(sks.some((s) => s.rcbo) ? ['RCBO'] : []), ...(mitRisoElektronik ? ['Riso Elektronik (MΩ)'] : [])];
   const zeile = (werte) => `| ${SPALTEN.map((s) => werte[s] ?? '–').join(' | ')} |`;
 
   const zeilen = [];
@@ -717,24 +736,33 @@ function schreibeBauteile(anf, modell) {
     zeilen.push(zeile({ Bauteil: schiene.peKlemme, Nennstrom: 63, 'Max. Querschnitt': 16 }));
   }
 
+  // Fehlerstrom, RCD-Testwerte, Riso Elektronik und Prüftaste einer Gruppe:
+  // beim RCD in seiner Zeile, beim RCBO in der Zeile des LS (sim-8as).
+  const rcdSpalten = (g) => ({
+    Fehlerstrom: g.fehlerstrom, UB: 1,
+    tA: wertOderStandard(g.tAcRoh, 22), IA: wertOderStandard(g.imessAcRoh, Math.round(g.fehlerstrom * 0.6)),
+    ...(generator.RCD_GLEICHSTROM_TYPEN.includes(g.typ) ? {
+      'tA DC': wertOderStandard(g.tDcRoh, generator.rcdGleichstromStandard(g.fehlerstrom).tA),
+      'IA DC': wertOderStandard(g.imessDcRoh, generator.rcdGleichstromStandard(g.fehlerstrom).iA)
+    } : {}),
+    ...(g.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': g.risoElektronikRoh } : {}),
+    ...(mitPruefTasteDefekt ? { 'Prüftaste defekt': g.pruefTasteDefektRoh === 'ja' ? 'ja' : 'nein' } : {})
+  });
   for (const info of gruppenInfo) {
     const g = info.gruppe;
     if (info.rcdName) {
       zeilen.push(zeile({
-        Bauteil: info.rcdName, Gruppe: g.id, 'Typ/Charakteristik': g.typ, Fehlerstrom: g.fehlerstrom,
+        Bauteil: info.rcdName, Gruppe: g.id, 'Typ/Charakteristik': g.typ,
         Nennstrom: g.nennstrom, 'Max. Querschnitt': 16, Pole: g.rcdPole, Selektiv: g.selektiv, Abklemmen: g.abklemmen,
-        'Anzahl LS': info.sks.length, UB: 1,
-        tA: wertOderStandard(g.tAcRoh, 22), IA: wertOderStandard(g.imessAcRoh, Math.round(g.fehlerstrom * 0.6)),
-        ...(generator.RCD_GLEICHSTROM_TYPEN.includes(g.typ) ? {
-          'tA DC': wertOderStandard(g.tDcRoh, generator.rcdGleichstromStandard(g.fehlerstrom).tA),
-          'IA DC': wertOderStandard(g.imessDcRoh, generator.rcdGleichstromStandard(g.fehlerstrom).iA)
-        } : {}),
-        ...(g.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': g.risoElektronikRoh } : {}),
-        ...(mitPruefTasteDefekt ? { 'Prüftaste defekt': g.pruefTasteDefektRoh === 'ja' ? 'ja' : 'nein' } : {})
+        'Anzahl LS': info.sks.length, ...rcdSpalten(g)
       }));
     }
     for (const s of info.sks) {
-      zeilen.push(zeile({ Bauteil: `LS${s.nr}`, Gruppe: g.id, 'Typ/Charakteristik': s.lsChar, Nennstrom: s.lsA, 'Max. Querschnitt': 16, Pole: lsGeraetePole(s), ...(s.afdd ? { AFDD: 'ja' } : {}), ...(s.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': s.risoElektronikRoh } : {}) }));
+      zeilen.push(zeile({
+        Bauteil: `LS${s.nr}`, Gruppe: g.id, 'Typ/Charakteristik': s.lsChar, Nennstrom: s.lsA, 'Max. Querschnitt': 16, Pole: lsGeraetePole(s),
+        ...(s.afdd ? { AFDD: 'ja' } : {}), ...(s.risoElektronikRoh ? { 'Riso Elektronik (MΩ)': s.risoElektronikRoh } : {}),
+        ...(s.rcbo ? { RCBO: g.typ, ...rcdSpalten(g) } : {})
+      }));
     }
   }
   for (const s of sks) {

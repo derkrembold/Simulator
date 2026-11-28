@@ -577,4 +577,64 @@ pruefe('Steckdosen-Platzierung: testcase_04 (2x2, SK1 zweimal - einmal um 180° 
   ], 'testcase_04 Steckdosen-Platzierung');
 });
 
+// sim-8as (Review Codex): Vor und hinter einem RCBO sitzt kein weiteres
+// Schutzorgan. Der Generator prüft das auch ohne das Demo-Werkzeug, an Kopien
+// von testcase_11 (LS2 = 4-poliger RCBO, RCD1 + LS3 auf L2).
+function testcase11Kopie(aendern) {
+  const ordner = tempOrdner();
+  for (const datei of ['netzplan.md', 'bauteile.md']) {
+    const text = fs.readFileSync(path.join(__dirname, 'testcase_11', datei), 'utf8');
+    fs.writeFileSync(path.join(ordner, datei), aendern[datei] ? aendern[datei](text) : text);
+  }
+  return ordner;
+}
+
+function erwarteFehler(ordner, teil) {
+  let meldung = null;
+  try { generiereAnlage(ordner); } catch (err) { meldung = err.message; }
+  if (!meldung || !meldung.includes(teil)) throw new Error(`erwarte Fehler mit "${teil}", bekommen: ${meldung}`);
+}
+
+pruefe('RCBO-Eingang hinter einem RCD einer anderen Gruppe (LS2.i2 am Ausgang von RCD1) -> muss Fehler werfen', () => {
+  // LS2.i2 und LS3.i1 tauschen ihre Netze: LS2.i2 hängt dann am L2-Ausgang von RCD1.
+  const ordner = testcase11Kopie({
+    'netzplan.md': (t) => t.replace('| LS2.i2 |', '| PLATZHALTER |').replace('| LS3.i1 |', '| LS2.i2 |').replace('| PLATZHALTER |', '| LS3.i1 |')
+  });
+  erwarteFehler(ordner, 'LS2: Eingang LS2.i2 hängt nicht direkt am Hauptschalter');
+});
+
+pruefe('Zwei RCBO in einer Gruppe (LS2 nach G1 verschoben) -> muss Fehler werfen', () => {
+  const ordner = testcase11Kopie({ 'bauteile.md': (t) => t.replace('| LS2 | G2 |', '| LS2 | G1 |') });
+  erwarteFehler(ordner, 'ein RCBO steht allein in seiner Gruppe');
+});
+
+pruefe('RCBO in einer Gruppe mit RCD (LS2 nach G3 verschoben) -> muss Fehler werfen', () => {
+  const ordner = testcase11Kopie({ 'bauteile.md': (t) => t.replace('| LS2 | G2 |', '| LS2 | G3 |') });
+  erwarteFehler(ordner, 'ein RCBO sitzt nur in einer Gruppe ohne RCD');
+});
+
+pruefe('LS hinter einem RCBO (LS3.i1 am Ausgang LS2.o2, Review Codex) -> muss Fehler werfen', () => {
+  const ordner = testcase11Kopie({
+    // LS3.i1 bekommt dieselbe Zeile wie LS2.o2 (dasselbe Netz N18, beide in Tabelle H2).
+    'netzplan.md': (t) => t.replace(/^\| LS3\.i1 \|.*$/m, () => t.match(/^\| LS2\.o2 \|.*$/m)[0].replace('| LS2.o2 |', '| LS3.i1 |'))
+  });
+  erwarteFehler(ordner, 'LS2: hinter dem Ausgang LS2.o2 folgt LS3.i1, hinter einem RCBO sitzt kein weiterer LS oder RCD');
+});
+
+pruefe('LS hinter RCBO und Reihenklemme (LS3.i1 am Ausgang Reihenklemme_L2_SK2.o1, Drittreview Codex) -> muss Fehler werfen', () => {
+  // LS3.i1 aus Tabelle H2 entfernen und in Tabelle H3 auf das Netz von Reihenklemme_L2_SK2.o1 legen.
+  const ordner = testcase11Kopie({
+    'netzplan.md': (t) => {
+      const ohne = t.replace(/^\| LS3\.i1 \|.*\n/m, '');
+      const rk = ohne.match(/^\| Reihenklemme_L2_SK2\.o1 \|.*$/m)[0];
+      return ohne.replace(rk, `${rk}\n${rk.replace('| Reihenklemme_L2_SK2.o1 |', '| LS3.i1 |')}`);
+    }
+  });
+  erwarteFehler(ordner, 'LS2: hinter dem Ausgang LS2.o2 folgt LS3.i1');
+});
+
+pruefe('testcase_11 unverändert wird ohne Fehler erzeugt', () => {
+  generiereAnlage(testcase11Kopie({}));
+});
+
 process.exit(alleBestanden ? 0 : 1);

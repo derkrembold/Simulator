@@ -9,6 +9,13 @@ const KLEMME_BREITE = 24;
 const REIHENABSTAND = 250;
 const HUTSCHIENE_HOEHE = 70;
 const HUTSCHIENE_LAENGE = 600;
+const HUTSCHIENE_FLANSCH_HOEHE = 10;
+const HUTSCHIENE_KANTE_HOEHE = 3;
+const HUTSCHIENE_LOCH_BREITE = 22;
+const HUTSCHIENE_LOCH_HOEHE = 8;
+const HUTSCHIENE_LOCH_ABSTAND = 36;
+const HUTSCHIENE_LOCH_START_X = 14;
+const HUTSCHIENE_MESSPUNKT_FREIRAUM = 24;
 const KASTEN_PADDING = 20;
 
 // Schalter-Symbol (LS/RCD/Leistungsschalter, siehe KONZEPT.md "Schalter") -
@@ -51,7 +58,17 @@ const FARBEN = {
   l_klemme: { gehaeuse: '#aaaaaa', header: '#666666' },
   n_klemme: { gehaeuse: '#4466cc', header: '#224499' },
   pe_klemme: { gehaeuse: '#44aa44', header: '#227722' },
-  hutschiene: '#a0a0a0'
+  hutschiene: {
+    kanal: '#b8bcc1',
+    flanschOben: '#d2d6da',
+    flanschUnten: '#c9cdd2',
+    glanz: '#e4e7ea',
+    schatten: '#979ba1',
+    aufhellung: '#c8ccd1',
+    kontur: '#6f7378',
+    loch: '#d6d8db',
+    lochKontur: '#82868c'
+  }
 };
 
 function svgEl(tag, attrs = {}) {
@@ -65,13 +82,80 @@ function reihenMitteY(i) {
   return 90 + i * REIHENABSTAND;
 }
 
+// Schlichte DIN-Hutschiene (Profil TH 35): erhabene Profilflansche oben/unten,
+// leicht zurückgesetzter Mittelkanal und gestanzte Langlöcher. Rechts bleibt
+// genügend blanke Fläche für den Hutschienen-Messpunkt (x = HUTSCHIENE_LAENGE - 12).
 function zeichneHutschiene(svg, reihenIndex) {
   const mitteY = reihenMitteY(reihenIndex);
-  svg.appendChild(svgEl('rect', {
-    x: 0, y: mitteY - HUTSCHIENE_HOEHE / 2,
+  const y0 = mitteY - HUTSCHIENE_HOEHE / 2;
+  const f = FARBEN.hutschiene;
+  const g = svgEl('g', {});
+
+  // Grundkörper (zurückgesetzter Mittelkanal + Außenkontur)
+  g.appendChild(svgEl('rect', {
+    x: 0, y: y0,
     width: HUTSCHIENE_LAENGE, height: HUTSCHIENE_HOEHE,
-    fill: FARBEN.hutschiene
+    fill: f.kanal, stroke: f.kontur, 'stroke-width': 1
   }));
+
+  // Oberer Flansch mit leichter Glanzkante und Schattenband in den Mittelkanal
+  g.appendChild(svgEl('rect', {
+    x: 0.5, y: y0 + 0.5,
+    width: HUTSCHIENE_LAENGE - 1, height: HUTSCHIENE_FLANSCH_HOEHE - 0.5,
+    fill: f.flanschOben
+  }));
+  g.appendChild(svgEl('line', {
+    x1: 1, x2: HUTSCHIENE_LAENGE - 1, y1: y0 + 1.5, y2: y0 + 1.5,
+    stroke: f.glanz, 'stroke-width': 1
+  }));
+  g.appendChild(svgEl('rect', {
+    x: 0.5, y: y0 + HUTSCHIENE_FLANSCH_HOEHE,
+    width: HUTSCHIENE_LAENGE - 1, height: HUTSCHIENE_KANTE_HOEHE,
+    fill: f.schatten
+  }));
+  g.appendChild(svgEl('line', {
+    x1: 0.5, x2: HUTSCHIENE_LAENGE - 0.5,
+    y1: y0 + HUTSCHIENE_FLANSCH_HOEHE, y2: y0 + HUTSCHIENE_FLANSCH_HOEHE,
+    stroke: f.kontur, 'stroke-width': 1
+  }));
+
+  // Unterer Flansch mit heller Innenkante und klarer Abkantung
+  const untererFlanschY = y0 + HUTSCHIENE_HOEHE - HUTSCHIENE_FLANSCH_HOEHE;
+  g.appendChild(svgEl('rect', {
+    x: 0.5, y: untererFlanschY - HUTSCHIENE_KANTE_HOEHE,
+    width: HUTSCHIENE_LAENGE - 1, height: HUTSCHIENE_KANTE_HOEHE,
+    fill: f.aufhellung
+  }));
+  g.appendChild(svgEl('rect', {
+    x: 0.5, y: untererFlanschY,
+    width: HUTSCHIENE_LAENGE - 1, height: HUTSCHIENE_FLANSCH_HOEHE - 0.5,
+    fill: f.flanschUnten
+  }));
+  g.appendChild(svgEl('line', {
+    x1: 0.5, x2: HUTSCHIENE_LAENGE - 0.5,
+    y1: untererFlanschY, y2: untererFlanschY,
+    stroke: f.kontur, 'stroke-width': 1
+  }));
+  g.appendChild(svgEl('line', {
+    x1: 1, x2: HUTSCHIENE_LAENGE - 1,
+    y1: untererFlanschY + 1.5, y2: untererFlanschY + 1.5,
+    stroke: f.glanz, 'stroke-width': 1
+  }));
+
+  // Gestanzte Befestigungs-Langlöcher im Mittelkanal (stoppen vor dem Messpunkt)
+  const maxLochEnde = HUTSCHIENE_LAENGE - HUTSCHIENE_MESSPUNKT_FREIRAUM;
+  const lochY = mitteY - HUTSCHIENE_LOCH_HOEHE / 2;
+  const lochRadius = HUTSCHIENE_LOCH_HOEHE / 2;
+  for (let lx = HUTSCHIENE_LOCH_START_X; lx + HUTSCHIENE_LOCH_BREITE <= maxLochEnde; lx += HUTSCHIENE_LOCH_ABSTAND) {
+    g.appendChild(svgEl('rect', {
+      x: lx, y: lochY,
+      width: HUTSCHIENE_LOCH_BREITE, height: HUTSCHIENE_LOCH_HOEHE,
+      rx: lochRadius, ry: lochRadius,
+      fill: f.loch, stroke: f.lochKontur, 'stroke-width': 0.8
+    }));
+  }
+
+  svg.appendChild(g);
 }
 
 // Messpunkt der Hutschiene für die Messspitze (sim-kfb, Rpe Hutschiene gegen
